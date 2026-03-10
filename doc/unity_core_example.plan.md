@@ -5,23 +5,6 @@
 **Tên:** Unity Core Framework Plan  
 **Mô tả:** Kế hoạch phát triển 7 ngày cho bộ Framework/Core Codebase Unity, triển khai theo Cách 2 (package nằm trong Assets/ của Unity project), bao gồm Core Systems, UI Framework, và Extensions/GameUtils.
 
-## Checklist tiến độ
-
-- [x] **Ngày 1 (Sáng):** Tạo cấu trúc thư mục, package.json, 5 file .asmdef, Extensions asmdef
-- [x] **Ngày 1 (Chiều):** Singleton, PersistentSingleton, CoroutineRunner, GLogger, LogConfig, TimeManager, Timer + unit test Singleton
-- [x] **Ngày 2 (Sáng):** IEvent, EventBus\<T\>, EventBinding + EventBusTests
-- [x] **Ngày 2 (Chiều):** IState, StateMachine, BaseState, Extensions (Transform/Vector/List/String/Color), GameUtils + FSMTests
-- [x] **Ngày 3 (Sáng):** IPoolable, ObjectPool\<T\>, MonoPool + ObjectPoolTests
-- [x] **Ngày 3 (Chiều):** GameConfig, ConfigLoader, ISaveSystem, JsonSaveSystem, BinarySaveSystem + SaveLoadTests
-- [x] **Ngày 4 (Sáng):** AudioData SO, AudioManager (BGM cross-fade + SFX), SFXPool
-- [x] **Ngày 4 (Chiều):** SceneLoader (async + progress), SceneTransition, AudioDataEditor, CoreDemo sample
-- [x] **Ngày 5 (Sáng):** UILayer, UIScreen, UIPopup, UIManager
-- [x] **Ngày 5 (Chiều):** ScreenNavigator (stack), PopupStack (LIFO), SafeButton + prefab mẫu
-- [x] **Ngày 6 (Sáng):** ITransition, FadeTransition, SlideTransition, ScaleTransition, tích hợp vào UIScreen/UIPopup
-- [x] **Ngày 6 (Chiều):** LoadingScreen, Toast, Dialog, BannerNotification + prefab
-- [x] **Ngày 7 (Sáng):** CoreDemo scene, UIDemo scene, chạy tests, fix lỗi compile
-- [x] **Ngày 7 (Chiều):** README, CHANGELOG, CONTRIBUTING, XML docs, tag v0.1.0, test UPM từ project mới
-
 ---
 
 ## Thông tin dự án hiện tại
