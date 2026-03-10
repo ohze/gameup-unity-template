@@ -14,7 +14,7 @@ A modular Unity framework providing essential systems for game development: Sing
 In Unity Package Manager, add package from Git URL:
 
 ```
-https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore#main
+https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore#duylv/plan
 ```
 
 Or add directly to `Packages/manifest.json`:
@@ -22,7 +22,7 @@ Or add directly to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.gameup.core": "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore#main"
+    "com.gameup.core": "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore#duylv/plan"
   }
 }
 ```
