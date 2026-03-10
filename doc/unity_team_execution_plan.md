@@ -27,7 +27,7 @@
   - Có sample usage tối thiểu cho module mới.
   - Không thêm coupling chéo trái kiến trúc (UI không bị gọi ngược bởi Core runtime).
 
-## 3) Cấu trúc team 8 người
+## 3) Cấu trúc team
 
 - Lead: kiến trúc, review cuối, quản lý dependency, quyết định tiêu chuẩn API.
 - Các Dev chia vai trò:
