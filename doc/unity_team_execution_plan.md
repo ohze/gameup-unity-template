@@ -49,8 +49,10 @@ Giữ theo plan hiện tại, bổ sung rõ khu vực UI components mở rộng:
 ```text
 Assets/
 ├── GameUpCore/
+│   ├── package.json
 │   ├── Runtime/
 │   │   ├── Core/
+│   │   │   ├── GameUp.Core.Runtime.asmdef
 │   │   │   ├── Singleton/
 │   │   │   ├── EventBus/
 │   │   │   ├── TimeSystem/
@@ -62,6 +64,7 @@ Assets/
 │   │   │   ├── Utils/
 │   │   │   └── Extensions/
 │   │   └── UI/
+│   │       ├── GameUp.UI.Runtime.asmdef
 │   │       ├── Manager/
 │   │       ├── Navigation/
 │   │       ├── Transition/
@@ -76,19 +79,23 @@ Assets/
 │   │       │   └── Helpers/
 │   │       └── MultiResolution/
 │   ├── Editor/
+│   │   ├── GameUp.Core.Editor.asmdef
 │   │   ├── Core/
 │   │   ├── UI/
 │   │   └── Tools/
 │   ├── Tests/
 │   │   ├── Runtime/
+│   │   │   ├── GameUp.Core.Tests.Runtime.asmdef
 │   │   │   ├── Core/
 │   │   │   └── UI/
 │   │   └── Editor/
+│   │       ├── GameUp.Core.Tests.Editor.asmdef
 │   ├── Samples~/
 │   │   ├── CoreDemo/
 │   │   └── UIDemo/
 │   └── Documentation~/
 ├── Extensions/
+│   ├── GameUp.Extensions.asmdef
 │   ├── Runtime/
 │   │   ├── StringUtils/
 │   │   ├── GameExtension/
@@ -103,6 +110,8 @@ Assets/
     └── Resources/
 ```
 
+Lưu ý: `package.package` trong yêu cầu được hiểu là `package.json` theo chuẩn Unity package.
+
 ### 4.0) Sơ đồ tổng quan cấu trúc
 
 ```mermaid
@@ -111,6 +120,13 @@ flowchart TD
     gameUpCore[GameUpCore]
     extensionsRoot[Extensions]
     projectRoot[Project]
+    packageJsonFile[package.json]
+    coreAsmFile[GameUp.Core.Runtime.asmdef]
+    uiAsmFile[GameUp.UI.Runtime.asmdef]
+    editorAsmFile[GameUp.Core.Editor.asmdef]
+    testRuntimeAsmFile[GameUp.Core.Tests.Runtime.asmdef]
+    testEditorAsmFile[GameUp.Core.Tests.Editor.asmdef]
+    extensionAsmFile[GameUp.Extensions.asmdef]
 
     assetsRoot --> gameUpCore
     assetsRoot --> extensionsRoot
@@ -121,9 +137,16 @@ flowchart TD
     gameUpCore --> testsRoot[Tests]
     gameUpCore --> samplesRoot[Samples~]
     gameUpCore --> docsRoot[Documentation~]
+    gameUpCore --> packageJsonFile
 
     runtimeRoot --> coreRuntimeFolder[Core]
     runtimeRoot --> uiRuntimeFolder[UI]
+    coreRuntimeFolder --> coreAsmFile
+    uiRuntimeFolder --> uiAsmFile
+    editorRoot --> editorAsmFile
+    testsRoot --> testRuntimeAsmFile
+    testsRoot --> testEditorAsmFile
+    extensionsRoot --> extensionAsmFile
 
     uiRuntimeFolder --> managerFolder[Manager]
     uiRuntimeFolder --> navigationFolder[Navigation]
@@ -143,26 +166,26 @@ flowchart TD
 ### 4.1) ASMDEF cần có (bắt buộc)
 
 - `GameUp.Core.Runtime`
-  - Vị trí: `Assets/GameUpCore/Runtime/Core/`
+  - Vị trí file: `Assets/GameUpCore/Runtime/Core/GameUp.Core.Runtime.asmdef`
   - References: không bắt buộc package nội bộ khác.
 - `GameUp.UI.Runtime`
-  - Vị trí: `Assets/GameUpCore/Runtime/UI/`
+  - Vị trí file: `Assets/GameUpCore/Runtime/UI/GameUp.UI.Runtime.asmdef`
   - References: `GameUp.Core.Runtime`
 - `GameUp.Core.Editor`
-  - Vị trí: `Assets/GameUpCore/Editor/`
+  - Vị trí file: `Assets/GameUpCore/Editor/GameUp.Core.Editor.asmdef`
   - Include Platforms: `Editor`
   - References: `GameUp.Core.Runtime`, `GameUp.UI.Runtime`
 - `GameUp.Core.Tests.Runtime`
-  - Vị trí: `Assets/GameUpCore/Tests/Runtime/`
+  - Vị trí file: `Assets/GameUpCore/Tests/Runtime/GameUp.Core.Tests.Runtime.asmdef`
   - Optional Unity References: `TestAssemblies`
   - References: `GameUp.Core.Runtime`, `GameUp.UI.Runtime`
 - `GameUp.Core.Tests.Editor`
-  - Vị trí: `Assets/GameUpCore/Tests/Editor/`
+  - Vị trí file: `Assets/GameUpCore/Tests/Editor/GameUp.Core.Tests.Editor.asmdef`
   - Include Platforms: `Editor`
   - Optional Unity References: `TestAssemblies`
   - References: `GameUp.Core.Editor`
 - `GameUp.Extensions`
-  - Vị trí: `Assets/Extensions/`
+  - Vị trí file: `Assets/Extensions/GameUp.Extensions.asmdef`
   - References: độc lập (không phụ thuộc `GameUp.Core.Runtime`)
 
 ### 4.2) Dependency rule giữa các ASMDEF
