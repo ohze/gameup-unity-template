@@ -1,0 +1,26 @@
+{
+  "name": "GameUp.Core.Tests.Editor",
+  "rootNamespace": "GameUp.Core.Tests.Editor",
+  "references": [
+    "GameUp.Core.Runtime",
+    "GameUp.UI.Runtime",
+    "GameUp.Core.Editor",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "autoReferenced": false,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
