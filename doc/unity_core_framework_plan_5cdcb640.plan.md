@@ -1,53 +1,28 @@
----
-name: Unity Core Framework Plan
-overview: Kế hoạch phát triển 7 ngày cho bộ Framework/Core Codebase Unity, triển khai theo Cách 2 (package nằm trong Assets/ của Unity project), bao gồm Core Systems, UI Framework, và Extensions/GameUtils.
-todos:
-  - id: day1-setup
-    content: "Ngay 1 (Sang): Tao cau truc thu muc, package.json, 5 file .asmdef, Extensions asmdef"
-    status: completed
-  - id: day1-core
-    content: "Ngay 1 (Chieu): Singleton, PersistentSingleton, CoroutineRunner, GLogger, LogConfig, TimeManager, Timer + unit test Singleton"
-    status: completed
-  - id: day2-eventbus
-    content: "Ngay 2 (Sang): IEvent, EventBus<T>, EventBinding + EventBusTests"
-    status: completed
-  - id: day2-fsm-ext
-    content: "Ngay 2 (Chieu): IState, StateMachine, BaseState, Extensions (Transform/Vector/List/String/Color), GameUtils + FSMTests"
-    status: completed
-  - id: day3-pool
-    content: "Ngay 3 (Sang): IPoolable, ObjectPool<T>, MonoPool + ObjectPoolTests"
-    status: completed
-  - id: day3-config-save
-    content: "Ngay 3 (Chieu): GameConfig, ConfigLoader, ISaveSystem, JsonSaveSystem, BinarySaveSystem + SaveLoadTests"
-    status: completed
-  - id: day4-audio
-    content: "Ngay 4 (Sang): AudioData SO, AudioManager (BGM cross-fade + SFX), SFXPool"
-    status: completed
-  - id: day4-scene
-    content: "Ngay 4 (Chieu): SceneLoader (async + progress), SceneTransition, AudioDataEditor, CoreDemo sample"
-    status: completed
-  - id: day5-ui-core
-    content: "Ngay 5 (Sang): UILayer, UIScreen, UIPopup, UIManager"
-    status: completed
-  - id: day5-ui-nav
-    content: "Ngay 5 (Chieu): ScreenNavigator (stack), PopupStack (LIFO), SafeButton + prefab mau"
-    status: completed
-  - id: day6-transition
-    content: "Ngay 6 (Sang): ITransition, FadeTransition, SlideTransition, ScaleTransition, tich hop vao UIScreen/UIPopup"
-    status: completed
-  - id: day6-components
-    content: "Ngay 6 (Chieu): LoadingScreen, Toast, Dialog, BannerNotification + prefab"
-    status: completed
-  - id: day7-samples
-    content: "Ngay 7 (Sang): CoreDemo scene, UIDemo scene, chay tests, fix loi compile"
-    status: completed
-  - id: day7-docs
-    content: "Ngay 7 (Chieu): README, CHANGELOG, CONTRIBUTING, XML docs, tag v0.1.0, test UPM tu project moi"
-    status: completed
-isProject: false
----
-
 # Kế hoạch phát triển Core Framework Unity (7 ngày)
+
+## Tổng quan
+
+**Tên:** Unity Core Framework Plan  
+**Mô tả:** Kế hoạch phát triển 7 ngày cho bộ Framework/Core Codebase Unity, triển khai theo Cách 2 (package nằm trong Assets/ của Unity project), bao gồm Core Systems, UI Framework, và Extensions/GameUtils.
+
+## Checklist tiến độ
+
+- [x] **Ngày 1 (Sáng):** Tạo cấu trúc thư mục, package.json, 5 file .asmdef, Extensions asmdef
+- [x] **Ngày 1 (Chiều):** Singleton, PersistentSingleton, CoroutineRunner, GLogger, LogConfig, TimeManager, Timer + unit test Singleton
+- [x] **Ngày 2 (Sáng):** IEvent, EventBus\<T\>, EventBinding + EventBusTests
+- [x] **Ngày 2 (Chiều):** IState, StateMachine, BaseState, Extensions (Transform/Vector/List/String/Color), GameUtils + FSMTests
+- [x] **Ngày 3 (Sáng):** IPoolable, ObjectPool\<T\>, MonoPool + ObjectPoolTests
+- [x] **Ngày 3 (Chiều):** GameConfig, ConfigLoader, ISaveSystem, JsonSaveSystem, BinarySaveSystem + SaveLoadTests
+- [x] **Ngày 4 (Sáng):** AudioData SO, AudioManager (BGM cross-fade + SFX), SFXPool
+- [x] **Ngày 4 (Chiều):** SceneLoader (async + progress), SceneTransition, AudioDataEditor, CoreDemo sample
+- [x] **Ngày 5 (Sáng):** UILayer, UIScreen, UIPopup, UIManager
+- [x] **Ngày 5 (Chiều):** ScreenNavigator (stack), PopupStack (LIFO), SafeButton + prefab mẫu
+- [x] **Ngày 6 (Sáng):** ITransition, FadeTransition, SlideTransition, ScaleTransition, tích hợp vào UIScreen/UIPopup
+- [x] **Ngày 6 (Chiều):** LoadingScreen, Toast, Dialog, BannerNotification + prefab
+- [x] **Ngày 7 (Sáng):** CoreDemo scene, UIDemo scene, chạy tests, fix lỗi compile
+- [x] **Ngày 7 (Chiều):** README, CHANGELOG, CONTRIBUTING, XML docs, tag v0.1.0, test UPM từ project mới
+
+---
 
 ## Thông tin dự án hiện tại
 
