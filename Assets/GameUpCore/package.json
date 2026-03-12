@@ -1,0 +1,19 @@
+{
+    "name": "com.gameup.core",
+    "version": "0.1.0",
+    "displayName": "GameUp Core Framework",
+    "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more.",
+    "unity": "2022.3",
+    "author": {
+      "name": "GameUp",
+      "url": "https://github.com/ohze/gameup-unity-template"
+    },
+    "keywords": [
+      "framework",
+      "core",
+      "ui",
+      "singleton",
+      "eventbus",
+      "pool"
+    ]
+  }
