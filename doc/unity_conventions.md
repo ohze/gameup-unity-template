@@ -7,6 +7,19 @@ Tài liệu này định nghĩa các quy tắc chuẩn (coding convention) giúp
 ## 💻 1. Quy Tắc Code C#
 
 ### Quy tắc Đặt Tên (Naming Convention)
+- **Tên Class / Struct:** Luôn sử dụng PascalCase (viết hoa chữ cái đầu mỗi từ). **Tên class phải luôn là một danh từ hoặc cụm danh từ** (vd: `PlayerManager`, `WeaponConfig`, `EnemyData`). *Tuyệt đối không bắt đầu bằng động từ.*
+- **Tên Hàm (Methods):** Luôn sử dụng PascalCase. **Tên hàm bắt buộc phải bắt đầu bằng một động từ hoặc cụm động từ** thể hiện rõ hành động mà hàm đó thực hiện.
+  ```csharp
+  // ❌ KHÔNG DÙNG (Tên hàm không rõ hành động)
+  public void Damage() { ... }
+  public void PlayerName() { ... }
+
+  // ✅ KHUYÊN DÙNG (Bắt đầu bằng động từ rõ ràng)
+  public void CalculateDamage() { ... }
+  public string GetPlayerName() { ... }
+  private void SpawnEnemy() { ... }
+  ```
+
 - **Biến `private` thông thường:** Viết theo kiểu camelCase và luôn bắt đầu bằng dấu gạch dưới `_`.
   ```csharp
   private int _playerScore;
@@ -17,33 +30,36 @@ Tài liệu này định nghĩa các quy tắc chuẩn (coding convention) giúp
   [SerializeField] private int maxHealth;
   [SerializeField] private GameObject bulletPrefab;
   ```
-- **Biến Component (UI, Transform, GameObject...):** Sử dụng tiền tố (prefix) chỉ định loại Component ở ngay đầu tên biến thay vì dùng hậu tố (suffix). Điều này giúp IDE tự động nhóm các thành phần cùng loại khi gõ code, rất tiện lợi để tìm kiếm.
-  - **Button:** `buttonPlay`, `buttonRetry` (*❌ Không dùng: `playButton`, `retryButton`*)
-  - **Text / TextMeshPro:** `textTitle`, `textScore`, `textContent`
-  - **Image / SpriteRenderer:** `imgBackground`, `imgIcon`, `imgAvatar`
-  - **Transform:** `tfPlayer`, `tfEnemy`, `tfSpawnPoint`
-  - **GameObject:** `goBullet`, `goEffect`
-  - ...Các Component khác cũng áp dụng tương tự (ví dụ: `animPlayer`, `colWall`, `rbCharacter`, `sndClick`...).
+- **Biến Component (UI, Transform, GameObject...):** Có thể sử dụng **tiền tố (prefix)** hoặc **hậu tố (suffix)** để chỉ định loại Component, tuỳ thuộc vào thói quen của team. **Tuy nhiên, toàn bộ team phải thống nhất MỘT kiểu duy nhất** trên toàn project để dễ tìm kiếm và review code.
+  - **Ví dụ dùng Tiền tố (Prefix):** (IDE sẽ nhóm các biến cùng loại lại gần nhau)
+    - `buttonPlay`, `buttonRetry`
+    - `textTitle`, `textScore`
+    - `imgBackground`, `imgIcon`
+    - `tfPlayer`, `tfEnemy`
+    - `goBullet`, `goEffect`
+  - **Ví dụ dùng Hậu tố (Suffix):** (Đọc thuận miệng giống tiếng Anh hơn)
+    - `playButton`, `retryButton`
+    - `titleText`, `scoreText`
+    - `backgroundImg`, `iconImg`
+    - `playerTf`, `enemyTf`
+    - `bulletGo`, `effectGo`
   ```csharp
-  // ❌ KHÔNG DÙNG HẬU TỐ (Suffix)
-  [SerializeField] private Button playButton;
-  [SerializeField] private TextMeshProUGUI scoreText;
-  [SerializeField] private Image bgImage;
-
-  // ✅ KHUYÊN DÙNG TIỀN TỐ (Prefix)
+  // ✔️ NẾU TEAM CHỌN PREFIX:
   [SerializeField] private Button buttonPlay;
   [SerializeField] private TextMeshProUGUI textScore;
-  [SerializeField] private Image imgBackground;
+  
+  // ✔️ NẾU TEAM CHỌN SUFFIX:
+  [SerializeField] private Button playButton;
+  [SerializeField] private TextMeshProUGUI scoreText;
+
+  // ❌ TUYỆT ĐỐI KHÔNG TRỘN LẪN LUNG TUNG:
+  [SerializeField] private Button buttonPlay;
+  [SerializeField] private TextMeshProUGUI scoreText; // Không đồng nhất!
   ```
 - **Biến chỉ Get (Properties / Auto-properties):** Phải viết hoa chữ cái đầu tiên (PascalCase).
   ```csharp
   public int CurrentScore { get; private set; }
   public bool IsDead => _health <= 0;
-  ```
-- **Tên Hàm (Methods):** Bắt buộc viết hoa chữ cái đầu (PascalCase) và phải bắt đầu bằng một hành động hay động từ cụ thể.
-  ```csharp
-  public void CalculateDamage() { ... }
-  private void SpawnEnemy() { ... }
   ```
 
 ### Quy tắc Viết Code (Coding Style)
