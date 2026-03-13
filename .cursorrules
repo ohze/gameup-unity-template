@@ -1,0 +1,34 @@
+# GameUp Unity — Cursor AI Rules
+# Nguồn: doc/unity_conventions.md — áp dụng khi viết/sửa C#, Scene, Prefab, ScriptableObject.
+
+## C# Naming
+- **Class / Struct:** PascalCase; tên phải là danh từ hoặc cụm danh từ (vd: `PlayerManager`, `WeaponConfig`). Không bắt đầu bằng động từ.
+- **Methods:** PascalCase; bắt buộc bắt đầu bằng động từ (vd: `CalculateDamage`, `GetPlayerName`, `SpawnEnemy`). Tránh tên mơ hồ như `Damage()`, `PlayerName()`.
+- **private fields:** camelCase + prefix `_` (vd: `_playerScore`, `_moveSpeed`).
+- **`[SerializeField] private`:** camelCase, **không** dùng `_` (vd: `maxHealth`, `bulletPrefab`) — để Inspector rõ cho Designer.
+- **Component refs (Button, TMP, Image, Transform, GameObject):** Team thống nhất **một** kiểu — prefix HOẶC suffix trên toàn project; không trộn (vd: không vừa `buttonPlay` vừa `scoreText`).
+- **Properties (get-only / auto):** PascalCase (vd: `CurrentScore`, `IsDead`).
+
+## C# Style
+- **Chuỗi:** luôn dùng interpolation `$"..."`; không nối chuỗi bằng `+` cho log/text động.
+- **Local functions:** không viết hàm lồng trong hàm — tách thành `private` method cùng class.
+
+## Folder structure (Assets)
+- Gom asset game vào thư mục gốc project (vd: `Assets/_Project/` hoặc `GameUpCore/`), không để rải rác ngoài `Assets/`.
+- Không trộn code nội bộ với `Plugins` hay `ThirdParty`.
+- Gợi ý: `_Project/Art`, `Audio`, `Prefabs`, `Scenes`, `Scripts` (Core / Gameplay / UI), `ScriptableObjects`; riêng `Plugins` (dll/native), `ThirdParty` (Asset Store).
+
+## ScriptableObject
+- Lưu tập trung `Assets/_Project/ScriptableObjects/` (chia nhỏ theo danh mục); có thể đặt gần Prefab/logic nếu gắn chặt.
+- Luôn có `[CreateAssetMenu]` với `menuName` phân cấp rõ (vd: `"GameUp/Entity Data/Enemy"`).
+- **Tên class/file SO:** prefix `SO` + suffix mục đích: `Data`, `Config`, `Settings` (vd: `SO_EnemyConfig`, `SOGameSettings`). `fileName` asset có thể dạng `SO_...`.
+
+## Scene & Prefab
+- **Prefab is King:** phần tái sử dụng → Prefab; không lắp ráp logic phức tạp trực tiếp trên Scene.
+- Scene “nhạt”: chủ yếu Environment, Light, Camera, Manager tĩnh; gameplay/UI qua Prefab.
+- Biến thể gần giống base → **Prefab Variant**; không Unpack để copy.
+- UI/entity lớn → **Nested Prefab** để nhiều người sửa song song, giảm conflict.
+
+## Khi gợi ý code
+- Tuân thủ naming/style ở trên; script mới đặt đúng `Scripts/Core|Gameplay|UI` theo vai trò.
+- Tham chiếu đầy đủ: `doc/unity_conventions.md`.
