@@ -15,20 +15,29 @@
  */
 
 /**
- * @class strange.extensions.signal.api.SignalExceptionType
+ * @class strange.extensions.signal.impl.SignalException
+ * 
+ * An exception thrown by the Signal system.
  */
-namespace strange.extensions.signal.api
+
+using System;
+
+namespace GameUp.Core
 {
-	public enum SignalExceptionType
+	public class SignalException : Exception
 	{
 
-		/// Attempting to bind more than one value of the same type to a command
-		COMMAND_VALUE_CONFLICT,
+		public SignalExceptionType type { get; set; }
+		public SignalException() : base()
+		{
+		}
 
-		/// A Signal mapped to a Command found no matching injectable Type to bind a parameter to.
-		COMMAND_VALUE_NOT_FOUND,
+		/// Constructs a SignalException with a message and SignalExceptionType
+		public SignalException(string message, SignalExceptionType exceptionType) : base(message)
+		{
+			type = exceptionType;
+		}
 
-		/// SignalCommandBinder attempted to bind a null value from a signal to a Command
-		COMMAND_NULL_INJECTION,
 	}
 }
+

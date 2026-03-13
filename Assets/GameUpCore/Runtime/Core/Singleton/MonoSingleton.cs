@@ -8,6 +8,8 @@ namespace GameUp.Core
         private static readonly object _lock = new object();
         private static bool _applicationIsQuitting = false;
 
+        public static bool IsInitialized => _instance != null;
+
         public static T Instance
         {
             get

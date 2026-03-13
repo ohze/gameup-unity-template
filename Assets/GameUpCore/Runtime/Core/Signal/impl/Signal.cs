@@ -67,7 +67,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace strange.extensions.signal.impl
+namespace GameUp.Core
 {
 	/// Base concrete form for a Signal with no parameters
 	public class Signal : BaseSignal

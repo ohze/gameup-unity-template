@@ -24,10 +24,9 @@
  */
 
 using System;
-using strange.extensions.signal.api;
 using System.Collections.Generic;
 
-namespace strange.extensions.signal.impl
+namespace GameUp.Core
 {
 	public class BaseSignal : IBaseSignal
 	{
