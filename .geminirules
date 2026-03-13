@@ -1,0 +1,33 @@
+# Unity Coding Conventions for Antigravity
+
+When working on this Unity project, you (the AI assistant) MUST STRICTLY adhere to the following rules based on the team's coding conventions:
+
+## 1. Naming Conventions
+- **Classes / Structs**: Use `PascalCase`. Must be a **NOUN** or noun phrase. Never start with a verb. 
+  - Use appropriate suffixes based on role: `...Manager`, `...System`, `...Controller`, `...Handler`, `...View`, `...UI`, `...Data`, `...Model`.
+- **Interfaces**: Start with `I` followed by `PascalCase`, indicating an ability (e.g., `IDamageable`, `IInteractable`).
+- **Enums**: Use `PascalCase`, singular form. Do NOT use `E` prefix or `Enum` suffix (e.g., `GameState` not `EGameState`).
+- **Methods**: Use `PascalCase`. Must start with a **VERB** or verb phrase stating the action clearly (e.g., `CalculateDamage()`. NOT `Damage()`).
+- **Private Variables**: Use `camelCase` with an underscore `_` prefix (e.g., `_playerScore`, `_moveSpeed`).
+- **Serialized Private Variables (`[SerializeField]`)**: Use standard `camelCase`, **NO** underscore prefix (e.g., `maxHealth`, `bulletPrefab`).
+- **Component Variables (UI, Transform, GameObject, etc.)**: The team uses a consistent prefix or suffix for component types. Use whichever is already established in the current script (e.g., Prefix: `buttonPlay`, `textTitle`, `imgIcon`, `tfPlayer`. Suffix: `playButton`, `titleText`). NEVER mix prefix and suffix styles in the same file.
+- **Properties / Auto-properties**: Use `PascalCase` (e.g., `CurrentScore`).
+
+## 2. Coding Style
+- **String Concatenation**: ALWAYS use string interpolation (`$"{}"`). NEVER use the `+` operator to concatenate strings with variables.
+- **Local Functions (Nested Functions)**: NEVER use local functions inside another method. Extract side logic into separate private methods at the class level instead.
+
+## 3. Project Structure
+- Code should be organized in the project-specific root folder like `Assets/_Project/` or `Assets/GameUpCore/`. Do not place internal code or assets loosely inside `Assets/`.
+- Only use Plugins/ and ThirdParty/ for external packages.
+
+## 4. Scriptable Objects (SO)
+- **Attribute**: Always use `[CreateAssetMenu]` with a hierarchal `menuName`.
+- **FileName & ClassName Prefix**: MUST start with the prefix `SO` (e.g., `SO_EnemyConfig`).
+- **Suffix**: MUST have a descriptive suffix like `Data`, `Config`, or `Settings` (e.g., `SOGameSettings`).
+
+## 5. Scene & Prefab Rules
+- **Prefab is King**: Any reusable logic or object must be a Prefab. Do not build complex features directly on the Scene hierarchy.
+- **Scenes should be lightweight**: Scenes should mainly store Managers, Cameras, and Environment setups. Feature objects should be Prefabs.
+- **Prefab Variants**: Instead of unpacking a prefab to make minor changes, ALWAYS create a **Prefab Variant**.
+- **Nested Prefabs**: Complex UI and heavy objects should be decomposed into nested prefabs to avoid merge conflicts.
