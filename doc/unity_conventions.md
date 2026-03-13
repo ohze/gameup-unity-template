@@ -17,6 +17,24 @@ Tài liệu này định nghĩa các quy tắc chuẩn (coding convention) giúp
   [SerializeField] private int maxHealth;
   [SerializeField] private GameObject bulletPrefab;
   ```
+- **Biến Component (UI, Transform, GameObject...):** Sử dụng tiền tố (prefix) chỉ định loại Component ở ngay đầu tên biến thay vì dùng hậu tố (suffix). Điều này giúp IDE tự động nhóm các thành phần cùng loại khi gõ code, rất tiện lợi để tìm kiếm.
+  - **Button:** `buttonPlay`, `buttonRetry` (*❌ Không dùng: `playButton`, `retryButton`*)
+  - **Text / TextMeshPro:** `textTitle`, `textScore`, `textContent`
+  - **Image / SpriteRenderer:** `imgBackground`, `imgIcon`, `imgAvatar`
+  - **Transform:** `tfPlayer`, `tfEnemy`, `tfSpawnPoint`
+  - **GameObject:** `goBullet`, `goEffect`
+  - ...Các Component khác cũng áp dụng tương tự (ví dụ: `animPlayer`, `colWall`, `rbCharacter`, `sndClick`...).
+  ```csharp
+  // ❌ KHÔNG DÙNG HẬU TỐ (Suffix)
+  [SerializeField] private Button playButton;
+  [SerializeField] private TextMeshProUGUI scoreText;
+  [SerializeField] private Image bgImage;
+
+  // ✅ KHUYÊN DÙNG TIỀN TỐ (Prefix)
+  [SerializeField] private Button buttonPlay;
+  [SerializeField] private TextMeshProUGUI textScore;
+  [SerializeField] private Image imgBackground;
+  ```
 - **Biến chỉ Get (Properties / Auto-properties):** Phải viết hoa chữ cái đầu tiên (PascalCase).
   ```csharp
   public int CurrentScore { get; private set; }
