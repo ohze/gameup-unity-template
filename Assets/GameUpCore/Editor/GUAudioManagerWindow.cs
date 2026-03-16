@@ -16,7 +16,10 @@ namespace GameUp.Core.Editor
         private const string WindowTitle = "GameUp Audio Setup";
         private const string PrefsKeyEnumPath = "GameUp.Audio.EnumPath";
         private const string PrefsKeyAudioFolder = "GameUp.Audio.FolderPath";
+        // Khi phát triển trực tiếp trong template (Assets/)
         private const string DefaultEnumAssetPath = "Assets/GameUpCore/Runtime/Core/Audio/AudioClipType.cs";
+        // Khi được cài dưới dạng UPM (Packages/)
+        private const string DefaultEnumPackagePath = "Packages/com.gameup.core/Runtime/Core/Audio/AudioClipType.cs";
 
         private string enumFilePath;
         private string audioFolderPath;
@@ -31,8 +34,31 @@ namespace GameUp.Core.Editor
 
         private void OnEnable()
         {
-            enumFilePath = EditorPrefs.GetString(PrefsKeyEnumPath,
-                DefaultEnumAssetPath);
+            // Nếu đã từng lưu user setting thì dùng lại
+            var savedEnumPath = EditorPrefs.GetString(PrefsKeyEnumPath, string.Empty);
+            if (!string.IsNullOrEmpty(savedEnumPath))
+            {
+                enumFilePath = savedEnumPath;
+            }
+            else
+            {
+                // Tự đoán theo môi trường:
+                // - Nếu đang dev template (file tồn tại trong Assets/) -> dùng path Assets
+                // - Nếu đang dùng UPM (file chỉ tồn tại trong Packages/) -> dùng path Packages
+                if (AssetDatabase.LoadAssetAtPath<MonoScript>(DefaultEnumAssetPath) != null)
+                {
+                    enumFilePath = DefaultEnumAssetPath;
+                }
+                else if (AssetDatabase.LoadAssetAtPath<MonoScript>(DefaultEnumPackagePath) != null)
+                {
+                    enumFilePath = DefaultEnumPackagePath;
+                }
+                else
+                {
+                    // Fallback: ưu tiên Assets path, user có thể chỉnh tay
+                    enumFilePath = DefaultEnumAssetPath;
+                }
+            }
             audioFolderPath = EditorPrefs.GetString(PrefsKeyAudioFolder,
                 "Games/Addressables/Sounds");
         }
