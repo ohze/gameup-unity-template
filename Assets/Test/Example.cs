@@ -3,10 +3,16 @@ using GameUp.Core;
 
 public class Example : MonoBehaviour
 {
+    public PlayerGameMainData playerGameMainData;
+    private void Start()
+    {
+        playerGameMainData = PlayerGameMainData.Create();
+        TimeUtils.Initialize();
+    }
 
     [Button]
-    private void SpawnObject(GameObject prefab)
+    public void LevelUp()
     {
-        GUPool.Spawn(prefab);
+        playerGameMainData.LevelUp();
     }
 }
