@@ -15,4 +15,10 @@ public class Example : MonoBehaviour
     {
         playerGameMainData.LevelUp();
     }
+
+    [Button]
+    public void TestAudio()
+    {
+        AudioManager.PlayAudio(AudioID.Hit_Death);
+    }
 }

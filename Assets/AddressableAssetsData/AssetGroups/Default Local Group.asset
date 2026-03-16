@@ -23,6 +23,12 @@ MonoBehaviour:
     m_SerializedLabels:
     - sounds
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: fba46446a6bb48a409e419281da7bd03
+    m_Address: Assets/Game/Data
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - sounds
+    FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 901e090fed76a134e8768251eb77da40, type: 2}
   m_SchemaSet:

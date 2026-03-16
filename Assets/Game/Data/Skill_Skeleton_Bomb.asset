@@ -12,3 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Skill_Skeleton_Bomb
   m_EditorClassIdentifier: 
+  clipRef:
+    m_AssetGUID: 8d8ad62aa39149148829324d6b65559f
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_EditorAssetChanged: 0
+  volume: 1
+  isLoop: 0

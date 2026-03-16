@@ -12,3 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Skill_Necromancer
   m_EditorClassIdentifier: 
+  clipRef:
+    m_AssetGUID: 7919412b5d264804d931fe96a85534c6
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_EditorAssetChanged: 0
+  volume: 1
+  isLoop: 0

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace GameUp.Core
@@ -10,12 +11,15 @@ namespace GameUp.Core
     public class AudioManager : MonoSingleton<AudioManager>
     {
         [SerializeField] private AudioSource musicSource;
-        [SerializeField] private List<AudioInfoWithType> audioInfos = new();
         [SerializeField, Min(1)] private int maxSource = 16;
+        [SerializeField] private bool preloadIdentityOnAwake = true;
+        [SerializeField] private List<AudioIdentityReference> identityReferences = new();
 
         private readonly List<AudioSource> _sources = new();
         private readonly HashSet<AudioSource> _busySources = new(); // nguồn đang "reserve" trong khi loading
-        private readonly Dictionary<AudioIdentity, AudioInfoWithType> _audioInfoLookup = new();
+        private readonly Dictionary<AudioIdentity, AsyncOperationHandle<AudioClip>> _clipHandles = new();
+        private readonly Dictionary<AudioIdentityReference, AsyncOperationHandle<AudioIdentity>> _identityHandles = new();
+        private readonly Dictionary<string, AudioIdentity> _identityByName = new(StringComparer.OrdinalIgnoreCase);
 
         protected override void Awake()
         {
@@ -28,7 +32,10 @@ namespace GameUp.Core
                 _sources.Add(s);
             }
 
-            RebuildAudioInfoLookup();
+            if (preloadIdentityOnAwake)
+            {
+                PreloadIdentities();
+            }
         }
 
         private void OnEnable()
@@ -46,31 +53,28 @@ namespace GameUp.Core
             musicSource.mute = !isMusicOn;
         }
 
-        private void OnValidate()
+        private void OnDestroy()
         {
-            foreach (var info in audioInfos) info.SetName();
-            RebuildAudioInfoLookup();
-            musicSource ??= GetComponent<AudioSource>();
-            GameUtils.SaveAssets(this);
-        }
-
-        private void RebuildAudioInfoLookup()
-        {
-            _audioInfoLookup.Clear();
-            for (int i = 0; i < audioInfos.Count; i++)
+            foreach (var handle in _identityHandles.Values)
             {
-                var info = audioInfos[i];
-                if (info == null) continue;
-                var identity = info.identity;
-                if (!identity) continue;
-                if (_audioInfoLookup.ContainsKey(identity)) continue;
-                _audioInfoLookup.Add(identity, info);
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
             }
-        }
 
-        private static bool TryGetAudioInfo(AudioIdentity identity, out AudioInfoWithType info)
-        {
-            return Instance._audioInfoLookup.TryGetValue(identity, out info);
+            _identityHandles.Clear();
+            _identityByName.Clear();
+
+            foreach (var handle in _clipHandles.Values)
+            {
+                if (handle.IsValid())
+                {
+                    Addressables.Release(handle);
+                }
+            }
+
+            _clipHandles.Clear();
         }
 
         /// <summary>
@@ -122,115 +126,77 @@ namespace GameUp.Core
 
         #region Public API
 
-        /// <summary> Phát one-shot, không loop. </summary>
-        public static void PlayAudio(AudioIdentity identity)
+        public static void PreloadIdentities()
         {
-            if (!identity) return;
-            if (!AudioSetting.Instance.IsSoundOn.Value) return;
-
-            var source = GetSource();
-            if (!source) return;
-
-            if (!TryGetAudioInfo(identity, out var info)) return;
-            if (info.clipReferences.Count == 0) return;
-
-            info.PlayClip(source, forceLoop: false);
+            if (!Instance) return;
+            Instance.PreloadIdentitiesInternal();
         }
 
-        /// <summary> Phát loop, chỉ dừng khi gọi StopAudio(type). </summary>
-        public static void PlayAudioLoop(AudioIdentity identity)
+        private void PreloadIdentitiesInternal()
         {
-            if (!identity) return;
-            if (!AudioSetting.Instance.IsSoundOn.Value) return;
+            if (identityReferences == null || identityReferences.Count == 0)
+                return;
 
-            if (!TryGetAudioInfo(identity, out var info)) return;
-            if (info.clipReferences.Count == 0) return;
-
-            StopAudio(identity);
-            var source = GetSource();
-            if (!source) return;
-
-            info.PlayClip(source, forceLoop: true);
-        }
-
-        public static void PlayAudio(BaseAudio clip)
-        {
-            if (!AudioSetting.Instance.IsSoundOn.Value) return;
-            var source = GetSource();
-            if (!source) return;
-            clip.PlayClip(source);
-        }
-
-        public static void PlayMusic(AudioIdentity identity)
-        {
-            if (!identity) return;
-
-            if (!TryGetAudioInfo(identity, out var info)) return;
-            if (info.clipReferences.Count == 0) return;
-
-            // Music source mặc định loop
-            info.PlayClip(Instance.musicSource, forceLoop: true);
-            // ⚠️ Music phải theo IsMusicOn, không theo IsSoundOn
-            Instance.musicSource.mute = !AudioSetting.Instance.IsMusicOn.Value;
-        }
-
-        public static void StopAudio(AudioIdentity identity)
-        {
-            if (!TryGetAudioInfo(identity, out var info)) return;
-            info.StopAudio();
-        }
-
-        public static void StopMusic()
-        {
-            if (Instance.musicSource)
+            for (int i = 0; i < identityReferences.Count; i++)
             {
-                Instance.musicSource.Stop();
-                Instance.musicSource.clip = null;
+                var idRef = identityReferences[i];
+                if (idRef == null || !idRef.RuntimeKeyIsValid())
+                    continue;
+
+                if (_identityHandles.TryGetValue(idRef, out var existing) && existing.IsValid())
+                    continue;
+
+                var op = idRef.LoadAssetAsync<AudioIdentity>();
+                _identityHandles[idRef] = op;
+                op.Completed += h =>
+                {
+                    if (h.Result)
+                    {
+                        _identityByName[h.Result.name] = h.Result;
+                    }
+                };
             }
         }
 
-        #endregion
-    }
-
-    [Serializable]
-    public class AudioInfoWithType
-    {
-        public string name;
-        public AudioIdentity identity;
-        public List<AudioClipReference> clipReferences = new();
-        [Range(0f, 1f)] public float volume = 1f;
-        public bool isLoop;
-
-        private readonly Dictionary<AudioClipReference, AsyncOperationHandle<AudioClip>> _cacheOperations = new();
-        private AudioSource _lastSource;
-        private AudioSource _loopSource; // source đang phát loop, dùng cho StopAudio()
-
-        /// <summary>
-        /// Phát một clip random từ danh sách. Giữ "busy" source trong lúc chờ load xong.
-        /// </summary>
-        public void PlayClip(AudioSource source, bool? forceLoop = null)
+        public static bool TryGetIdentity(string identityName, out AudioIdentity identity)
         {
+            identity = null;
+            if (!Instance) return false;
+            if (string.IsNullOrEmpty(identityName)) return false;
+            return Instance._identityByName.TryGetValue(identityName, out identity) && identity;
+        }
+
+        /// <summary> Phát audio theo AudioIdentity (one-shot hoặc loop theo cấu hình). </summary>
+        public void Play(AudioIdentity identity)
+        {
+            if (!identity) return;
+            if (!AudioSetting.Instance.IsSoundOn.Value) return;
+
+            var source = GetSource();
             if (!source) return;
-            _lastSource = source;
-            if (forceLoop == true)
-                _loopSource = source;
 
-            // Reserve source trong lúc loading để GetSource() không cấp phát lại cho request khác
-            AudioManager.MarkBusy(source);
+            if (identity.clipRef == null)
+                return;
 
-            var clipRef = clipReferences.GetRandom();
+            GULogger.Log("AudioManager", "PlayAudio: " + identity.name + " - " + source.name);
+            MarkBusy(source);
 
             void DoPlay(AudioClip clip)
             {
+                if (!clip)
+                {
+                    ReleaseBusy(source);
+                    return;
+                }
+
                 source.clip = clip;
-                source.volume = volume;
-                source.loop = forceLoop ?? isLoop;
+                source.volume = identity.volume;
+                source.loop = identity.isLoop;
                 source.Play();
-                // Nhả busy sang frame kế tiếp để đảm bảo isPlaying đã bật
-                AudioManager.Instance.StartCoroutine(AudioManager.ReleaseBusyNextFrame(source));
+                Instance.StartCoroutine(ReleaseBusyNextFrame(source));
             }
 
-            if (_cacheOperations.TryGetValue(clipRef, out var handle))
+            if (_clipHandles.TryGetValue(identity, out var handle) && handle.IsValid())
             {
                 if (handle.IsDone)
                 {
@@ -243,30 +209,108 @@ namespace GameUp.Core
             }
             else
             {
-                var req = clipRef.LoadAssetAsync<AudioClip>();
-                _cacheOperations.Add(clipRef, req);
-                req.Completed += h => DoPlay(h.Result);
+                var op = identity.clipRef.LoadAssetAsync<AudioClip>();
+                _clipHandles[identity] = op;
+                op.Completed += h => DoPlay(h.Result);
             }
         }
 
-        public void StopAudio()
+        public void Play(AudioIdentityReference identityReference)
         {
-            if (_loopSource != null && _loopSource.isPlaying)
+            if (identityReference == null || !identityReference.RuntimeKeyIsValid()) return;
+
+            if (_identityHandles.TryGetValue(identityReference, out var handle) && handle.IsValid())
             {
-                _loopSource.Stop();
-                _loopSource.clip = null;
-                AudioManager.ReleaseBusy(_loopSource);
-                _loopSource = null;
+                if (handle.IsDone)
+                {
+                    Play(handle.Result);
+                }
+                else
+                {
+                    handle.Completed += h => Play(h.Result);
+                }
+
+                return;
+            }
+
+            var op = identityReference.LoadAssetAsync<AudioIdentity>();
+            _identityHandles[identityReference] = op;
+            op.Completed += h =>
+            {
+                if (h.Result)
+                {
+                    _identityByName[h.Result.name] = h.Result;
+                    Play(h.Result);
+                }
+            };
+        }
+
+        /// <summary> API static tiện dụng để gọi từ bất kỳ đâu. </summary>
+        public static void PlayAudio(AudioIdentity identity)
+        {
+            if (!Instance) return;
+            if (!identity)
+            {
+                GULogger.Log("AudioManager", "PlayAudio: identity is null");
+                return;
+            }
+
+            GULogger.Log("AudioManager", "PlayAudio: " + identity.name);
+            Instance.Play(identity);
+        }
+
+        public static void PlayAudio(AudioIdentityReference identityReference)
+        {
+            if (!Instance) return;
+            Instance.Play(identityReference);
+        }
+
+        public static void PlayMusic(AudioIdentity identity)
+        {
+            if (!identity) return;
+            if (!Instance.musicSource) return;
+            if (identity.clipRef == null) return;
+
+            void DoPlay(AudioClip clip)
+            {
+                if (!clip) return;
+                Instance.musicSource.clip = clip;
+                Instance.musicSource.volume = identity.volume;
+                Instance.musicSource.loop = true;
+                Instance.musicSource.Play();
+                // ⚠️ Music phải theo IsMusicOn, không theo IsSoundOn
+                Instance.musicSource.mute = !AudioSetting.Instance.IsMusicOn.Value;
+            }
+
+            if (Instance._clipHandles.TryGetValue(identity, out var handle) && handle.IsValid())
+            {
+                if (handle.IsDone)
+                {
+                    DoPlay(handle.Result);
+                }
+                else
+                {
+                    handle.Completed += h => DoPlay(h.Result);
+                }
+            }
+            else
+            {
+                var op = identity.clipRef.LoadAssetAsync<AudioClip>();
+                Instance._clipHandles[identity] = op;
+                op.Completed += h => DoPlay(h.Result);
             }
         }
 
-        public void SetName()
+        public static void StopMusic()
         {
-            if (identity)
+            if (Instance.musicSource)
             {
-                name = identity.name;
+                Instance.musicSource.Stop();
+                Instance.musicSource.clip = null;
             }
         }
+
+        #endregion
     }
 
     [Serializable]
