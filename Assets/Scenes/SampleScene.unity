@@ -122,6 +122,55 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &103011147
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 103011149}
+  - component: {fileID: 103011148}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &103011148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 103011147}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a73918cd172d4c438a1585626f0abe1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerGameMainData:
+    CurrentLevel: 0
+    CurrentMission: 0
+    isUnlockedLeaderHero: 0
+    unlockHeroList: 
+--- !u!4 &103011149
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 103011147}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -372,192 +421,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   musicSource: {fileID: 687044801}
-  audioInfos:
-  - name: None
-    type: 0
-    clipReferences: []
-    volume: 0.3
-    isLoop: 0
-  - name: Hit_Death
-    type: 1
-    clipReferences:
-    - m_AssetGUID: b055d75cfb23b3b4694b22ae3415951e
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Demon_Lord
-    type: 2
-    clipReferences:
-    - m_AssetGUID: 1ad062eb967301a4fa9a2b119d52c641
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Medusa
-    type: 3
-    clipReferences:
-    - m_AssetGUID: 5f79d3ac79ec62541909d6ed8cd7e901
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Mimic
-    type: 4
-    clipReferences:
-    - m_AssetGUID: 55e03ec9d1bc42e4ab8c4f59f7d83466
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Necromancer
-    type: 5
-    clipReferences:
-    - m_AssetGUID: e5165039fd5ee144f84a3524e5565a32
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Skeleton
-    type: 6
-    clipReferences:
-    - m_AssetGUID: f0b1927e76d722448a03c854c3a327ca
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Skeleton_Bomb
-    type: 7
-    clipReferences:
-    - m_AssetGUID: 6fd4ee71464789d429173689560bd5d4
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Hit_Slime
-    type: 8
-    clipReferences:
-    - m_AssetGUID: a358df25f1c12d04bb0c7ea03eb0cb23
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Death
-    type: 9
-    clipReferences:
-    - m_AssetGUID: 494154f1a8fec2c45bc68c63188ec8ab
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Demon_Lord_Cast
-    type: 10
-    clipReferences:
-    - m_AssetGUID: a329027fa6fdcfb429602f176d4873e0
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Medusa
-    type: 11
-    clipReferences:
-    - m_AssetGUID: 72ae1e1891aa25945b2e8479dce8a72d
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Mimic
-    type: 12
-    clipReferences:
-    - m_AssetGUID: 0bac2e5c93dd72146b663db2fcb02c2e
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Necromancer
-    type: 13
-    clipReferences:
-    - m_AssetGUID: 7919412b5d264804d931fe96a85534c6
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Skeleton
-    type: 14
-    clipReferences:
-    - m_AssetGUID: ec01bf72dcd53a142a9b5079625bcc51
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Skeleton_Bomb
-    type: 15
-    clipReferences:
-    - m_AssetGUID: 8d8ad62aa39149148829324d6b65559f
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Slime
-    type: 16
-    clipReferences:
-    - m_AssetGUID: 8963b48db86f1ee46afdfb4da4289556
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Slime_1
-    type: 17
-    clipReferences:
-    - m_AssetGUID: 8c04942574bf5d342a353204afdb554a
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Skeleton_Bomb_1
-    type: 18
-    clipReferences:
-    - m_AssetGUID: db705afd15271294b8e9e4066089a8fd
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Slime_2
-    type: 19
-    clipReferences:
-    - m_AssetGUID: dead827ea9074f24c8162c86d0940aba
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
-  - name: Skill_Slime_3
-    type: 20
-    clipReferences:
-    - m_AssetGUID: bf69b9a6640304642b45728569a77360
-      m_SubObjectName: 
-      m_SubObjectType: 
-      m_EditorAssetChanged: 0
-    volume: 0.5
-    isLoop: 0
+  audioInfos: []
   maxSource: 16
 --- !u!82 &687044801
 AudioSource:
@@ -677,3 +541,4 @@ SceneRoots:
   - {fileID: 519420032}
   - {fileID: 619394802}
   - {fileID: 687044802}
+  - {fileID: 103011149}

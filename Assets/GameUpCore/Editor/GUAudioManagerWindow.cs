@@ -14,15 +14,11 @@ namespace GameUp.Core.Editor
     public class GUAudioManagerWindow : EditorWindow
     {
         private const string WindowTitle = "GameUp Audio Setup";
-        private const string PrefsKeyEnumPath = "GameUp.Audio.EnumPath";
         private const string PrefsKeyAudioFolder = "GameUp.Audio.FolderPath";
-        // Khi phát triển trực tiếp trong template (Assets/)
-        private const string DefaultEnumAssetPath = "Assets/GameUpCore/Runtime/Core/Audio/AudioClipType.cs";
-        // Khi được cài dưới dạng UPM (Packages/)
-        private const string DefaultEnumPackagePath = "Packages/com.gameup.core/Runtime/Core/Audio/AudioClipType.cs";
+        private const string PrefsKeyAudioIdentityFolder = "GameUp.Audio.IdentityFolderPath";
 
-        private string enumFilePath;
         private string audioFolderPath;
+        private string audioIdentityFolderPath;
 
         [MenuItem("GameUp/Audio/Setup AudioManager")]
         public static void ShowWindow()
@@ -34,33 +30,10 @@ namespace GameUp.Core.Editor
 
         private void OnEnable()
         {
-            // Nếu đã từng lưu user setting thì dùng lại
-            var savedEnumPath = EditorPrefs.GetString(PrefsKeyEnumPath, string.Empty);
-            if (!string.IsNullOrEmpty(savedEnumPath))
-            {
-                enumFilePath = savedEnumPath;
-            }
-            else
-            {
-                // Tự đoán theo môi trường:
-                // - Nếu đang dev template (file tồn tại trong Assets/) -> dùng path Assets
-                // - Nếu đang dùng UPM (file chỉ tồn tại trong Packages/) -> dùng path Packages
-                if (AssetDatabase.LoadAssetAtPath<MonoScript>(DefaultEnumAssetPath) != null)
-                {
-                    enumFilePath = DefaultEnumAssetPath;
-                }
-                else if (AssetDatabase.LoadAssetAtPath<MonoScript>(DefaultEnumPackagePath) != null)
-                {
-                    enumFilePath = DefaultEnumPackagePath;
-                }
-                else
-                {
-                    // Fallback: ưu tiên Assets path, user có thể chỉnh tay
-                    enumFilePath = DefaultEnumAssetPath;
-                }
-            }
             audioFolderPath = EditorPrefs.GetString(PrefsKeyAudioFolder,
                 "Games/Addressables/Sounds");
+            audioIdentityFolderPath = EditorPrefs.GetString(PrefsKeyAudioIdentityFolder,
+                "Assets/GameData/AudioIdentities");
         }
 
         private void OnGUI()
@@ -74,96 +47,12 @@ namespace GameUp.Core.Editor
             EditorGUILayout.LabelField("Generation Settings", EditorStyles.boldLabel);
 
             EditorGUI.BeginChangeCheck();
-            enumFilePath = EditorGUILayout.TextField("Enum file path", enumFilePath);
             audioFolderPath = EditorGUILayout.TextField("Audio folder (project-relative)", audioFolderPath);
+            audioIdentityFolderPath = EditorGUILayout.TextField("AudioIdentity folder (under Assets)", audioIdentityFolderPath);
             if (EditorGUI.EndChangeCheck())
             {
-                EditorPrefs.SetString(PrefsKeyEnumPath, enumFilePath);
                 EditorPrefs.SetString(PrefsKeyAudioFolder, audioFolderPath);
-            }
-
-            // Gợi ý tạo file enum riêng trong Assets khi đang dùng UPM (path Packages) hoặc path trống
-            bool isEnumInPackages = !string.IsNullOrEmpty(enumFilePath) &&
-                                    enumFilePath.StartsWith("Packages/", StringComparison.OrdinalIgnoreCase);
-            bool isEnumUnsetOrInvalid = string.IsNullOrEmpty(enumFilePath);
-
-            if (isEnumInPackages || isEnumUnsetOrInvalid)
-            {
-                EditorGUILayout.Space();
-                EditorGUILayout.HelpBox(
-                    "Khuyến nghị: với dự án cài bằng UPM, hãy tạo file AudioClipType.cs riêng trong Assets của game " +
-                    "và trỏ Enum file path tới đó, thay vì sửa trực tiếp trong Packages/com.gameup.core.",
-                    MessageType.Warning);
-
-                if (GUILayout.Button("Create / Select AudioClipType.cs in Assets...", GUILayout.Height(22)))
-                {
-                    var suggestedName = "AudioClipType";
-                    var directory = "Assets";
-
-                    var selectedPath = EditorUtility.SaveFilePanelInProject(
-                        "Choose location for AudioClipType.cs",
-                        suggestedName,
-                        "cs",
-                        "Chọn nơi lưu file AudioClipType.cs (nên đặt trong Assets của game).",
-                        directory);
-
-                    if (!string.IsNullOrEmpty(selectedPath))
-                    {
-                        // Nếu file chưa tồn tại, tạo với nội dung mặc định
-                        if (!File.Exists(selectedPath))
-                        {
-                            var defaultEnumContent =
-@"namespace GameUp.Core
-{
-    public enum AudioClipType
-    {
-        None = 0,
-    }
-}
-";
-                            File.WriteAllText(selectedPath, defaultEnumContent);
-                            AssetDatabase.Refresh();
-                            Debug.Log($"[AudioManager] Đã tạo file enum mặc định tại: {selectedPath}");
-                        }
-
-                        enumFilePath = selectedPath;
-                        EditorPrefs.SetString(PrefsKeyEnumPath, enumFilePath);
-                    }
-                }
-            }
-
-            // Nếu người dùng trỏ enum sang path khác, đề xuất xoá file enum mặc định trong template (Assets/)
-            if (!string.IsNullOrEmpty(enumFilePath) &&
-                enumFilePath != DefaultEnumAssetPath &&
-                AssetDatabase.LoadAssetAtPath<MonoScript>(DefaultEnumAssetPath) != null)
-            {
-                EditorGUILayout.Space();
-                EditorGUILayout.HelpBox(
-                    "Template đang có sẵn file AudioClipType.cs trong package (Assets/GameUpCore/...). " +
-                    "Để tránh trùng enum khi project game định nghĩa enum riêng, bạn có thể xoá file template này.",
-                    MessageType.Info);
-
-                if (GUILayout.Button("Delete template AudioClipType.cs in Assets/GameUpCore", GUILayout.Height(22)))
-                {
-                    var confirm = EditorUtility.DisplayDialog(
-                        "Delete template AudioClipType.cs?",
-                        "Hành động này sẽ xoá file Assets/GameUpCore/Runtime/Core/Audio/AudioClipType.cs trong project template hiện tại.\n\n" +
-                        "Trong các project game dùng UPM, file enum nên được định nghĩa bên ngoài package. Bạn chắc chắn muốn xoá chứ?",
-                        "Yes, delete", "Cancel");
-
-                    if (confirm)
-                    {
-                        if (AssetDatabase.DeleteAsset(DefaultEnumAssetPath))
-                        {
-                            AssetDatabase.Refresh();
-                            Debug.Log("[AudioManager] Đã xoá file template AudioClipType.cs trong Assets/GameUpCore.");
-                        }
-                        else
-                        {
-                            Debug.LogWarning("[AudioManager] Không thể xoá Assets/GameUpCore/Runtime/Core/Audio/AudioClipType.cs (có thể do đang dùng UPM read-only).");
-                        }
-                    }
-                }
+                EditorPrefs.SetString(PrefsKeyAudioIdentityFolder, audioIdentityFolderPath);
             }
 
             EditorGUILayout.Space();
@@ -216,15 +105,15 @@ namespace GameUp.Core.Editor
                 return;
             }
 
-            if (string.IsNullOrEmpty(enumFilePath) || string.IsNullOrEmpty(audioFolderPath))
+            if (string.IsNullOrEmpty(audioFolderPath))
             {
-                Debug.LogError("[AudioManager] Enum file path hoặc audio folder path đang trống.");
+                Debug.LogError("[AudioManager] Audio folder path đang trống.");
                 return;
             }
 
-            if (!File.Exists(enumFilePath))
+            if (string.IsNullOrEmpty(audioIdentityFolderPath))
             {
-                Debug.LogError($"[AudioManager] Không tìm thấy file enum tại path: {enumFilePath}");
+                Debug.LogError("[AudioManager] AudioIdentity folder path đang trống.");
                 return;
             }
 
@@ -256,16 +145,7 @@ namespace GameUp.Core.Editor
                 .GroupBy(c => Sanitize(c.name))
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Đọc enum cũ để giữ nguyên thứ tự
-            var enumType = typeof(AudioClipType);
-            var existingNames = Enum.GetNames(enumType).ToList(); // giữ thứ tự cũ
-
-            // Tìm các name mới (chỉ thêm, không xoá / reorder)
-            var allNewNames = clipGroups.Keys
-                .Where(n => !existingNames.Contains(n))
-                .ToList();
-
-            // Build lại audioInfos: giữ data cũ, chỉ thêm item cho enum mới
+            // Build lại audioInfos với AudioIdentity: giữ data cũ, chỉ thêm / cập nhật theo clipGroups
             var audioInfosField = typeof(AudioManager)
                 .GetField("audioInfos", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
@@ -276,166 +156,126 @@ namespace GameUp.Core.Editor
             }
 
             var list = (List<AudioInfoWithType>)audioInfosField.GetValue(manager);
-            var existingTypes = new HashSet<AudioClipType>(list.Select(i => i.type));
-
-            // 1. Đảm bảo có entry cho tất cả enum hiện tại (None + các giá trị cũ)
-            foreach (var enumName in existingNames)
+            var identityToInfo = new Dictionary<AudioIdentity, AudioInfoWithType>();
+            for (int i = 0; i < list.Count; i++)
             {
-                if (!Enum.TryParse(enumName, out AudioClipType enumValue))
-                    continue;
-
-                if (enumValue == AudioClipType.None)
-                {
-                    if (!existingTypes.Contains(enumValue))
-                    {
-                        list.Add(new AudioInfoWithType
-                        {
-                            name = enumName,
-                            type = enumValue,
-                            clipReferences = new List<AudioClipReference>(),
-                            volume = 0.3f,
-                            isLoop = false
-                        });
-                    }
-
-                    continue;
-                }
-
-                if (existingTypes.Contains(enumValue))
-                    continue;
-
-                var refs = new List<AudioClipReference>();
-
-                if (clipGroups.TryGetValue(enumName, out var exactClips))
-                {
-                    for (int i = 0; i < exactClips.Count; i++)
-                    {
-                        var clip = exactClips[i];
-                        var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
-                        refs.Add(new AudioClipReference(guid));
-                    }
-                }
-                else
-                {
-                    var fallbackClips = clips.Where(c =>
-                    {
-                        var sanitized = Sanitize(c.name);
-                        return sanitized.Equals(enumName, StringComparison.OrdinalIgnoreCase) ||
-                               sanitized.StartsWith(enumName + "_", StringComparison.OrdinalIgnoreCase);
-                    });
-
-                    foreach (var clip in fallbackClips)
-                    {
-                        var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
-                        refs.Add(new AudioClipReference(guid));
-                    }
-                }
-
-                var info = new AudioInfoWithType
-                {
-                    name = enumName,
-                    type = enumValue,
-                    clipReferences = refs,
-                    volume = 0.5f,
-                    isLoop = false
-                };
-
-                list.Add(info);
-                existingTypes.Add(enumValue);
+                var info = list[i];
+                if (info == null || !info.identity) continue;
+                if (!identityToInfo.ContainsKey(info.identity))
+                    identityToInfo.Add(info.identity, info);
             }
 
-            // 2. Thêm entry cho các enum mới (tên mới), gán giá trị int theo thứ tự append
-            if (allNewNames.Count > 0)
+            // Đảm bảo thư mục chứa AudioIdentity assets tồn tại
+            if (!Directory.Exists(audioIdentityFolderPath))
             {
-                var existingWithoutNone = existingNames
-                    .Where(n => n != nameof(AudioClipType.None))
-                    .ToList();
+                Directory.CreateDirectory(audioIdentityFolderPath);
+            }
 
-                var orderedNewNames = allNewNames.OrderBy(n => n).ToList();
+            // Tạo / lấy AudioIdentity cho từng nhóm clip, đồng thời cập nhật AudioInfoWithType tương ứng
+            var identityEntries = new List<(AudioIdentity identity, string sanitizedName)>();
 
-                for (int i = 0; i < orderedNewNames.Count; i++)
+            foreach (var kvp in clipGroups)
+            {
+                var sanitizedName = kvp.Key;
+                var identityAssetPath = $"{audioIdentityFolderPath}/{sanitizedName}.asset";
+
+                var identity = AssetDatabase.LoadAssetAtPath<AudioIdentity>(identityAssetPath);
+                if (!identity)
                 {
-                    var enumName = orderedNewNames[i];
+                    identity = ScriptableObject.CreateInstance<AudioIdentity>();
+                    identity.name = sanitizedName;
+                    AssetDatabase.CreateAsset(identity, identityAssetPath);
+                }
 
-                    // None = 0, các giá trị còn lại tăng dần
-                    var rawValue = existingWithoutNone.Count + i + 1;
-                    var enumValue = (AudioClipType)rawValue;
+                // Chuẩn bị danh sách clip references mới, merge với cũ (không làm mất data)
+                var newRefs = new List<AudioClipReference>();
 
-                    if (existingTypes.Contains(enumValue))
-                        continue;
+                if (identityToInfo.TryGetValue(identity, out var existingInfo) && existingInfo.clipReferences != null)
+                {
+                    // Giữ nguyên toàn bộ reference cũ
+                    newRefs.AddRange(existingInfo.clipReferences);
+                }
 
-                    var refs = new List<AudioClipReference>();
+                foreach (var clip in kvp.Value)
+                {
+                    var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
+                    if (string.IsNullOrEmpty(guid)) continue;
+                    newRefs.Add(new AudioClipReference(guid));
+                }
 
-                    if (clipGroups.TryGetValue(enumName, out var exactClips))
+                if (!identityToInfo.TryGetValue(identity, out var infoWithIdentity))
+                {
+                    infoWithIdentity = new AudioInfoWithType
                     {
-                        for (int j = 0; j < exactClips.Count; j++)
-                        {
-                            var clip = exactClips[j];
-                            var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
-                            refs.Add(new AudioClipReference(guid));
-                        }
-                    }
-                    else
-                    {
-                        var fallbackClips = clips.Where(c =>
-                        {
-                            var sanitized = Sanitize(c.name);
-                            return sanitized.Equals(enumName, StringComparison.OrdinalIgnoreCase) ||
-                                   sanitized.StartsWith(enumName + "_", StringComparison.OrdinalIgnoreCase);
-                        });
-
-                        foreach (var clip in fallbackClips)
-                        {
-                            var guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
-                            refs.Add(new AudioClipReference(guid));
-                        }
-                    }
-
-                    var info = new AudioInfoWithType
-                    {
-                        name = enumName,
-                        type = enumValue,
-                        clipReferences = refs,
+                        name = sanitizedName,
+                        identity = identity,
+                        clipReferences = newRefs,
                         volume = 0.5f,
                         isLoop = false
                     };
-
-                    list.Add(info);
-                    existingTypes.Add(enumValue);
+                    list.Add(infoWithIdentity);
+                    identityToInfo.Add(identity, infoWithIdentity);
                 }
+                else
+                {
+                    infoWithIdentity.name = sanitizedName;
+                    infoWithIdentity.clipReferences = newRefs;
+                }
+
+                identityEntries.Add((identity, sanitizedName));
             }
 
             EditorUtility.SetDirty(manager);
-            Debug.Log("[AudioManager] Đã cập nhật danh sách audioInfos (giữ thứ tự enum cũ, chỉ thêm mới).");
+            Debug.Log("[AudioManager] Đã cập nhật danh sách audioInfos dựa trên AudioIdentity (giữ và merge data cũ).");
 
-            // 3. Cuối cùng mới ghi lại file enum để tránh phụ thuộc vào compile ngay lập tức
-            if (allNewNames.Count > 0)
+            // 3. Sinh file AudioID.cs trong Assets, trỏ tới từng AudioIdentity asset
+            GenerateAudioIdClass(identityEntries);
+        }
+
+        private static void GenerateAudioIdClass(List<(AudioIdentity identity, string sanitizedName)> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var ordered = entries
+                .Where(e => e.identity)
+                .OrderBy(e => e.sanitizedName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("#if UNITY_EDITOR");
+            sb.AppendLine("public static class AudioID");
+            sb.AppendLine("{");
+            sb.AppendLine("    private static T Get<T>(string path, ref T field) where T : UnityEngine.Object {");
+            sb.AppendLine("        if (field == null) field = UnityEditor.AssetDatabase.LoadAssetAtPath<T>(path);");
+            sb.AppendLine("        return field;");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+
+            // Lấy folder hiện tại từ EditorPrefs (đồng bộ với UpdateAudioData)
+            var audioIdentityFolderPath = EditorPrefs.GetString(
+                PrefsKeyAudioIdentityFolder,
+                "Assets/GameData/AudioIdentities");
+
+            foreach (var entry in ordered)
             {
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine("namespace GameUp.Core");
-                sb.AppendLine("{");
-                sb.AppendLine("    public enum AudioClipType");
-                sb.AppendLine("    {");
-                sb.AppendLine("        None = 0,");
+                var sanitizedName = entry.sanitizedName;
+                var fieldName = "_" + sanitizedName.ToLowerInvariant();
+                var assetPath = $"{audioIdentityFolderPath}/{sanitizedName}.asset";
 
-                foreach (var name in existingNames)
-                {
-                    if (name == nameof(AudioClipType.None)) continue;
-                    sb.AppendLine($"        {name},");
-                }
-
-                foreach (var name in allNewNames.OrderBy(n => n))
-                {
-                    sb.AppendLine($"        {name},");
-                }
-
-                sb.AppendLine("    }");
-                sb.AppendLine("}");
-
-                File.WriteAllText(enumFilePath, sb.ToString());
-                AssetDatabase.Refresh();
-                Debug.Log($"[AudioManager] Đã cập nhật enum AudioClipType, thêm {allNewNames.Count} entries mới.");
+                sb.AppendLine($"    private static GameUp.Core.AudioIdentity {fieldName};");
+                sb.AppendLine(
+                    $"    public static GameUp.Core.AudioIdentity {sanitizedName} => Get(\"{assetPath}\", ref {fieldName});");
+                sb.AppendLine();
             }
+
+            sb.AppendLine("}");
+            sb.AppendLine("#endif");
+
+            var targetPath = "Assets/AudioID.cs";
+            File.WriteAllText(targetPath, sb.ToString());
+            AssetDatabase.Refresh();
+            Debug.Log($"[AudioManager] Đã sinh lại file AudioID.cs với {ordered.Count} entries tại: {targetPath}");
         }
     }
 }

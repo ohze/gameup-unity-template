@@ -15,7 +15,7 @@ namespace GameUp.Core
 
         private readonly List<AudioSource> _sources = new();
         private readonly HashSet<AudioSource> _busySources = new(); // nguồn đang "reserve" trong khi loading
-        private readonly Dictionary<AudioClipType, AudioInfoWithType> _audioInfoLookup = new();
+        private readonly Dictionary<AudioIdentity, AudioInfoWithType> _audioInfoLookup = new();
 
         protected override void Awake()
         {
@@ -61,16 +61,16 @@ namespace GameUp.Core
             {
                 var info = audioInfos[i];
                 if (info == null) continue;
-                var type = info.type;
-                if (type == AudioClipType.None) continue;
-                if (_audioInfoLookup.ContainsKey(type)) continue;
-                _audioInfoLookup.Add(type, info);
+                var identity = info.identity;
+                if (!identity) continue;
+                if (_audioInfoLookup.ContainsKey(identity)) continue;
+                _audioInfoLookup.Add(identity, info);
             }
         }
 
-        private static bool TryGetAudioInfo(AudioClipType type, out AudioInfoWithType info)
+        private static bool TryGetAudioInfo(AudioIdentity identity, out AudioInfoWithType info)
         {
-            return Instance._audioInfoLookup.TryGetValue(type, out info);
+            return Instance._audioInfoLookup.TryGetValue(identity, out info);
         }
 
         /// <summary>
@@ -123,30 +123,30 @@ namespace GameUp.Core
         #region Public API
 
         /// <summary> Phát one-shot, không loop. </summary>
-        public static void PlayAudio(AudioClipType type)
+        public static void PlayAudio(AudioIdentity identity)
         {
-            if (type == AudioClipType.None) return;
+            if (!identity) return;
             if (!AudioSetting.Instance.IsSoundOn.Value) return;
 
             var source = GetSource();
             if (!source) return;
 
-            if (!TryGetAudioInfo(type, out var info)) return;
+            if (!TryGetAudioInfo(identity, out var info)) return;
             if (info.clipReferences.Count == 0) return;
 
             info.PlayClip(source, forceLoop: false);
         }
 
         /// <summary> Phát loop, chỉ dừng khi gọi StopAudio(type). </summary>
-        public static void PlayAudioLoop(AudioClipType type)
+        public static void PlayAudioLoop(AudioIdentity identity)
         {
-            if (type == AudioClipType.None) return;
+            if (!identity) return;
             if (!AudioSetting.Instance.IsSoundOn.Value) return;
 
-            if (!TryGetAudioInfo(type, out var info)) return;
+            if (!TryGetAudioInfo(identity, out var info)) return;
             if (info.clipReferences.Count == 0) return;
 
-            StopAudio(type);
+            StopAudio(identity);
             var source = GetSource();
             if (!source) return;
 
@@ -161,11 +161,11 @@ namespace GameUp.Core
             clip.PlayClip(source);
         }
 
-        public static void PlayMusic(AudioClipType type)
+        public static void PlayMusic(AudioIdentity identity)
         {
-            if (type == AudioClipType.None) return;
+            if (!identity) return;
 
-            if (!TryGetAudioInfo(type, out var info)) return;
+            if (!TryGetAudioInfo(identity, out var info)) return;
             if (info.clipReferences.Count == 0) return;
 
             // Music source mặc định loop
@@ -174,9 +174,9 @@ namespace GameUp.Core
             Instance.musicSource.mute = !AudioSetting.Instance.IsMusicOn.Value;
         }
 
-        public static void StopAudio(AudioClipType type)
+        public static void StopAudio(AudioIdentity identity)
         {
-            if (!TryGetAudioInfo(type, out var info)) return;
+            if (!TryGetAudioInfo(identity, out var info)) return;
             info.StopAudio();
         }
 
@@ -196,7 +196,7 @@ namespace GameUp.Core
     public class AudioInfoWithType
     {
         public string name;
-        public AudioClipType type;
+        public AudioIdentity identity;
         public List<AudioClipReference> clipReferences = new();
         [Range(0f, 1f)] public float volume = 1f;
         public bool isLoop;
@@ -260,7 +260,13 @@ namespace GameUp.Core
             }
         }
 
-        public void SetName() => name = type.ToString();
+        public void SetName()
+        {
+            if (identity)
+            {
+                name = identity.name;
+            }
+        }
     }
 
     [Serializable]
