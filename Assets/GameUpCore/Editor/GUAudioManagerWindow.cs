@@ -82,6 +82,56 @@ namespace GameUp.Core.Editor
                 EditorPrefs.SetString(PrefsKeyAudioFolder, audioFolderPath);
             }
 
+            // Gợi ý tạo file enum riêng trong Assets khi đang dùng UPM (path Packages) hoặc path trống
+            bool isEnumInPackages = !string.IsNullOrEmpty(enumFilePath) &&
+                                    enumFilePath.StartsWith("Packages/", StringComparison.OrdinalIgnoreCase);
+            bool isEnumUnsetOrInvalid = string.IsNullOrEmpty(enumFilePath);
+
+            if (isEnumInPackages || isEnumUnsetOrInvalid)
+            {
+                EditorGUILayout.Space();
+                EditorGUILayout.HelpBox(
+                    "Khuyến nghị: với dự án cài bằng UPM, hãy tạo file AudioClipType.cs riêng trong Assets của game " +
+                    "và trỏ Enum file path tới đó, thay vì sửa trực tiếp trong Packages/com.gameup.core.",
+                    MessageType.Warning);
+
+                if (GUILayout.Button("Create / Select AudioClipType.cs in Assets...", GUILayout.Height(22)))
+                {
+                    var suggestedName = "AudioClipType";
+                    var directory = "Assets";
+
+                    var selectedPath = EditorUtility.SaveFilePanelInProject(
+                        "Choose location for AudioClipType.cs",
+                        suggestedName,
+                        "cs",
+                        "Chọn nơi lưu file AudioClipType.cs (nên đặt trong Assets của game).",
+                        directory);
+
+                    if (!string.IsNullOrEmpty(selectedPath))
+                    {
+                        // Nếu file chưa tồn tại, tạo với nội dung mặc định
+                        if (!File.Exists(selectedPath))
+                        {
+                            var defaultEnumContent =
+@"namespace GameUp.Core
+{
+    public enum AudioClipType
+    {
+        None = 0,
+    }
+}
+";
+                            File.WriteAllText(selectedPath, defaultEnumContent);
+                            AssetDatabase.Refresh();
+                            Debug.Log($"[AudioManager] Đã tạo file enum mặc định tại: {selectedPath}");
+                        }
+
+                        enumFilePath = selectedPath;
+                        EditorPrefs.SetString(PrefsKeyEnumPath, enumFilePath);
+                    }
+                }
+            }
+
             // Nếu người dùng trỏ enum sang path khác, đề xuất xoá file enum mặc định trong template (Assets/)
             if (!string.IsNullOrEmpty(enumFilePath) &&
                 enumFilePath != DefaultEnumAssetPath &&
