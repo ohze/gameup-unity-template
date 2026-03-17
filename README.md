@@ -66,7 +66,11 @@ Thư mục `Assets/GameUpCore/Runtime/Core` bao gồm nhiều hệ thống và t
 
 ### 2. **Signal / Event Bus (`Signal`)**
 - Hệ thống gửi/phát tín hiệu thông qua cơ chế Publish/Subscribe pattern để liên lạc giữa các Scripts/Systems. Nhờ đó các module hoàn toàn tách biệt (decoupling), không bị phụ thuộc vòng vào nhau.
-- **Cách sử dụng:** Tạo cấu trúc event như `public struct OnPlayerDiedEvent {}`, sau đó bất kỳ module nào cũng có thể lắng nghe, đăng ký thông qua Signal: `SignalBus.Subscribe<OnPlayerDiedEvent>(OnDead)`.
+- **Cách sử dụng (đúng API hiện tại):**
+  - Tạo `Signal` hoặc `Signal<T...>` (tối đa 4 tham số).
+  - Đăng ký/hủy đăng ký bằng `AddListener(...)`, `AddOnce(...)`, `RemoveListener(...)`.
+  - Phát tín hiệu bằng `Dispatch(...)`.
+  - Gợi ý: tạo một class trung tâm (vd: `GameSignals`) để gom các signal dùng chung của game.
 
 ### 3. **Object Pools (`ObjectPools`)**
 - Hệ thống tối ưu hiệu năng phân bổ và tái sử dụng GameObjects thay vì gọi `Instantiate` và `Destroy` liên tục (GUPool, GUPoolers).
@@ -218,6 +222,11 @@ public struct PlayerDiedSignal
     public int KillerId;
 }
 
+public static class GameSignals
+{
+    public static readonly Signal<PlayerDiedSignal> PlayerDied = new Signal<PlayerDiedSignal>();
+}
+
 public class PlayerHealth : MonoBehaviour
 {
     [SerializeField] private int maxHealth = 100;
@@ -234,7 +243,7 @@ public class PlayerHealth : MonoBehaviour
         _currentHealth = Mathf.Max(0, _currentHealth - amount);
         if (_currentHealth == 0)
         {
-            SignalBus.Fire(new PlayerDiedSignal { KillerId = killerId });
+            GameSignals.PlayerDied.Dispatch(new PlayerDiedSignal { KillerId = killerId });
         }
     }
 }
@@ -248,12 +257,12 @@ public class GameOverUI : MonoBehaviour
 {
     private void OnEnable()
     {
-        SignalBus.Subscribe<PlayerDiedSignal>(OnPlayerDied);
+        GameSignals.PlayerDied.AddListener(OnPlayerDied);
     }
 
     private void OnDisable()
     {
-        SignalBus.Unsubscribe<PlayerDiedSignal>(OnPlayerDied);
+        GameSignals.PlayerDied.RemoveListener(OnPlayerDied);
     }
 
     private void OnPlayerDied(PlayerDiedSignal signal)
@@ -271,12 +280,12 @@ public class PlayerDeathSfx : MonoBehaviour
 {
     private void OnEnable()
     {
-        SignalBus.Subscribe<PlayerDiedSignal>(OnPlayerDied);
+        GameSignals.PlayerDied.AddListener(OnPlayerDied);
     }
 
     private void OnDisable()
     {
-        SignalBus.Unsubscribe<PlayerDiedSignal>(OnPlayerDied);
+        GameSignals.PlayerDied.RemoveListener(OnPlayerDied);
     }
 
     private void OnPlayerDied(PlayerDiedSignal signal)
