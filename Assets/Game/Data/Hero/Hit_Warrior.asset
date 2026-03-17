@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
-  m_Name: Skill_Slime_3
+  m_Name: Hero_Hit_Warrior
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: bf69b9a6640304642b45728569a77360
+  clipRefs:
+  - m_AssetGUID: 1b4449db78931ec47aad2f982c98a94f
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

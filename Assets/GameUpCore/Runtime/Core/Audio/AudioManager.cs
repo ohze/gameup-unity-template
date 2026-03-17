@@ -17,7 +17,7 @@ namespace GameUp.Core
 
         private readonly List<AudioSource> _sources = new();
         private readonly HashSet<AudioSource> _busySources = new(); // nguồn đang "reserve" trong khi loading
-        private readonly Dictionary<AudioIdentity, AsyncOperationHandle<AudioClip>> _clipHandles = new();
+        private readonly Dictionary<object, AsyncOperationHandle<AudioClip>> _clipHandles = new();
         private readonly Dictionary<AudioIdentityReference, AsyncOperationHandle<AudioIdentity>> _identityHandles = new();
         private readonly Dictionary<string, AudioIdentity> _identityByName = new(StringComparer.OrdinalIgnoreCase);
 
@@ -166,8 +166,8 @@ namespace GameUp.Core
             return Instance._identityByName.TryGetValue(identityName, out identity) && identity;
         }
 
-        /// <summary> Phát audio theo AudioIdentity (one-shot hoặc loop theo cấu hình). </summary>
-        public void Play(AudioIdentity identity)
+        /// <summary> Phát audio theo AudioIdentity (one-shot hoặc loop theo cấu hình). Mặc định phát clip đầu list; isRandomClip = true thì chọn ngẫu nhiên. </summary>
+        public void Play(AudioIdentity identity, bool isRandomClip = false)
         {
             if (!identity) return;
             if (!AudioSetting.Instance.IsSoundOn.Value) return;
@@ -175,9 +175,17 @@ namespace GameUp.Core
             var source = GetSource();
             if (!source) return;
 
-            if (identity.clipRef == null)
+            if (identity.clipRefs == null || identity.clipRefs.Count == 0)
                 return;
 
+            var clipRef = isRandomClip && identity.clipRefs.Count > 1
+                ? identity.clipRefs.GetRandom()
+                : identity.clipRefs[0];
+
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid())
+                return;
+
+            var cacheKey = clipRef.RuntimeKey;
             GULogger.Log("AudioManager", "PlayAudio: " + identity.name + " - " + source.name);
             MarkBusy(source);
 
@@ -196,7 +204,7 @@ namespace GameUp.Core
                 Instance.StartCoroutine(ReleaseBusyNextFrame(source));
             }
 
-            if (_clipHandles.TryGetValue(identity, out var handle) && handle.IsValid())
+            if (_clipHandles.TryGetValue(cacheKey, out var handle) && handle.IsValid())
             {
                 if (handle.IsDone)
                 {
@@ -209,8 +217,8 @@ namespace GameUp.Core
             }
             else
             {
-                var op = identity.clipRef.LoadAssetAsync<AudioClip>();
-                _clipHandles[identity] = op;
+                var op = clipRef.LoadAssetAsync<AudioClip>();
+                _clipHandles[cacheKey] = op;
                 op.Completed += h => DoPlay(h.Result);
             }
         }
@@ -245,8 +253,8 @@ namespace GameUp.Core
             };
         }
 
-        /// <summary> API static tiện dụng để gọi từ bất kỳ đâu. </summary>
-        public static void PlayAudio(AudioIdentity identity)
+        /// <summary> API static tiện dụng để gọi từ bất kỳ đâu. isRandomClip = true thì chọn clip ngẫu nhiên từ list. </summary>
+        public static void PlayAudio(AudioIdentity identity, bool isRandomClip = false)
         {
             if (!Instance) return;
             if (!identity)
@@ -256,7 +264,7 @@ namespace GameUp.Core
             }
 
             GULogger.Log("AudioManager", "PlayAudio: " + identity.name);
-            Instance.Play(identity);
+            Instance.Play(identity, isRandomClip);
         }
 
         public static void PlayAudio(AudioIdentityReference identityReference)
@@ -269,7 +277,12 @@ namespace GameUp.Core
         {
             if (!identity) return;
             if (!Instance.musicSource) return;
-            if (identity.clipRef == null) return;
+            if (identity.clipRefs == null || identity.clipRefs.Count == 0) return;
+
+            var clipRef = identity.clipRefs[0];
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return;
+
+            var cacheKey = clipRef.RuntimeKey;
 
             void DoPlay(AudioClip clip)
             {
@@ -282,7 +295,7 @@ namespace GameUp.Core
                 Instance.musicSource.mute = !AudioSetting.Instance.IsMusicOn.Value;
             }
 
-            if (Instance._clipHandles.TryGetValue(identity, out var handle) && handle.IsValid())
+            if (Instance._clipHandles.TryGetValue(cacheKey, out var handle) && handle.IsValid())
             {
                 if (handle.IsDone)
                 {
@@ -295,8 +308,8 @@ namespace GameUp.Core
             }
             else
             {
-                var op = identity.clipRef.LoadAssetAsync<AudioClip>();
-                Instance._clipHandles[identity] = op;
+                var op = clipRef.LoadAssetAsync<AudioClip>();
+                Instance._clipHandles[cacheKey] = op;
                 op.Completed += h => DoPlay(h.Result);
             }
         }

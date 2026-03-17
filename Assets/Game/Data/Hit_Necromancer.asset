@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Hit_Necromancer
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: e5165039fd5ee144f84a3524e5565a32
+  clipRefs:
+  - m_AssetGUID: e5165039fd5ee144f84a3524e5565a32
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

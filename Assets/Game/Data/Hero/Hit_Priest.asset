@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
-  m_Name: Skill_Skeleton_Bomb_1
+  m_Name: Hero_Hit_Priest
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: db705afd15271294b8e9e4066089a8fd
+  clipRefs:
+  - m_AssetGUID: d004a34d7e0320148adbbdf1843aed3b
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Skill_Death
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: 494154f1a8fec2c45bc68c63188ec8ab
+  clipRefs:
+  - m_AssetGUID: 494154f1a8fec2c45bc68c63188ec8ab
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

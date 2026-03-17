@@ -19,6 +19,6 @@ public class Example : MonoBehaviour
     [Button]
     public void TestAudio()
     {
-        AudioManager.PlayAudio(AudioID.Hit_Death);
+        AudioManager.PlayAudio(AudioID.Skill_Skeleton_Bomb);
     }
 }

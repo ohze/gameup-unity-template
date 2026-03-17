@@ -3,8 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using GameUp.Core;
 using UnityEditor;
+using UnityEditor.AddressableAssets;
+using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,6 +20,10 @@ namespace GameUp.Core.Editor
         private const string PrefsKeyAudioFolder = "GameUp.Audio.FolderPath";
         private const string PrefsKeyAudioIdentityFolder = "GameUp.Audio.IdentityFolderPath";
         private const string PrefsKeyAudioIdOutputPath = "GameUp.Audio.AudioIDOutputPath";
+
+        /// <summary> Tên group và label Addressables dùng cho audio (AudioIdentity + AudioClip). </summary>
+        private const string AddressablesAudioGroupName = "Audio";
+        private const string AddressablesAudioLabel = "Audio";
 
         private string audioFolderPath;
         private string audioIdentityFolderPath;
@@ -57,6 +64,25 @@ namespace GameUp.Core.Editor
                 return string.IsNullOrEmpty(sub) ? "Assets" : sub;
             }
             return absolutePath;
+        }
+
+        /// <summary> Lấy thư mục tương đối của clip so với searchFolder (vd: "hero" từ "Assets/.../Sounds/hero/attack.wav"). </summary>
+        private static string GetRelativeFolderFromClipPath(string clipPath, string searchFolder)
+        {
+            if (string.IsNullOrEmpty(clipPath) || string.IsNullOrEmpty(searchFolder)) return "";
+            var normalizedClip = clipPath.Replace("\\", "/");
+            var prefix = "Assets/" + searchFolder.Trim('/').Replace("\\", "/");
+            if (!normalizedClip.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return "";
+            var relative = normalizedClip.Substring(prefix.Length).TrimStart('/');
+            var dir = Path.GetDirectoryName(relative)?.Replace("\\", "/");
+            return string.IsNullOrEmpty(dir) ? "" : dir;
+        }
+
+        private static string FolderToNamePart(string folder)
+        {
+            if (string.IsNullOrEmpty(folder)) return "";
+            return folder.Replace(" ", "_").Replace("-", "_").Replace("/", "_").Trim('_');
         }
 
         private void DrawPathField(string label, ref string path, string prefsKey, bool isFolder, string defaultFileName = null)
@@ -124,6 +150,10 @@ namespace GameUp.Core.Editor
             }
 
             EditorGUILayout.Space();
+
+            EditorGUILayout.HelpBox(
+                "Scan sẽ tạo/cập nhật AudioIdentity, gán clip, sinh AudioID.cs và tự động thêm tất cả asset vào Addressables (group + label \"Audio\") nếu đã cài package Addressables — dùng được AssetReferenceT mà không cần setup thủ công.",
+                MessageType.None);
 
             if (GUILayout.Button("Scan & Setup Audio Identities", GUILayout.Height(30)))
             {
@@ -209,58 +239,205 @@ namespace GameUp.Core.Editor
                     .Replace("-", "_");
             }
 
-            // Group các clip theo tên đã chuẩn hoá
-            var clipGroups = clips
-                .GroupBy(c => Sanitize(c.name))
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            // Đảm bảo thư mục chứa AudioIdentity assets (nằm trong Resources) tồn tại
-            if (!Directory.Exists(audioIdentityFolderPath))
+            // Base name: "Attack 1", "Attack 2", "Attack" -> "Attack" (gộp variant vào một identity)
+            string GetBaseName(string clipName)
             {
-                Directory.CreateDirectory(audioIdentityFolderPath);
+                if (string.IsNullOrWhiteSpace(clipName)) return clipName ?? "";
+                var trimmed = clipName.Trim();
+                var match = Regex.Match(trimmed, @"^(.+?)\s+\d+$");
+                return match.Success ? match.Groups[1].Value.Trim() : trimmed;
             }
 
-            // Tạo / cập nhật AudioIdentity cho từng nhóm clip
+            // Sắp xếp clip trong group: tên trùng baseName trước, còn lại theo số hậu tố (1, 2, 3...)
+            int ClipOrder(AudioClip c, string baseName)
+            {
+                var name = c.name.Trim();
+                if (string.Equals(name, baseName, StringComparison.OrdinalIgnoreCase))
+                    return 0;
+                var m = Regex.Match(name, @"\s+(\d+)$");
+                return m.Success ? int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture) : int.MaxValue;
+            }
+
+            // Group theo (relativeFolder, baseName) để Attack, Attack 1, Attack 2... cùng một identity
+            var clipGroups = clips
+                .GroupBy(c =>
+                {
+                    var clipPath = AssetDatabase.GetAssetPath(c);
+                    var relFolder = GetRelativeFolderFromClipPath(clipPath, searchFolder);
+                    var baseName = GetBaseName(c.name);
+                    return (relFolder, Sanitize(baseName));
+                })
+                .ToDictionary(g => g.Key, g =>
+                {
+                    var baseName = GetBaseName(g.First().name).Trim();
+                    return g.OrderBy(c => ClipOrder(c, baseName)).ToList();
+                });
+
+            var identityFolderNormalized = audioIdentityFolderPath.Replace("\\", "/").TrimEnd('/');
+            if (!Directory.Exists(identityFolderNormalized))
+                Directory.CreateDirectory(identityFolderNormalized);
+
             var identityGuids = new List<(string name, string guid)>();
             var identityNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var currentIdentityPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var identityPathsForAddressables = new List<string>();
+            var clipPathsForAddressables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var kvp in clipGroups)
             {
-                var sanitizedName = kvp.Key;
-                var identityAssetPath = $"{audioIdentityFolderPath}/{sanitizedName}.asset";
+                var (relativeFolder, sanitizedName) = kvp.Key;
+                var folderPart = FolderToNamePart(relativeFolder);
+                var identityName = string.IsNullOrEmpty(folderPart) ? sanitizedName : $"{folderPart}_{sanitizedName}";
+
+                var identitySubPath = string.IsNullOrEmpty(relativeFolder)
+                    ? $"{sanitizedName}.asset"
+                    : $"{relativeFolder.Replace('\\', '/')}/{sanitizedName}.asset";
+                var identityAssetPath = $"{identityFolderNormalized}/{identitySubPath}";
+
+                var identityDir = Path.GetDirectoryName(identityAssetPath)?.Replace("\\", "/");
+                if (!string.IsNullOrEmpty(identityDir) && !Directory.Exists(identityDir))
+                    Directory.CreateDirectory(identityDir);
 
                 var identity = AssetDatabase.LoadAssetAtPath<AudioIdentity>(identityAssetPath);
                 if (!identity)
                 {
                     identity = ScriptableObject.CreateInstance<AudioIdentity>();
-                    identity.name = sanitizedName;
+                    identity.name = identityName;
                     AssetDatabase.CreateAsset(identity, identityAssetPath);
                 }
-
-                // Gán reference đến AudioClip qua Addressables (GUID)
-                var clip = kvp.Value[0];
-                var clipGuid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(clip));
-                if (!string.IsNullOrEmpty(clipGuid))
+                else
                 {
-                    identity.clipRef = new AudioClipReference(clipGuid);
+                    identity.name = identityName;
                     EditorUtility.SetDirty(identity);
                 }
 
-                // Lưu GUID của chính AudioIdentity asset để sinh AudioID dùng Addressables
+                identity.clipRefs.Clear();
+                foreach (var clip in kvp.Value)
+                {
+                    var clipPath = AssetDatabase.GetAssetPath(clip);
+                    if (!string.IsNullOrEmpty(clipPath))
+                        clipPathsForAddressables.Add(clipPath.Replace("\\", "/"));
+                    var clipGuid = AssetDatabase.AssetPathToGUID(clipPath);
+                    if (!string.IsNullOrEmpty(clipGuid))
+                        identity.clipRefs.Add(new AudioClipReference(clipGuid));
+                }
+                if (identity.clipRefs.Count > 0)
+                    EditorUtility.SetDirty(identity);
+
                 var identityGuid = AssetDatabase.AssetPathToGUID(identityAssetPath);
                 if (!string.IsNullOrEmpty(identityGuid))
                 {
-                    identityGuids.Add((sanitizedName, identityGuid));
-                    identityNames.Add(sanitizedName);
+                    identityGuids.Add((identityName, identityGuid));
+                    identityNames.Add(identityName);
+                    var identityPathNorm = identityAssetPath.Replace("\\", "/");
+                    currentIdentityPaths.Add(identityPathNorm);
+                    identityPathsForAddressables.Add(identityPathNorm);
                 }
             }
+
+            // Xóa các AudioIdentity nằm trong thư mục identity nhưng không còn tương ứng clip nào (thừa)
+            RemoveOrphanAudioIdentities(identityFolderNormalized, currentIdentityPaths);
 
             AssetDatabase.SaveAssets();
 
             SetupIdentityReferencesOnManager(manager, identityGuids);
 
-            // 3. Sinh file AudioID.cs trong Assets, getter sync đọc cache AudioManager
+            EnsureAudioInAddressables(identityPathsForAddressables, clipPathsForAddressables);
+
             GenerateAudioIdClass(identityNames, audioIdOutputPath);
+        }
+
+        /// <summary>
+        /// Đưa tất cả AudioIdentity và AudioClip vào Addressables: group "Audio", label "Audio".
+        /// Yêu cầu đã cài package Addressables. AssetReferenceT (AudioClipReference, AudioIdentityReference) sẽ hoạt động mà không cần setup thủ công.
+        /// </summary>
+        private static void EnsureAudioInAddressables(
+            List<string> identityAssetPaths,
+            HashSet<string> clipAssetPaths)
+        {
+            var settings = AddressableAssetSettingsDefaultObject.GetSettings(false);
+            if (settings == null)
+            {
+                settings = AddressableAssetSettingsDefaultObject.GetSettings(true);
+            }
+
+            if (settings == null)
+            {
+                Debug.LogError("[AudioManager] Không tìm thấy AddressableAssetSettings. Hãy cài/thiết lập package Addressables (Window > Asset Management > Addressables > Groups).");
+                return;
+            }
+
+            // Đảm bảo label "Audio" tồn tại
+            var labels = settings.GetLabels();
+            if (labels == null || !labels.Contains(AddressablesAudioLabel))
+            {
+                settings.AddLabel(AddressablesAudioLabel, false);
+            }
+
+            // Tìm hoặc tạo group "Audio"
+            var audioGroup = settings.FindGroup(AddressablesAudioGroupName);
+            if (audioGroup == null)
+            {
+                audioGroup = settings.CreateGroup(AddressablesAudioGroupName, false, false, false, null, typeof(UnityEditor.AddressableAssets.Settings.GroupSchemas.BundledAssetGroupSchema));
+                if (audioGroup == null)
+                {
+                    Debug.LogError("[AudioManager] Không tạo được Addressables group \"Audio\".");
+                    return;
+                }
+                Debug.Log($"[AudioManager] Đã tạo Addressables group \"{AddressablesAudioGroupName}\".");
+            }
+
+            var processed = 0;
+            foreach (var path in identityAssetPaths)
+            {
+                if (string.IsNullOrEmpty(path)) continue;
+                var guid = AssetDatabase.AssetPathToGUID(path);
+                if (string.IsNullOrEmpty(guid)) continue;
+                var entry = settings.CreateOrMoveEntry(guid, audioGroup, false, true);
+                if (entry != null)
+                {
+                    entry.SetLabel(AddressablesAudioLabel, true, true, true);
+                    processed++;
+                }
+            }
+
+            foreach (var path in clipAssetPaths)
+            {
+                if (string.IsNullOrEmpty(path)) continue;
+                var guid = AssetDatabase.AssetPathToGUID(path);
+                if (string.IsNullOrEmpty(guid)) continue;
+                var entry = settings.CreateOrMoveEntry(guid, audioGroup, false, true);
+                if (entry != null)
+                {
+                    entry.SetLabel(AddressablesAudioLabel, true, true, true);
+                    processed++;
+                }
+            }
+
+            if (processed > 0)
+            {
+                settings.SetDirty(AddressableAssetSettings.ModificationEvent.BatchModification, audioGroup, true, false);
+                Debug.Log($"[AudioManager] Đã thêm/cập nhật {processed} asset vào Addressables (group \"{AddressablesAudioGroupName}\", label \"{AddressablesAudioLabel}\").");
+            }
+        }
+
+        private static void RemoveOrphanAudioIdentities(string identityFolderPath, HashSet<string> currentIdentityPaths)
+        {
+            var folderNorm = identityFolderPath.Replace("\\", "/").TrimEnd('/');
+            var guids = AssetDatabase.FindAssets("t:AudioIdentity", new[] { folderNorm });
+            var toDelete = new List<string>();
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var pathNorm = path.Replace("\\", "/");
+                if (!currentIdentityPaths.Contains(pathNorm))
+                    toDelete.Add(path);
+            }
+            foreach (var path in toDelete)
+            {
+                AssetDatabase.DeleteAsset(path);
+                Debug.Log($"[AudioManager] Đã xóa AudioIdentity thừa: {path}");
+            }
         }
 
         private static void SetupIdentityReferencesOnManager(AudioManager manager, List<(string name, string guid)> identityGuids)
@@ -330,7 +507,17 @@ namespace GameUp.Core.Editor
                 return;
             }
 
-            // outputPath đã được normalize sang file .cs ở trên
+            // Xóa mọi file AudioID.cs đã tồn tại trong project (bất kể đường dẫn) để chỉ còn một file tại output
+            var guids = AssetDatabase.FindAssets("AudioID", new[] { "Assets" });
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.EndsWith("AudioID.cs", StringComparison.OrdinalIgnoreCase))
+                {
+                    AssetDatabase.DeleteAsset(path);
+                    Debug.Log($"[AudioManager] Đã xóa file AudioID cũ: {path}");
+                }
+            }
 
             var ordered = identityNames
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)

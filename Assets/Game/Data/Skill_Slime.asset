@@ -12,8 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Skill_Slime
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: 8963b48db86f1ee46afdfb4da4289556
+  clipRefs:
+  - m_AssetGUID: 8963b48db86f1ee46afdfb4da4289556
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_EditorAssetChanged: 0
+  - m_AssetGUID: bf96c394a19360646af736681f5a61ec
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_EditorAssetChanged: 0
+  - m_AssetGUID: 16d8bfd8ee41deb43b5ca396ef54ac8b
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

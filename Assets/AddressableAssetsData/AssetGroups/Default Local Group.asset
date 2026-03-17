@@ -16,19 +16,7 @@ MonoBehaviour:
   m_Data:
     m_SerializedData: []
   m_GUID: 464f56e26bf9ace439666e0a9305d95b
-  m_SerializeEntries:
-  - m_GUID: 5a1433b61dcc0984db7d9d4443b116fa
-    m_Address: Assets/Game/SoundTest
-    m_ReadOnly: 0
-    m_SerializedLabels:
-    - sounds
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: fba46446a6bb48a409e419281da7bd03
-    m_Address: Assets/Game/Data
-    m_ReadOnly: 0
-    m_SerializedLabels:
-    - sounds
-    FlaggedDuringContentUpdateRestriction: 0
+  m_SerializeEntries: []
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 901e090fed76a134e8768251eb77da40, type: 2}
   m_SchemaSet:

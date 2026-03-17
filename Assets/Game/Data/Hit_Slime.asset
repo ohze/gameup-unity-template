@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Hit_Slime
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: a358df25f1c12d04bb0c7ea03eb0cb23
+  clipRefs:
+  - m_AssetGUID: a358df25f1c12d04bb0c7ea03eb0cb23
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

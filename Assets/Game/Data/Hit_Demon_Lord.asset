@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a619199e150c2e647a3790cdd0f323d0, type: 3}
   m_Name: Hit_Demon_Lord
   m_EditorClassIdentifier: 
-  clipRef:
-    m_AssetGUID: 1ad062eb967301a4fa9a2b119d52c641
+  clipRefs:
+  - m_AssetGUID: 1ad062eb967301a4fa9a2b119d52c641
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0
