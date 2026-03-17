@@ -13,7 +13,7 @@ namespace GameUp.Core
         [SerializeField] private AudioSource musicSource;
         [SerializeField, Min(1)] private int maxSource = 16;
         [SerializeField] private bool preloadIdentityOnAwake = true;
-        [SerializeField] private List<AudioIdentityReference> identityReferences = new();
+        [SerializeField] private AudioDatabase database;
 
         private readonly List<AudioSource> _sources = new();
         private readonly HashSet<AudioSource> _busySources = new(); // nguồn đang "reserve" trong khi loading
@@ -134,12 +134,13 @@ namespace GameUp.Core
 
         private void PreloadIdentitiesInternal()
         {
-            if (identityReferences == null || identityReferences.Count == 0)
+            var refs = database ? database.identityReferences : null;
+            if (refs == null || refs.Count == 0)
                 return;
 
-            for (int i = 0; i < identityReferences.Count; i++)
+            for (int i = 0; i < refs.Count; i++)
             {
-                var idRef = identityReferences[i];
+                var idRef = refs[i];
                 if (idRef == null || !idRef.RuntimeKeyIsValid())
                     continue;
 
