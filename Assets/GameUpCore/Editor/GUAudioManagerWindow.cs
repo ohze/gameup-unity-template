@@ -40,6 +40,68 @@ namespace GameUp.Core.Editor
                 "Assets/AudioID.cs");
         }
 
+        private static string ToProjectRelativePath(string absolutePath)
+        {
+            if (string.IsNullOrEmpty(absolutePath)) return absolutePath;
+            var normalized = absolutePath.Replace("\\", "/").TrimEnd('/');
+            var dataPath = Application.dataPath.Replace("\\", "/");
+            if (normalized.StartsWith(dataPath, StringComparison.OrdinalIgnoreCase))
+            {
+                var sub = normalized.Length == dataPath.Length ? "" : normalized.Substring(dataPath.Length).TrimStart('/');
+                return string.IsNullOrEmpty(sub) ? "Assets" : $"Assets/{sub}";
+            }
+            var projectRoot = Path.GetDirectoryName(dataPath)?.Replace("\\", "/");
+            if (!string.IsNullOrEmpty(projectRoot) && normalized.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                var sub = normalized.Substring(projectRoot.Length).TrimStart('/');
+                return string.IsNullOrEmpty(sub) ? "Assets" : sub;
+            }
+            return absolutePath;
+        }
+
+        private void DrawPathField(string label, ref string path, string prefsKey, bool isFolder, string defaultFileName = null)
+        {
+            EditorGUILayout.BeginHorizontal();
+            path = EditorGUILayout.TextField(label, path);
+            if (GUILayout.Button("...", GUILayout.Width(24)))
+            {
+                var projectRoot = Path.GetDirectoryName(Application.dataPath) ?? "";
+                string startDir = Application.dataPath;
+                if (!string.IsNullOrEmpty(path))
+                {
+                    var dir = path.Replace("\\", "/");
+                    var relDir = isFolder ? dir : (Path.GetDirectoryName(dir) ?? dir).Replace("\\", "/");
+                    if (relDir.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) || relDir.Equals("Assets", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var full = Path.Combine(projectRoot, relDir);
+                        if (Directory.Exists(full))
+                            startDir = full;
+                    }
+                }
+                startDir = startDir.Replace("\\", "/");
+
+                string chosen;
+                if (isFolder)
+                {
+                    chosen = EditorUtility.OpenFolderPanel("Chọn thư mục", startDir, "");
+                }
+                else
+                {
+                    chosen = EditorUtility.SaveFilePanel("Chọn nơi lưu AudioID.cs", startDir, defaultFileName ?? "AudioID.cs", "cs");
+                }
+                if (!string.IsNullOrEmpty(chosen))
+                {
+                    path = ToProjectRelativePath(chosen);
+                    if (!isFolder && !path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(defaultFileName))
+                        path = path.TrimEnd('/') + "/" + defaultFileName;
+                    path = path.Replace("\\", "/");
+                    EditorPrefs.SetString(prefsKey, path);
+                    Repaint();
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
         private void OnGUI()
         {
             EditorGUILayout.LabelField("Audio Manager Setup", EditorStyles.boldLabel);
@@ -51,9 +113,9 @@ namespace GameUp.Core.Editor
             EditorGUILayout.LabelField("Generation Settings", EditorStyles.boldLabel);
 
             EditorGUI.BeginChangeCheck();
-            audioFolderPath = EditorGUILayout.TextField("Audio folder (project-relative)", audioFolderPath);
-            audioIdentityFolderPath = EditorGUILayout.TextField("AudioIdentity Resources folder (under Assets)", audioIdentityFolderPath);
-            audioIdOutputPath = EditorGUILayout.TextField("AudioID output path (Assets folder or .cs file)", audioIdOutputPath);
+            DrawPathField("Audio folder (project-relative)", ref audioFolderPath, PrefsKeyAudioFolder, isFolder: true, defaultFileName: null);
+            DrawPathField("AudioIdentity Resources folder (under Assets)", ref audioIdentityFolderPath, PrefsKeyAudioIdentityFolder, isFolder: true, defaultFileName: null);
+            DrawPathField("AudioID output path (folder or .cs file)", ref audioIdOutputPath, PrefsKeyAudioIdOutputPath, isFolder: false, defaultFileName: "AudioID.cs");
             if (EditorGUI.EndChangeCheck())
             {
                 EditorPrefs.SetString(PrefsKeyAudioFolder, audioFolderPath);
