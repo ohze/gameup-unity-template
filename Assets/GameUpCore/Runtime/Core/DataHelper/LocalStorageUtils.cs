@@ -1,4 +1,5 @@
 using UnityEngine;
+using GameUp.Core.Serializer;
 
 namespace GameUp.Core
 {
@@ -81,6 +82,40 @@ namespace GameUp.Core
         public static bool GetBoolean(string key, bool v = default)
         {
             return GetInt(key, v ? 1 : 0) == 1;
+        }
+
+        /// <summary>
+        /// Lưu object (Dictionary, List, class...) dùng FullSerializer — hỗ trợ Dictionary, polymorphism.
+        /// </summary>
+        public static void SetObject<T>(string key, T obj)
+        {
+            if (obj == null)
+            {
+                SetString(key, string.Empty);
+                return;
+            }
+            string json = obj.Serialize();
+            SetString(key, json);
+        }
+
+        /// <summary>
+        /// Đọc object (Dictionary, List, class...) đã lưu bằng SetObject.
+        /// </summary>
+        public static T GetObject<T>(string key, T defaultValue = default)
+        {
+            string json = GetString(key);
+            if (string.IsNullOrEmpty(json)) return defaultValue;
+
+            try
+            {
+                var result = json.Deserialize<T>();
+                return result != null ? result : defaultValue;
+            }
+            catch (System.Exception e)
+            {
+                GULogger.Error("LocalStorage", $"GetObject failed for key '{key}': {e.Message}");
+                return defaultValue;
+            }
         }
     }
 }

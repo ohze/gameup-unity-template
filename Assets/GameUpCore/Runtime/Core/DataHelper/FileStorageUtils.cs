@@ -1,6 +1,7 @@
+using System;
 using System.IO;
 using UnityEngine;
-using System;
+using GameUp.Core.Serializer;
 
 namespace GameUp.Core
 {
@@ -8,13 +9,16 @@ namespace GameUp.Core
     {
         private static string GetPath(string key) => Path.Combine(Application.persistentDataPath, key + ".dat");
 
+        /// <summary>
+        /// Lưu object (Dictionary, List, class...) dùng FullSerializer — hỗ trợ Dictionary, polymorphism.
+        /// </summary>
         public static void SaveData<T>(string key, T data, bool encrypt = true)
         {
             try
             {
-                string json = JsonUtility.ToJson(data);
+                string json = data != null ? data.Serialize() : string.Empty;
                 if (encrypt) json = EncryptUtils.Encrypt(json);
-                
+
                 File.WriteAllText(GetPath(key), json);
             }
             catch (Exception e)
@@ -23,6 +27,9 @@ namespace GameUp.Core
             }
         }
 
+        /// <summary>
+        /// Đọc object (Dictionary, List, class...) đã lưu bằng SaveData.
+        /// </summary>
         public static T LoadData<T>(string key, bool isEncrypted = true)
         {
             string path = GetPath(key);
@@ -32,8 +39,8 @@ namespace GameUp.Core
             {
                 string content = File.ReadAllText(path);
                 if (isEncrypted) content = EncryptUtils.Decrypt(content);
-                
-                return JsonUtility.FromJson<T>(content);
+
+                return content.Deserialize<T>();
             }
             catch (Exception e)
             {
