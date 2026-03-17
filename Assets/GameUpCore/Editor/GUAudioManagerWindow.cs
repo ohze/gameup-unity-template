@@ -354,21 +354,46 @@ namespace GameUp.Core.Editor
                     sanitizedName = "Unnamed";
                 var identityName = string.IsNullOrEmpty(folderPart) ? sanitizedName : $"{folderPart}_{sanitizedName}";
 
+                // Unity cảnh báo nếu main object name != asset filename.
+                // Vì identity.name có thể include folderPart để unique, ta đồng bộ filename theo identityName.
                 var identitySubPath = string.IsNullOrEmpty(relativeFolder)
+                    ? $"{identityName}.asset"
+                    : $"{relativeFolder.Replace('\\', '/')}/{identityName}.asset";
+                var desiredIdentityAssetPath = $"{identityFolderNormalized}/{identitySubPath}".Replace("\\", "/");
+
+                // Backward-compat: file cũ theo sanitizedName (không có folderPart) -> move sang desired path nếu có.
+                var legacySubPath = string.IsNullOrEmpty(relativeFolder)
                     ? $"{sanitizedName}.asset"
                     : $"{relativeFolder.Replace('\\', '/')}/{sanitizedName}.asset";
-                var identityAssetPath = $"{identityFolderNormalized}/{identitySubPath}";
+                var legacyIdentityAssetPath = $"{identityFolderNormalized}/{legacySubPath}".Replace("\\", "/");
 
-                var identityDir = Path.GetDirectoryName(identityAssetPath)?.Replace("\\", "/");
+                var identityDir = Path.GetDirectoryName(desiredIdentityAssetPath)?.Replace("\\", "/");
                 if (!string.IsNullOrEmpty(identityDir) && !Directory.Exists(identityDir))
                     Directory.CreateDirectory(identityDir);
 
-                var identity = AssetDatabase.LoadAssetAtPath<AudioIdentity>(identityAssetPath);
+                var identity = AssetDatabase.LoadAssetAtPath<AudioIdentity>(desiredIdentityAssetPath);
+                if (!identity && !string.Equals(legacyIdentityAssetPath, desiredIdentityAssetPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    identity = AssetDatabase.LoadAssetAtPath<AudioIdentity>(legacyIdentityAssetPath);
+                    if (identity)
+                    {
+                        // Move/rename legacy asset để filename khớp identity.name
+                        var moveErr = AssetDatabase.MoveAsset(legacyIdentityAssetPath, desiredIdentityAssetPath);
+                        if (!string.IsNullOrEmpty(moveErr))
+                        {
+                            Debug.LogWarning($"[AudioManager] Không thể rename/move AudioIdentity từ \"{legacyIdentityAssetPath}\" sang \"{desiredIdentityAssetPath}\": {moveErr}");
+                            // fallback: vẫn dùng legacy path
+                            desiredIdentityAssetPath = legacyIdentityAssetPath;
+                        }
+                    }
+                }
+
+                identity = AssetDatabase.LoadAssetAtPath<AudioIdentity>(desiredIdentityAssetPath);
                 if (!identity)
                 {
                     identity = ScriptableObject.CreateInstance<AudioIdentity>();
                     identity.name = identityName;
-                    AssetDatabase.CreateAsset(identity, identityAssetPath);
+                    AssetDatabase.CreateAsset(identity, desiredIdentityAssetPath);
                 }
                 else
                 {
@@ -389,12 +414,12 @@ namespace GameUp.Core.Editor
                 if (identity.clipRefs.Count > 0)
                     EditorUtility.SetDirty(identity);
 
-                var identityGuid = AssetDatabase.AssetPathToGUID(identityAssetPath);
+                var identityGuid = AssetDatabase.AssetPathToGUID(desiredIdentityAssetPath);
                 if (!string.IsNullOrEmpty(identityGuid))
                 {
                     identityGuids.Add((identityName, identityGuid));
                     identityNames.Add(identityName);
-                    var identityPathNorm = identityAssetPath.Replace("\\", "/");
+                    var identityPathNorm = desiredIdentityAssetPath.Replace("\\", "/");
                     currentIdentityPaths.Add(identityPathNorm);
                     identityPathsForAddressables.Add(identityPathNorm);
                 }
