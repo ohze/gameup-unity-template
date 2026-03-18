@@ -1,0 +1,16 @@
+{
+    "name": "GameUp.Runtime.LocalTracking",
+    "rootNamespace": "",
+    "references": [
+        "GUID:db4c5d2a20c270545885b0666275f823"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

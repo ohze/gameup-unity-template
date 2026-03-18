@@ -1,0 +1,18 @@
+{
+    "name": "GameUp.Editor.LocalTracking",
+    "rootNamespace": "",
+    "references": [
+        "GUID:eb8722f16932f472e92ed3cb924eccb1",
+        "GUID:db4c5d2a20c270545885b0666275f823",
+        "GUID:478a2357cc57436488a56e564b08d223"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
