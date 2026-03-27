@@ -2,7 +2,6 @@
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
-using UnityEngine;
 
 namespace GameUp.Core.Editor
 {
@@ -44,14 +43,14 @@ namespace GameUp.Core.Editor
                 {
                     defineList.Add(SYMBOL);
                     PlayerSettings.SetScriptingDefineSymbols(target, defineList.ToArray());
-                    Debug.Log($"<color=green>[GLogger]</color> Đã <b>BẬT</b> log cho {target.TargetName}.");
+                    GULogger.Log($"<color=green>[GLogger]</color> Đã <b>BẬT</b> log cho {target.TargetName}.");
                     hasChanged = true;
                 }
                 else if (!enable && defineList.Contains(SYMBOL))
                 {
                     defineList.Remove(SYMBOL);
                     PlayerSettings.SetScriptingDefineSymbols(target, defineList.ToArray());
-                    Debug.Log($"<color=orange>[GLogger]</color> Đã <b>TẮT</b> log cho {target.TargetName}.");
+                    GULogger.Log($"<color=orange>[GLogger]</color> Đã <b>TẮT</b> log cho {target.TargetName}.");
                     hasChanged = true;
                 }
             }
@@ -63,7 +62,7 @@ namespace GameUp.Core.Editor
             }
             else
             {
-                Debug.Log($"[GLogger] Trạng thái log đã ở mức mong muốn, không có thay đổi nào.");
+                GULogger.Log("GLogger", "Trạng thái log đã ở mức mong muốn, không có thay đổi nào.");
             }
         }
     }

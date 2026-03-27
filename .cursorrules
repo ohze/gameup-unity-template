@@ -13,6 +13,10 @@
 - **Chuỗi:** luôn dùng interpolation `$"..."`; không nối chuỗi bằng `+` cho log/text động.
 - **Local functions:** không viết hàm lồng trong hàm — tách thành `private` method cùng class.
 
+## Logging
+- **Không** gọi `UnityEngine.Debug` (`Debug.Log`, `Debug.LogWarning`, `Debug.LogError`, `Debug.LogException`, …) trong code game/feature; dùng `GameUp.Core.GULogger` tại `Assets/GameUpCore/Runtime/Core/Logger/GULogger.cs` (`Log` / `Verbose` / `Warning` / `Error` / `Exception`, có overload kèm `tag`).
+- Chỉ `GULogger` (hoặc lớp logger nội bộ khác của core) được phép wrap `Debug`; không thêm chỗ gọi `Debug` trực tiếp ngoài đó khi viết/sửa code mới.
+
 ## Folder structure (Assets)
 - Gom asset game vào thư mục gốc project (vd: `Assets/_Project/` hoặc `GameUpCore/`), không để rải rác ngoài `Assets/`.
 - Không trộn code nội bộ với `Plugins` hay `ThirdParty`.

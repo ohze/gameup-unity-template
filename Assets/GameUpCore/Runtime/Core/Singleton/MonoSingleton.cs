@@ -16,7 +16,7 @@ namespace GameUp.Core
             {
                 if (_applicationIsQuitting)
                 {
-                    Debug.LogWarning($"[Singleton] Instance '{typeof(T)}' đã bị hủy khi thoát App. Không tạo lại.");
+                    GULogger.Warning("Singleton", $"Instance '{typeof(T)}' đã bị hủy khi thoát App. Không tạo lại.");
                     return null;
                 }
 

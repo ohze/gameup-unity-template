@@ -1,20 +1,21 @@
 {
-  "name": "GameUp.Core.Editor",
-  "rootNamespace": "GameUp.Core.Editor",
-  "references": [
-    "GameUp.Core.Runtime",
-    "GameUp.UI.Runtime",
-    "Unity.Addressables.Editor"
-  ],
-  "includePlatforms": [
-    "Editor"
-  ],
-  "excludePlatforms": [],
-  "allowUnsafeCode": false,
-  "overrideReferences": false,
-  "precompiledReferences": [],
-  "autoReferenced": true,
-  "defineConstraints": [],
-  "versionDefines": [],
-  "noEngineReferences": false
+    "name": "GameUp.Core.Editor",
+    "rootNamespace": "GameUp.Core.Editor",
+    "references": [
+        "Unity.Addressables.Editor",
+        "GameUp.Core.Runtime",
+        "GameUp.UI.Runtime"
+    ],
+    "includePlatforms": [
+        "Android",
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

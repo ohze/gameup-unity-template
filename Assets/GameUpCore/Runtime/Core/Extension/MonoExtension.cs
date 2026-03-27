@@ -4,10 +4,16 @@ namespace GameUp.Core
 {
     public static class MonoExtension
     {
+        public static T Cast<T>(this object o) where T : class
+        {
+            if (o is T v)
+                return v;
+            return null;
+        }
         // --- HIỂN THỊ / ẨN ---
         public static void Hide(this GameObject go) => go.SetActive(false);
         public static void Show(this GameObject go) => go.SetActive(true);
-        
+
         // Chỉ cần Component là bao quát được cả MonoBehaviour và Transform
         public static void Hide(this Component c) => c.gameObject.SetActive(false);
         public static void Show(this Component c) => c.gameObject.SetActive(true);
@@ -26,7 +32,7 @@ namespace GameUp.Core
         public static void SetPosY(this Transform t, float y) => t.position = new Vector3(t.position.x, y, t.position.z);
 
         // --- QUẢN LÝ COMPONENT ---
-        public static T GetOrAdd<T>(this GameObject go) where T : Component 
+        public static T GetOrAdd<T>(this GameObject go) where T : Component
         {
             return go.TryGetComponent<T>(out var comp) ? comp : go.AddComponent<T>();
         }
@@ -47,7 +53,7 @@ namespace GameUp.Core
             if (target == null) return;
             Vector3 direction = target.position - a.position;
             if (direction == Vector3.zero) return;
-            
+
             Quaternion rotation = Quaternion.LookRotation(direction);
             rotation.x = 0;
             rotation.z = 0;

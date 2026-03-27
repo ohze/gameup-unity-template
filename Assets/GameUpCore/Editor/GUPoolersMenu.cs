@@ -20,7 +20,7 @@ namespace GameUp.Core.Editor
             {
                 Selection.activeGameObject = existing.gameObject;
                 EditorGUIUtility.PingObject(existing.gameObject);
-                Debug.Log($"[GUPoolers] Scene đã có GUPoolers trên \"{existing.gameObject.name}\", đã chọn.");
+                GULogger.Log("GUPoolers", $"Scene đã có GUPoolers trên \"{existing.gameObject.name}\", đã chọn.");
                 return;
             }
 
@@ -33,7 +33,7 @@ namespace GameUp.Core.Editor
                 EditorSceneManager.MarkSceneDirty(scene);
 
             Selection.activeGameObject = go;
-            Debug.Log($"[GUPoolers] Đã tạo \"{SingletonName}\" và gắn GUPoolers.");
+            GULogger.Log("GUPoolers", $"Đã tạo \"{SingletonName}\" và gắn GUPoolers.");
         }
     }
 }

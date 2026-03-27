@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using GameUp.Core;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Settings;
@@ -17,10 +16,10 @@ namespace GameUp.Core.Editor
     public class GUAudioManagerWindow : EditorWindow
     {
         private const string WindowTitle = "GameUp Audio Setup";
-        private const string PrefsKeyAudioFolder = "GameUp.Audio.FolderPath";
-        private const string PrefsKeyAudioIdentityFolder = "GameUp.Audio.IdentityFolderPath";
-        private const string PrefsKeyAudioIdOutputPath = "GameUp.Audio.AudioIDOutputPath";
-        private const string PrefsKeyAudioDatabaseFolder = "GameUp.Audio.DatabaseFolderPath";
+        private const string DefaultAudioFolderPath = "Assets/_MainProject/Audio";
+        private const string DefaultAudioIdentityFolderPath = "Assets/_MainProject/Data/NoneSingleton/AudioIdentity";
+        private const string DefaultAudioIdOutputPath = "Assets/_MainProject/Scripts/Audio/AudioID.cs";
+        private const string DefaultAudioDatabaseFolderPath = "Assets/_MainProject/Data/Singletons";
 
         /// <summary> Tên group và label Addressables dùng cho audio (AudioIdentity + AudioClip). </summary>
         private const string AddressablesAudioIdentitiesGroupName = "Audio_Identities";
@@ -42,33 +41,10 @@ namespace GameUp.Core.Editor
 
         private void OnEnable()
         {
-            audioFolderPath = EditorPrefs.GetString(PrefsKeyAudioFolder,
-                "Games/Addressables/Sounds");
-            audioIdentityFolderPath = EditorPrefs.GetString(PrefsKeyAudioIdentityFolder,
-                "Assets/GameData/Resources/AudioIdentities");
-            audioIdOutputPath = EditorPrefs.GetString(PrefsKeyAudioIdOutputPath,
-                "Assets/AudioID.cs");
-            audioDatabaseFolderPath = EditorPrefs.GetString(PrefsKeyAudioDatabaseFolder,
-                "Assets/GameData/Resources/");
-        }
-
-        private static string ToProjectRelativePath(string absolutePath)
-        {
-            if (string.IsNullOrEmpty(absolutePath)) return absolutePath;
-            var normalized = absolutePath.Replace("\\", "/").TrimEnd('/');
-            var dataPath = Application.dataPath.Replace("\\", "/");
-            if (normalized.StartsWith(dataPath, StringComparison.OrdinalIgnoreCase))
-            {
-                var sub = normalized.Length == dataPath.Length ? "" : normalized.Substring(dataPath.Length).TrimStart('/');
-                return string.IsNullOrEmpty(sub) ? "Assets" : $"Assets/{sub}";
-            }
-            var projectRoot = Path.GetDirectoryName(dataPath)?.Replace("\\", "/");
-            if (!string.IsNullOrEmpty(projectRoot) && normalized.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                var sub = normalized.Substring(projectRoot.Length).TrimStart('/');
-                return string.IsNullOrEmpty(sub) ? "Assets" : sub;
-            }
-            return absolutePath;
+            audioFolderPath = DefaultAudioFolderPath;
+            audioIdentityFolderPath = DefaultAudioIdentityFolderPath;
+            audioIdOutputPath = DefaultAudioIdOutputPath;
+            audioDatabaseFolderPath = DefaultAudioDatabaseFolderPath;
         }
 
         /// <summary> Lấy thư mục tương đối của clip so với searchFolder (vd: "hero" từ "Assets/.../Sounds/hero/attack.wav"). </summary>
@@ -84,53 +60,12 @@ namespace GameUp.Core.Editor
             return string.IsNullOrEmpty(dir) ? "" : dir;
         }
 
-        private static string FolderToNamePart(string folder)
+        private static void DrawFixedPathField(string label, string path)
         {
-            if (string.IsNullOrEmpty(folder)) return "";
-            return folder.Replace(" ", "_").Replace("-", "_").Replace("/", "_").Trim('_');
-        }
-
-        private void DrawPathField(string label, ref string path, string prefsKey, bool isFolder, string defaultFileName = null)
-        {
-            EditorGUILayout.BeginHorizontal();
-            path = EditorGUILayout.TextField(label, path);
-            if (GUILayout.Button("Browse", GUILayout.Width(64)))
+            using (new EditorGUI.DisabledScope(true))
             {
-                var projectRoot = Path.GetDirectoryName(Application.dataPath) ?? "";
-                string startDir = Application.dataPath;
-                if (!string.IsNullOrEmpty(path))
-                {
-                    var dir = path.Replace("\\", "/");
-                    var relDir = isFolder ? dir : (Path.GetDirectoryName(dir) ?? dir).Replace("\\", "/");
-                    if (relDir.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) || relDir.Equals("Assets", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var full = Path.Combine(projectRoot, relDir);
-                        if (Directory.Exists(full))
-                            startDir = full;
-                    }
-                }
-                startDir = startDir.Replace("\\", "/");
-
-                string chosen;
-                if (isFolder)
-                {
-                    chosen = EditorUtility.OpenFolderPanel("Chọn thư mục", startDir, "");
-                }
-                else
-                {
-                    chosen = EditorUtility.SaveFilePanel("Chọn nơi lưu AudioID.cs", startDir, defaultFileName ?? "AudioID.cs", "cs");
-                }
-                if (!string.IsNullOrEmpty(chosen))
-                {
-                    path = ToProjectRelativePath(chosen);
-                    if (!isFolder && !path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(defaultFileName))
-                        path = path.TrimEnd('/') + "/" + defaultFileName;
-                    path = path.Replace("\\", "/");
-                    EditorPrefs.SetString(prefsKey, path);
-                    Repaint();
-                }
+                EditorGUILayout.TextField(label, path);
             }
-            EditorGUILayout.EndHorizontal();
         }
 
         private void OnGUI()
@@ -187,14 +122,9 @@ namespace GameUp.Core.Editor
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Audio Database", EditorStyles.boldLabel);
+            DrawFixedPathField("Database Folder", audioDatabaseFolderPath);
 
-            EditorGUI.BeginChangeCheck();
-            DrawPathField("Database Path (folder under Assets)", ref audioDatabaseFolderPath, PrefsKeyAudioDatabaseFolder, isFolder: true);
-            if (EditorGUI.EndChangeCheck())
-            {
-                EditorPrefs.SetString(PrefsKeyAudioDatabaseFolder, audioDatabaseFolderPath);
-            }
-
+            EditorGUILayout.HelpBox("Du lieu database se luu co dinh tai path tren.", MessageType.None);
             using (new EditorGUI.DisabledScope(manager == null))
             {
                 if (GUILayout.Button("Initialize Audio Database", GUILayout.Height(30)))
@@ -229,16 +159,9 @@ namespace GameUp.Core.Editor
                 // keep UI consistent; validation happens on button click
             }
 
-            EditorGUI.BeginChangeCheck();
-            DrawPathField("Audio Folder", ref audioFolderPath, PrefsKeyAudioFolder, isFolder: true);
-            DrawPathField("Identity Folder", ref audioIdentityFolderPath, PrefsKeyAudioIdentityFolder, isFolder: true);
-            DrawPathField("AudioID Output Path", ref audioIdOutputPath, PrefsKeyAudioIdOutputPath, isFolder: false, defaultFileName: "AudioID.cs");
-            if (EditorGUI.EndChangeCheck())
-            {
-                EditorPrefs.SetString(PrefsKeyAudioFolder, audioFolderPath);
-                EditorPrefs.SetString(PrefsKeyAudioIdentityFolder, audioIdentityFolderPath);
-                EditorPrefs.SetString(PrefsKeyAudioIdOutputPath, audioIdOutputPath);
-            }
+            DrawFixedPathField("Audio Folder", audioFolderPath);
+            DrawFixedPathField("Identity Folder", audioIdentityFolderPath);
+            DrawFixedPathField("AudioID Output Path", audioIdOutputPath);
 
             EditorGUILayout.Space();
             EditorGUILayout.HelpBox(
@@ -259,19 +182,19 @@ namespace GameUp.Core.Editor
         {
             if (!manager || !database)
             {
-                Debug.LogError("[AudioManager] Không tìm thấy AudioManager hoặc AudioDatabase.");
+                GULogger.Error("AudioManager", "Không tìm thấy AudioManager hoặc AudioDatabase.");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(audioFolderPath))
             {
-                Debug.LogError("[AudioManager] Audio Folder đang trống.");
+                GULogger.Error("AudioManager", "Audio Folder đang trống.");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(audioIdentityFolderPath))
             {
-                Debug.LogError("[AudioManager] Identity Folder đang trống.");
+                GULogger.Error("AudioManager", "Identity Folder đang trống.");
                 return;
             }
 
@@ -286,7 +209,7 @@ namespace GameUp.Core.Editor
             var clips = GameUtils.GetAssetList<AudioClip>(searchFolder);
             if (clips == null || clips.Count == 0)
             {
-                Debug.LogWarning($"[AudioManager] Không tìm thấy AudioClip nào trong folder: {audioFolderPath}");
+                GULogger.Warning("AudioManager", $"Không tìm thấy AudioClip nào trong folder: {audioFolderPath}");
                 return;
             }
 
@@ -341,6 +264,7 @@ namespace GameUp.Core.Editor
 
             var identityGuids = new List<(string name, string guid)>();
             var identityNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var identityNameCounters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var currentIdentityPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var identityPathsForAddressables = new List<string>();
             var clipPathsForAddressables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -348,14 +272,25 @@ namespace GameUp.Core.Editor
             foreach (var kvp in clipGroups)
             {
                 var (relativeFolder, sanitizedName) = kvp.Key;
-                var folderPart = FolderToNamePart(relativeFolder);
-                folderPart = SanitizeNamePart(folderPart);
                 if (string.IsNullOrEmpty(sanitizedName))
                     sanitizedName = "Unnamed";
-                var identityName = string.IsNullOrEmpty(folderPart) ? sanitizedName : $"{folderPart}_{sanitizedName}";
+
+                // Theo yêu cầu chỉ lấy tên file làm identity name (không ghép tên folder).
+                // Nếu trùng tên giữa nhiều folder, thêm hậu tố _2, _3... để giữ unique key.
+                var identityName = sanitizedName;
+                if (identityNameCounters.TryGetValue(sanitizedName, out var currentCount))
+                {
+                    currentCount++;
+                    identityNameCounters[sanitizedName] = currentCount;
+                    identityName = $"{sanitizedName}_{currentCount}";
+                }
+                else
+                {
+                    identityNameCounters[sanitizedName] = 1;
+                }
 
                 // Unity cảnh báo nếu main object name != asset filename.
-                // Vì identity.name có thể include folderPart để unique, ta đồng bộ filename theo identityName.
+                // Vì identity.name có thể include hậu tố để unique, ta đồng bộ filename theo identityName.
                 var identitySubPath = string.IsNullOrEmpty(relativeFolder)
                     ? $"{identityName}.asset"
                     : $"{relativeFolder.Replace('\\', '/')}/{identityName}.asset";
@@ -381,7 +316,7 @@ namespace GameUp.Core.Editor
                         var moveErr = AssetDatabase.MoveAsset(legacyIdentityAssetPath, desiredIdentityAssetPath);
                         if (!string.IsNullOrEmpty(moveErr))
                         {
-                            Debug.LogWarning($"[AudioManager] Không thể rename/move AudioIdentity từ \"{legacyIdentityAssetPath}\" sang \"{desiredIdentityAssetPath}\": {moveErr}");
+                            GULogger.Warning("AudioManager", $"Không thể rename/move AudioIdentity từ \"{legacyIdentityAssetPath}\" sang \"{desiredIdentityAssetPath}\": {moveErr}");
                             // fallback: vẫn dùng legacy path
                             desiredIdentityAssetPath = legacyIdentityAssetPath;
                         }
@@ -457,7 +392,7 @@ namespace GameUp.Core.Editor
 
             if (settings == null)
             {
-                Debug.LogError("[AudioManager] Không tìm thấy AddressableAssetSettings. Hãy cài/thiết lập package Addressables (Window > Asset Management > Addressables > Groups).");
+                GULogger.Error("AudioManager", "Không tìm thấy AddressableAssetSettings. Hãy cài/thiết lập package Addressables (Window > Asset Management > Addressables > Groups).");
                 return;
             }
 
@@ -483,11 +418,11 @@ namespace GameUp.Core.Editor
 
                 if (group == null)
                 {
-                    Debug.LogError($"[AudioManager] Không tạo được Addressables group \"{groupName}\".");
+                    GULogger.Error("AudioManager", $"Không tạo được Addressables group \"{groupName}\".");
                     return null;
                 }
 
-                Debug.Log($"[AudioManager] Đã tạo Addressables group \"{groupName}\".");
+                GULogger.Log("AudioManager", $"Đã tạo Addressables group \"{groupName}\".");
                 return group;
             }
 
@@ -576,13 +511,13 @@ namespace GameUp.Core.Editor
                     clipsGroup.RemoveAssetEntry(toRemove[i]);
                 }
                 processed += toRemove.Count;
-                Debug.Log($"[AudioManager] Đã remove {toRemove.Count} AudioClip không còn tồn tại khỏi Addressables group \"{AddressablesAudioClipsGroupName}\".");
+                GULogger.Log("AudioManager", $"Đã remove {toRemove.Count} AudioClip không còn tồn tại khỏi Addressables group \"{AddressablesAudioClipsGroupName}\".");
             }
 
             if (processed > 0)
             {
                 settings.SetDirty(AddressableAssetSettings.ModificationEvent.BatchModification, settings, true, false);
-                Debug.Log($"[AudioManager] Đã thêm/cập nhật {processed} asset vào Addressables (groups \"{AddressablesAudioIdentitiesGroupName}\" & \"{AddressablesAudioClipsGroupName}\", label \"{AddressablesAudioLabel}\").");
+                GULogger.Log("AudioManager", $"Đã thêm/cập nhật {processed} asset vào Addressables (groups \"{AddressablesAudioIdentitiesGroupName}\" & \"{AddressablesAudioClipsGroupName}\", label \"{AddressablesAudioLabel}\").");
             }
         }
 
@@ -601,7 +536,7 @@ namespace GameUp.Core.Editor
             foreach (var path in toDelete)
             {
                 AssetDatabase.DeleteAsset(path);
-                Debug.Log($"[AudioManager] Đã xóa AudioIdentity thừa: {path}");
+                GULogger.Log("AudioManager", $"Đã xóa AudioIdentity thừa: {path}");
             }
         }
 
@@ -650,7 +585,7 @@ namespace GameUp.Core.Editor
 
             if (!outputPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) && !outputPath.Equals("Assets", StringComparison.OrdinalIgnoreCase))
             {
-                Debug.LogError($"[AudioManager] AudioID output path phải nằm dưới 'Assets/'. Hiện tại: {outputPath}");
+                GULogger.Error("AudioManager", $"AudioID output path phải nằm dưới 'Assets/'. Hiện tại: {outputPath}");
                 return;
             }
 
@@ -662,7 +597,7 @@ namespace GameUp.Core.Editor
                 if (path.EndsWith("AudioID.cs", StringComparison.OrdinalIgnoreCase))
                 {
                     AssetDatabase.DeleteAsset(path);
-                    Debug.Log($"[AudioManager] Đã xóa file AudioID cũ: {path}");
+                    GULogger.Log("AudioManager", $"Đã xóa file AudioID cũ: {path}");
                 }
             }
 
@@ -799,7 +734,7 @@ namespace GameUp.Core.Editor
 
             File.WriteAllText(outputPath, sb.ToString());
             AssetDatabase.Refresh();
-            Debug.Log($"[AudioManager] Đã sinh lại file AudioID.cs với {ordered.Count} entries tại: {outputPath}");
+            GULogger.Log("AudioManager", $"Đã sinh lại file AudioID.cs với {ordered.Count} entries tại: {outputPath}");
         }
 
         private static bool HasDatabaseAssigned(AudioManager manager)
@@ -832,7 +767,7 @@ namespace GameUp.Core.Editor
                 EditorSceneManager.MarkSceneDirty(scene);
 
             Selection.activeGameObject = go;
-            Debug.Log("[AudioManager] Đã tạo GameObject 'AudioManager' và gắn component.");
+            GULogger.Log("AudioManager", "Đã tạo GameObject 'AudioManager' và gắn component.");
             return created;
         }
 
@@ -840,19 +775,19 @@ namespace GameUp.Core.Editor
         {
             if (!manager)
             {
-                Debug.LogError("[AudioManager] Không tìm thấy AudioManager.");
+                GULogger.Error("AudioManager", "Không tìm thấy AudioManager.");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(databaseFolder))
             {
-                databaseFolder = "Assets/GameData/Resources/";
+                databaseFolder = DefaultAudioDatabaseFolderPath;
             }
 
             databaseFolder = databaseFolder.Trim().Replace("\\", "/").TrimEnd('/');
             if (!databaseFolder.StartsWith("Assets", StringComparison.OrdinalIgnoreCase))
             {
-                Debug.LogError($"[AudioManager] Database Path phải nằm dưới 'Assets/'. Hiện tại: {databaseFolder}");
+                GULogger.Error("AudioManager", $"Database Path phải nằm dưới 'Assets/'. Hiện tại: {databaseFolder}");
                 return;
             }
 
@@ -878,14 +813,14 @@ namespace GameUp.Core.Editor
                 database = ScriptableObject.CreateInstance<GameUp.Core.AudioDatabase>();
                 AssetDatabase.CreateAsset(database, assetPath);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[AudioManager] Đã tạo AudioDatabase asset tại: {assetPath}");
+                GULogger.Log("AudioManager", $"Đã tạo AudioDatabase asset tại: {assetPath}");
             }
 
             var so = new SerializedObject(manager);
             var dbProp = so.FindProperty("database");
             if (dbProp == null)
             {
-                Debug.LogError("[AudioManager] Không tìm thấy serialized field 'database' trên AudioManager.");
+                GULogger.Error("AudioManager", "Không tìm thấy serialized field 'database' trên AudioManager.");
                 return;
             }
 
@@ -897,7 +832,7 @@ namespace GameUp.Core.Editor
             if (!scene.isDirty)
                 EditorSceneManager.MarkSceneDirty(scene);
 
-            Debug.Log("[AudioManager] Đã gán AudioDatabase vào AudioManager (Stage 1).");
+            GULogger.Log("AudioManager", "Đã gán AudioDatabase vào AudioManager (Stage 1).");
         }
     }
 }
