@@ -15,6 +15,7 @@ namespace GameUp.Core.Editor
         private const string WindowTitle = "GU Folder Setup";
         private const string MenuPath = "GameUp/Project/Folder Setup";
         private const string EditorPrefsKey = "GameUp.ProjectFolderSetup.CustomFolders";
+        private const string SetupCompletedKey = "GameUp.ProjectFolderSetup.Completed";
         private const float IndentWidth = 18f;
         private static readonly Color ExistsColor = new Color(0.2f, 0.75f, 0.25f);
         private static readonly Color MissingColor = new Color(0.9f, 0.28f, 0.28f);
@@ -55,7 +56,7 @@ namespace GameUp.Core.Editor
 
         private static readonly DefaultScriptableObjectConfig[] RequiredScriptableObjects =
         {
-            new DefaultScriptableObjectConfig("Assets/_MainProject/Data/Singletons/AudioDatabase.asset", typeof(GameUp.Core.AudioDatabase)),
+            //new DefaultScriptableObjectConfig("Assets/_MainProject/Data/Singletons/AudioDatabase.asset", typeof(GameUp.Core.AudioDatabase)),
             new DefaultScriptableObjectConfig("Assets/_MainProject/Resources/Data/PopupData.asset", typeof(GameUp.Core.UI.PopupData)),
             new DefaultScriptableObjectConfig("Assets/_MainProject/Resources/Data/ScreenData.asset", typeof(GameUp.Core.UI.ScreenData))
         };
@@ -111,6 +112,33 @@ namespace GameUp.Core.Editor
             window.titleContent = new GUIContent(WindowTitle);
             window.minSize = new Vector2(580f, 440f);
             window.Show();
+        }
+
+        public static bool IsSetupCompleted()
+        {
+            if (!EditorPrefs.GetBool(SetupCompletedKey, false))
+            {
+                return false;
+            }
+
+            for (int index = 0; index < RequiredFolders.Length; index++)
+            {
+                if (!AssetDatabase.IsValidFolder(RequiredFolders[index]))
+                {
+                    return false;
+                }
+            }
+
+            for (int index = 0; index < RequiredScriptableObjects.Length; index++)
+            {
+                var config = RequiredScriptableObjects[index];
+                if (AssetDatabase.LoadAssetAtPath(config.AssetPath, config.AssetType) == null)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void OnEnable()
@@ -323,6 +351,7 @@ namespace GameUp.Core.Editor
             AssetDatabase.Refresh();
             EnsureDefaultAudioAssets();
             EnsureDefaultUiDataAssets();
+            EditorPrefs.SetBool(SetupCompletedKey, true);
             ShowNotification(new GUIContent($"Done. Checked {createdCount} folder(s)."));
         }
 

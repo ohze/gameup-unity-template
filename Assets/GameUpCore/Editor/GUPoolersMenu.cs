@@ -11,6 +11,7 @@ namespace GameUp.Core.Editor
     {
         private const string MenuPath = "GameUp/Poolers/Setup GUPoolers in Scene";
         private const string SingletonName = "GUPoolersSingleton";
+        private const string ProjectFolderSetupCompletedKey = "GameUp.ProjectFolderSetup.Completed";
 
         [MenuItem(MenuPath)]
         public static void SetupGUPoolers()
@@ -34,6 +35,12 @@ namespace GameUp.Core.Editor
 
             Selection.activeGameObject = go;
             GULogger.Log("GUPoolers", $"Đã tạo \"{SingletonName}\" và gắn GUPoolers.");
+        }
+
+        [MenuItem(MenuPath, true)]
+        private static bool ValidateSetupGUPoolers()
+        {
+            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
         }
     }
 }

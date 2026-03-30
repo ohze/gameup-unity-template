@@ -20,6 +20,7 @@ namespace GameUp.Core.Editor
         private const string DefaultAudioIdentityFolderPath = "Assets/_MainProject/Data/NoneSingleton/AudioIdentity";
         private const string DefaultAudioIdOutputPath = "Assets/_MainProject/Scripts/Audio/AudioID.cs";
         private const string DefaultAudioDatabaseFolderPath = "Assets/_MainProject/Data/Singletons";
+        private const string ProjectFolderSetupCompletedKey = "GameUp.ProjectFolderSetup.Completed";
 
         /// <summary> Tên group và label Addressables dùng cho audio (AudioIdentity + AudioClip). </summary>
         private const string AddressablesAudioIdentitiesGroupName = "Audio_Identities";
@@ -31,12 +32,20 @@ namespace GameUp.Core.Editor
         private string audioIdOutputPath;
         private string audioDatabaseFolderPath;
 
-        [MenuItem("GameUp/Audio/Setup AudioManager")]
+        private const string MenuPath = "GameUp/Audio/Setup AudioManager";
+
+        [MenuItem(MenuPath)]
         public static void ShowWindow()
         {
             var window = GetWindow<GUAudioManagerWindow>();
             window.titleContent = new GUIContent(WindowTitle);
             window.Show();
+        }
+
+        [MenuItem(MenuPath, true)]
+        private static bool ValidateShowWindow()
+        {
+            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
         }
 
         private void OnEnable()

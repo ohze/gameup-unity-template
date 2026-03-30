@@ -8,6 +8,9 @@ namespace GameUp.Core.Editor
     public static class GULoggerMenu
     {
         private const string SYMBOL = "ENABLE_LOG";
+        private const string EnableMenuPath = "GameUp/Logger/Enable Logs (Debug)";
+        private const string DisableMenuPath = "GameUp/Logger/Disable Logs (Release)";
+        private const string ProjectFolderSetupCompletedKey = "GameUp.ProjectFolderSetup.Completed";
 
         // Sử dụng NamedBuildTarget thay cho BuildTargetGroup cũ
         private static readonly NamedBuildTarget[] _supportTargets = new[]
@@ -17,16 +20,28 @@ namespace GameUp.Core.Editor
             NamedBuildTarget.iOS
         };
 
-        [MenuItem("GameUp/Logger/Enable Logs (Debug)")]
+        [MenuItem(EnableMenuPath)]
         public static void EnableLogs()
         {
             SetLogSymbol(true);
         }
 
-        [MenuItem("GameUp/Logger/Disable Logs (Release)")]
+        [MenuItem(DisableMenuPath)]
         public static void DisableLogs()
         {
             SetLogSymbol(false);
+        }
+
+        [MenuItem(EnableMenuPath, true)]
+        private static bool ValidateEnableLogs()
+        {
+            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
+        }
+
+        [MenuItem(DisableMenuPath, true)]
+        private static bool ValidateDisableLogs()
+        {
+            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
         }
 
         private static void SetLogSymbol(bool enable)
