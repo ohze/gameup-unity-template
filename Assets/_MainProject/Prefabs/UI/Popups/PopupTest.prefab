@@ -11,7 +11,9 @@ GameObject:
   - component: {fileID: 514655500415039329}
   - component: {fileID: 5619115323671416096}
   - component: {fileID: 3963216924080541237}
-  - component: {fileID: 5337277584127577920}
+  - component: {fileID: 2333679595743741720}
+  - component: {fileID: 1156291176911537661}
+  - component: {fileID: 5169857647732627461}
   m_Layer: 5
   m_Name: PopupTest
   m_TagString: Untagged
@@ -76,7 +78,19 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &5337277584127577920
+--- !u!225 &2333679595743741720
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9208520721205559771}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &1156291176911537661
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -88,3 +102,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70ff937c036ce084a87496d179c4fb71, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  animationMode: 1
+  animationTypeName: GameUp.Core.UI.UIFadeAnimation, GameUp.UI.Runtime, Version=0.0.0.0,
+    Culture=neutral, PublicKeyToken=null
+--- !u!114 &5169857647732627461
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9208520721205559771}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5c1903fe4b37ad4da4ed09f0cf857c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  content: {fileID: 0}
+  canvasGroup: {fileID: 2333679595743741720}
+  fadeTime: 0.25

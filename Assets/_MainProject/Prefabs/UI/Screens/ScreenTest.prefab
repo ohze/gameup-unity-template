@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 455179762458583969}
   - component: {fileID: 2381631735137781029}
   - component: {fileID: 6380551540752151049}
+  - component: {fileID: 3143497471212558994}
+  - component: {fileID: 2072560129030636895}
   m_Layer: 5
   m_Name: ScreenTest
   m_TagString: Untagged
@@ -86,5 +88,31 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a4c0d9fffb6de7c4a9576efc51af3b08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animationMode: 0
+  animationTypeName: 
+--- !u!225 &3143497471212558994
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6559799606192053133}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &2072560129030636895
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6559799606192053133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93a101dd6d0300c41a564bc9ba4bfea6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 

@@ -38,6 +38,15 @@ namespace GameUp.Core
             }
         }
 
+        private void OnValidate()
+        {
+            if (musicSource == null)
+            {
+                musicSource = GetComponent<AudioSource>();
+                GameUtils.SaveAssets(this);
+            }
+        }
+
         private void OnEnable()
         {
             AudioSetting.Instance.IsMusicOn.OnValueChange.AddListener(OnMusicChange);
