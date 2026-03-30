@@ -17,7 +17,7 @@ MonoBehaviour:
     m_SerializedData: []
   m_GUID: 402eace2af15d28478194e81926b7954
   m_SerializeEntries:
-  - m_GUID: 95db117715bf86846ba53023acc1e780
+  - m_GUID: e0c5f1b8fc2a6c5428b129ff5725535f
     m_Address: Assets/_MainProject/Prefabs/UI/Screens
     m_ReadOnly: 0
     m_SerializedLabels:

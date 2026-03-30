@@ -1,3 +1,5 @@
+#if UNITY_EDITOR
+using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -5,118 +7,79 @@ namespace GameUp.Core.UI
 {
     public class ViewCreatorPostProcessor : AssetPostprocessor
     {
-        private enum UpdateFlags
-        {
-            None = 0,
-            Popup = 1 << 0,
-            Screen = 1 << 1
-        }
-
         private const string LoggerTag = "ViewCreatorPostProcessor";
-        private const string PopupPrefabFolderPath = "Assets/_MainProject/Prefabs/UI/Popups/";
-        private const string ScreenPrefabFolderPath = "Assets/_MainProject/Prefabs/UI/Screens/";
+
         private const string PrefabExtension = ".prefab";
+        private const string AssetExtension = ".asset";
+
         private const string PopupDataResourcePath = "Data/PopupData";
         private const string ScreenDataResourcePath = "Data/ScreenData";
 
+        // Match the reference behavior: detect by folder segments, not strict prefix.
+        private const string PopupsSegment = "/Popups/";
+        private const string ScreensSegment = "/Screens/";
+        private const string SingletonsFolderSegment = "Assets/_MainProject/Data/Singletons/";
+
         private static bool _popupDataDirty;
         private static bool _screenDataDirty;
+        private static bool _addressableHolderDirty;
         private static bool _isRefreshScheduled;
 
-        private static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets,
+        private static void OnPostprocessAllAssets(
+            string[] importedAssets,
+            string[] deletedAssets,
+            string[] movedAssets,
             string[] movedFromAssetPaths)
         {
-            UpdateFlags updateFlags = CollectUpdateFlags(importedAssets, deletedAssets, movedAssets, movedFromAssetPaths);
-            if (updateFlags == UpdateFlags.None)
-            {
+            CollectFlags(importedAssets);
+            CollectFlags(deletedAssets);
+            CollectFlags(movedAssets);
+            CollectFlags(movedFromAssetPaths);
+
+            if (!_popupDataDirty && !_screenDataDirty && !_addressableHolderDirty)
                 return;
-            }
-
-            if ((updateFlags & UpdateFlags.Popup) != 0)
-            {
-                _popupDataDirty = true;
-            }
-
-            if ((updateFlags & UpdateFlags.Screen) != 0)
-            {
-                _screenDataDirty = true;
-            }
 
             ScheduleRefreshIfNeeded();
         }
 
-        private static UpdateFlags CollectUpdateFlags(string[] importedAssets, string[] deletedAssets, string[] movedAssets,
-            string[] movedFromAssetPaths)
+        private static void CollectFlags(string[] paths)
         {
-            UpdateFlags flags = UpdateFlags.None;
-            flags |= GetUpdateFlagsFromPaths(importedAssets);
-            if (flags == (UpdateFlags.Popup | UpdateFlags.Screen))
-            {
-                return flags;
-            }
+            if (paths == null || paths.Length == 0) return;
 
-            flags |= GetUpdateFlagsFromPaths(deletedAssets);
-            if (flags == (UpdateFlags.Popup | UpdateFlags.Screen))
+            for (var i = 0; i < paths.Length; i++)
             {
-                return flags;
-            }
+                var path = paths[i];
+                if (string.IsNullOrEmpty(path)) continue;
 
-            flags |= GetUpdateFlagsFromPaths(movedAssets);
-            if (flags == (UpdateFlags.Popup | UpdateFlags.Screen))
-            {
-                return flags;
-            }
+                // Normalize slashes defensively (Unity usually uses '/').
+                if (path.IndexOf('\\') >= 0) path = path.Replace('\\', '/');
 
-            flags |= GetUpdateFlagsFromPaths(movedFromAssetPaths);
-            return flags;
-        }
-
-        private static UpdateFlags GetUpdateFlagsFromPaths(string[] assetPaths)
-        {
-            if (assetPaths == null || assetPaths.Length == 0)
-            {
-                return UpdateFlags.None;
-            }
-
-            UpdateFlags flags = UpdateFlags.None;
-            for (int i = 0; i < assetPaths.Length; i++)
-            {
-                string path = assetPaths[i];
-                if (string.IsNullOrEmpty(path))
+                if (!_addressableHolderDirty &&
+                    path.EndsWith(AssetExtension, StringComparison.OrdinalIgnoreCase) &&
+                    path.IndexOf(SingletonsFolderSegment, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    continue;
+                    _addressableHolderDirty = true;
                 }
 
-                if (!path.EndsWith(PrefabExtension))
+                if (path.EndsWith(PrefabExtension, StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;
+                    if (!_popupDataDirty &&
+                        path.IndexOf(PopupsSegment, StringComparison.OrdinalIgnoreCase) >= 0)
+                        _popupDataDirty = true;
+
+                    if (!_screenDataDirty &&
+                        path.IndexOf(ScreensSegment, StringComparison.OrdinalIgnoreCase) >= 0)
+                        _screenDataDirty = true;
                 }
 
-                if (path.StartsWith(PopupPrefabFolderPath))
-                {
-                    flags |= UpdateFlags.Popup;
-                }
-
-                if (path.StartsWith(ScreenPrefabFolderPath))
-                {
-                    flags |= UpdateFlags.Screen;
-                }
-
-                if (flags == (UpdateFlags.Popup | UpdateFlags.Screen))
-                {
-                    return flags;
-                }
+                if (_popupDataDirty && _screenDataDirty && _addressableHolderDirty)
+                    return;
             }
-
-            return flags;
         }
 
         private static void ScheduleRefreshIfNeeded()
         {
-            if (_isRefreshScheduled)
-            {
-                return;
-            }
+            if (_isRefreshScheduled) return;
 
             _isRefreshScheduled = true;
             EditorApplication.delayCall += RunScheduledRefresh;
@@ -137,15 +100,20 @@ namespace GameUp.Core.UI
                 _screenDataDirty = false;
                 TrySetupScreenData();
             }
+
+            if (_addressableHolderDirty)
+            {
+                _addressableHolderDirty = false;
+                TrySetupAddressableDataHolder();
+            }
         }
 
         private static void TrySetupPopupData()
         {
-            PopupData popupData = Resources.Load<PopupData>(PopupDataResourcePath);
-            if (popupData == null)
+            var popupData = Resources.Load<PopupData>(PopupDataResourcePath);
+            if (!popupData)
             {
-                GULogger.Warning(LoggerTag,
-                    $"Khong tim thay PopupData tai Resources path: '{PopupDataResourcePath}'.");
+                GULogger.Warning(LoggerTag, $"Khong tim thay PopupData tai Resources path: '{PopupDataResourcePath}'.");
                 return;
             }
 
@@ -154,15 +122,29 @@ namespace GameUp.Core.UI
 
         private static void TrySetupScreenData()
         {
-            ScreenData screenData = Resources.Load<ScreenData>(ScreenDataResourcePath);
-            if (screenData == null)
+            var screenData = Resources.Load<ScreenData>(ScreenDataResourcePath);
+            if (!screenData)
             {
-                GULogger.Warning(LoggerTag,
-                    $"Khong tim thay ScreenData tai Resources path: '{ScreenDataResourcePath}'.");
+                GULogger.Warning(LoggerTag, $"Khong tim thay ScreenData tai Resources path: '{ScreenDataResourcePath}'.");
                 return;
             }
 
             screenData.SetUp();
         }
+
+        private static void TrySetupAddressableDataHolder()
+        {
+            // Prefer the reference snippet behavior (Resources.Load + SetUp).
+            var holder = GameUp.Core.AddressableDataHolder.Editor_LoadFromResourcesOrNull();
+            if (!holder)
+            {
+                GULogger.Warning(LoggerTag,
+                    "Khong tim thay AddressableHolder trong Resources. Hay chay 'GameUp/Project/Folder Setup' de tao day du.");
+                return;
+            }
+
+            holder.SetUp();
+        }
     }
 }
+#endif

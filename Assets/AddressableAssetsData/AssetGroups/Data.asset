@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
-  m_Name: UI_Popups
+  m_Name: Data
   m_EditorClassIdentifier: 
-  m_GroupName: UI_Popups
+  m_GroupName: Data
   m_Data:
     m_SerializedData: []
-  m_GUID: 4ab369d37d4cd6749aa52e699bca933f
+  m_GUID: cf207f3c68a8c7147a13650269e71f2e
   m_SerializeEntries:
-  - m_GUID: 4161d3862a269724f81a6aff71172226
-    m_Address: Assets/_MainProject/Prefabs/UI/Popups
+  - m_GUID: 8528cb3cec17c81499de50c3ca05088a
+    m_Address: Assets/_MainProject/Data/Singletons
     m_ReadOnly: 0
     m_SerializedLabels:
-    - Popup
+    - Data
     FlaggedDuringContentUpdateRestriction: 0
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: 901e090fed76a134e8768251eb77da40, type: 2}
   m_SchemaSet:
     m_Schemas:
-    - {fileID: 11400000, guid: 031116605dec9854081019e86660f00f, type: 2}
+    - {fileID: 11400000, guid: 73c8257a7131fe1448f818313765fa30, type: 2}

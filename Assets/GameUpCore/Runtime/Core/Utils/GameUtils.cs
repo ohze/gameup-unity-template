@@ -68,35 +68,36 @@ namespace GameUp.Core
 #if UNITY_EDITOR
         public static List<T> GetAssetList<T>(string path) where T : Object
         {
-            var result = new List<T>();
-            if (string.IsNullOrWhiteSpace(path)) return result;
-            try
+            return GetAssetList(path, new List<T>());
+        }
+
+        public static List<T> GetAssetList<T>(string path, List<T> result) where T : Object
+        {
+            if (result == null) result = new List<T>();
+            result.Clear();
+
+            if (string.IsNullOrWhiteSpace(path))
+                return result;
+
+            var folderPath = NormalizeAssetFolderPath(path);
+            if (string.IsNullOrEmpty(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+                return result;
+
+            // Use AssetDatabase indexing; this is significantly faster than System.IO scanning.
+            var filter = $"t:{typeof(T).Name}";
+            var guids = AssetDatabase.FindAssets(filter, new[] { folderPath });
+            if (guids == null || guids.Length == 0)
+                return result;
+
+            if (result.Capacity < guids.Length) result.Capacity = guids.Length;
+
+            for (var i = 0; i < guids.Length; i++)
             {
-                // 2. Xử lý đường dẫn chuẩn Unity (relative path)
-                // Thay vì dùng Application.dataPath, hãy dùng chính AssetDatabase.FindAssets để tối ưu
-                string folderPath = Path.Combine("Assets", path).Replace('\\', '/');
+                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(assetPath)) continue;
 
-                if (!AssetDatabase.IsValidFolder(folderPath))
-                {
-                    GULogger.Warning("AssetUtils", $"Path không tồn tại: {folderPath}");
-                    return result;
-                }
-
-                // 3. Sử dụng API của Unity thay vì System.IO để tận dụng Indexing của Unity
-                // Tìm kiếm tất cả GUID của loại T trong folder
-                string filter = $"t:{typeof(T).Name}";
-                string[] guids = AssetDatabase.FindAssets(filter, new[] { folderPath });
-
-                foreach (var guid in guids)
-                {
-                    string assetPath = AssetDatabase.GUIDToAssetPath(guid);
-                    T asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
-                    if (asset != null) result.Add(asset);
-                }
-            }
-            catch (Exception e)
-            {
-                GULogger.Error("AssetUtils", $"Error when scanning asset: {e.Message}");
+                var asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
+                if (asset) result.Add(asset);
             }
 
             return result;
@@ -108,39 +109,57 @@ namespace GameUp.Core
         /// </summary>
         public static List<GameObject> GetPrefabAssetsWithComponent<TComponent>(string path) where TComponent : Component
         {
-            var result = new List<GameObject>();
-            if (string.IsNullOrWhiteSpace(path)) return result;
+            return GetPrefabAssetsWithComponent<TComponent>(path, new List<GameObject>());
+        }
 
-            try
+        public static List<GameObject> GetPrefabAssetsWithComponent<TComponent>(string path, List<GameObject> result)
+            where TComponent : Component
+        {
+            if (result == null) result = new List<GameObject>();
+            result.Clear();
+
+            if (string.IsNullOrWhiteSpace(path))
+                return result;
+
+            var folderPath = NormalizeAssetFolderPath(path);
+            if (string.IsNullOrEmpty(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+                return result;
+
+            var guids = AssetDatabase.FindAssets("t:Prefab", new[] { folderPath });
+            if (guids == null || guids.Length == 0)
+                return result;
+
+            for (var i = 0; i < guids.Length; i++)
             {
-                var folderPath = Path.Combine("Assets", path).Replace('\\', '/');
-                if (!AssetDatabase.IsValidFolder(folderPath))
-                {
-                    GULogger.Warning("AssetUtils", $"Path không tồn tại: {folderPath}");
-                    return result;
-                }
+                var prefabPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(prefabPath)) continue;
 
-                var guids = AssetDatabase.FindAssets("t:Prefab", new[] { folderPath });
-                foreach (var guid in guids)
-                {
-                    var prefabPath = AssetDatabase.GUIDToAssetPath(guid);
-                    if (string.IsNullOrEmpty(prefabPath)) continue;
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (!prefab) continue;
 
-                    var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-                    if (!prefab) continue;
-
-                    if (prefab.GetComponentInChildren<TComponent>(true) != null)
-                    {
-                        result.Add(prefab);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                GULogger.Error("AssetUtils", $"Error when scanning prefab: {e.Message}");
+                if (prefab.GetComponentInChildren<TComponent>(true) != null)
+                    result.Add(prefab);
             }
 
             return result;
+        }
+
+        private static string NormalizeAssetFolderPath(string rawPath)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+                return string.Empty;
+
+            var p = rawPath.Replace('\\', '/').Trim();
+            p = p.TrimEnd('/');
+
+            // Accept either "Assets/..." or paths relative to Assets.
+            if (p.Equals("Assets", StringComparison.OrdinalIgnoreCase))
+                return "Assets";
+
+            if (p.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+                return p;
+
+            return $"Assets/{p}";
         }
 
         public static void SaveAssets(Object target)

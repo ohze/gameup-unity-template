@@ -24,6 +24,7 @@ namespace GameUp.Core.Editor
         {
             "Assets/_MainProject/Resources",
             "Assets/_MainProject/Resources/Data",
+            "Assets/_MainProject/Resources/Data/Singletons",
             //
             "Assets/_MainProject/Art",
             //
@@ -67,6 +68,10 @@ namespace GameUp.Core.Editor
         private const string AddressablesUiScreensGroupName = "UI_Screens";
         private const string AddressablesUiPopupLabel = "Popup";
         private const string AddressablesUiScreenLabel = "Screen";
+
+        private const string DataSingletonsFolderPath = "Assets/_MainProject/Data/Singletons";
+        private const string AddressablesDataGroupName = "Data";
+        private const string AddressablesDataLabel = "Data";
 
         private readonly FolderNode _requiredTreeRoot = new FolderNode("Assets", "Assets");
 
@@ -351,6 +356,8 @@ namespace GameUp.Core.Editor
             AssetDatabase.Refresh();
             EnsureDefaultAudioAssets();
             EnsureDefaultUiDataAssets();
+            EnsureDataFoldersInAddressables();
+            EnsureAddressableDataHolderAsset();
             EditorPrefs.SetBool(SetupCompletedKey, true);
             ShowNotification(new GUIContent($"Done. Checked {createdCount} folder(s)."));
         }
@@ -392,6 +399,51 @@ namespace GameUp.Core.Editor
             AssetDatabase.Refresh();
 
             EnsureUiFoldersInAddressables();
+        }
+
+        private static void EnsureAddressableDataHolderAsset()
+        {
+            var holder = GameUp.Core.AddressableDataHolder.Editor_EnsureAssetExists();
+            if (!holder)
+            {
+                return;
+            }
+
+            holder.Editor_RebuildReferencesFromFolder();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+
+        private static void EnsureDataFoldersInAddressables()
+        {
+            var settings = AddressableAssetSettingsDefaultObject.GetSettings(false);
+            if (settings == null)
+            {
+                settings = AddressableAssetSettingsDefaultObject.GetSettings(true);
+            }
+
+            if (settings == null)
+            {
+                GULogger.Warning("FolderSetup", "Không tìm thấy AddressableAssetSettings. Bỏ qua bước add Data folders vào Addressables.");
+                return;
+            }
+
+            EnsureAddressablesLabel(settings, AddressablesDataLabel);
+
+            var dataGroup = GetOrCreateAddressablesGroup(settings, AddressablesDataGroupName);
+            if (dataGroup == null)
+            {
+                return;
+            }
+
+            var processed = 0;
+            processed += EnsureFolderEntry(settings, dataGroup, DataSingletonsFolderPath, AddressablesDataLabel) ? 1 : 0;
+
+            if (processed > 0)
+            {
+                settings.SetDirty(AddressableAssetSettings.ModificationEvent.BatchModification, settings, true, false);
+                GULogger.Log("FolderSetup", $"Đã thêm/cập nhật {processed} Data folder(s) vào Addressables (group \"{AddressablesDataGroupName}\", label \"{AddressablesDataLabel}\").");
+            }
         }
 
         private static void EnsureUiFoldersInAddressables()
