@@ -204,7 +204,7 @@ MonoBehaviour:
   musicSource: {fileID: 248327698}
   maxSource: 16
   preloadIdentityOnAwake: 1
-  database: {fileID: 11400000, guid: aad5c10b573b20f479a64d159be334c7, type: 2}
+  database: {fileID: 11400000, guid: 82de7ddebca449e44b380d686e2175a8, type: 2}
 --- !u!82 &248327698
 AudioSource:
   m_ObjectHideFlags: 0
