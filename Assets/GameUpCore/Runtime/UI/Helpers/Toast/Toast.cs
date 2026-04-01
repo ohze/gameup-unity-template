@@ -1,5 +1,4 @@
-﻿using GameUp.Core;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace GameUp.Core.UI
 {
@@ -8,6 +7,7 @@ namespace GameUp.Core.UI
         [SerializeField] private ToastItem prefabItem;
         [SerializeField] private RectTransform contentHolder;
 
+        [Button]
         public static void Show(string str, float timeShow = 1.3f, float showPosY = 0)
         {
             ToastItem.RemoveOtherToast();

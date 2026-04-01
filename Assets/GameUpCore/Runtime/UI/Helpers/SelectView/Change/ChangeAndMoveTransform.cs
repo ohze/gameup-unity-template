@@ -14,7 +14,7 @@ namespace GameUp.Core.UI
 
         private Tween _changePosTween;
         private bool _hasLoggedMissingRefs;
-    
+
         public override void ChangeSelect(bool isSelected)
         {
             IsSelected = isSelected;

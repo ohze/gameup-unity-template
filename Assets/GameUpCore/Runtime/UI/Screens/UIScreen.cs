@@ -147,30 +147,12 @@ namespace GameUp.Core.UI
                     HistoryView.Push(currentScreen);
                 }
 
-                if (isUseTransition)
-                {
-                    FlashPanelMediator.OpenWithPredicate(AlwaysTruePredicate, () =>
-                    {
-                        currentScreen.Close();
-                        view.Open();
-                    });
-                }
-                else
-                {
-                    currentScreen.Close();
-                    view.Open();
-                }
+                currentScreen.Close();
+                view.Open();
             }
             else
             {
-                if (isUseTransition)
-                {
-                    FlashPanelMediator.OpenWithPredicate(AlwaysTruePredicate, view.Open);
-                }
-                else
-                {
-                    view.Open();
-                }
+                view.Open();
             }
             currentScreen = view;
         }
@@ -282,7 +264,7 @@ namespace GameUp.Core.UI
 
         private static void OpenWithTransitionAsync(Action<T> onComplete = null, bool remember = true)
         {
-            FlashPanelMediator.OpenWithPredicate(IsLoaded, () => OpenViewInternalAsync(onComplete, remember));
+            OpenViewInternalAsync(onComplete, remember);
         }
 
         private static void OpenViewInternalAsync(Action<T> onComplete = null, bool remember = true)
