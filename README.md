@@ -1,217 +1,362 @@
 # GameUp Unity Template
 
-**GameUp Core Framework** là một nền tảng cốt lõi (core framework) dành cho việc phát triển game trên Unity (phiên bản 2022.3 trở lên). Dự án cung cấp một bộ khung cấu trúc chuẩn hóa với các module thiết yếu bao gồm Singleton, Event Bus (Signal), mã hóa/lưu trữ, System Audio, thư viện tiện ích (Utils/Extensions), Logger, Object Pooling, v.v., giúp các team phát triển game đẩy nhanh quá trình sản xuất và dễ dàng maintain code.
+**GameUp Core Framework** là nền tảng cốt lõi cho Unity (2022.3 LTS trở lên): Singleton, Signal, Object Pool, Logger, Audio, lưu trữ có mã hóa, **UI (Screen / Popup)** tích hợp Addressables và DOTween, cùng các cửa sổ Editor để setup nhanh.
 
 ---
 
-## 📑 Mục Lục
+## Mục lục
 
-1. [Cách Cài Đặt và Sử Dụng qua UPM](#-cách-cài-đặt-và-sử-dụng-qua-upm-unity-package-manager)
-2. [Bắt Đầu Nhanh Với Template Repo](#-bắt-đầu-nhanh-với-template-repo)
-3. [Cấu Trúc Thư Mục Khuyến Nghị](#-cấu-trúc-thư-mục-khuyến-nghị)
-4. [Workflow Khuyến Nghị](#-workflow-khuyến-nghị)
-5. [Hệ Thống Cốt Lõi (GameUpCore/Runtime/Core)](#-hệ-thống-cốt-lõi-gameupcoreruntimecore)
-    - [1. Singleton (Singleton)](#1-singleton-singleton)
-    - [2. Signal / Event Bus (Signal)](#2-signal--event-bus-signal)
-    - [3. Object Pools (ObjectPools)](#3-object-pools-objectpools)
-    - [4. Logger (Logger)](#4-logger-logger)
-    - [5. Audio (Audio)](#5-audio-audio)
-    - [6. TimeSystem (TimeSystem)](#6-timesystem-timesystem)
-    - [7. CoroutineRunner (CoroutineRunner)](#7-coroutinerunner-coroutinerunner)
-    - [8. DataHelper (DataHelper)](#8-datahelper-datahelper)
-    - [9. Các Hàm Tiện Ích Mở Rộng (Extension)](#9-các-hàm-tiện-ích-mở-rộng-extension)
-    - [10. Các Hàm Tiện Ích Hệ Thống (Utils)](#10-các-hàm-tiện-ích-hệ-thống-utils)
-6. [Những Công Cụ Cài Đặt / Editor Support (GameUpCore/Editor)](#-những-công-cụ-cài-đặt--editor-support-gameupcoreeditor)
-7. [Ví Dụ Chi Tiết](#-ví-dụ-chi-tiết)
-    - [1. Signal: Publish/Subscribe decoupling](#1-signal-publishsubscribe-decoupling)
-    - [2. Object Pool: Spawn/Release prefab](#2-object-pool-spawnrelease-prefab)
-    - [3. LocalStorageUtils: Lưu & đọc dữ liệu (có mã hoá)](#3-localstorageutils-lưu--đọc-dữ-liệu-có-mã-hoá)
-    - [4. Audio: Setup + phát SFX/BGM](#4-audio-setup--phát-sfxbgm)
-    - [5. TimeSystem: Slow motion theo tình huống](#5-timesystem-slow-motion-theo-tình-huống)
+### A. Cài đặt dự án mới (đọc theo thứ tự)
+
+1. [Tổng quan luồng cài đặt](#a1-tổng-quan-luồng-cài-đặt)
+2. [Bước 1 — DOTween Pro & assembly `DOTween.Modules`](#a2-bước-1--dotween-pro--assembly-dotweenmodules)
+3. [Bước 2 — Thêm GameUpCore qua Git UPM](#a3-bước-2--thêm-gameupcore-qua-git-upm)
+4. [Bước 3 — Folder Setup (`GUProjectFolderSetupWindow`)](#a4-bước-3--folder-setup-guprojectfoldersetupwindow)
+5. [Bước 4 — Logger (`GULoggerMenu`)](#a5-bước-4--logger-guloggermenu)
+6. [Bước 5 — Core setup (`GUCoreProjectSetup`)](#a6-bước-5--core-setup-gucoreprojectsetup)
+7. [Bước 6 — Audio (`GUAudioManagerWindow`, tùy chọn)](#a7-bước-6--audio-guaudiomanagerwindow-tùy-chọn)
+8. [Checklist: khi nào coi như “xong” phần setup](#a8-checklist-khi-nào-coi-như-xong-phần-setup)
+
+### B. Tài liệu framework
+
+9. [Cấu trúc `Assets/GameUpCore`](#b1-cấu-trúc-assetsgameupcore)
+10. [Hệ thống UI: Popup & Screen](#b2-hệ-thống-ui-popup--screen)
+    - [Vị trí prefab & script trong dự án](#b21-vị-trí-prefab--script-trong-dự-án)
+    - [Popup: mở / đóng](#b22-popup-mở--đóng)
+    - [Screen: mở / lịch sử](#b23-screen-mở--lịch-sử)
+    - [Chọn animation (Default / Custom)](#b24-chọn-animation-default--custom)
+    - [Tự động cập nhật dữ liệu: `ViewCreatorPostProcessor`](#b25-tự-động-cập-nhật-dữ-liệu-viewcreatorpostprocessor)
+    - [Nút mở Screen nhanh: `ButtonOpenScreen`](#b26-nút-mở-screen-nhanh-buttonopenscreen)
+    - [Helper UI có sẵn](#b27-helper-ui-có-sẵn)
+11. [Cài UPM (tham chiếu nhanh)](#b3-cài-upm-tham-chiếu-nhanh)
+12. [Bắt đầu nhanh với template repo (clone)](#b4-bắt-đầu-nhanh-với-template-repo-clone)
+13. [Cấu trúc thư mục khuyến nghị](#b5-cấu-trúc-thư-mục-khuyến-nghị)
+14. [Workflow khuyến nghị](#b6-workflow-khuyến-nghị)
+15. [Hệ thống cốt lõi (`GameUpCore/Runtime/Core`)](#b7-hệ-thống-cốt-lõi-gameupcoreruntimecore)
+16. [Công cụ Editor (`GameUpCore/Editor`)](#b8-công-cụ-editor-gameupcoreeditor)
+17. [Ví dụ code (Signal, Pool, Save, Audio, Time)](#b9-ví-dụ-code-signal-pool-save-audio-time)
 
 ---
 
-## 🚀 Cách Cài Đặt và Sử Dụng qua UPM (Unity Package Manager)
+## A1. Tổng quan luồng cài đặt
 
-Hiện tại, framework hỗ trợ việc cài đặt dưới dạng native package thông qua UPM. Bạn có thể cài đặt dễ dàng bằng các bước sau:
+Thứ tự **bắt buộc** cho dự án trống hoặc dự án mới chỉ thêm package:
 
-**Cách 1: Cài đặt trực tiếp qua giao diện Unity Package Manager**
-1. Mở Unity, chọn menu **Window** -> **Package Manager**.
-2. Bấm vào dấu **+** ở góc trên cùng bên trái.
-3. Chọn **"Add package from git URL..."**.
-4. Dán đường dẫn sau vào ô trống và nhấn **Add**:
+1. Cài **DOTween Pro** và chạy **DOTween Setup** để có assembly **`DOTween.Modules`** (GameUp UI reference assembly này trong `GameUp.UI.Runtime.asmdef`).
+2. Thêm **GameUpCore** qua **Git UPM**.
+3. **`GameUp → Project → Folder Setup`** → **Create All Folders** (tạo `_MainProject`, Resources, `PopupData` / `ScreenData`, Addressables cơ bản…).
+4. **`GameUp → Logger → Enable Logs (Debug)`** (menu chỉ bật sau khi Folder Setup đã hoàn tất).
+5. **`GameUp → Project → Core setup`** (copy prefab Manager/UI, đặt vào scene hiện tại).
+6. (Tuỳ chọn) **`GameUp → Audio → Setup AudioManager`** nếu dùng Audio của framework.
+
+---
+
+## A2. Bước 1 — DOTween Pro & assembly `DOTween.Modules`
+
+**Vì sao cần:** package `com.gameup.core` không khai báo DOTween trong `package.json` (OpenUPM không có gói Demigiant chính thức). Module UI (`GameUp.UI.Runtime`) **reference `DOTween.Modules`** — assembly này được tạo sau khi import DOTween và chạy wizard setup của Demigiant.
+
+### Tải và import
+
+1. Tải gói **DOTween Pro** (file `.unitypackage` do team cung cấp), ví dụ qua link:  
+   [DOTween Pro — Google Drive](https://drive.google.com/file/d/1Zz0nFNgwxcP1IbKvsw6ttA2zPLQmJ_iC/view?usp=sharing)
+2. Trong Unity: **Assets → Import Package → Custom Package…**, chọn file vừa tải, import đầy đủ theo hướng dẫn của gói.
+
+### Tạo `DOTween.Modules` (bắt buộc)
+
+1. Sau khi import, mở cửa sổ setup của DOTween (thường menu **Tools → Demigiant → DOTween Utility Panel** hoặc **Window** tương đương theo phiên bản DOTween).
+2. Chạy **Setup DOTween** / **Create ASMDEF** (tên nút có thể khác theo bản Pro) để Unity tạo **Assembly Definition** cho module runtime, trong đó có assembly tên **`DOTween.Modules`**.
+3. Đợi Unity **recompile** xong, kiểm tra trong **Project** có asmdef liên quan DOTween Modules và không có lỗi compile.
+
+**Khi nào xong bước này:** project compile được, `GameUp.UI.Runtime` không báo thiếu reference `DOTween.Modules`.
+
+---
+
+## A3. Bước 2 — Thêm GameUpCore qua Git UPM
+
+**Cách 1 — Package Manager**
+
+1. **Window → Package Manager**.
+2. **+ → Add package from git URL…**
+3. Dán:
+
    ```
    https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore
    ```
-5. Chờ Unity tự động tải và cài đặt package. 
 
-**Cách 2: Khai báo vào manifest.json**
-Mở tệp `Packages/manifest.json` trong thư mục dự án của bạn và thêm dòng sau vào khối `"dependencies"`:
+4. Chờ tải xong; Unity sẽ kéo thêm dependency **Addressables** theo `package.json` của core.
+
+**Cách 2 — `Packages/manifest.json`**
+
 ```json
 "dependencies": {
-    "com.gameup.core": "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore",
-    ...
+    "com.gameup.core": "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore"
 }
 ```
 
----
-
-## 📂 Hệ Thống Cốt Lõi (`GameUpCore/Runtime/Core`)
-
-Thư mục `Assets/GameUpCore/Runtime/Core` bao gồm nhiều hệ thống và thư viện dùng chung cho toàn bộ dự án.
-
-### 1. **Singleton (`Singleton`)**
-- Chứa thiết kế mẫu Singleton cơ bản (`Singleton<T>`) và `MonoSingleton<T>` cho các script kế thừa `MonoBehaviour`. 
-- **Cách sử dụng:** Dùng cho các hệ thống có vai trò quản lý duy nhất trên toàn Scene. Kế thừa `MonoSingleton<AudioManager>`, bạn có thể gọi `AudioManager.Instance` một cách an toàn ở bất kỳ đâu.
-
-### 2. **Signal / Event Bus (`Signal`)**
-- Hệ thống gửi/phát tín hiệu thông qua cơ chế Publish/Subscribe pattern để liên lạc giữa các Scripts/Systems. Nhờ đó các module hoàn toàn tách biệt (decoupling), không bị phụ thuộc vòng vào nhau.
-- **Cách sử dụng (đúng API hiện tại):**
-  - Tạo `Signal` hoặc `Signal<T...>` (tối đa 4 tham số).
-  - Đăng ký/hủy đăng ký bằng `AddListener(...)`, `AddOnce(...)`, `RemoveListener(...)`.
-  - Phát tín hiệu bằng `Dispatch(...)`.
-  - Gợi ý: tạo một class trung tâm (vd: `GameSignals`) để gom các signal dùng chung của game.
-
-### 3. **Object Pools (`ObjectPools`)**
-- Hệ thống tối ưu hiệu năng phân bổ và tái sử dụng GameObjects thay vì gọi `Instantiate` và `Destroy` liên tục (GUPool, GUPoolers).
-- **Cách sử dụng:** Sử dụng `GUPoolers` thay mặt khởi tạo các prefab như Enemy, Đạn. Khi dùng xong chỉ việc đưa chúng về trạng thái Release.
-
-### 4. **Logger (`Logger`)**
-- Wrapper mạnh mẽ của `Debug.Log` đó chính là `GULogger`.
-- **Cách sử dụng:** Thay vì dùng `Debug.Log`, bạn dùng `GULogger.Log()`. Khi phát hành bản Release, chỉ việc cấu hình tắt log (bằng Scripting Define Symbol), giúp trò chơi không bị tiêu tốn hiệu năng.
-
-### 5. **Audio (`Audio`)**
-- Hệ thống quản lý hệ thống âm thanh (`AudioManager`, `AudioDatabase`, `AudioIdentity`). Cấu trúc được mở rộng và có hỗ trợ liên kết với Addressables nếu có nhu cầu sử dụng Audio từ xa.
-- **Cách sử dụng:** Gọi trực tiếp qua AudioManager thông qua định danh được scan và build code-generated tự động. Ví dũ: `AudioManager.PlaySFX(AudioID.Hit)`.
-
-### 6. **TimeSystem (`TimeSystem`)**
-- Cung cấp tính năng quản lý thời gian độc lập (`TimeManager`).
-- **Cách sử dụng:** Nó dùng để làm chậm (slow motion) toàn cục hoặc một phần của game mà hạn chế phụ thuộc cứng vào `Time.timeScale` duy nhất của Unity.
-
-### 7. **CoroutineRunner (`CoroutineRunner`)**
-- Hệ thống chạy đệm hỗ trợ chạy Coroutine cho các class C# thuần túy.
-- **Cách sử dụng:** Các Class thông thường hoặc hệ thống không kế thừa `MonoBehaviour` không thể gọi `StartCoroutine`. Bạn có thể thay bằng `CoroutineRunner.Instance.StartCoroutine(MyCoroutineMethod())`.
-
-### 8. **DataHelper (`DataHelper`)**
-- Tập hợp các lớp trợ giúp quản lý thao tác với cấu trúc thư mục/tệp và định dạng dữ liệu trong Game.
-- Các Components chính:
-  - `EncryptUtils`: Mã hóa chuỗi String.
-  - `FileStorageUtils`: Các phương thức xử lý thư mục `PersistentDataPath`.
-  - `LocalStorageUtils`: Wrapper nâng cao của `PlayerPrefs` có tích hợp sẵn mã hóa `EncryptUtils`, bao gồm lưu trữ kiểu Objects tùy chỉnh thông qua Serialization (Json).
-  - Thư viện json `FullSerializer` (ổn định về serialization so với JsonUtility truyền thống).
-- **Cách sử dụng:** Ví dụ mã hoá và lưu tiền của người chơi: `LocalStorageUtils.SetLong("player_coin", 100);` hoặc đối với cấu trúc lớp phúc tạp `LocalStorageUtils.SetObject<PlayerStats>("stats", currentStats)`.
-
-### 9. **Các Hàm Tiện Ích Mở Rộng (`Extension`)**
-- Các Extension Methods giúp rút ngắn mã nguồn (Cú pháp Sugar). Khi sử dụng, mã nguồn trông sẽ giống như các phương thức sẵn có của lớp đó.
-- Các thư viện khả dụng:
-  - `MonoExtension`: Chứa những cú pháp rút gọi: `gameObject.Show()`, `gameObject.Hide()`, `transform.Reset()`(reset local pos, rot, sca), tự động Add/Get `gameObject.GetOrAdd<Rigidbody>()`, v.v.
-  - `ListCollectionExtension`: Trộn danh sách (`Shuffle`), lấy dữ liệu ngẫu nhiên của danh sách (`GetRandom`), Copy, Tách danh sách v.v.
-  - `ConvertTimeExtension`, `CoroutineExtension`, `EnumExtension`, `UIExtension`.
-- **Cách sử dụng:** Bạn gọi trực tiếp qua biến khởi tạo nếu `using GameUp.Core;` (Ví dụ thay cho `gameObject.SetActive(false)`, chỉ việc gọi `gameObject.Hide()`).
-
-### 10. **Các Hàm Tiện Ích Hệ Thống (`Utils`)**
-- Các Class chứa phương thức Tĩnh (Static) để gọi thực thi tác vụ nhanh chóng.
-- `GameUtils`: Lấy id thiết bị (`GetDeviceId()`), lấy thư mục/danh sách file Editor, Format thời gian (`ConvertTimeSpanStr`), Screenshots (`TakeScreenShot`), Lấy version/bundleID ...
-- `SettingVar<T>`: Mô hình Biến lưu thiết lập hệ thống (`BooleanVar`, `IntVar`...) hỗ trợ việc lưu trực tiếp và kích hoạt sự kiện `OnValueChange` trong nội bộ hệ thống.
-- `TimeUtils`, `StringUtils`: Rất nhiều hàm thao tác thời gian, định dạng chuỗi hữu ích.
+**Khi nào xong:** trong Package Manager thấy **GameUp Core Framework**, không lỗi resolve package.
 
 ---
 
-## 🛠 Những Công Cụ Cài Đặt / Editor Support (`GameUpCore/Editor`)
+## A4. Bước 3 — Folder Setup (`GUProjectFolderSetupWindow`)
 
-Ở thư mục này, framework cung cấp các Unity Editor Tool Windows để thiết lập dễ dàng hơn.
+**Menu:** `GameUp → Project → Folder Setup` (class `GUProjectFolderSetupWindow`).
 
-### 1. **Setup GUPooler trong Scene (`GUPoolersMenu.cs`)**
-- **Sử dụng:** Đi đến menu điều hướng của Unity, chọn `GameUp -> Poolers -> Setup GUPoolers in Scene`.
-- **Tác dụng & Ví dụ:** Tính năng này sẽ tự động tạo một `GameObject` có tên `GUPoolersSingleton` được gán sẵn component `GUPoolers` trong Scene hiện tại. Hoặc nếu đã có sẵn, nó sẽ chỉ trỏ (`ping`) đến đúng GameObject đó. Đỡ mất công tạo tay và tìm kiếm trong Scene nặng.
+**Việc cần làm:**
 
-### 2. **Bật / Tắt Log dành cho Phát Hành (`GULoggerMenu.cs`)**
-- **Sử dụng:** `GameUp -> Logger -> Enable Logs (Debug)` hoặc `Disable Logs (Release)`.
-- **Tác dụng & Ví dụ:** Tool này tự động chèn hoặc xóa cờ Scripting Define Symbols `ENABLE_LOG` trong phần **Player Settings** (cho Standalone, Android và iOS) cùng lúc. 
-  - Khi code trong lúc dev, bấm **Enable Logs (Debug)**, console sẽ in ra log chi tiết qua `GULogger`.
-  - Lúc build bản Release lên Store, chọn **Disable Logs (Release)**, toàn bộ `GULogger` sẽ bị tắt đi để tiết kiệm CPU mà bạn không cần phải lục tung file để sửa thủ công hoặc cấu hình từng Platforms một.
+1. Mở cửa sổ, xem danh sách folder / ScriptableObject mặc định.
+2. Bấm **Create All Folders**.
 
-### 3. **Quản Lý Và Khởi Tạo Âm Thanh Tự Động (`GUAudioManagerWindow.cs`)**
-- **Sử dụng:** Mở `GameUp -> Audio -> Setup AudioManager`.
-- **Tác dụng & Tích hợp:** Đây là cửa sổ Window Editor (Wizard) mạnh mẽ giúp bạn cấu hình Database tập trung cho âm thanh một cách dễ dàng, phân chia làm 2 giai đoạn:
-  - **Giai đoạn 1 (Initial Setup):** Nút **Find/Create AudioManager** giúp tự động tìm hoặc gắn AudioManager vào Scene, sau đó nhấn **Initialize Audio Database** định cấu hình cho `AudioDatabase.asset` trong thư mục quản lý data.
-  - **Giai đoạn 2 (Scan & Update):** Một khi đã thiết lập thư mục các File mP3/Wav (`Audio Folder`), thư mục làm định danh và file Output (VD: `Assets/AudioID.cs`).
-- **Ví dụ cơ chế:** Khi bạn ném một file tên "Attack 1.wav" vào thư mục Audio Folder, rồi ấn nút **Scan & Update** trong Tool Window, quá trình sau sẽ diễn ra:
-  1. Tool tự quét ra Clip, gộp chung nó và tạo một file Scriptable Object tên `Attack.asset` (Identity).
-  2. Ghi đè cập nhật vào `AudioDatabase.asset`.
-  3. Cập nhật và đóng gói Addressables Label / Group (sẵn sàng làm resource rời) nếu bạn có dùng Package Addressables.
-  4. Build ra file C# mới tinh `AudioID.cs` chứa tên Enum: `public static GameUp.Core.AudioIdentity Attack => Get("Attack");`
-  - Về sau trong Main Code, để phát ra tiếng đánh, chỉ cần gõ duy nhất: `AudioManager.instance.Play(AudioID.Attack);` - Vô cùng tiện lợi!
+**Hệ quả chính:**
+
+- Tạo cây thư mục **`Assets/_MainProject/...`** (Resources, Data, Prefabs/UI gồm **`Prefabs/UI/Popups`**, **`Prefabs/UI/Screens`**, Scenes, Scripts…).
+- Tạo **`PopupData`** / **`ScreenData`** tại  
+  `Assets/_MainProject/Resources/Data/PopupData.asset` và `ScreenData.asset` (load runtime qua `Resources` path `Data/PopupData`, `Data/ScreenData`).
+- Cấu hình Addressables cơ bản cho nhóm UI/Data (theo logic trong tool).
+
+**Khi nào xong:** sau **Create All Folders**, Editor lưu `EditorPrefs` đánh dấu hoàn tất; các menu phụ thuộc (Logger, Core setup) mới active đúng. Điều kiện “đủ” còn được kiểm tra lại: mọi folder bắt buộc tồn tại và hai asset `PopupData` / `ScreenData` có mặt (xem `IsSetupCompleted()` trong cùng file Editor).
 
 ---
 
-## ⚡ Bắt Đầu Nhanh Với Template Repo
+## A5. Bước 4 — Logger (`GULoggerMenu`)
 
-Phần này dành cho trường hợp bạn dùng **repo này như một dự án mẫu** (clone về và bắt đầu làm game luôn), thay vì nhúng `GameUpCore` qua UPM.
+**Menu:**
 
-### Yêu cầu môi trường
-- **Unity**: 2022.3+ (LTS khuyến nghị).
-- **IDE**: Rider hoặc Visual Studio 2022.
-- (Tuỳ chọn) **Addressables**: nếu bạn muốn quản lý Audio/Assets theo kiểu resource rời.
+- `GameUp → Logger → Enable Logs (Debug)`
+- `GameUp → Logger → Disable Logs (Release)`
 
-### Chạy dự án lần đầu
-1. Clone repo và mở bằng Unity Hub.
-2. Mở Scene mẫu: `Assets/Scenes/SampleScene.unity`.
-3. Nếu có các tool setup trong menu `GameUp`, hãy chạy các tool cần thiết:
-   - `GameUp -> Poolers -> Setup GUPoolers in Scene`
-   - `GameUp -> Audio -> Setup AudioManager` (nếu dự án có Audio)
-4. Nhấn Play để kiểm tra.
+**Khi nào dùng:** sau Folder Setup. Tool gắn/bỏ define **`ENABLE_LOG`** cho Standalone, Android, iOS.
 
-### Nhúng `GameUpCore` vào dự án khác (tóm tắt)
-- Nếu dự án khác muốn dùng core mà **không clone template**, hãy dùng phần [UPM](#-cách-cài-đặt-và-sử-dụng-qua-upm-unity-package-manager) phía trên.
+**Khi nào xong:** khi đang dev, bật Debug; trước bản release store, tắt log bằng Release.
 
 ---
 
-## 📁 Cấu Trúc Thư Mục Khuyến Nghị
+## A6. Bước 5 — Core setup (`GUCoreProjectSetup`)
 
-Để giảm conflict và giữ dự án “sạch”, khuyến nghị gom toàn bộ game vào một thư mục gốc:
+**Menu:** `GameUp → Project → Core setup` (chỉ khả dụng khi Folder Setup đã hoàn tất).
+
+**Việc làm:** copy prefab **Core** / **UI Helpers** (Loading, Toast, …) từ package sang `_MainProject`, remap GUID, rồi đảm bảo trong **scene đang mở** có instance prefab **`====Manager====`** và **`=====UI=====`** (tên file trong package: `Prefab/Core`).
+
+**Khi nào xong:** log “Đã hoàn tất Core setup”; trong hierarchy có root Manager + UI, `ObjectFinder`/`ScreenHolder`/`PopupHolder` hoạt động theo prefab.
+
+---
+
+## A7. Bước 6 — Audio (`GUAudioManagerWindow`, tùy chọn)
+
+**Menu:** `GameUp → Audio → Setup AudioManager`.
+
+- **Initial:** tìm/tạo **AudioManager** trong scene, khởi tạo **Audio Database**.
+- **Scan & Update:** quét thư mục audio, sinh identity, cập nhật database, build **`AudioID`**.
+
+**Khi nào xong:** khi bạn đã có `AudioManager` trong scene và pipeline scan chạy không lỗi cho thư mục audio dự án.
+
+---
+
+## A8. Checklist: khi nào coi như “xong” phần setup
+
+| Mục | Điều kiện |
+|-----|-----------|
+| DOTween | Import Pro + Setup → có `DOTween.Modules`, compile OK |
+| GameUpCore | Package `com.gameup.core` cài qua Git URL |
+| Folder Setup | **Create All Folders** đã chạy, `PopupData`/`ScreenData` tồn tại đúng path Resources |
+| Logger | Đã chọn Debug/Release theo nhu cầu |
+| Core setup | Scene có Manager + UI root từ tool |
+| UI Addressables | Prefab Popup/Screen đặt dưới `_MainProject/.../Popups` và `.../Screens`, đã mark Addressables theo nhóm tool tạo (khi cần) |
+| Audio | (Tuỳ chọn) Audio window đã setup và scan |
+
+Sau đó có thể tạo prefab Popup/Screen, để `ViewCreatorPostProcessor` hoặc nút **SetUp** trên asset data tự đồng bộ danh sách.
+
+---
+
+## B1. Cấu trúc `Assets/GameUpCore`
+
+- **`Runtime/Core`** — Singleton, Signal, Pool, Logger, Audio, Time, CoroutineRunner, DataHelper, Utils/Extensions, Addressable holder, v.v.
+- **`Runtime/UI`** — `UIPopup` / `UIScreen`, `PopupData` / `ScreenData`, animation (DOTween), adaptation (SafeArea, MultiResolution), **Helpers** (Loading, Toast, EnhancedScroll, SelectView, CustomButton…), `ViewCreatorPostProcessor`.
+- **`Prefab/`** — Prefab mẫu Core + UI (Manager, UI root, Loading, Toast…) được **Core setup** copy sang `_MainProject`.
+- **`Editor/`** — `GUProjectFolderSetupWindow`, `GUCoreProjectSetup`, `GULoggerMenu`, `GUAudioManagerWindow`, menu Poolers, v.v.
+
+File `package.json` của core ghi rõ Unity **2022.3** và dependency **Addressables**.
+
+---
+
+## B2. Hệ thống UI: Popup & Screen
+
+### B2.1. Vị trí prefab & script trong dự án
+
+- **Script / logic** nằm trong package: ví dụ `Assets/GameUpCore/Runtime/UI/Popups`, `.../Screens` (class kế thừa `UIPopup`, `UIScreen`).
+- **Prefab thực tế** đặt trong dự án game tại (mặc định sau Folder Setup):
+  - `Assets/_MainProject/Prefabs/UI/Popups`
+  - `Assets/_MainProject/Prefabs/UI/Screens`  
+
+`PopupData` / `ScreenData` quét đúng hai path này (`pathPopup` / `pathScreen` trong asset).
+
+**Tạo màn mới (quy trình gợi ý):**
+
+1. Tạo class `public class MyPopup : UIPopup` hoặc `public class MyScreen : UIScreen` trong asmdef dự án (reference `GameUp.UI.Runtime` nếu cần).
+2. Tạo prefab trong folder **Popups** hoặc **Screens**, gắn component đó (thường trên root hoặc con — hệ thống dùng `GetComponentInChildren`).
+3. Lưu prefab → post-processor hoặc nút **SetUp** trên `PopupData`/`ScreenData` sẽ cập nhật registry (xem B2.5).
+
+### B2.2. Popup: mở / đóng
+
+- Dùng generic: `UIPopup<T>.OpenViewAsync(callback)` / `UIPopup<T>.CloseView()` với `T` là lớp popup cụ thể.
+- `UIPopup.CloseAllPopup()` đóng toàn bộ popup đang mở.
+
+### B2.3. Screen: mở / lịch sử
+
+- `UIScreen.OpenScreenByTypeAsync(typeof(MyScreen), rememberInHistory)` hoặc overload theo type.
+- Có stack **History** khi `rememberInHistory == true` (ví dụ điều hướng “back”).
+
+### B2.4. Chọn animation (Default / Custom)
+
+`UIBaseView` (base của Popup/Screen) có:
+
+- **`UIAnimationMode.Default`** — dùng `UIDefaultAnimation` (sequence DOTween mặc định, phù hợp không cần tuỳ biến).
+- **`UIAnimationMode.Custom`** — chỉ định **`animationTypeName`** là **Assembly Qualified Name** của một component implement `IAnimation` kế thừa `UIBaseAnimation` (ví dụ `UIFadeAnimation`, `UIScaleAnimation`, `UIMoveAnimation`, … trong `TransitionUtils/Animation`).
+
+Trong Inspector: chọn mode; nếu Custom, gán đúng loại animation — `OnValidate` sẽ đồng bộ component animation trên GameObject.
+
+### B2.5. Tự động cập nhật dữ liệu: `ViewCreatorPostProcessor`
+
+Editor script `Assets/GameUpCore/Runtime/UI/Helpers/ViewCreatorPostProcessor.cs` là **`AssetPostprocessor`**:
+
+- Khi import/di chuyển/xóa **file `.prefab`** có đường dẫn chứa segment **`/Popups/`** hoặc **`/Screens/`**, nó schedule refresh.
+- Sau đó gọi **`PopupData.SetUp()`** hoặc **`ScreenData.SetUp()`** trên asset load từ Resources (`Data/PopupData`, `Data/ScreenData`).
+
+Nhờ vậy không cần luôn luôn bấm tay: thêm prefab mới đúng folder → danh sách popup/screen trong ScriptableObject được rebuild (miễn là asset `PopupData`/`ScreenData` tồn tại đúng path Resources).
+
+**Lưu ý:** với asset trong `Assets/_MainProject/Data/Singletons/`, post-processor còn có thể kích hoạt đồng bộ **AddressableDataHolder** (xem code).
+
+### B2.6. Nút mở Screen nhanh: `ButtonOpenScreen`
+
+Component **`ButtonOpenScreen`** (`Assets/GameUpCore/Runtime/UI/Screens/ButtonScreen/ButtonOpenScreen.cs`):
+
+- Gắn cùng **Button** (hoặc để trống, `OnValidate` tự tìm `Button` trên object/con).
+- Điền **`screenTypeName`** = **tên class** của `UIScreen` (không cần namespace), ví dụ `MainMenuScreen`.
+- **`rememberInHistory`**: có đẩy screen hiện tại vào history hay không.
+- Khi click: resolve type qua reflection → `UIScreen.OpenScreenByTypeAsync(type, rememberInHistory)`.
+
+**Khi nào dùng:** màn hình và `ScreenData` đã setup sẵn; chỉ cần kéo component vào nút và chọn đúng tên class — không viết script listener tay.
+
+### B2.7. Helper UI có sẵn (trong `Runtime/UI/Helpers`)
+
+- **Loading** — overlay loading (cutout mask, item…).
+- **Toast** — thông báo nhẹ.
+- **EnhancedScroll** — scroller/cell view.
+- **SelectView** — đổi sprite/màu/scale/trạng thái GameObject theo lựa chọn.
+- **CustomView** — nhóm nút, lock button, v.v.
+
+Sau **Core setup**, bản copy prefab nằm dưới `_MainProject/Prefabs/UI/Helpers` để chỉnh sửa không sửa trực tiếp package.
+
+---
+
+## B3. Cài UPM (tham chiếu nhanh)
+
+Git URL:
+
+```
+https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore
+```
+
+Hoặc key `com.gameup.core` trong `manifest.json` như mục A3.
+
+---
+
+## B4. Bắt đầu nhanh với template repo (clone)
+
+Dùng repo này làm project gốc:
+
+1. Clone, mở bằng Unity Hub (**2022.3+**).
+2. Làm **Bước 1 DOTween** nếu chưa có Modules trong project.
+3. Mở scene mẫu (ví dụ `Assets/Scenes/SampleScene.unity`).
+4. Chạy **Folder Setup → Create All Folders** nếu `_MainProject` chưa có.
+5. **Logger**, **Core setup**, (tuỳ chọn) **Audio**, **Poolers** như checklist.
+6. Play để kiểm tra.
+
+---
+
+## B5. Cấu trúc thư mục khuyến nghị
+
+Ngoài `_MainProject` do tool tạo, có thể bổ sung `_Project` cho asset game thuần (xem `doc/unity_conventions.md`).
 
 ```
 Assets/
-  _Project/
-    Art/
-    Audio/
-    Prefabs/
-    Scenes/
-    Scripts/
-      Core/
-      Gameplay/
-      UI/
-    ScriptableObjects/
-  GameUpCore/
-    Runtime/
-    Editor/
+  _MainProject/          # sinh bởi GameUp Folder Setup
+  GameUpCore/            # hoặc nằm trong Packages khi cài UPM
+  _Project/              # tuỳ team (Art, Audio, Scenes, Scripts…)
 ```
 
-Gợi ý thêm:
-- Dùng **Prefab Variant** cho các biến thể.
-- UI/gameplay module lớn nên tách thành **Nested Prefab**.
-- Tránh để asset rải rác ngoài `Assets/_Project/`.
+---
+
+## B6. Workflow khuyến nghị
+
+- **Prefab is King**; scene giữ manager / environment.
+- **Signal** để decouple.
+- **Pool** cho spawn thường xuyên.
+- **Release build:** `Disable Logs (Release)`.
+- UI Popup/Screen: giữ prefab trong folder Popups/Screens để auto sync data.
 
 ---
 
-## 🔁 Workflow Khuyến Nghị
+## B7. Hệ thống cốt lõi (`GameUpCore/Runtime/Core`)
 
-- **Prefab is King**: gameplay/UI tạo bằng prefab, scene chỉ giữ camera/light/environment/manager tĩnh.
-- **Decoupling bằng Signal**: hệ thống giao tiếp bằng event bus thay vì reference trực tiếp.
-- **Tối ưu Instantiate/Destroy**: mọi object spawn thường xuyên (đạn, VFX, enemy) nên qua pool.
-- **Data**: dùng ScriptableObject cho cấu hình, `LocalStorageUtils` cho save/load.
-- **Release build**: tắt log bằng `GameUp -> Logger -> Disable Logs (Release)`.
+Thư mục `Assets/GameUpCore/Runtime/Core` gồm các module dùng chung.
+
+### 1. Singleton (`Singleton`)
+
+`Singleton<T>`, `MonoSingleton<T>` — ví dụ `AudioManager.Instance`.
+
+### 2. Signal / Event Bus (`Signal`)
+
+Publish/Subscribe: `AddListener`, `AddOnce`, `RemoveListener`, `Dispatch`. Nên gom signal vào class tĩnh (vd. `GameSignals`).
+
+### 3. Object Pools (`ObjectPools`)
+
+`GUPoolers` — spawn/release thay Instantiate/Destroy liên tục.
+
+### 4. Logger (`Logger`)
+
+Dùng **`GULogger`** thay `Debug.Log`; điều khiển bằng define `ENABLE_LOG`.
+
+### 5. Audio (`Audio`)
+
+`AudioManager`, `AudioDatabase`, `AudioIdentity`; có thể gắn Addressables.
+
+### 6. TimeSystem (`TimeSystem`)
+
+`TimeManager` — time scale / slow motion.
+
+### 7. CoroutineRunner (`CoroutineRunner`)
+
+Chạy coroutine từ class không phải `MonoBehaviour`.
+
+### 8. DataHelper (`DataHelper`)
+
+`EncryptUtils`, `FileStorageUtils`, `LocalStorageUtils`, FullSerializer, v.v.
+
+### 9. Extension (`Extension`)
+
+`MonoExtension`, `ListCollectionExtension`, `UIExtension`, … — thường `using GameUp.Core`.
+
+### 10. Utils (`Utils`)
+
+`GameUtils`, `SettingVar<T>`, `TimeUtils`, `StringUtils`, …
 
 ---
 
-## 🧩 Ví Dụ Chi Tiết
+## B8. Công cụ Editor (`GameUpCore/Editor`)
 
-> Lưu ý: các namespace/class cụ thể có thể khác tuỳ phiên bản, nhưng ý tưởng & pattern là cố định. Nếu bạn gặp sai khác tên API, hãy tra trong `Assets/GameUpCore/Runtime/` để dùng đúng hàm tương ứng.
+- **`GameUp → Project → Folder Setup`** — `GUProjectFolderSetupWindow`: folder `_MainProject`, `PopupData`/`ScreenData`, Addressables.
+- **`GameUp → Project → Core setup`** — `GUCoreProjectSetup`: copy prefab Core/UI vào scene.
+- **`GameUp → Logger → …`** — `GULoggerMenu`.
+- **`GameUp → Audio → Setup AudioManager`** — `GUAudioManagerWindow`.
+- **`GameUp → Poolers → Setup GUPoolers in Scene`** — `GUPoolersMenu` (tạo/tìm `GUPoolersSingleton`).
+
+---
+
+## B9. Ví dụ code (Signal, Pool, Save, Audio, Time)
+
+> Namespace/class có thể đổi theo phiên bản; tra trực tiếp trong `Assets/GameUpCore/Runtime/` khi cần.
 
 ### 1. Signal: Publish/Subscribe decoupling
-
-Ví dụ player chết thì UI và Audio đều phản ứng, nhưng **không phụ thuộc nhau**.
 
 ```csharp
 using UnityEngine;
@@ -297,8 +442,6 @@ public class PlayerDeathSfx : MonoBehaviour
 
 ### 2. Object Pool: Spawn/Release prefab
 
-Ví dụ bắn đạn: spawn từ pool, khi hết vòng đời thì release về pool.
-
 ```csharp
 using UnityEngine;
 using GameUp.Core;
@@ -342,11 +485,9 @@ public class Shooter : MonoBehaviour
 }
 ```
 
-> Nếu bạn chưa có `GUPoolers` trong scene, chạy tool: `GameUp -> Poolers -> Setup GUPoolers in Scene`.
+> Nếu chưa có `GUPoolers` trong scene: `GameUp → Poolers → Setup GUPoolers in Scene`.
 
 ### 3. LocalStorageUtils: Lưu & đọc dữ liệu (có mã hoá)
-
-Ví dụ lưu coin và lưu một object stats.
 
 ```csharp
 using System;
@@ -383,12 +524,8 @@ public class SaveExample : MonoBehaviour
 
 ### 4. Audio: Setup + phát SFX/BGM
 
-#### Setup nhanh
-1. Mở `GameUp -> Audio -> Setup AudioManager`.
-2. Chọn thư mục chứa audio (ví dụ `Assets/_Project/Audio/`).
-3. Bấm **Scan & Update** để tạo identity + cập nhật database + build code `AudioID`.
-
-#### Phát âm thanh
+1. `GameUp → Audio → Setup AudioManager`.
+2. Chọn thư mục audio, **Scan & Update**.
 
 ```csharp
 using UnityEngine;
@@ -404,8 +541,6 @@ public class AudioExample : MonoBehaviour
 ```
 
 ### 5. TimeSystem: Slow motion theo tình huống
-
-Ví dụ khi player “perfect dodge” thì slow motion ngắn, sau đó trả về bình thường.
 
 ```csharp
 using UnityEngine;
