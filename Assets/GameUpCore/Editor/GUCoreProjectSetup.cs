@@ -281,7 +281,20 @@ namespace GameUp.Core.Editor
             }
 
             Undo.RegisterCreatedObjectUndo(instance, $"Core setup: {instance.name}");
+            UnpackCreatedPrefabInstance(instance, prefabAssetPath, log);
             Selection.activeGameObject = instance;
+        }
+
+        private static void UnpackCreatedPrefabInstance(GameObject instance, string prefabAssetPath, bool log)
+        {
+            if (!instance)
+                return;
+            if (!PrefabUtility.IsAnyPrefabInstanceRoot(instance))
+                return;
+
+            PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            if (log)
+                GULogger.Log("CoreSetup", $"Đã unpack prefab instance sau khi tạo: {prefabAssetPath}");
         }
 
         private static bool IsPrefabRootAlreadyInActiveScene(GameObject prefabAsset, string prefabAssetPath)

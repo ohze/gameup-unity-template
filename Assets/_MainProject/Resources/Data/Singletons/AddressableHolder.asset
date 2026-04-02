@@ -12,4 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c267c8028de9e53409d62f6f024f23f0, type: 3}
   m_Name: AddressableHolder
   m_EditorClassIdentifier: 
-  dataReferenceInfos: []
+  dataReferenceInfos:
+  - typeName: AudioDatabase
+    dataRef:
+      m_AssetGUID: 82de7ddebca449e44b380d686e2175a8
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0
