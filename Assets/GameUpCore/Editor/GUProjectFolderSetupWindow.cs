@@ -38,6 +38,7 @@ namespace GameUp.Core.Editor
             "Assets/_MainProject/Prefabs",
             "Assets/_MainProject/Prefabs/Core",
             "Assets/_MainProject/Prefabs/UI",
+            "Assets/_MainProject/Prefabs/UI/Helpers",
             "Assets/_MainProject/Prefabs/UI/Popups",
             "Assets/_MainProject/Prefabs/UI/Screens",
             "Assets/_MainProject/Prefabs/Gameplay",

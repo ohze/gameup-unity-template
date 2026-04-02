@@ -20,7 +20,6 @@ namespace GameUp.Core.Editor
         private const string DefaultAudioIdentityFolderPath = "Assets/_MainProject/Data/NoneSingleton/AudioIdentity";
         private const string DefaultAudioIdOutputPath = "Assets/_MainProject/Scripts/Audio/AudioID.cs";
         private const string DefaultAudioDatabaseFolderPath = "Assets/_MainProject/Data/Singletons";
-        private const string ProjectFolderSetupCompletedKey = "GameUp.ProjectFolderSetup.Completed";
 
         /// <summary> Tên group và label Addressables dùng cho audio (AudioIdentity + AudioClip). </summary>
         private const string AddressablesAudioIdentitiesGroupName = "Audio_Identities";
@@ -45,7 +44,7 @@ namespace GameUp.Core.Editor
         [MenuItem(MenuPath, true)]
         private static bool ValidateShowWindow()
         {
-            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
+            return GUProjectFolderSetupWindow.IsSetupCompleted();
         }
 
         private void OnEnable()
@@ -105,7 +104,7 @@ namespace GameUp.Core.Editor
             EditorGUILayout.LabelField("AudioManager", EditorStyles.boldLabel);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Find/Create AudioManager", GUILayout.Height(26)))
+            if (GUILayout.Button("Core setup / Find AudioManager", GUILayout.Height(26)))
             {
                 manager = FindOrCreateAudioManagerInScene();
             }
@@ -122,7 +121,9 @@ namespace GameUp.Core.Editor
 
             if (manager == null)
             {
-                EditorGUILayout.HelpBox("Chưa có AudioManager trong Scene. Hãy bấm \"Find/Create AudioManager\" trước.", MessageType.Warning);
+                EditorGUILayout.HelpBox(
+                    "Chưa có AudioManager trong Scene. Bấm \"Core setup / Find AudioManager\" để chạy GameUp/Project/Core setup (copy prefab sang _MainProject và đặt ====Manager==== lên scene), sau đó thử lại.",
+                    MessageType.Warning);
             }
             else
             {
@@ -764,20 +765,11 @@ namespace GameUp.Core.Editor
 
         private static AudioManager FindOrCreateAudioManagerInScene()
         {
-            var existing = FindObjectOfType<AudioManager>();
-            if (existing) return existing;
+            if (GUCoreProjectSetup.EnsureAudioManagerInScene(log: true))
+                return FindObjectOfType<AudioManager>();
 
-            var go = new GameObject("AudioManager");
-            var created = go.AddComponent<AudioManager>();
-            Undo.RegisterCreatedObjectUndo(go, "Create AudioManager");
-
-            var scene = SceneManager.GetActiveScene();
-            if (!scene.isDirty)
-                EditorSceneManager.MarkSceneDirty(scene);
-
-            Selection.activeGameObject = go;
-            GULogger.Log("AudioManager", "Đã tạo GameObject 'AudioManager' và gắn component.");
-            return created;
+            GULogger.Error("AudioManager", "Core setup không tạo được AudioManager trên scene. Kiểm tra prefab ====Manager==== trong Assets/_MainProject/Prefabs/Core.");
+            return null;
         }
 
         private static void InitializeDatabase(AudioManager manager, string databaseFolder)

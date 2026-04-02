@@ -49,7 +49,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdb25b2681df63742b7c9460dbd0683c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  prefabItem: {fileID: 3925499813221962312, guid: fcbeefaea26185641a293351cc62a9a4, type: 3}
+  prefabItem: {fileID: 3925499813221962312, guid: 090299c58355ea24cb1024ccfba142ea, type: 3}
   contentHolder: {fileID: 258359561582906213}
 --- !u!1 &8099629413740634249
 GameObject:

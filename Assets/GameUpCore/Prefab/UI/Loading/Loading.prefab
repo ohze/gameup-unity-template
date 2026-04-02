@@ -49,8 +49,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: faa4ba0e2db94d3b9808e5c4a2bf5892, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  prefabItem: {fileID: 5444467918481758324, guid: 213b469f355677f4596e9c2fcec92c95, type: 3}
-  prefabItemCutoutMask: {fileID: 6473401340289721140, guid: 8c52eb68ac35bd945b74c31150ad409e, type: 3}
+  prefabItem: {fileID: 5444467918481758324, guid: 245aa86a244a0c046a5b0c57a2d3051e, type: 3}
+  prefabItemCutoutMask: {fileID: 6473401340289721140, guid: 0f240c49718d82d46b57ef9485901cfb, type: 3}
   contentHolder: {fileID: 7639556717426427723}
 --- !u!1 &6526543625083361315
 GameObject:
