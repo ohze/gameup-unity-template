@@ -1,5 +1,4 @@
 using System;
-using GameUp.Core;
 using UnityEngine;
 
 namespace GameUp.Core.UI

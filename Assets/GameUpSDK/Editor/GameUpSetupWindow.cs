@@ -60,7 +60,7 @@ namespace GameUp.SDK.Editor
         }
 
         /// <summary>Bản prefab có thể chỉnh sửa khi SDK cài qua UPM (Packages read-only).</summary>
-        private const string WritablePrefabsRoot = "Assets/SDK/Prefabs";
+        private const string WritablePrefabsRoot = "Assets/_MainProject/Prefabs/Core/SDK";
 
         private static string GetPackagePrefabDirectory()
         {
@@ -155,7 +155,7 @@ namespace GameUp.SDK.Editor
         private string _loadErrors;
         private string _saveErrors;
 
-        [MenuItem("GameUp SDK/Setup")]
+        [MenuItem("GameUp/SDK/Setup")]
         public static void ShowWindow()
         {
             if (!GameUp.SDK.Installer.GameUpDependenciesWindow.AreAllRequiredPackagesInstalled())

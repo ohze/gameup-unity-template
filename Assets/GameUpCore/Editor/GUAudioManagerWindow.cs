@@ -44,7 +44,8 @@ namespace GameUp.Core.Editor
         [MenuItem(MenuPath, true)]
         private static bool ValidateShowWindow()
         {
-            return GUProjectFolderSetupWindow.IsSetupCompleted();
+            return GUDotweenDependencyUtility.CanUseCoreTools()
+                   && GUProjectFolderSetupWindow.IsSetupCompleted();
         }
 
         private void OnEnable()

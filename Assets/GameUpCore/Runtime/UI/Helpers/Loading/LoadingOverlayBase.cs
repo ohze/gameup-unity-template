@@ -1,6 +1,7 @@
 using System;
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
-using GameUp.Core;
+#endif
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -17,9 +18,13 @@ namespace GameUp.Core.UI
         [FormerlySerializedAs("group")]
         [SerializeField] private CanvasGroup canvasGroup;
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private Tween _closeFadeTween;
         private Tween _closeScaleTween;
         protected Tween _autoCloseTween;
+#else
+        private Coroutine _autoCloseRoutine;
+#endif
 
         private RectTransform _rootRect;
         private Vector2 _defaultRootSizeDelta;
@@ -59,14 +64,19 @@ namespace GameUp.Core.UI
 
             if (autoClose)
             {
+#if DOTween__DEPENDENCIES_INSTALLED
                 _autoCloseTween = DOVirtual.DelayedCall(autoCloseTime, Close)
                     .SetUpdate(true);
+#else
+                _autoCloseRoutine = StartCoroutine(CloseAfterDelay(autoCloseTime));
+#endif
             }
         }
 
         public virtual void Close()
         {
             StopIntroTweens();
+#if DOTween__DEPENDENCIES_INSTALLED
             _autoCloseTween?.Kill();
             _autoCloseTween = null;
 
@@ -81,6 +91,15 @@ namespace GameUp.Core.UI
             _closeScaleTween = transform.DOScale(0.95f, CloseDuration)
                 .SetUpdate(true)
                 .OnComplete(FinishClose);
+#else
+            if (_autoCloseRoutine != null)
+            {
+                StopCoroutine(_autoCloseRoutine);
+                _autoCloseRoutine = null;
+            }
+
+            FinishClose();
+#endif
         }
 
         /// <summary>
@@ -128,19 +147,39 @@ namespace GameUp.Core.UI
 
         protected void KillCloseTweens()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             _closeFadeTween?.Kill();
             _closeScaleTween?.Kill();
             _closeFadeTween = null;
             _closeScaleTween = null;
+#endif
         }
 
         private void DisposeAllTweens()
         {
             StopIntroTweens();
+#if DOTween__DEPENDENCIES_INSTALLED
             _autoCloseTween?.Kill();
             _autoCloseTween = null;
+#else
+            if (_autoCloseRoutine != null)
+            {
+                StopCoroutine(_autoCloseRoutine);
+                _autoCloseRoutine = null;
+            }
+#endif
             KillCloseTweens();
         }
+
+#if !DOTween__DEPENDENCIES_INSTALLED
+        private System.Collections.IEnumerator CloseAfterDelay(float delay)
+        {
+            if (delay > 0f)
+                yield return new WaitForSecondsRealtime(delay);
+
+            Close();
+        }
+#endif
 
         protected virtual void OnDisable()
         {

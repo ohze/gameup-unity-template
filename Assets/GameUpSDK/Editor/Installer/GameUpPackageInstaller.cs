@@ -55,7 +55,7 @@ namespace GameUp.SDK.Installer
         /// <summary>
         /// Reset trạng thái setup — mở lại cửa sổ dependencies vào lần load tiếp theo.
         /// </summary>
-        [MenuItem("GameUp SDK/Reset Setup Status")]
+        [MenuItem("GameUp/SDK/Reset Setup Status")]
         public static void ResetSetupStatus()
         {
             EditorPrefs.DeleteKey(GetSetupKey());

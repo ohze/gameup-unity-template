@@ -2,7 +2,7 @@
   "name": "com.gameup.core",
   "version": "0.1.0",
   "displayName": "GameUp Core",
-  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Requires Demigiant DOTween with assembly DOTween.Modules (e.g. import DOTween from Asset Store into Assets/Plugins/Demigiant, or add a Git UPM mirror that exposes the same asmdef). Unity/OpenUPM do not ship an official com.demigiant.dotween package, so it cannot be listed as a transitive UPM dependency here.",
+  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer.",
   "unity": "2022.3",
   "dependencies": {
     "com.unity.addressables": "1.22.3"

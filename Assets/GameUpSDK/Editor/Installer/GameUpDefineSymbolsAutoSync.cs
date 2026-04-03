@@ -66,7 +66,7 @@ namespace GameUp.SDK.Installer
             Events.registeredPackages += OnRegisteredPackages;
         }
 
-        [MenuItem("GameUp SDK/Ensure GameAnalytics runtime asmdef", priority = 23)]
+        [MenuItem("GameUp/SDK/Ensure GameAnalytics runtime asmdef", priority = 23)]
         private static void MenuEnsureGameAnalyticsAsmdef()
         {
             if (TryEnsureGameAnalyticsRuntimeAsmdef(out string message, out _))
@@ -75,7 +75,7 @@ namespace GameUp.SDK.Installer
                 Debug.LogWarning("[GameUp] " + message);
         }
 
-        [MenuItem("GameUp SDK/Sync Define Symbols", priority = 21)]
+        [MenuItem("GameUp/SDK/Sync Define Symbols", priority = 21)]
         private static void MenuSyncNow()
         {
             try

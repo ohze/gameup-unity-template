@@ -120,6 +120,12 @@ namespace GameUp.Core.Editor
             window.Show();
         }
 
+        [MenuItem(MenuPath, true)]
+        private static bool ValidateOpenWindow()
+        {
+            return GUDotweenDependencyUtility.CanUseCoreTools();
+        }
+
         public static bool IsSetupCompleted()
         {
             if (!EditorPrefs.GetBool(SetupCompletedKey, false))

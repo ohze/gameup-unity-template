@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
+#endif
 using TMPro;
 using UnityEngine;
 using GameUp.Core;
@@ -15,7 +17,9 @@ namespace GameUp.Core.UI
         [SerializeField] private TextMeshProUGUI toastTxt;
         [SerializeField] private RectTransform rectTrs;
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private Sequence _moveSeq;
+#endif
         private float _showPosY;
         private float _timeShow;
 
@@ -58,6 +62,7 @@ namespace GameUp.Core.UI
         private void PlayAnim()
         {
             gameObject.Show();
+#if DOTween__DEPENDENCIES_INSTALLED
             _moveSeq?.Kill();
             group.alpha = 0;
             _moveSeq = DOTween.Sequence().Append(group.DOFade(1, 0.2f))
@@ -66,6 +71,11 @@ namespace GameUp.Core.UI
                 .Append(rectTrs.DOAnchorPosY(_showPosY + 50, 0.1f))
                 .Join(group.DOFade(0, 0.1f))
                 .OnComplete(() => { GUPool.DeSpawn(this); });
+#else
+            rectTrs.ChangeAnchorY(_showPosY);
+            group.alpha = 1f;
+            GUPool.DeSpawn(this);
+#endif
         }
 
         public static void RemoveOtherToast()

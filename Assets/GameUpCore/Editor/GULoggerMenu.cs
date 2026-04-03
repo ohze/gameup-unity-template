@@ -35,13 +35,15 @@ namespace GameUp.Core.Editor
         [MenuItem(EnableMenuPath, true)]
         private static bool ValidateEnableLogs()
         {
-            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
+            return GUDotweenDependencyUtility.CanUseCoreTools()
+                   && EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
         }
 
         [MenuItem(DisableMenuPath, true)]
         private static bool ValidateDisableLogs()
         {
-            return EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
+            return GUDotweenDependencyUtility.CanUseCoreTools()
+                   && EditorPrefs.GetBool(ProjectFolderSetupCompletedKey, false);
         }
 
         private static void SetLogSymbol(bool enable)

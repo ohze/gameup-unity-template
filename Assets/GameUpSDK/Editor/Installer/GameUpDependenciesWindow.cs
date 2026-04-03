@@ -307,7 +307,7 @@ namespace GameUp.SDK.Installer
             return items.OrderBy(p => p.InstallPriority).ThenBy(PackageIndexInCatalog);
         }
 
-        [MenuItem("GameUp SDK/Setup Dependencies")]
+        [MenuItem("GameUp/SDK/Setup Dependencies")]
         public static void ShowWindow()
         {
             var win = GetWindow<GameUpDependenciesWindow>(true, "GameUp SDK — Setup Dependencies");
@@ -322,7 +322,7 @@ namespace GameUp.SDK.Installer
         /// Xóa <c>Library/PackageCache</c> và <c>Library/ScriptAssemblies</c> để Unity tải lại
         /// <c>com.unity.ugui</c> khớp với bản Editor (tránh lỗi GraphicRaycaster / Dropdown / ListPool).
         /// </summary>
-        [MenuItem("GameUp SDK/Troubleshooting/Fix Unity UI package cache (com.unity.ugui errors)…", false, 50)]
+        [MenuItem("GameUp/SDK/Troubleshooting/Fix Unity UI package cache (com.unity.ugui errors)…", false, 50)]
         public static void MenuRepairUnityPackageCache()
         {
             RepairUnityPackageCacheWithConfirmation();
