@@ -1,14 +1,14 @@
 {
   "name": "com.ohze.gameup.sdk",
   "version": "0.1.0",
-  "displayName": "DuyLV119 Core",
+  "displayName": "GameUp Core",
   "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer.",
   "unity": "2022.3",
   "dependencies": {
     "com.unity.addressables": "1.22.3"
   },
   "author": {
-    "name": "DuyLV119",
+    "name": "GameUp - DuyLV119",
     "url": "https://github.com/ohze/gameup-unity-template"
   },
   "keywords": [
