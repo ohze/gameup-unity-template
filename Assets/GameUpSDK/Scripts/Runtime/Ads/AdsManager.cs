@@ -63,6 +63,7 @@ namespace GameUp.SDK
 
         private List<IAds> _ads = new List<IAds>();
         private bool _initialized;
+        private Action<bool> _onRemoveAllAdsChanged;
 
         // Tái dùng để tránh GC allocation mỗi lần log (FirebaseUtils._LogEvents tiêu thụ đồng bộ, không giữ reference)
         private readonly Dictionary<object, object> _logParamCache = new Dictionary<object, object>(2);
@@ -74,7 +75,11 @@ namespace GameUp.SDK
             DontDestroyOnLoad(gameObject);
             CollectAdsFromChildren();
             BuildAdsList();
+            _onRemoveAllAdsChanged = OnRemoveAllAdsValueChanged;
+            RemoveAdsSetting.Instance.IsRemoveAllAds.OnValueChange.AddListener(_onRemoveAllAdsChanged);
             Initialize();
+            if (IsRemoveAllAdsActive())
+                HideBannerOnAllNetworks(showBannerPlacementAfterInit);
         }
 
         /// <summary>
@@ -102,7 +107,35 @@ namespace GameUp.SDK
 
         private void OnDestroy()
         {
+            if (_onRemoveAllAdsChanged != null)
+                RemoveAdsSetting.Instance.IsRemoveAllAds.OnValueChange.RemoveListener(_onRemoveAllAdsChanged);
             AdsEvent.OnImpressionDataReady -= GameUpAnalytics.LogAdImpression;
+        }
+
+        private static bool IsRemoveAllAdsActive() => RemoveAdsSetting.Instance.IsRemoveAllAds.Value;
+
+        private static bool IsInterstitialRemoved() =>
+            RemoveAdsSetting.Instance.IsRemoveInter.Value || IsRemoveAllAdsActive();
+
+        private void OnRemoveAllAdsValueChanged(bool removeAll)
+        {
+            if (removeAll)
+                HideBannerOnAllNetworks(showBannerPlacementAfterInit);
+        }
+
+        private void HideBannerOnAllNetworks(string where)
+        {
+            foreach (var ad in _ads)
+            {
+                try
+                {
+                    ad.HideBanner(where);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[GameUp] AdsManager HideBanner failed for " + ad.GetType().Name + ": " + e);
+                }
+            }
         }
 
         private void Update()
@@ -177,7 +210,7 @@ namespace GameUp.SDK
             // Luôn RequestAll để preload (banner chỉ hiện khi gọi ShowBanner, không tự hiện nhờ SetDisplayOnLoad(false) ở LevelPlay).
             RequestAll();
             // enable_banner (Remote Config) ưu tiên cao hơn showBannerAfterInit: chỉ auto-show khi cả hai cho phép.
-            if (showBannerAfterInit && AdsRules.IsBannerEnabled())
+            if (showBannerAfterInit && AdsRules.IsBannerEnabled() && !IsRemoveAllAdsActive())
                 StartCoroutine(ShowBannerAfterInitCoroutine());
         }
 
@@ -185,6 +218,8 @@ namespace GameUp.SDK
         {
             if (showBannerDelaySeconds > 0f)
                 yield return new WaitForSeconds(showBannerDelaySeconds);
+            if (IsRemoveAllAdsActive())
+                yield break;
             ShowBanner(showBannerPlacementAfterInit);
         }
 
@@ -259,6 +294,11 @@ namespace GameUp.SDK
 
         public void ShowBanner(string where)
         {
+            if (IsRemoveAllAdsActive())
+            {
+                Debug.Log("[GameUp] AdsManager ShowBanner: disabled (RemoveAllAds).");
+                return;
+            }
             if (!AdsRules.IsBannerEnabled())
             {
                 Debug.Log("[GameUp] AdsManager ShowBanner: disabled by Remote Config (enable_banner).");
@@ -300,6 +340,12 @@ namespace GameUp.SDK
         /// <summary>Show Interstitial với level hiện tại: kiểm tra inter_start_level và inter_capping_time qua AdsRules.</summary>
         public void ShowInterstitial(string where, int currentLevel, Action onSuccess = null, Action onFail = null)
         {
+            if (IsInterstitialRemoved())
+            {
+                Debug.Log("[GameUp] AdsManager ShowInterstitial: skipped (RemoveInter / RemoveAllAds).");
+                onSuccess?.Invoke();
+                return;
+            }
             if (!AdsRules.CanShowInterstitial(currentLevel))
             {
                 Debug.Log("[GameUp] AdsManager ShowInterstitial: blocked by AdsRules (level or capping).");
@@ -344,6 +390,12 @@ namespace GameUp.SDK
         /// <summary>Show Rewarded Video với level hiện tại (log ad_rewarded_show_complete kèm param level).</summary>
         public void ShowRewardedVideo(string where, int currentLevel, Action onSuccess = null, Action onFail = null)
         {
+            if (IsRemoveAllAdsActive())
+            {
+                Debug.Log("[GameUp] AdsManager ShowRewardedVideo: reward granted without ad (RemoveAllAds).");
+                MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
+                return;
+            }
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeRewardedVideo, where);
             var network = _ads.FirstOrDefault(a => a.IsRewardedVideoAvailable());
             if (network == null)
@@ -380,6 +432,12 @@ namespace GameUp.SDK
 
         public void ShowAppOpenAds(string where, Action onSuccess = null, Action onFail = null)
         {
+            if (IsRemoveAllAdsActive())
+            {
+                Debug.Log("[GameUp] AdsManager ShowAppOpenAds: skipped (RemoveAllAds).");
+                MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
+                return;
+            }
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeAppOpen, where);
             var network = _ads.FirstOrDefault(a => a.IsAppOpenAdsAvailable());
             if (network == null)
