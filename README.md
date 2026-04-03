@@ -1,6 +1,6 @@
 # GameUp Unity Template
 
-**GameUp Core Framework** là nền tảng cốt lõi cho Unity (2022.3 LTS trở lên): Singleton, Signal, Object Pool, Logger, Audio, lưu trữ có mã hóa, **UI (Screen / Popup)** tích hợp Addressables và DOTween, cùng các cửa sổ Editor để setup nhanh.
+**GameUp Core Framework** là nền tảng cốt lõi cho Unity (2022.3 LTS trở lên): Singleton, Signal, Object Pool, Logger, Audio, lưu trữ có mã hóa, **UI (Screen / Popup)** tích hợp Addressables và DOTween, cùng các cửa sổ Editor để setup nhanh. **GameUp SDK** (`com.ohze.gameup.sdk`, thư mục `Assets/GameUpSDK`) bổ sung **quảng cáo** (IronSource LevelPlay / AdMob App Open), **analytics** (Firebase, AppsFlyer; tùy chọn GameAnalytics, Facebook bootstrap), **Firebase Remote Config** — xem [B10](#b10-gameup-sdk-assetsgameupsdk).
 
 ---
 
@@ -28,6 +28,7 @@
     - [Tự động cập nhật dữ liệu: `ViewCreatorPostProcessor`](#b25-tự-động-cập-nhật-dữ-liệu-viewcreatorpostprocessor)
     - [Nút mở Screen nhanh: `ButtonOpenScreen`](#b26-nút-mở-screen-nhanh-buttonopenscreen)
     - [Helper UI có sẵn](#b27-helper-ui-có-sẵn)
+    - [Preload Popup & Screen](#b28-preload-popup--screen)
 11. [Cài UPM (tham chiếu nhanh)](#b3-cài-upm-tham-chiếu-nhanh)
 12. [Bắt đầu nhanh với template repo (clone)](#b4-bắt-đầu-nhanh-với-template-repo-clone)
 13. [Cấu trúc thư mục khuyến nghị](#b5-cấu-trúc-thư-mục-khuyến-nghị)
@@ -35,6 +36,7 @@
 15. [Hệ thống cốt lõi (`GameUpCore/Runtime/Core`)](#b7-hệ-thống-cốt-lõi-gameupcoreruntimecore)
 16. [Công cụ Editor (`GameUpCore/Editor`)](#b8-công-cụ-editor-gameupcoreeditor)
 17. [Ví dụ code (Signal, Pool, Save, Audio, Time)](#b9-ví-dụ-code-signal-pool-save-audio-time)
+18. [GameUp SDK (`Assets/GameUpSDK`)](#b10-gameup-sdk-assetsgameupsdk)
 
 ---
 
@@ -245,6 +247,57 @@ Component **`ButtonOpenScreen`** (`Assets/GameUpCore/Runtime/UI/Screens/ButtonSc
 - **CustomView** — nhóm nút, lock button, v.v.
 
 Sau **Core setup**, bản copy prefab nằm dưới `_MainProject/Prefabs/UI/Helpers` để chỉnh sửa không sửa trực tiếp package.
+
+### B2.8. Preload Popup & Screen
+
+Dùng khi muốn **tải Addressables + tạo instance sẵn** (ẩn dưới `PopupHolder` / `ScreenHolder`) trước lúc người chơi mở màn — giảm độ trễ lần mở đầu tiên. Có thể gọi **một** hoặc **nhiều** type liên tiếp.
+
+**Hành vi chung**
+
+- Instance sau preload được giữ trong dictionary nội bộ giống khi mở bình thường; `GameObject` **inactive** cho đến khi gọi `Open()` / `OpenViewAsync`.
+- Cần **Core setup** xong (holder trong scene) và **`PopupData` / `ScreenData`** đã map đúng prefab.
+
+**Popup**
+
+| API | Mô tả |
+|-----|--------|
+| `UIPopup<T>.PreloadViewAsync(Action<T> onComplete = null)` | Preload popup generic `T`; callback khi asset load xong và instance đã cache (có thể `null` nếu lỗi). |
+| `UIPopup.PreloadPopupByTypeAsync(Type type, Action<UIPopup> onComplete = null)` | Preload theo `System.Type` (phải là lớp kế thừa `UIPopup`). |
+| `UIPopup.PreloadPopupByTypesAsync(params Type[] types)` | Preload **nhiều** popup; mỗi type một request (bỏ qua phần tử `null`). |
+
+**Screen**
+
+| API | Mô tả |
+|-----|--------|
+| `UIScreen<T>.PreloadViewAsync(Action<T> onComplete = null)` | Preload screen generic `T` + cache instance ẩn. |
+| `UIScreen.PreloadViewByTypeAsync(Type type, Action<UIScreen> onComplete = null)` | Preload theo `Type` (phải là `UIScreen`). |
+| `UIScreen.PreloadViewByTypesAsync(params Type[] types)` | Preload nhiều screen cùng lúc. |
+| `UIScreen.PreloadAsyncView(Type type)` | Giữ tương thích: gọi nội bộ `PreloadViewByTypeAsync(type)` (không có callback). |
+| `UIScreen<T>.PreloadView()` | Trả về `AsyncOperationHandle<UIScreen>` — chỉ **bắt đầu load asset** qua Addressables; **không** tạo instance trong scene. Dùng khi chỉ cần warm asset; muốn instance sẵn thì dùng `PreloadViewAsync`. |
+
+**Ví dụ**
+
+```csharp
+using System;
+using GameUp.Core.UI;
+
+// Một popup (generic)
+UIPopup<RewardPopup>.PreloadViewAsync(p => { /* sẵn sàng, vẫn đang ẩn */ });
+
+// Nhiều popup theo Type
+UIPopup.PreloadPopupByTypesAsync(typeof(RewardPopup), typeof(ConfirmPopup), typeof(LoadingPopup));
+
+// Một screen theo Type
+UIScreen.PreloadViewByTypeAsync(typeof(HomeScreen));
+
+// Nhiều screen
+UIScreen.PreloadViewByTypesAsync(typeof(HomeScreen), typeof(ProfileScreen), typeof(SettingsScreen));
+
+// Generic screen + callback
+UIScreen<ShopScreen>.PreloadViewAsync(shop => { /* optional */ });
+```
+
+Gợi ý: gọi preload ở **màn loading**, **sau khi vào gameplay**, hoặc khi idle — tránh spike cùng lúc với logic nặng khác nếu preload quá nhiều prefab.
 
 ---
 
@@ -564,3 +617,249 @@ public class SlowMotionExample : MonoBehaviour
     }
 }
 ```
+
+---
+
+## B10. GameUp SDK (`Assets/GameUpSDK`)
+
+**GameUp SDK** (`com.ohze.gameup.sdk`, Unity **2022.3+**) tích hợp **Ads** (IronSource/LevelPlay: Banner, Interstitial, Rewarded; **AdMob** cho App Open), **Analytics** (Firebase Analytics + Crashlytics + Remote Config, AppsFlyer MMP; tùy chọn **GameAnalytics** progression level/wave; **Facebook SDK** bootstrap qua installer), **Remote Config** với auto-sync vào field cùng tên.
+
+**Phụ thuộc:** assembly runtime **`GameUp.SDK.Runtime`** reference **`GameUp.Core.Runtime`** — cần cài **GameUp Core** trước (mục [A3](#a3-bước-2--thêm-gameupcore-qua-git-upm) hoặc clone template đã có sẵn cả hai package).
+
+**Tài liệu bổ sung:** `Assets/GameUpSDK/CHANGELOG.md`, `documentationUrl` / `changelogUrl` trong `Assets/GameUpSDK/package.json`.
+
+### B10.1. Luồng cài đặt khuyến nghị
+
+Làm lần lượt; **chỉ sang bước sau khi bước trước compile sạch** (Console không lỗi liên quan GameUp / GameAnalytics / mediation).
+
+| Bước | Việc cần làm |
+|------|----------------|
+| **1** | Cài **GameUp Core** (DOTween Modules, Folder Setup, …) nếu chưa có. |
+| **2** | [Cài package GameUp SDK](#b102-cài-package-upm--thủ-công) (UPM Git URL hoặc giữ folder trong repo template). |
+| **3** | Mở **GameUp → SDK → Setup Dependencies**, cài package **bắt buộc** (LevelPlay, Firebase, …) và mục **tùy chọn** cần dùng (GameAnalytics, AppsFlyer, Google Mobile Ads, Facebook, …). |
+| **4** | Nếu cài **GameAnalytics** (`.unitypackage`): khi thiếu assembly **`GameAnalyticsSDK`**, chạy **GameUp → SDK → Ensure GameAnalytics runtime asmdef**, đợi recompile; có thể **GameUp → SDK → Sync Define Symbols**. |
+| **5** | Khi cửa sổ Dependencies hiện nút **→ Mở cấu hình SDK** (đủ analytics + mediation), mở **GameUp → SDK → Setup**, điền key/tab, **Save Configuration**. |
+| **6** | Trong Setup, **Tạo SDK trong Scene hiện tại** (scene load đầu). Xem [B10.4](#b104-hoàn-tất--kiểm-tra-trước-khi-dùng-api). |
+| **7** | Gọi API: [AdsManager](#b106-adsmanager), [GameUpAnalytics](#b107-gameupanalytics), [FirebaseRemoteConfigUtils](#b108-firebaseremoteconfigutils), [bảng key Remote Config](#b109-remote-config-keys-reference). |
+
+Logic installer và đồng bộ define: `Assets/GameUpSDK/Editor/Installer/` (`GameUpDependenciesWindow`, `GameUpPackageInstaller`, `GameUpDefineSymbolsAutoSync`, assembly **`GameUp.SDK.Installer`**).
+
+### B10.2. Cài package (UPM / thủ công)
+
+**UPM — Package Manager → Add package from git URL:**
+
+```
+https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpSDK
+```
+
+**Hoặc `Packages/manifest.json`:**
+
+```json
+"dependencies": {
+    "com.ohze.gameup.sdk": "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpSDK"
+}
+```
+
+Sau khi thêm lần đầu, Unity thường mở cửa sổ **Setup Dependencies** — tiếp tục theo bảng ở [B10.1](#b101-luồng-cài-đặt-khuyến-nghị).
+
+**Thủ công:** copy `Assets/GameUpSDK` vào project (như repo template), rồi **GameUp → SDK → Setup Dependencies**.
+
+### B10.3. Setup Dependencies & GameAnalytics
+
+**GameAnalytics — tránh lỗi compile:** `GameUp.SDK.Runtime` tham chiếu assembly **`GameAnalyticsSDK`**. Bản GA cài bằng `.unitypackage` cổ điển đôi khi **không** có `GameAnalyticsSDK.asmdef` → lỗi reference. Sau khi import GA:
+
+1. Xem **Console**.
+2. Nếu thiếu `GameAnalyticsSDK`: **GameUp → SDK → Ensure GameAnalytics runtime asmdef** (tạo `Assets/GameAnalytics/Plugins/GameAnalyticsSDK.asmdef` khi phù hợp).
+3. **GameUp → SDK → Sync Define Symbols** nếu define chưa khớp.
+
+**Packages (phiên bản tham chiếu trong installer — có thể cập nhật theo bản SDK):**
+
+| Nhóm | Gói | Ghi chú |
+|------|-----|--------|
+| Bắt buộc (typical) | IronSource LevelPlay, Firebase (Analytics + Crashlytics + Remote Config + EDM4U) | Mediation + analytics + RC |
+| Tùy chọn | Google Mobile Ads | App Open Ads |
+| Tùy chọn | AppsFlyer | MMP |
+| Tùy chọn | GameAnalytics | Progression / funnel; [tài liệu GA Unity](https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/) |
+| Tùy chọn | Facebook SDK | Bootstrap / analytics (theo installer) |
+
+**Define quan trọng:** `GAMEUP_SDK_DEPS_READY` bật khi có **ít nhất một** analytics (Firebase, AppsFlyer hoặc GameAnalytics) **và** mediation (AdMob hoặc LevelPlay). `GAMEANALYTICS_DEPENDENCIES_INSTALLED` điều khiển nhánh GameAnalytics trong `GameUpAnalytics` (bật = gửi GA; tắt = no-op).
+
+| Menu | Chức năng |
+|------|-----------|
+| **GameUp → SDK → Setup Dependencies** | Cài / kiểm tra dependency |
+| **GameUp → SDK → Setup** | Keys, tab AppsFlyer / Mediation / AdMob / GA / Remote Config |
+| **GameUp → SDK → Reset Setup Status** | Reset trạng thái installer |
+| **GameUp → SDK → Ensure GameAnalytics runtime asmdef** | Tạo asmdef GA khi thiếu |
+| **GameUp → SDK → Sync Define Symbols** | Đồng bộ define theo package đã cài |
+
+### B10.4. Hoàn tất & kiểm tra trước khi dùng API
+
+**Coi như xong khi:**
+
+1. Console không còn lỗi compile liên quan GameUp / `GameAnalyticsSDK` / mediation.
+2. Dependencies đủ điều kiện (nút **→ Mở cấu hình SDK** đã xuất hiện / `GAMEUP_SDK_DEPS_READY` đã sync).
+3. Đã **Save Configuration** trong **GameUp → SDK → Setup**.
+4. Scene load đầu có **một** root SDK (**Tạo SDK trong Scene hiện tại** hoặc prefab tương đương `Assets/GameUpSDK/Prefab/SDK.prefab` — `DontDestroyOnLoad`).
+
+**GameAnalytics trên scene:** nếu không dùng GA, không bắt buộc có GameObject GA. Nếu đã cài GA và define bật: dưới root **SDK** thường có con chứa component **`GameAnalytics`** (flow tạo scene cố gắng gắn prefab GA khi phát hiện SDK). Nếu thiếu, kiểm tra prefab GA và tab **Game Analytics** trong Setup (`Assets/Resources/GameAnalytics/Settings.asset`).
+
+### B10.5. Cửa sổ Setup (tóm tắt tab)
+
+**GameUp → SDK → Setup** — các tab chính:
+
+- **AppsFlyer:** Dev Key, App ID iOS, SDK Key, Dev Mode (tắt khi release).
+- **IronSource / LevelPlay:** App Key, Ad Unit ID (Banner / Interstitial / Rewarded; để trống có thể dùng default theo dashboard).
+- **AdMob (App Open):** App Open ID, App ID Android/iOS — Banner/Inter/Rewarded mediation vẫn qua LevelPlay theo thiết kế SDK.
+- **Game Analytics:** Game Key / Secret / Build trên `Settings.asset` (khi GA đã import).
+- **Firebase Remote Config:** giá trị mặc định fallback (xem [B10.9](#b109-remote-config-keys-reference)).
+
+Sau chỉnh sửa: **Save Configuration**; **Tạo SDK trong Scene hiện tại** nếu cần instance mới.
+
+### B10.6. AdsManager
+
+`AdsManager` (`GameUp.SDK`) — `MonoSingleton<AdsManager>`, waterfall theo `OrderExecute`. Namespace: **`GameUp.SDK`**; dùng chung **`using GameUp.Core`** cho singleton.
+
+**Banner**
+
+```csharp
+using GameUp.SDK;
+
+AdsManager.Instance.ShowBanner("main");
+AdsManager.Instance.HideBanner("main");
+```
+
+Kích thước: field **Banner Size** trên `AdsManager` (enum `BannerSize`: `Banner`, `Large`, `Adaptive`, `MediumRectangle`, `Leaderboard`). Áp dụng lúc `Initialize` — **không đổi sau init**. Vị trí hiển thị: **BottomCenter**. Banner chỉ hiện khi Remote Config `enable_banner == true` (ưu tiên cao hơn `showBannerAfterInit` trên Inspector).
+
+**Interstitial**
+
+```csharp
+AdsManager.Instance.ShowInterstitial("level_complete", onSuccess: () => { }, onFail: () => { });
+
+int currentLevel = 5;
+AdsManager.Instance.ShowInterstitial("level_complete", currentLevel,
+    onSuccess: () => { },
+    onFail: () => { });
+```
+
+SDK kiểm `inter_start_level` và `inter_capping_time` qua `AdsRules`. Luôn xử lý cả `onSuccess` và `onFail` để tiếp tục flow game.
+
+**Rewarded**
+
+```csharp
+AdsManager.Instance.ShowRewardedVideo("revive",
+    onSuccess: () => { /* thưởng */ },
+    onFail: () => { /* không thưởng / đóng sớm */ });
+
+AdsManager.Instance.ShowRewardedVideo("revive", currentLevel, onSuccess: () => { }, onFail: () => { });
+```
+
+**App Open**
+
+```csharp
+AdsManager.Instance.ShowAppOpenAds("app_foreground",
+    onSuccess: () => { },
+    onFail: () => { });
+```
+
+Cần AdMob đã cài và cấu hình.
+
+**GDPR / consent:** sau flow consent, gọi `AdsManager.Instance.SetAfterCheckGDPR()` để forward tới các network.
+
+**Tham số `where`:** chuỗi ngữ cảnh cho analytics (ví dụ `"main_menu"`, `"level_complete"`, `"revive"`).
+
+**Test capping:** `AdsManager.Instance.ResetInterstitialCappingForTest()` — **chỉ test**, không dùng production.
+
+### B10.7. GameUpAnalytics
+
+`GameUpAnalytics` — static class, Firebase + AppsFlyer; khi `GAMEANALYTICS_DEPENDENCIES_INSTALLED` bật, mirror progression/design lên GameAnalytics (theo hierarchy GA — xem CHANGELOG SDK).
+
+```csharp
+using GameUp.SDK;
+
+GameUpAnalytics.LogStartLoading();
+GameUpAnalytics.LogCompleteLoading();
+
+GameUpAnalytics.LogLevelStart(level: 1, index: 1);
+GameUpAnalytics.LogLevelFail(level: 1, index: 1, timeSeconds: 45.5f);
+GameUpAnalytics.LogLevelComplete(level: 1, index: 1, timeSeconds: 120f);
+GameUpAnalytics.LogLevelComplete(level: 1, index: 1, timeSeconds: 120f, score: 5000);
+
+GameUpAnalytics.LogWaveStart(level: 3, wave: 1);
+GameUpAnalytics.LogWaveFail(level: 3, wave: 1);
+GameUpAnalytics.LogWaveComplete(level: 3, wave: 1);
+
+GameUpAnalytics.LogStartLevel1();
+GameUpAnalytics.LogCompleteLevel1();
+
+GameUpAnalytics.LogEarnVirtualCurrency("coin", "100", "level_complete");
+GameUpAnalytics.LogSpendVirtualCurrency("coin", "50", "buy_revive");
+
+GameUpAnalytics.LogButtonClick("btn_play_home");
+
+GameUpAnalytics.LogCompleteRegistration("Facebook");
+GameUpAnalytics.LogTutorialCompletion(success: true, tutorialId: "intro");
+GameUpAnalytics.LogPurchase("USD", 1, "no_ads_pack", "1.99", "order_123");
+GameUpAnalytics.LogAchievementUnlocked("first_win", level: 1);
+```
+
+**Ad revenue:** log tự động qua `AdsEvent.OnImpressionDataReady` trong `AdsManager` — không cần gọi tay `LogAdImpression` trong luồng thường.
+
+### B10.8. FirebaseRemoteConfigUtils
+
+`FirebaseRemoteConfigUtils` — `MonoSingleton`, tự fetch/activate và map key → public field (reflection). Trong **Unity Editor** thường dùng giá trị mặc định (không gọi Firebase thật).
+
+```csharp
+using GameUp.SDK;
+
+var rc = FirebaseRemoteConfigUtils.Instance;
+int capping = rc.inter_capping_time;
+int startLv = rc.inter_start_level;
+bool bannerOn = rc.enable_banner;
+bool rateApp = rc.enable_rate_app;
+int rateLv = rc.level_start_show_rate_app;
+bool netPopup = rc.no_internet_popup_enable;
+
+if (rc.IsRemoteConfigReady) { /* ... */ }
+else rc.OnFetchCompleted += ok => { /* ... */ };
+
+FirebaseRemoteConfigUtils.Instance.FetchAndActivate(ok => { });
+```
+
+### B10.9. Remote Config keys reference
+
+Đặt **đúng tên key** trên Firebase console (trùng tên field):
+
+| Key | Type | Default | Mô tả |
+|-----|------|---------|--------|
+| `inter_capping_time` | int | `120` | Giây tối thiểu giữa hai lần Interstitial |
+| `inter_start_level` | int | `3` | Level tối thiểu (từ 1) để cho phép Interstitial |
+| `enable_banner` | bool | `true` | `false` = tắt Banner toàn game |
+| `enable_rate_app` | bool | `false` | Bật popup Rate App |
+| `level_start_show_rate_app` | int | `5` | Level bắt đầu Rate App |
+| `no_internet_popup_enable` | bool | `true` | Popup yêu cầu Internet |
+
+### B10.10. Cấu trúc thư mục & assembly
+
+| Đường dẫn | Vai trò |
+|-----------|---------|
+| `Assets/GameUpSDK/Scripts/Runtime/` | Runtime: Ads, Analytics, Firebase, AppsFlyer, dispatcher. **`GameUp.SDK.Runtime.asmdef`** → **`GameUp.SDK.Runtime`**. Namespace code: **`GameUp.SDK`**. |
+| `Assets/GameUpSDK/Scripts/Runtime/Ads/` | `AdsManager`, `AdsRules`, `AdsEvent`, IronSource / AdMob / Unity Ads, interfaces |
+| `Assets/GameUpSDK/Scripts/Runtime/Analytics/` | `GameUpAnalytics`, `AnalyticsEvent`, bootstrap GA / Facebook |
+| `Assets/GameUpSDK/Scripts/Runtime/Firebase/` | `FirebaseRemoteConfigUtils`, `FirebaseUtils` (+ `README.md` trong folder) |
+| `Assets/GameUpSDK/Scripts/Runtime/AppsFlyerCheck/` | `AppsFlyerUtils` |
+| `Assets/GameUpSDK/Editor/` | `GameUpSetupWindow` — **GameUp → SDK → Setup**. **`GameUp.SDK.Editor.asmdef`** |
+| `Assets/GameUpSDK/Editor/Installer/` | Dependencies + define sync — **`GameUp.SDK.Installer.asmdef`** |
+| `Assets/GameUpSDK/Prefab/` | `SDK.prefab`, `IronSourceAds`, `AdmobAds`, `AppsFlyerObject`, `UnityAds`, … |
+| `Assets/GameUpSDK/package.json` | OpenUPM metadata, `com.unity.services.core` |
+| `Assets/GameUpSDK/CHANGELOG.md` | Lịch sử phiên bản |
+
+### B10.11. Kết hợp với GameUp Core (UI, preload)
+
+SDK **không** thay Core: Core lo UI (Popup/Screen, Addressables), Logger, Pool, v.v. Nhiều dự án dùng **cả hai**.
+
+Trên **màn loading**, có thể gọi `GameUpAnalytics.LogStartLoading` / `LogCompleteLoading` đồng thời **preload** Popup/Screen để giảm lag lần mở đầu — API và ví dụ trong [B2.8 Preload Popup & Screen](#b28-preload-popup--screen).
+
+### Ghi chú SDK
+
+- **Singleton:** `AdsManager`, `FirebaseRemoteConfigUtils` — `.Instance` (từ `GameUp.Core.MonoSingleton`).
+- **Define:** không chỉnh tay `GAMEUP_SDK_DEPS_READY` / `GAMEANALYTICS_DEPENDENCIES_INSTALLED` trừ khi hiểu rõ; ưu tiên **Sync Define Symbols** và installer.

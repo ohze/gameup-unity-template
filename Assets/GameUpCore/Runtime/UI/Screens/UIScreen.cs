@@ -164,7 +164,18 @@ namespace GameUp.Core.UI
                 return screen;
             }
 
+            if (prefab == null)
+            {
+                GULogger.Error("UIScreen", $"Screen prefab is null for type {type?.Name}");
+                return null;
+            }
+
             var instance = Instantiate(prefab, ScreenHolder);
+            if (instance.gameObject.activeSelf)
+            {
+                instance.Hide();
+            }
+
             Screens[type] = instance;
             return instance;
         }
@@ -214,7 +225,68 @@ namespace GameUp.Core.UI
 
         public static void PreloadAsyncView(Type type)
         {
-            ScreenData.GetScreenAsync(type);
+            PreloadViewByTypeAsync(type);
+        }
+
+        public static void PreloadViewByTypeAsync(Type type, Action<UIScreen> onComplete = null)
+        {
+            if (type == null)
+            {
+                GULogger.Error("UIScreen", "PreloadViewByTypeAsync called with null type");
+                return;
+            }
+
+            if (!typeof(UIScreen).IsAssignableFrom(type))
+            {
+                GULogger.Error("UIScreen", $"Type {type.Name} is not a UIScreen");
+                return;
+            }
+
+            if (Screens.TryGetValue(type, out var cachedScreen))
+            {
+                onComplete?.Invoke(cachedScreen);
+                return;
+            }
+
+            var loadAsync = ScreenData.GetScreenAsync(type);
+            if (!loadAsync.IsValid())
+            {
+                return;
+            }
+
+            if (loadAsync.IsDone)
+            {
+                var screen = GetOrCreateScreen(type, loadAsync.Result);
+                onComplete?.Invoke(screen);
+                return;
+            }
+
+            loadAsync.Completed += handle =>
+            {
+                if (!handle.IsValid() || handle.Result == null)
+                {
+                    GULogger.Error("UIScreen", $"Failed to preload screen {type.Name}");
+                    return;
+                }
+
+                var screen = GetOrCreateScreen(type, handle.Result);
+                onComplete?.Invoke(screen);
+            };
+        }
+
+        public static void PreloadViewByTypesAsync(params Type[] types)
+        {
+            if (types == null || types.Length == 0)
+            {
+                return;
+            }
+
+            for (var i = 0; i < types.Length; i++)
+            {
+                var type = types[i];
+                if (type == null) continue;
+                PreloadViewByTypeAsync(type);
+            }
         }
 
         #endregion
@@ -260,6 +332,39 @@ namespace GameUp.Core.UI
         public static AsyncOperationHandle<UIScreen> PreloadView()
         {
             return ScreenData.GetScreenAsync<T>();
+        }
+
+        public static void PreloadViewAsync(Action<T> onComplete = null)
+        {
+            var type = typeof(T);
+
+            if (Screens.TryGetValue(type, out var cachedScreen))
+            {
+                onComplete?.Invoke(cachedScreen as T);
+                return;
+            }
+
+            var loadAsync = ScreenData.GetScreenAsync<T>();
+            if (!loadAsync.IsValid()) return;
+
+            if (loadAsync.IsDone)
+            {
+                var ins = GetOrCreateScreen(type, loadAsync.Result);
+                onComplete?.Invoke(ins as T);
+                return;
+            }
+
+            loadAsync.Completed += handle =>
+            {
+                if (!handle.IsValid() || handle.Result == null)
+                {
+                    GULogger.Error("UIScreen", $"Failed to preload screen {type.Name}");
+                    return;
+                }
+
+                var ins = GetOrCreateScreen(type, handle.Result);
+                onComplete?.Invoke(ins as T);
+            };
         }
 
         private static void OpenWithTransitionAsync(Action<T> onComplete = null, bool remember = true)

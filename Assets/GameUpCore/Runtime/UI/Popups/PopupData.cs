@@ -33,7 +33,18 @@ namespace GameUp.Core.UI
         private readonly Dictionary<string, AsyncOperationHandle<UIPopup>> _cacheOperators = new();
         public AsyncOperationHandle<UIPopup> GetPopupAsync<T>() where T : UIPopup
         {
-            var tName = typeof(T).Name;
+            return GetPopupAsync(typeof(T));
+        }
+
+        public AsyncOperationHandle<UIPopup> GetPopupAsync(Type type)
+        {
+            if (type == null)
+            {
+                GULogger.Error("PopupData", "GetPopupAsync called with null type");
+                return default;
+            }
+
+            var tName = type.Name;
             if (_cacheOperators.TryGetValue(tName, out var cachedHandle)) return cachedHandle;
 
             var p = popups.Find(s => s.typeName == tName);

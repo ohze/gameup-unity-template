@@ -13,4 +13,11 @@ MonoBehaviour:
   m_Name: PopupData
   m_EditorClassIdentifier: 
   pathPopup: Assets/_MainProject/Prefabs/UI/Popups
-  popups: []
+  popups:
+  - name: PopupTest
+    typeName: PopupTest
+    popupRef:
+      m_AssetGUID: 23e6c3b5c626474439b8bd91ff725b3c
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0

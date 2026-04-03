@@ -1,5 +1,6 @@
 using UnityEngine;
 using GameUp.Core;
+using GameUp.Core.UI;
 
 public class Example : MonoBehaviour
 {
@@ -44,5 +45,19 @@ public class Example : MonoBehaviour
     public void ShowScreen2()
     {
         ScreenTest2.OpenViewAsync();
+    }
+
+    [Button]
+    public void Preload()
+    {
+        UIPopup.PreloadPopupByTypesAsync(typeof(PopupTest));
+        UIScreen.PreloadViewByTypeAsync(typeof(ScreenTest));
+    }
+
+    [Button]
+    public void Preload2()
+    {
+        UIPopup.PreloadPopupByTypesAsync(typeof(PopupTest));
+        UIScreen.PreloadViewByTypesAsync(typeof(ScreenTest), typeof(ScreenTest2));
     }
 }
