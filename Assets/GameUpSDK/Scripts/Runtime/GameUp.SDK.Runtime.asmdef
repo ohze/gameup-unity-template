@@ -1,0 +1,21 @@
+{
+    "name": "GameUp.SDK.Runtime",
+    "rootNamespace": "GameUp.SDK.Runtime",
+    "references": [
+        "GameUp.Core.Runtime",
+        "Unity.LevelPlay",
+        "AppsFlyer",
+        "GameAnalyticsSDK",
+        "GoogleMobileAds.Mediation.UnityAds.Api",
+        "GoogleMobileAds.Mediation.IronSource.Api"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

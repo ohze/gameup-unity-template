@@ -1,0 +1,21 @@
+{
+    "name": "GameUp.SDK.Editor",
+    "rootNamespace": "GameUp.SDK.Editor",
+    "references": [
+        "GameUp.Core.Runtime",
+        "GameUp.SDK.Runtime",
+        "GameUp.SDK.Installer",
+        "GameAnalyticsSDK"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
