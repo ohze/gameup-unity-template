@@ -1,4 +1,6 @@
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
+#endif
 
 namespace GameUp.Core.UI
 {
@@ -10,6 +12,7 @@ namespace GameUp.Core.UI
 
         public override IAnimation OnStart()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
             canvasGroup.alpha = 0;
             if (moveType == MoveType.MoveX)
@@ -42,11 +45,21 @@ namespace GameUp.Core.UI
                 mainSequence.Restart();
             }
 
+#else
+            canvasGroup.alpha = 1f;
+            if (moveType == MoveType.MoveX)
+                content.ChangeAnchorX(endPos);
+            else
+                content.ChangeAnchorY(endPos);
+            OnStartCompleteCallback?.Invoke();
+            OnStartCompleteCallback = null;
+#endif
             return this;
         }
 
         public override IAnimation OnReverse()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
             canvasGroup.alpha = 1;
             if (moveType == MoveType.MoveX)
@@ -77,6 +90,15 @@ namespace GameUp.Core.UI
                 mainSequence.Restart();
             }
 
+#else
+            canvasGroup.alpha = 0f;
+            if (moveType == MoveType.MoveX)
+                content.ChangeAnchorX(startPos);
+            else
+                content.ChangeAnchorY(startPos);
+            OnReverseCompleteCallback?.Invoke();
+            OnReverseCompleteCallback = null;
+#endif
             return this;
         }
     }

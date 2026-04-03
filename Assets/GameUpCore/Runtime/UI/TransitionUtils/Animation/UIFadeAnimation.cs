@@ -1,4 +1,6 @@
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
+#endif
 using UnityEngine;
 
 namespace GameUp.Core.UI
@@ -10,6 +12,7 @@ namespace GameUp.Core.UI
 
         public override IAnimation OnStart()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 0;
@@ -21,11 +24,18 @@ namespace GameUp.Core.UI
                     OnStartCompleteCallback = null;
                 });
             mainSequence.Restart();
+#else
+            canvasGroup.blocksRaycasts = true;
+            canvasGroup.alpha = 1f;
+            OnStartCompleteCallback?.Invoke();
+            OnStartCompleteCallback = null;
+#endif
             return this;
         }
 
         public override IAnimation OnReverse()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
             canvasGroup.blocksRaycasts = false;
             canvasGroup.alpha = 1;
@@ -36,6 +46,12 @@ namespace GameUp.Core.UI
                     OnReverseCompleteCallback = null;
                 });
             mainSequence.Restart();
+#else
+            canvasGroup.blocksRaycasts = false;
+            canvasGroup.alpha = 0f;
+            OnReverseCompleteCallback?.Invoke();
+            OnReverseCompleteCallback = null;
+#endif
             return this;
         }
     }

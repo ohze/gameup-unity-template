@@ -1,5 +1,6 @@
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
-using GameUp.Core;
+#endif
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -21,8 +22,10 @@ namespace GameUp.Core.UI
         [Tooltip("CanvasGroup của layer đen tại tâm (child UI). Để trống thì không flash đen nhưng vẫn có thể delay nếu duration > 0.")]
         [SerializeField] private CanvasGroup centerBlack;
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private Tween _maskTween;
         private Tween _centerHoldTween;
+#endif
         private Vector3 DefaultCutoutLocalPosition => Vector3.zero;
 
         private Vector3? _pendingLocalPosition;
@@ -60,6 +63,7 @@ namespace GameUp.Core.UI
 
         protected override void PlayIntro()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             if (!cutoutMask || !boundsParent)
             {
                 OverlayGroup.alpha = 1f;
@@ -87,8 +91,23 @@ namespace GameUp.Core.UI
             {
                 BeginCutoutExpandAfterHold();
             }
+#else
+            OverlayGroup.alpha = 1f;
+            if (cutoutMask)
+            {
+                cutoutMask.sizeDelta = Vector2.zero;
+                cutoutMask.localPosition = ResolveCutoutStartLocalPosition();
+            }
+
+            if (centerBlack)
+                centerBlack.alpha = 0f;
+
+            ClearPendingStart();
+            OnOpened?.Invoke();
+#endif
         }
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private void BeginCutoutExpandAfterHold()
         {
             _centerHoldTween = null;
@@ -109,13 +128,16 @@ namespace GameUp.Core.UI
                 .SetUpdate(true)
                 .OnComplete(() => OnOpened?.Invoke());
         }
+#endif
 
         private void StopIntroTweensOnly()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             _centerHoldTween?.Kill();
             _centerHoldTween = null;
             _maskTween?.Kill();
             _maskTween = null;
+#endif
         }
 
         private void ClearPendingStart()
@@ -218,8 +240,10 @@ namespace GameUp.Core.UI
         public override void Close()
         {
             StopIntroTweens();
+#if DOTween__DEPENDENCIES_INSTALLED
             _autoCloseTween?.Kill();
             _autoCloseTween = null;
+#endif
 
             KillCloseTweens();
             FinishClose();

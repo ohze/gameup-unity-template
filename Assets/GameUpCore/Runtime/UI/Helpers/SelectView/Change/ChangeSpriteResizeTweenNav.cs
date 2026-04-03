@@ -1,4 +1,6 @@
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
+#endif
 using GameUp.Core;
 using UnityEngine;
 using UnityEngine.UI;
@@ -25,7 +27,9 @@ namespace GameUp.Core.UI
         [SerializeField] private Vector2 sizeNotSelectIcon;
         [SerializeField] private Vector2 sizeSelectIcon;
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private Sequence _sequence;
+#endif
         private bool _hasLoggedMissingRefs;
 
         private void OnValidate()
@@ -63,7 +67,9 @@ namespace GameUp.Core.UI
 
         private void PlayTween(bool isSelected)
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             _sequence?.Kill(true);
+#endif
 
             if (targetImage == null || targetIconImage == null || posSelect == null || posNotSelect == null)
             {
@@ -82,6 +88,7 @@ namespace GameUp.Core.UI
             
             var iconPunchScale = isSelected ? 1.1f : 1f;
             
+#if DOTween__DEPENDENCIES_INSTALLED
             _sequence = DOTween.Sequence();
 
             _sequence
@@ -94,6 +101,14 @@ namespace GameUp.Core.UI
                     if (!isSelected)
                         targetIconImage.rectTransform.localScale = Vector3.one;
                 });
+#else
+            targetImage.rectTransform.sizeDelta = targetBgSize;
+            targetIconImage.rectTransform.sizeDelta = targetIconSize;
+            targetIconImage.rectTransform.ChangeAnchorY(targetY);
+            targetIconImage.rectTransform.localScale = Vector3.one * iconPunchScale;
+            if (!isSelected)
+                targetIconImage.rectTransform.localScale = Vector3.one;
+#endif
         }
     }
 }

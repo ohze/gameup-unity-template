@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+#if DOTween__DEPENDENCIES_INSTALLED
 using DG.Tweening;
+#endif
 using UnityEngine;
 
 namespace GameUp.Core.UI
@@ -15,8 +17,10 @@ namespace GameUp.Core.UI
         [SerializeField] private float duration = 0.4f;
         [SerializeField] private float delayBetweenItems = 0.1f;
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private Sequence _startSequence;
         private Sequence _reverseSequence;
+#endif
         private int _cachedItemCount = -1;
 
         private void Awake()
@@ -33,6 +37,7 @@ namespace GameUp.Core.UI
         public override IAnimation OnStart()
         {
             EnsureReady();
+#if DOTween__DEPENDENCIES_INSTALLED
             _reverseSequence?.Pause();
 
             for (int i = 0; i < itemList.Count; i++)
@@ -48,12 +53,26 @@ namespace GameUp.Core.UI
             }
 
             _startSequence.Restart();
+#else
+            for (int i = 0; i < itemList.Count; i++)
+            {
+                var item = itemList[i];
+                if (item == null) continue;
+                item.anchoredPosition = originalPositions[i];
+                var group = canvasGroups[i];
+                if (group != null) group.alpha = 1f;
+            }
+
+            OnStartCompleteCallback?.Invoke();
+            OnStartCompleteCallback = null;
+#endif
             return this;
         }
 
         public override IAnimation OnReverse()
         {
             EnsureReady();
+#if DOTween__DEPENDENCIES_INSTALLED
             _startSequence?.Pause();
 
             for (int i = 0; i < itemList.Count; i++)
@@ -68,6 +87,19 @@ namespace GameUp.Core.UI
             }
 
             _reverseSequence.Restart();
+#else
+            for (int i = 0; i < itemList.Count; i++)
+            {
+                var item = itemList[i];
+                if (item == null) continue;
+                item.anchoredPosition = originalPositions[i] + Vector2.down * startYOffset;
+                var group = canvasGroups[i];
+                if (group != null) group.alpha = 0f;
+            }
+
+            OnReverseCompleteCallback?.Invoke();
+            OnReverseCompleteCallback = null;
+#endif
             return this;
         }
 
@@ -142,6 +174,7 @@ namespace GameUp.Core.UI
 
         private void RebuildSequences()
         {
+#if DOTween__DEPENDENCIES_INSTALLED
             _startSequence?.Kill();
             _reverseSequence?.Kill();
 
@@ -194,6 +227,7 @@ namespace GameUp.Core.UI
                 OnReverseCompleteCallback?.Invoke();
                 OnReverseCompleteCallback = null;
             });
+#endif
         }
     }
 }
