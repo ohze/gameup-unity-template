@@ -115,7 +115,7 @@ namespace GameUp.SDK.Installer
                 BundledFileNames = new[] { "Facebook/facebook-unity-sdk-18.0.0.unitypackage" },
                 HostedUrls = new[]
                 {
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/facebook-unity-sdk-18.0.0.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/facebook-unity-sdk-18.0.0.unitypackage",
                 },
                 DownloadUrl = "https://developers.facebook.com/docs/unity/downloads/",
                 DownloadLabel = "Tải Facebook Unity SDK →",
@@ -137,9 +137,9 @@ namespace GameUp.SDK.Installer
                 },
                 HostedUrls = new[]
                 {
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/FirebaseAnalytics.unitypackage",
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/FirebaseCrashlytics.unitypackage",
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/FirebaseRemoteConfig.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/FirebaseAnalytics.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/FirebaseCrashlytics.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/FirebaseRemoteConfig.unitypackage",
                 },
                 DownloadUrl = "https://firebase.google.com/docs/unity/setup",
                 DownloadLabel = "Tải Firebase Unity SDK →",
@@ -155,7 +155,7 @@ namespace GameUp.SDK.Installer
                 BundledFileNames = new[] { "GoogleMobileAds-v10.7.0.unitypackage" },
                 HostedUrls = new[]
                 {
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/GoogleMobileAds-v10.7.0.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/GoogleMobileAds-v10.7.0.unitypackage",
                 },
                 DownloadUrl = "https://github.com/googlesamples/unity-admob-sdk/releases",
                 DownloadLabel = "Tải AdMob Plugin →",
@@ -171,7 +171,7 @@ namespace GameUp.SDK.Installer
                 BundledFileNames = new[] { "UnityLevelPlay_v9.2.0.unitypackage" },
                 HostedUrls = new[]
                 {
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/UnityLevelPlay_v9.2.0.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/UnityLevelPlay_v9.2.0.unitypackage",
                 },
                 DownloadUrl = "https://developers.is.com/ironsource-mobile/unity/unity-plugin/",
                 DownloadLabel = "Tải IronSource SDK →",
@@ -189,7 +189,7 @@ namespace GameUp.SDK.Installer
                 BundledFileNames = new[] { "appsflyer-unity-plugin-6.17.81.unitypackage" },
                 HostedUrls       = new[]
                 {
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/appsflyer-unity-plugin-6.17.81.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/appsflyer-unity-plugin-6.17.81.unitypackage",
                 },
                 DownloadUrl      = "https://github.com/AppsFlyerSDK/appsflyer-unity-plugin/releases",
                 DownloadLabel    = "Tải AppsFlyer SDK →",
@@ -230,9 +230,9 @@ namespace GameUp.SDK.Installer
                 },
                 HostedUrls       = new[]
                 {
-                    "https://github.com/haopro2911/repo-sdk-importer/releases/download/sdk/GoogleMobileAdsUnityAdsMediation.unitypackage",
-                    "https://github.com/haopro2911/repo-sdk-importer/releases/download/sdk/GoogleMobileAdsIronSourceMediation.unitypackage",
-                    "https://github.com/DuyOhze119/sdk-gameup/releases/download/deps/GoogleMobileAdsLiftoffMonetizeMediation.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/sdk/GoogleMobileAdsUnityAdsMediation.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/sdk/GoogleMobileAdsIronSourceMediation.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/GoogleMobileAdsLiftoffMonetizeMediation.unitypackage",
                 },
                 DownloadUrl      = "https://firebase.google.com/docs/unity/setup",
                 DownloadLabel    = "Admob Mediation Adapter →",
@@ -244,7 +244,6 @@ namespace GameUp.SDK.Installer
         // ─── State ────────────────────────────────────────────────────────────────
 
         private Vector2 _scroll;
-        private bool _isRefreshing;
         private bool _isBatchInstalling;
 
         /// <summary>Package sẽ cài trong lần batch hiện tại (null = toàn bộ s_packages — chỉ dùng nội bộ).</summary>
