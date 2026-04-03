@@ -8,6 +8,7 @@ using UnityEditor.Build;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace GameUp.Core.Editor
 {
@@ -151,9 +152,14 @@ namespace GameUp.Core.Editor
     {
         private const string MenuPath = "GameUp/Project/GameUpCore Installer";
         private const string WindowTitle = "GameUpCore Installer";
+        private const string DotweenPackageFileName = "DOTween.Pro.v1.0.381.unitypackage";
 
         private AddRequest _gameUpSdkInstallRequest;
         private string _gameUpSdkInstallMessage;
+        private UnityWebRequest _dotweenDownloadRequest;
+        private string _dotweenDownloadedPackagePath;
+        private string _dotweenInstallMessage;
+        private bool _dotweenIsInstalling;
 
         [MenuItem(MenuPath)]
         private static void OpenWindow()
@@ -203,14 +209,24 @@ namespace GameUp.Core.Editor
             GUI.color = oldColor;
         }
 
-        private static void DrawInstallActions()
+        private void DrawInstallActions()
         {
             EditorGUILayout.LabelField("Step 1 - Install DOTween Pro", EditorStyles.boldLabel);
-            if (GUILayout.Button("Download DOTween.Pro.v1.0.381.unitypackage", GUILayout.Height(30f)))
+            using (new EditorGUI.DisabledScope(_dotweenDownloadRequest != null || _dotweenIsInstalling))
+            {
+                if (GUILayout.Button("Download & Auto Install DOTween.Pro.v1.0.381", GUILayout.Height(30f)))
+                {
+                    StartDotweenAutoInstall();
+                }
+            }
+
+            EditorGUILayout.Space(4f);
+            if (GUILayout.Button("Open Download Page in Browser", GUILayout.Height(22f)))
             {
                 Application.OpenURL(GUDotweenDependencyUtility.DotweenProDownloadUrl);
             }
 
+            DrawDotweenAutoInstallStatus();
             EditorGUILayout.Space(4f);
             if (GUILayout.Button("Open DOTween Utility Panel", GUILayout.Height(26f)))
             {
@@ -304,6 +320,140 @@ namespace GameUp.Core.Editor
                     : MessageType.Info;
                 EditorGUILayout.HelpBox(_gameUpSdkInstallMessage, msgType);
             }
+        }
+
+        private void StartDotweenAutoInstall()
+        {
+            if (_dotweenDownloadRequest != null || _dotweenIsInstalling)
+                return;
+
+            _dotweenInstallMessage = "Downloading DOTween package...";
+            _dotweenDownloadedPackagePath = Path.Combine(Path.GetTempPath(), DotweenPackageFileName);
+
+            if (File.Exists(_dotweenDownloadedPackagePath))
+                File.Delete(_dotweenDownloadedPackagePath);
+
+            _dotweenDownloadRequest = UnityWebRequest.Get(GUDotweenDependencyUtility.DotweenProDownloadUrl);
+            _dotweenDownloadRequest.downloadHandler = new DownloadHandlerFile(_dotweenDownloadedPackagePath);
+            _dotweenDownloadRequest.SendWebRequest();
+        }
+
+        private void DrawDotweenAutoInstallStatus()
+        {
+            if (_dotweenDownloadRequest != null)
+            {
+                if (_dotweenDownloadRequest.isDone)
+                {
+                    CompleteDotweenDownload();
+                }
+                else
+                {
+                    var progressRect = GUILayoutUtility.GetRect(18f, 18f, "TextField");
+                    EditorGUI.ProgressBar(progressRect, _dotweenDownloadRequest.downloadProgress, "Downloading DOTween package...");
+                    Repaint();
+                }
+            }
+            else if (_dotweenIsInstalling)
+            {
+                EditorGUILayout.HelpBox("Importing DOTween package to project...", MessageType.Info);
+                Repaint();
+            }
+
+            if (!string.IsNullOrWhiteSpace(_dotweenInstallMessage))
+            {
+                var msgType = _dotweenInstallMessage.StartsWith("DOTween install failed:", StringComparison.OrdinalIgnoreCase)
+                    ? MessageType.Error
+                    : MessageType.Info;
+                EditorGUILayout.HelpBox(_dotweenInstallMessage, msgType);
+            }
+        }
+
+        private void CompleteDotweenDownload()
+        {
+            if (_dotweenDownloadRequest == null)
+                return;
+
+            var result = _dotweenDownloadRequest.result;
+            var errorMessage = _dotweenDownloadRequest.error;
+            _dotweenDownloadRequest.Dispose();
+            _dotweenDownloadRequest = null;
+
+            if (result != UnityWebRequest.Result.Success)
+            {
+                _dotweenInstallMessage = $"DOTween install failed: cannot download package ({errorMessage}).";
+                return;
+            }
+
+            ImportDotweenPackage();
+        }
+
+        private void ImportDotweenPackage()
+        {
+            if (string.IsNullOrWhiteSpace(_dotweenDownloadedPackagePath) || !File.Exists(_dotweenDownloadedPackagePath))
+            {
+                _dotweenInstallMessage = "DOTween install failed: downloaded package file is missing.";
+                return;
+            }
+
+            _dotweenIsInstalling = true;
+            _dotweenInstallMessage = "Importing DOTween package...";
+
+            AssetDatabase.importPackageCompleted += OnDotweenImportCompleted;
+            AssetDatabase.importPackageFailed += OnDotweenImportFailed;
+            AssetDatabase.importPackageCancelled += OnDotweenImportCancelled;
+            AssetDatabase.ImportPackage(_dotweenDownloadedPackagePath, false);
+        }
+
+        private void OnDotweenImportCompleted(string packageName)
+        {
+            UnregisterDotweenImportCallbacks();
+            _dotweenIsInstalling = false;
+            FinalizeDotweenSetup();
+            _dotweenInstallMessage = $"DOTween imported successfully ({packageName}).";
+            Repaint();
+        }
+
+        private void OnDotweenImportFailed(string packageName, string errorMessage)
+        {
+            UnregisterDotweenImportCallbacks();
+            _dotweenIsInstalling = false;
+            _dotweenInstallMessage = $"DOTween install failed: import error ({packageName}) - {errorMessage}";
+            Repaint();
+        }
+
+        private void OnDotweenImportCancelled(string packageName)
+        {
+            UnregisterDotweenImportCallbacks();
+            _dotweenIsInstalling = false;
+            _dotweenInstallMessage = $"DOTween install failed: import cancelled ({packageName}).";
+            Repaint();
+        }
+
+        private void UnregisterDotweenImportCallbacks()
+        {
+            AssetDatabase.importPackageCompleted -= OnDotweenImportCompleted;
+            AssetDatabase.importPackageFailed -= OnDotweenImportFailed;
+            AssetDatabase.importPackageCancelled -= OnDotweenImportCancelled;
+        }
+
+        private void FinalizeDotweenSetup()
+        {
+            GUDotweenDependencyUtility.CreateDotweenModulesAsmdefIfMissing();
+            GUDotweenDependencyUtility.EnableDefineSymbolOnAllTargets();
+            AssetDatabase.Refresh();
+        }
+
+        private void OnDisable()
+        {
+            if (_dotweenDownloadRequest != null)
+            {
+                _dotweenDownloadRequest.Abort();
+                _dotweenDownloadRequest.Dispose();
+                _dotweenDownloadRequest = null;
+            }
+
+            UnregisterDotweenImportCallbacks();
+            _dotweenIsInstalling = false;
         }
     }
 }
