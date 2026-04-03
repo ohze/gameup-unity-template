@@ -1,0 +1,6 @@
+root = true
+
+# Unity assigns [SerializeField] (and related) in the Inspector, not in constructors.
+# Aligns IDE Roslyn analysis with Assets/csc.rsp (-nowarn:0649).
+[*.cs]
+dotnet_diagnostic.CS0649.severity = none

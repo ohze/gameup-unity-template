@@ -13,6 +13,15 @@
 - **Chuỗi:** luôn dùng interpolation `$"..."`; không nối chuỗi bằng `+` cho log/text động.
 - **Local functions:** không viết hàm lồng trong hàm — tách thành `private` method cùng class.
 
+## C# Cleanup (bắt buộc)
+- **Xóa `using` thừa:** sau mỗi lần viết/sửa file C#, phải loại bỏ mọi `using`/namespace import không được sử dụng trong file (không để “thừa cho chắc”).
+- **Không thêm `using` bừa:** chỉ thêm `using` khi thật sự cần; ưu tiên dùng tên đầy đủ (`Namespace.Type`) nếu chỉ dùng 1–2 chỗ để tránh phình import.
+- **Giữ file gọn:** nếu sau refactor không còn dùng class/field/method nào, xóa luôn phần không dùng (tránh “dead code”).
+
+## Logging
+- **Không** gọi `UnityEngine.Debug` (`Debug.Log`, `Debug.LogWarning`, `Debug.LogError`, `Debug.LogException`, …) trong code game/feature; dùng `GameUp.Core.GULogger` tại `Assets/GameUpCore/Runtime/Core/Logger/GULogger.cs` (`Log` / `Verbose` / `Warning` / `Error` / `Exception`, có overload kèm `tag`).
+- Chỉ `GULogger` (hoặc lớp logger nội bộ khác của core) được phép wrap `Debug`; không thêm chỗ gọi `Debug` trực tiếp ngoài đó khi viết/sửa code mới.
+
 ## Folder structure (Assets)
 - Gom asset game vào thư mục gốc project (vd: `Assets/_Project/` hoặc `GameUpCore/`), không để rải rác ngoài `Assets/`.
 - Không trộn code nội bộ với `Plugins` hay `ThirdParty`.

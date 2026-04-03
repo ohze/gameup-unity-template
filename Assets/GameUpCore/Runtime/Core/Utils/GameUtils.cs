@@ -1,22 +1,23 @@
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using UnityEngine;
 using Object = UnityEngine.Object;
-using Random = UnityEngine.Random; // Ưu tiên dùng Unity Random cho Game
+using Random = UnityEngine.Random;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace GameUp.Core
 {
     public static class GameUtils
     {
-        #region Platform & Device Info
-        
+        #region Platform &  Device Info
+
         public static bool IsAndroid => Application.platform == RuntimePlatform.Android;
         public static bool IsIOS => Application.platform == RuntimePlatform.IPhonePlayer;
         public static bool IsWeb => Application.platform == RuntimePlatform.WebGLPlayer;
@@ -67,22 +68,98 @@ namespace GameUp.Core
 #if UNITY_EDITOR
         public static List<T> GetAssetList<T>(string path) where T : Object
         {
-            var result = new List<T>();
-            // Sử dụng SearchOption.AllDirectories để quét đệ quy cực nhanh
-            var fullPath = Path.Combine(Application.dataPath, path);
-            if (!Directory.Exists(fullPath)) return result;
+            return GetAssetList(path, new List<T>());
+        }
 
-            var fileEntries = Directory.GetFiles(fullPath, "*.*", SearchOption.AllDirectories);
+        public static List<T> GetAssetList<T>(string path, List<T> result) where T : Object
+        {
+            if (result == null) result = new List<T>();
+            result.Clear();
 
-            foreach (var fileName in fileEntries)
+            if (string.IsNullOrWhiteSpace(path))
+                return result;
+
+            var folderPath = NormalizeAssetFolderPath(path);
+            if (string.IsNullOrEmpty(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+                return result;
+
+            // Use AssetDatabase indexing; this is significantly faster than System.IO scanning.
+            var filter = $"t:{typeof(T).Name}";
+            var guids = AssetDatabase.FindAssets(filter, new[] { folderPath });
+            if (guids == null || guids.Length == 0)
+                return result;
+
+            if (result.Capacity < guids.Length) result.Capacity = guids.Length;
+
+            for (var i = 0; i < guids.Length; i++)
             {
-                if (fileName.EndsWith(".meta")) continue;
+                var assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(assetPath)) continue;
 
-                var relativePath = "Assets" + fileName.Replace(Application.dataPath, "").Replace('\\', '/');
-                var asset = AssetDatabase.LoadAssetAtPath<T>(relativePath);
-                if (asset != null) result.Add(asset);
+                var asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
+                if (asset) result.Add(asset);
             }
+
             return result;
+        }
+
+        /// <summary>
+        /// Find prefab assets under a folder that contain component <typeparamref name="TComponent"/>.
+        /// Returns the prefab root GameObject assets (so caller can get GUID/path reliably).
+        /// </summary>
+        public static List<GameObject> GetPrefabAssetsWithComponent<TComponent>(string path) where TComponent : Component
+        {
+            return GetPrefabAssetsWithComponent<TComponent>(path, new List<GameObject>());
+        }
+
+        public static List<GameObject> GetPrefabAssetsWithComponent<TComponent>(string path, List<GameObject> result)
+            where TComponent : Component
+        {
+            if (result == null) result = new List<GameObject>();
+            result.Clear();
+
+            if (string.IsNullOrWhiteSpace(path))
+                return result;
+
+            var folderPath = NormalizeAssetFolderPath(path);
+            if (string.IsNullOrEmpty(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+                return result;
+
+            var guids = AssetDatabase.FindAssets("t:Prefab", new[] { folderPath });
+            if (guids == null || guids.Length == 0)
+                return result;
+
+            for (var i = 0; i < guids.Length; i++)
+            {
+                var prefabPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (string.IsNullOrEmpty(prefabPath)) continue;
+
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (!prefab) continue;
+
+                if (prefab.GetComponentInChildren<TComponent>(true) != null)
+                    result.Add(prefab);
+            }
+
+            return result;
+        }
+
+        private static string NormalizeAssetFolderPath(string rawPath)
+        {
+            if (string.IsNullOrWhiteSpace(rawPath))
+                return string.Empty;
+
+            var p = rawPath.Replace('\\', '/').Trim();
+            p = p.TrimEnd('/');
+
+            // Accept either "Assets/..." or paths relative to Assets.
+            if (p.Equals("Assets", StringComparison.OrdinalIgnoreCase))
+                return "Assets";
+
+            if (p.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+                return p;
+
+            return $"Assets/{p}";
         }
 
         public static void SaveAssets(Object target)
@@ -152,9 +229,9 @@ namespace GameUp.Core
         public static string GetSecondStr(int seconds)
         {
             var t = TimeSpan.FromSeconds(seconds);
-            if (t.TotalHours >= 1) 
+            if (t.TotalHours >= 1)
                 return $"{(int)t.TotalHours} giờ {t.Minutes} phút";
-            if (t.TotalMinutes >= 1) 
+            if (t.TotalMinutes >= 1)
                 return $"{t.Minutes} phút {t.Seconds} giây";
             return $"{t.Seconds} giây";
         }
@@ -195,7 +272,7 @@ namespace GameUp.Core
             ss.Apply();
             return ss;
         }
-        
+
         #endregion
     }
 }

@@ -44,10 +44,13 @@ MonoBehaviour:
   m_BuildAddressablesWithPlayerBuild: 0
   m_overridePlayerVersion: '[UnityEditor.PlayerSettings.bundleVersion]'
   m_GroupAssets:
+  - {fileID: 11400000, guid: 3f7f1bc54125bcd40a50767c9d8c86a8, type: 2}
   - {fileID: 11400000, guid: dbdc31bcc9cb3234e97e54ad6a9329ba, type: 2}
+  - {fileID: 11400000, guid: 512fc061332120b4fb17bc5ed1c29c03, type: 2}
   - {fileID: 11400000, guid: 64d28893ba79a56478fea1fb96de1a7b, type: 2}
   - {fileID: 11400000, guid: 13575beca8392534fb396174592e1a86, type: 2}
   - {fileID: 11400000, guid: 1321df30e6d5982479dab44036dfc1ba, type: 2}
+  - {fileID: 11400000, guid: 4c00e915fa6b3054d96f20beff355efa, type: 2}
   m_BuildSettings:
     m_CompileScriptsInVirtualMode: 0
     m_CleanupStreamingAssetsAfterBuilds: 1
@@ -91,6 +94,9 @@ MonoBehaviour:
     - default
     - sounds
     - Audio
+    - Popup
+    - Screen
+    - Data
   m_SchemaTemplates: []
   m_GroupTemplateObjects:
   - {fileID: 11400000, guid: 4b301cd27d6aa2c43930e91e01efd0ee, type: 2}

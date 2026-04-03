@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: UI_Popups
+  m_EditorClassIdentifier: 
+  m_GroupName: UI_Popups
+  m_Data:
+    m_SerializedData: []
+  m_GUID: 4ab369d37d4cd6749aa52e699bca933f
+  m_SerializeEntries:
+  - m_GUID: 4161d3862a269724f81a6aff71172226
+    m_Address: Assets/_MainProject/Prefabs/UI/Popups
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Popup
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 901e090fed76a134e8768251eb77da40, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 031116605dec9854081019e86660f00f, type: 2}
