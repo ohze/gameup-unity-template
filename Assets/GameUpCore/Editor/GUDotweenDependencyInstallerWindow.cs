@@ -297,11 +297,22 @@ namespace GameUp.Core.Editor
                 {
                     if (_gameUpSdkInstallRequest.Status == StatusCode.Success)
                     {
-                        _gameUpSdkInstallMessage = $"Installed: {_gameUpSdkInstallRequest.Result.name} {_gameUpSdkInstallRequest.Result.version}";
+                        var result = _gameUpSdkInstallRequest.Result;
+                        if (result != null)
+                        {
+                            _gameUpSdkInstallMessage = $"Installed: {result.name} {result.version}";
+                        }
+                        else
+                        {
+                            _gameUpSdkInstallMessage = "Installed GameUpSDK, but package info is unavailable.";
+                        }
                     }
                     else if (_gameUpSdkInstallRequest.Status >= StatusCode.Failure)
                     {
-                        _gameUpSdkInstallMessage = $"Install failed: {_gameUpSdkInstallRequest.Error.message}";
+                        var requestErrorMessage = _gameUpSdkInstallRequest.Error != null
+                            ? _gameUpSdkInstallRequest.Error.message
+                            : "unknown package manager error.";
+                        _gameUpSdkInstallMessage = $"Install failed: {requestErrorMessage}";
                     }
 
                     _gameUpSdkInstallRequest = null;
