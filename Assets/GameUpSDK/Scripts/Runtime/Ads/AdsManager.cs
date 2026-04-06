@@ -207,7 +207,7 @@ namespace GameUp.SDK
 
             Debug.Log("[GameUp] AdsManager Initialize called for " + _ads.Count + " networks.");
 
-            // Luôn RequestAll để preload (banner chỉ hiện khi gọi ShowBanner, không tự hiện nhờ SetDisplayOnLoad(false) ở LevelPlay).
+            // Luôn RequestAll để preload. Banner chỉ hiện khi ShowBanner: LevelPlay dùng SetDisplayOnLoad(false); AdMob gọi Hide() trước LoadAd trong AdmobAds.
             RequestAll();
             // enable_banner (Remote Config) ưu tiên cao hơn showBannerAfterInit: chỉ auto-show khi cả hai cho phép.
             if (showBannerAfterInit && AdsRules.IsBannerEnabled() && !IsRemoveAllAdsActive())
