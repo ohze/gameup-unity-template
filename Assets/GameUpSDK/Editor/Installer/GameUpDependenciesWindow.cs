@@ -230,8 +230,8 @@ namespace GameUp.SDK.Installer
                 },
                 HostedUrls       = new[]
                 {
-                    "https://github.com/ohze/gameup-unity-template/releases/download/sdk/GoogleMobileAdsUnityAdsMediation.unitypackage",
-                    "https://github.com/ohze/gameup-unity-template/releases/download/sdk/GoogleMobileAdsIronSourceMediation.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/GoogleMobileAdsUnityAdsMediation.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/GoogleMobileAdsIronSourceMediation.unitypackage",
                     "https://github.com/ohze/gameup-unity-template/releases/download/deps/GoogleMobileAdsLiftoffMonetizeMediation.unitypackage",
                 },
                 DownloadUrl      = "https://firebase.google.com/docs/unity/setup",
