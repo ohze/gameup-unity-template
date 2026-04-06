@@ -12,14 +12,30 @@ namespace GameUp.SDK
     /// <summary>
     /// Game analytics: Firebase và/hoặc AppsFlyer (MMP). GameAnalytics: progression (Start / Complete / Fail) theo
     /// <see href="https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/event-tracking">GA Unity — Progression events</see>
-    /// (world <c>main</c> → level → wave). Cần init GameAnalytics + keys trong scene.
+    /// (level → wave; wave toàn level = <c>w0</c>, wave gameplay = <c>w</c> + số). Cần init GameAnalytics + keys trong scene.
     /// </summary>
     public static class GameUpAnalytics
     {
-        /// <summary>progression01 cố định; progression02 = level, progression03 = wave (tiền tố <c>w</c>).</summary>
-        private const string GameAnalyticsProgressionWorld = "main";
+        /// <summary>Wave segment khi log theo cả level, chưa vào wave cụ thể.</summary>
+        private const int GaWholeLevelWave = 0;
 
         private static string GaWavePart(int wave) => "w" + wave;
+
+        private static void LogGameAnalyticsProgression(
+            GaProgressionStatus status,
+            int level,
+            int wave,
+            int? score = null,
+            Dictionary<string, string> stringFields = null)
+        {
+            GameAnalyticsUtils.LogProgression(
+                status,
+                level.ToString(),
+                GaWavePart(wave),
+                null,
+                score,
+                stringFields);
+        }
 
         private static void LogFirebase(string eventName, string paramName = null, string paramValue = null)
         {
@@ -49,13 +65,13 @@ namespace GameUp.SDK
         public static void LogStartLevel1()
         {
             LogFirebase(AnalyticsEvent.StartLevel1);
-            GameAnalyticsUtils.LogProgression(GaProgressionStatus.Start, GameAnalyticsProgressionWorld, "1");
+            LogGameAnalyticsProgression(GaProgressionStatus.Start, 1, GaWholeLevelWave);
         }
 
         public static void LogCompleteLevel1()
         {
             LogFirebase(AnalyticsEvent.CompleteLevel1);
-            GameAnalyticsUtils.LogProgression(GaProgressionStatus.Complete, GameAnalyticsProgressionWorld, "1");
+            LogGameAnalyticsProgression(GaProgressionStatus.Complete, 1, GaWholeLevelWave);
         }
 
         /// <summary> earn_virtual_currency: virtual_currency_name, value, source </summary>
@@ -90,7 +106,7 @@ namespace GameUp.SDK
 
         // ---------- Level (Firebase + AppsFlyer af_level_achieved - chung mục đích) ----------
 
-        /// <summary> level_start: level (từ 1), index (lần bắt đầu thứ bao nhiêu) </summary>
+        /// <summary> level_start: level (từ 1), index (lần bắt đầu thứ bao nhiêu); GA progression: level → <c>w0</c>. </summary>
         public static void LogLevelStart(int level, int index)
         {
             var p = new Dictionary<string, string>
@@ -99,14 +115,10 @@ namespace GameUp.SDK
                 [AnalyticsEvent.ParamIndex] = index.ToString()
             };
             LogFirebaseParams(AnalyticsEvent.LevelStart, p);
-            GameAnalyticsUtils.LogProgression(
-                GaProgressionStatus.Start,
-                GameAnalyticsProgressionWorld,
-                level.ToString(),
-                stringFields: p);
+            LogGameAnalyticsProgression(GaProgressionStatus.Start, level, GaWholeLevelWave, stringFields: p);
         }
 
-        /// <summary> level_fail: level, index, time </summary>
+        /// <summary> level_fail: level, index, time; GA progression: level → <c>w0</c>. </summary>
         public static void LogLevelFail(int level, int index, float timeSeconds)
         {
             var p = new Dictionary<string, string>
@@ -116,14 +128,10 @@ namespace GameUp.SDK
                 [AnalyticsEvent.ParamTime] = timeSeconds.ToString("F0")
             };
             LogFirebaseParams(AnalyticsEvent.LevelFail, p);
-            GameAnalyticsUtils.LogProgression(
-                GaProgressionStatus.Fail,
-                GameAnalyticsProgressionWorld,
-                level.ToString(),
-                stringFields: p);
+            LogGameAnalyticsProgression(GaProgressionStatus.Fail, level, GaWholeLevelWave, stringFields: p);
         }
 
-        /// <summary> level_complete (Firebase) + af_level_achieved (AppsFlyer): level, index, time; optional af_score. </summary>
+        /// <summary> level_complete (Firebase) + af_level_achieved (AppsFlyer): level, index, time; optional af_score; GA progression: level → <c>w0</c>. </summary>
         public static void LogLevelComplete(int level, int index, float timeSeconds, int? score = null)
         {
             var fb = new Dictionary<string, string>
@@ -141,18 +149,9 @@ namespace GameUp.SDK
             var ga = new Dictionary<string, string>(fb);
             if (score.HasValue) ga[AnalyticsEvent.ParamAfScore] = score.Value.ToString();
             if (score.HasValue)
-                GameAnalyticsUtils.LogProgression(
-                    GaProgressionStatus.Complete,
-                    GameAnalyticsProgressionWorld,
-                    level.ToString(),
-                    score: score.Value,
-                    stringFields: ga);
+                LogGameAnalyticsProgression(GaProgressionStatus.Complete, level, GaWholeLevelWave, score.Value, ga);
             else
-                GameAnalyticsUtils.LogProgression(
-                    GaProgressionStatus.Complete,
-                    GameAnalyticsProgressionWorld,
-                    level.ToString(),
-                    stringFields: ga);
+                LogGameAnalyticsProgression(GaProgressionStatus.Complete, level, GaWholeLevelWave, stringFields: ga);
         }
 
         // ---------- Firebase: Button ----------
@@ -162,7 +161,7 @@ namespace GameUp.SDK
 
         // ---------- Firebase: Wave ----------
 
-        /// <summary> wave_start: level, wave </summary>
+        /// <summary> wave_start: level, wave; GA progression: level → <c>w</c>{wave}. </summary>
         public static void LogWaveStart(int level, int wave)
         {
             var p = new Dictionary<string, string>
@@ -171,15 +170,10 @@ namespace GameUp.SDK
                 [AnalyticsEvent.ParamWave] = wave.ToString()
             };
             LogFirebaseParams(AnalyticsEvent.WaveStart, p);
-            GameAnalyticsUtils.LogProgression(
-                GaProgressionStatus.Start,
-                GameAnalyticsProgressionWorld,
-                level.ToString(),
-                GaWavePart(wave),
-                stringFields: p);
+            LogGameAnalyticsProgression(GaProgressionStatus.Start, level, wave, stringFields: p);
         }
 
-        /// <summary> wave_fail: level, wave </summary>
+        /// <summary> wave_fail: level, wave; GA progression: level → <c>w</c>{wave}. </summary>
         public static void LogWaveFail(int level, int wave)
         {
             var p = new Dictionary<string, string>
@@ -188,15 +182,10 @@ namespace GameUp.SDK
                 [AnalyticsEvent.ParamWave] = wave.ToString()
             };
             LogFirebaseParams(AnalyticsEvent.WaveFail, p);
-            GameAnalyticsUtils.LogProgression(
-                GaProgressionStatus.Fail,
-                GameAnalyticsProgressionWorld,
-                level.ToString(),
-                GaWavePart(wave),
-                stringFields: p);
+            LogGameAnalyticsProgression(GaProgressionStatus.Fail, level, wave, stringFields: p);
         }
 
-        /// <summary> wave_complete: level, wave </summary>
+        /// <summary> wave_complete: level, wave; GA progression: level → <c>w</c>{wave}. </summary>
         public static void LogWaveComplete(int level, int wave)
         {
             var p = new Dictionary<string, string>
@@ -205,12 +194,7 @@ namespace GameUp.SDK
                 [AnalyticsEvent.ParamWave] = wave.ToString()
             };
             LogFirebaseParams(AnalyticsEvent.WaveComplete, p);
-            GameAnalyticsUtils.LogProgression(
-                GaProgressionStatus.Complete,
-                GameAnalyticsProgressionWorld,
-                level.ToString(),
-                GaWavePart(wave),
-                stringFields: p);
+            LogGameAnalyticsProgression(GaProgressionStatus.Complete, level, wave, stringFields: p);
         }
 
         // ---------- AppsFlyer only ----------

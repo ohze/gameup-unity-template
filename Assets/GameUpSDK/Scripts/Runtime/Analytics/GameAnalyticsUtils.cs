@@ -30,7 +30,8 @@ namespace GameUp.SDK
 #endif
 
         /// <summary>
-        /// Gửi progression theo hierarchy GA: progression01 (+ optional 02, 03) và optional score (Complete/Fail).
+        /// Gửi progression theo hierarchy GA: progression01 = level, progression02 = wave (vd. <c>w0</c>, <c>w1</c>), progression03 tùy chọn;
+        /// GameUp dùng 2 tier (level → wave) qua <see cref="GameUpAnalytics"/>.
         /// Custom fields (index, time, …) chỉ có trong raw export theo tài liệu GA.
         /// </summary>
         public static void LogProgression(
