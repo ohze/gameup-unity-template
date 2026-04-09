@@ -58,6 +58,9 @@ namespace GameUp.SDK
         [SerializeField] private string showBannerPlacementAfterInit = "main";
         [Tooltip("Thời gian chờ (giây) sau Initialize rồi mới ShowBanner, để network kịp request/load.")]
         [SerializeField] private float showBannerDelaySeconds = 2f;
+        [Tooltip("Thời gian tối đa chờ banner sẵn sàng trước khi chạy auto-show (0..5 giây).")]
+        [Range(0f, 10f)]
+        [SerializeField] private float showBannerInitWaitMaxSeconds = 5f;
         [Tooltip("Kích thước Banner. Áp dụng khi Initialize – không thay đổi được sau init.")]
         [SerializeField] private BannerSize bannerSize = BannerSize.Large;
 
@@ -133,7 +136,7 @@ namespace GameUp.SDK
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[GameUp] AdsManager HideBanner failed for " + ad.GetType().Name + ": " + e);
+                    GULogger.Error("GameUp", $"AdsManager HideBanner failed for {ad.GetType().Name}: {e}");
                 }
             }
         }
@@ -178,7 +181,7 @@ namespace GameUp.SDK
         {
             if (_initialized)
             {
-                Debug.Log("[GameUp] AdsManager already initialized.");
+                GULogger.Log("GameUp", "AdsManager already initialized.");
                 return;
             }
 
@@ -199,13 +202,13 @@ namespace GameUp.SDK
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[GameUp] AdsManager Init failed for " + ad.GetType().Name + ": " + e);
+                    GULogger.Error("GameUp", $"AdsManager Init failed for {ad.GetType().Name}: {e}");
                 }
             }
             _initialized = true;
             SetAfterCheckGDPR();
 
-            Debug.Log("[GameUp] AdsManager Initialize called for " + _ads.Count + " networks.");
+            GULogger.Log("GameUp", $"AdsManager Initialize called for {_ads.Count} networks.");
 
             // Luôn RequestAll để preload. Banner chỉ hiện khi ShowBanner: LevelPlay dùng SetDisplayOnLoad(false); AdMob gọi Hide() trước LoadAd trong AdmobAds.
             RequestAll();
@@ -216,11 +219,31 @@ namespace GameUp.SDK
 
         private IEnumerator ShowBannerAfterInitCoroutine()
         {
+            float maxWait = Mathf.Clamp(showBannerInitWaitMaxSeconds, 0f, 5f);
+            if (maxWait > 0f)
+            {
+                float elapsed = 0f;
+                while (elapsed < maxWait && !IsBannerReadyForPlacement(showBannerPlacementAfterInit))
+                {
+                    elapsed += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
             if (showBannerDelaySeconds > 0f)
                 yield return new WaitForSeconds(showBannerDelaySeconds);
             if (IsRemoveAllAdsActive())
                 yield break;
             ShowBanner(showBannerPlacementAfterInit);
+        }
+
+        private bool IsBannerReadyForPlacement(string where)
+        {
+            return _ads.Any(a =>
+            {
+                if (a is IPlacementAwareAds placementAware)
+                    return placementAware.IsBannerAvailable(where);
+                return a.IsBannerAvailable();
+            });
         }
 
         /// <summary>
@@ -236,7 +259,7 @@ namespace GameUp.SDK
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[GameUp] AdsManager SetAfterCheckGDPR failed for " + ad.GetType().Name + ": " + e);
+                    GULogger.Error("GameUp", $"AdsManager SetAfterCheckGDPR failed for {ad.GetType().Name}: {e}");
                 }
             }
         }
@@ -290,25 +313,54 @@ namespace GameUp.SDK
             FirebaseUtils.LogEventsAPI(eventName, _logParamCache);
         }
 
+        private static bool NetworkBannerAvailable(IAds a, string where)
+        {
+            if (a is IPlacementAwareAds placementAware)
+                return placementAware.IsBannerAvailable(where);
+            return a.IsBannerAvailable();
+        }
+
+        private static bool NetworkInterstitialAvailable(IAds a, string where)
+        {
+            if (a is IPlacementAwareAds placementAware)
+                return placementAware.IsInterstitialAvailable(where);
+            return a.IsInterstitialAvailable();
+        }
+
+        private static bool NetworkRewardedAvailable(IAds a, string where)
+        {
+            if (a is IPlacementAwareAds placementAware)
+                return placementAware.IsRewardedVideoAvailable(where);
+            return a.IsRewardedVideoAvailable();
+        }
+
+        private static bool NetworkAppOpenAvailable(IAds a, string where)
+        {
+            if (a is IPlacementAwareAds placementAware)
+                return placementAware.IsAppOpenAdsAvailable(where);
+            return a.IsAppOpenAdsAvailable();
+        }
+
         // ---- Show with waterfall ----
 
         public void ShowBanner(string where)
         {
             if (IsRemoveAllAdsActive())
             {
-                Debug.Log("[GameUp] AdsManager ShowBanner: disabled (RemoveAllAds).");
+                GULogger.Log("GameUp", "AdsManager ShowBanner: disabled (RemoveAllAds).");
                 return;
             }
             if (!AdsRules.IsBannerEnabled())
             {
-                Debug.Log("[GameUp] AdsManager ShowBanner: disabled by Remote Config (enable_banner).");
+                GULogger.Log("GameUp", "AdsManager ShowBanner: disabled by Remote Config (enable_banner).");
                 return;
             }
+
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeBanner, where);
-            var network = _ads.FirstOrDefault(a => a.IsBannerAvailable());
+            var network = _ads.FirstOrDefault(a => NetworkBannerAvailable(a, where));
             if (network == null)
             {
-                Debug.Log("[GameUp] AdsManager ShowBanner: no network available.");
+                GULogger.Log("GameUp", "AdsManager ShowBanner: no network available.");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeBanner, where);
                 return;
             }
@@ -320,15 +372,25 @@ namespace GameUp.SDK
             }
             catch (Exception e)
             {
-                Debug.LogError("[GameUp] AdsManager ShowBanner: " + e);
+                GULogger.Error("GameUp", $"AdsManager ShowBanner: {e}");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeBanner, where);
             }
         }
 
+        public void ShowBanner(int whereId)
+        {
+            ShowBanner(whereId.ToString());
+        }
+
         public void HideBanner(string where)
         {
-            var network = _ads.FirstOrDefault(a => a.IsBannerAvailable());
+            var network = _ads.FirstOrDefault(a => NetworkBannerAvailable(a, where));
             network?.HideBanner(where);
+        }
+
+        public void HideBanner(int whereId)
+        {
+            HideBanner(whereId.ToString());
         }
 
         /// <summary>Show Interstitial (no level check: only time capping from AdsRules).</summary>
@@ -337,26 +399,75 @@ namespace GameUp.SDK
             ShowInterstitial(where, int.MaxValue, onSuccess, onFail);
         }
 
+        public void ShowInterstitial(int whereId, Action onSuccess = null, Action onFail = null)
+        {
+            ShowInterstitial(whereId.ToString(), int.MaxValue, onSuccess, onFail);
+        }
+
+        /// <summary>
+        /// Show ad by integer ID. The SDK resolves which ad type to show from configured AdUnitIdEntry lists.
+        /// In this mode, 'where' is the resolved AdUnitIdEntry.nameId.
+        /// </summary>
+        public void ShowById(int intId, int currentLevel = 0, Action onSuccess = null, Action onFail = null)
+        {
+            IAdUnitIdResolver resolver = null;
+            for (int i = 0; i < _ads.Count; i++)
+            {
+                if (_ads[i] is IAdUnitIdResolver r)
+                {
+                    resolver = r;
+                    break;
+                }
+            }
+
+            if (resolver == null || !resolver.TryResolve(intId, out var type, out var where) || string.IsNullOrEmpty(where))
+            {
+                GULogger.Log("GameUp", $"AdsManager ShowById: cannot resolve id {intId}");
+                onFail?.Invoke();
+                return;
+            }
+
+            switch (type)
+            {
+                case AdUnitType.Banner:
+                    ShowBanner(where);
+                    onSuccess?.Invoke();
+                    break;
+                case AdUnitType.Interstitial:
+                    ShowInterstitial(where, currentLevel <= 0 ? int.MaxValue : currentLevel, onSuccess, onFail);
+                    break;
+                case AdUnitType.RewardedVideo:
+                    ShowRewardedVideo(where, currentLevel, onSuccess, onFail);
+                    break;
+                case AdUnitType.AppOpen:
+                    ShowAppOpenAds(where, onSuccess, onFail);
+                    break;
+                default:
+                    onFail?.Invoke();
+                    break;
+            }
+        }
+
         /// <summary>Show Interstitial với level hiện tại: kiểm tra inter_start_level và inter_capping_time qua AdsRules.</summary>
         public void ShowInterstitial(string where, int currentLevel, Action onSuccess = null, Action onFail = null)
         {
             if (IsInterstitialRemoved())
             {
-                Debug.Log("[GameUp] AdsManager ShowInterstitial: skipped (RemoveInter / RemoveAllAds).");
+                GULogger.Log("GameUp", "AdsManager ShowInterstitial: skipped (RemoveInter / RemoveAllAds).");
                 onSuccess?.Invoke();
                 return;
             }
             if (!AdsRules.CanShowInterstitial(currentLevel))
             {
-                Debug.Log("[GameUp] AdsManager ShowInterstitial: blocked by AdsRules (level or capping).");
+                GULogger.Log("GameUp", "AdsManager ShowInterstitial: blocked by AdsRules (level or capping).");
                 onFail?.Invoke();
                 return;
             }
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeInterstitial, where);
-            var network = _ads.FirstOrDefault(a => a.IsInterstitialAvailable());
+            var network = _ads.FirstOrDefault(a => NetworkInterstitialAvailable(a, where));
             if (network == null)
             {
-                Debug.Log("[GameUp] AdsManager ShowInterstitial: no network available.");
+                GULogger.Log("GameUp", "AdsManager ShowInterstitial: no network available.");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeInterstitial, where);
                 onFail?.Invoke();
                 return;
@@ -375,7 +486,7 @@ namespace GameUp.SDK
             }
             catch (Exception e)
             {
-                Debug.LogError("[GameUp] AdsManager ShowInterstitial: " + e);
+                GULogger.Error("GameUp", $"AdsManager ShowInterstitial: {e}");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeInterstitial, where);
                 onFail?.Invoke();
             }
@@ -387,20 +498,25 @@ namespace GameUp.SDK
             ShowRewardedVideo(where, 0, onSuccess, onFail);
         }
 
+        public void ShowRewardedVideo(int whereId, Action onSuccess = null, Action onFail = null)
+        {
+            ShowRewardedVideo(whereId.ToString(), 0, onSuccess, onFail);
+        }
+
         /// <summary>Show Rewarded Video với level hiện tại (log ad_rewarded_show_complete kèm param level).</summary>
         public void ShowRewardedVideo(string where, int currentLevel, Action onSuccess = null, Action onFail = null)
         {
             if (IsRemoveAllAdsActive())
             {
-                Debug.Log("[GameUp] AdsManager ShowRewardedVideo: reward granted without ad (RemoveAllAds).");
+                GULogger.Log("GameUp", "AdsManager ShowRewardedVideo: reward granted without ad (RemoveAllAds).");
                 MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
                 return;
             }
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeRewardedVideo, where);
-            var network = _ads.FirstOrDefault(a => a.IsRewardedVideoAvailable());
+            var network = _ads.FirstOrDefault(a => NetworkRewardedAvailable(a, where));
             if (network == null)
             {
-                Debug.Log("[GameUp] AdsManager ShowRewardedVideo: no network available.");
+                GULogger.Log("GameUp", "AdsManager ShowRewardedVideo: no network available.");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeRewardedVideo, where);
                 onFail?.Invoke();
                 return;
@@ -414,7 +530,6 @@ namespace GameUp.SDK
                     LogAdsEventWithLevel(AdsEvent.RewardShowComplete, where, currentLevel, AdsEvent.AfRewardDisplayed);
                     onSuccess?.Invoke();
                 };
-                // onFail khi không có network, display failed, hoặc user thoát quảng cáo không xem hết (không nhận reward)
                 Action wrappedFail = () =>
                 {
                     LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeRewardedVideo, where);
@@ -424,7 +539,7 @@ namespace GameUp.SDK
             }
             catch (Exception e)
             {
-                Debug.LogError("[GameUp] AdsManager ShowRewardedVideo: " + e);
+                GULogger.Error("GameUp", $"AdsManager ShowRewardedVideo: {e}");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeRewardedVideo, where);
                 onFail?.Invoke();
             }
@@ -434,15 +549,15 @@ namespace GameUp.SDK
         {
             if (IsRemoveAllAdsActive())
             {
-                Debug.Log("[GameUp] AdsManager ShowAppOpenAds: skipped (RemoveAllAds).");
+                GULogger.Log("GameUp", "AdsManager ShowAppOpenAds: skipped (RemoveAllAds).");
                 MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
                 return;
             }
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeAppOpen, where);
-            var network = _ads.FirstOrDefault(a => a.IsAppOpenAdsAvailable());
+            var network = _ads.FirstOrDefault(a => NetworkAppOpenAvailable(a, where));
             if (network == null)
             {
-                Debug.Log("[GameUp] AdsManager ShowAppOpenAds: no network available.");
+                GULogger.Log("GameUp", "AdsManager ShowAppOpenAds: no network available.");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeAppOpen, where);
                 onFail?.Invoke();
                 return;
@@ -464,10 +579,15 @@ namespace GameUp.SDK
             }
             catch (Exception e)
             {
-                Debug.LogError("[GameUp] AdsManager ShowAppOpenAds: " + e);
+                GULogger.Error("GameUp", $"AdsManager ShowAppOpenAds: {e}");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeAppOpen, where);
                 onFail?.Invoke();
             }
+        }
+
+        public void ShowAppOpenAds(int whereId, Action onSuccess = null, Action onFail = null)
+        {
+            ShowAppOpenAds(whereId.ToString(), onSuccess, onFail);
         }
 
         /// <summary>
@@ -497,7 +617,7 @@ namespace GameUp.SDK
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError("[GameUp] AdsManager RequestAll failed for " + ad.GetType().Name + ": " + e);
+                    GULogger.Error("GameUp", $"AdsManager RequestAll failed for {ad.GetType().Name}: {e}");
                 }
             }
         }

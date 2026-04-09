@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using GameUp.Core;
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
 using Unity.Services.LevelPlay;
 #endif
@@ -13,10 +14,17 @@ namespace GameUp.SDK
     /// LevelPlay không hỗ trợ App Open; các method App Open no-op / return false.
     /// </summary>
 
-    public class IronSourceAds : MonoBehaviour, IAds, IBannerSizeConfig
+    public class IronSourceAds : MonoBehaviour, IAds, IBannerSizeConfig, IPlacementAwareAds, IAdUnitIdResolver
     {
         [Header("LevelPlay App Key (bắt buộc - lấy từ LevelPlay dashboard)")]
         [SerializeField] private string levelPlayAppKey;
+
+        [Header("Multi Ad Unit IDs")]
+        [Tooltip("Bật để dùng nhiều Placement/Ad Unit theo placement key (where). Tắt = dùng 1 ID/format như hiện tại.")]
+        [SerializeField] private bool useMultiAdUnitIds;
+
+        [Tooltip("Danh sách mapping: (AdType, NameId=where, Id=placement id). Chỉ dùng khi useMultiAdUnitIds=true.")]
+        [SerializeField] private System.Collections.Generic.List<AdUnitIdEntry> adUnitIds = new System.Collections.Generic.List<AdUnitIdEntry>();
 
         [Header("Ad Unit / Placement IDs (để trống = dùng placement mặc định)")]
         [SerializeField] private string bannerAdUnitId;
@@ -53,17 +61,21 @@ namespace GameUp.SDK
         private LevelPlayInterstitialAd _interstitialAd;
         private LevelPlayRewardedAd _rewardedAd;
 
+        private readonly System.Collections.Generic.Dictionary<string, LevelPlayBannerAd> _bannerByWhere = new System.Collections.Generic.Dictionary<string, LevelPlayBannerAd>();
+        private readonly System.Collections.Generic.Dictionary<string, LevelPlayInterstitialAd> _interstitialByWhere = new System.Collections.Generic.Dictionary<string, LevelPlayInterstitialAd>();
+        private readonly System.Collections.Generic.Dictionary<string, LevelPlayRewardedAd> _rewardedByWhere = new System.Collections.Generic.Dictionary<string, LevelPlayRewardedAd>();
+
         public void Initialize()
         {
             if (_initialized)
             {
-                Debug.Log("[CtySDK] IronSourceAds already initialized.");
+                GULogger.Log("GameUp", "IronSourceAds already initialized.");
                 return;
             }
 
             if (string.IsNullOrEmpty(levelPlayAppKey))
             {
-                Debug.LogWarning("[CtySDK] IronSourceAds: LevelPlay App Key not set.");
+                GULogger.Warning("GameUp", "IronSourceAds: LevelPlay App Key not set.");
                 _initialized = true;
                 return;
             }
@@ -86,7 +98,7 @@ namespace GameUp.SDK
                 RequestBanner();
                 RequestInterstitial();
                 RequestRewardedVideo();
-                Debug.Log("[CtySDK] IronSourceAds (LevelPlay) initialized.");
+                GULogger.Log("GameUp", "IronSourceAds (LevelPlay) initialized.");
             });
         }
 
@@ -137,25 +149,65 @@ namespace GameUp.SDK
                 _initialized = true;
                 LevelPlay.OnInitSuccess -= OnLevelPlayInitSuccess;
                 LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
-                Debug.Log("[CtySDK] IronSourceAds LevelPlay init failed: " + error);
+                GULogger.Log("GameUp", $"IronSourceAds LevelPlay init failed: {error}");
             });
         }
 
         private void CreateAdUnits()
         {
-            var bannerId = string.IsNullOrEmpty(bannerAdUnitId) ? DefaultBannerId : bannerAdUnitId;
-            var interId = string.IsNullOrEmpty(interstitialAdUnitId) ? DefaultInterstitialId : interstitialAdUnitId;
-            var rewardId = string.IsNullOrEmpty(rewardedVideoAdUnitId) ? DefaultRewardedId : rewardedVideoAdUnitId;
-
             // SetDisplayOnLoad(false): không tự hiện sau khi load; chỉ hiện khi AdsManager gọi ShowBanner → ShowAd().
             var bannerConfig = new LevelPlayBannerAd.Config.Builder()
                 .SetSize(GetLevelPlayAdSize(_bannerSize))
                 .SetPosition(LevelPlayBannerPosition.BottomCenter)
                 .SetDisplayOnLoad(false)
                 .Build();
-            _bannerAd = new LevelPlayBannerAd(bannerId, bannerConfig);
-            _interstitialAd = new LevelPlayInterstitialAd(interId);
-            _rewardedAd = new LevelPlayRewardedAd(rewardId);
+
+            if (!useMultiAdUnitIds)
+            {
+                var bannerId = string.IsNullOrEmpty(bannerAdUnitId) ? DefaultBannerId : bannerAdUnitId;
+                var interId = string.IsNullOrEmpty(interstitialAdUnitId) ? DefaultInterstitialId : interstitialAdUnitId;
+                var rewardId = string.IsNullOrEmpty(rewardedVideoAdUnitId) ? DefaultRewardedId : rewardedVideoAdUnitId;
+
+                _bannerAd = new LevelPlayBannerAd(bannerId, bannerConfig);
+                _interstitialAd = new LevelPlayInterstitialAd(interId);
+                _rewardedAd = new LevelPlayRewardedAd(rewardId);
+                return;
+            }
+
+            _bannerByWhere.Clear();
+            _interstitialByWhere.Clear();
+            _rewardedByWhere.Clear();
+
+            for (int i = 0; i < adUnitIds.Count; i++)
+            {
+                var e = adUnitIds[i];
+                if (e == null || !e.IsValid()) continue;
+                if (string.IsNullOrEmpty(e.NameId)) continue;
+
+                switch (e.AdType)
+                {
+                    case AdUnitType.Banner:
+                        if (!_bannerByWhere.ContainsKey(e.NameId))
+                            _bannerByWhere[e.NameId] = new LevelPlayBannerAd(e.Id, bannerConfig);
+                        break;
+                    case AdUnitType.Interstitial:
+                        if (!_interstitialByWhere.ContainsKey(e.NameId))
+                            _interstitialByWhere[e.NameId] = new LevelPlayInterstitialAd(e.Id);
+                        break;
+                    case AdUnitType.RewardedVideo:
+                        if (!_rewardedByWhere.ContainsKey(e.NameId))
+                            _rewardedByWhere[e.NameId] = new LevelPlayRewardedAd(e.Id);
+                        break;
+                }
+            }
+
+            // Fallback single/default objects for callers still using old APIs.
+            var bannerFallbackId = string.IsNullOrEmpty(bannerAdUnitId) ? DefaultBannerId : bannerAdUnitId;
+            var interFallbackId = string.IsNullOrEmpty(interstitialAdUnitId) ? DefaultInterstitialId : interstitialAdUnitId;
+            var rewardFallbackId = string.IsNullOrEmpty(rewardedVideoAdUnitId) ? DefaultRewardedId : rewardedVideoAdUnitId;
+            _bannerAd = new LevelPlayBannerAd(bannerFallbackId, bannerConfig);
+            _interstitialAd = new LevelPlayInterstitialAd(interFallbackId);
+            _rewardedAd = new LevelPlayRewardedAd(rewardFallbackId);
         }
 
         private static LevelPlayAdSize GetLevelPlayAdSize(BannerSize size)
@@ -173,12 +225,44 @@ namespace GameUp.SDK
         public void SetAfterCheckGDPR()
         {
             LevelPlay.SetConsent(true);
-            Debug.Log("[CtySDK] IronSourceAds SetAfterCheckGDPR (consent set).");
+            GULogger.Log("GameUp", "IronSourceAds SetAfterCheckGDPR (consent set).");
         }
 
-        public void RequestBanner() { _bannerAd?.LoadAd(); }
-        public void RequestInterstitial() { _interstitialAd?.LoadAd(); }
-        public void RequestRewardedVideo() { _rewardedAd?.LoadAd(); }
+        public void RequestBanner()
+        {
+            if (!useMultiAdUnitIds)
+            {
+                _bannerAd?.LoadAd();
+                return;
+            }
+            foreach (var kv in _bannerByWhere)
+                kv.Value?.LoadAd();
+            _bannerAd?.LoadAd();
+        }
+
+        public void RequestInterstitial()
+        {
+            if (!useMultiAdUnitIds)
+            {
+                _interstitialAd?.LoadAd();
+                return;
+            }
+            foreach (var kv in _interstitialByWhere)
+                kv.Value?.LoadAd();
+            _interstitialAd?.LoadAd();
+        }
+
+        public void RequestRewardedVideo()
+        {
+            if (!useMultiAdUnitIds)
+            {
+                _rewardedAd?.LoadAd();
+                return;
+            }
+            foreach (var kv in _rewardedByWhere)
+                kv.Value?.LoadAd();
+            _rewardedAd?.LoadAd();
+        }
         public void RequestAppOpenAds() { }
 
         public bool IsBannerAvailable() => _bannerAd != null;
@@ -186,11 +270,45 @@ namespace GameUp.SDK
         public bool IsRewardedVideoAvailable() => _rewardedAd != null && _rewardedAd.IsAdReady();
         public bool IsAppOpenAdsAvailable() => false;
 
-        public void ShowBanner(string where) { _bannerAd?.ShowAd(); }
+        public void ShowBanner(string where)
+        {
+            if (useMultiAdUnitIds && !string.IsNullOrEmpty(where) && _bannerByWhere.TryGetValue(where, out var b) && b != null)
+            {
+                b.ShowAd();
+                return;
+            }
+            _bannerAd?.ShowAd();
+        }
         public void HideBanner(string where) { _bannerAd?.HideAd(); }
 
         public void ShowInterstitial(string where, Action onSuccess, Action onFail)
         {
+            if (useMultiAdUnitIds && !string.IsNullOrEmpty(where) && _interstitialByWhere.TryGetValue(where, out var interMulti) && interMulti != null)
+            {
+                if (!interMulti.IsAdReady()) { onFail?.Invoke(); return; }
+                interMulti.OnAdClosed += OnInterstitialClosedMulti;
+                interMulti.OnAdDisplayFailed += OnInterstitialDisplayFailedMulti;
+
+                void OnInterstitialClosedMulti(LevelPlayAdInfo _)
+                {
+                    interMulti.OnAdClosed -= OnInterstitialClosedMulti;
+                    interMulti.OnAdDisplayFailed -= OnInterstitialDisplayFailedMulti;
+                    MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
+                    interMulti.LoadAd();
+                }
+
+                void OnInterstitialDisplayFailedMulti(LevelPlayAdInfo _, LevelPlayAdError __)
+                {
+                    interMulti.OnAdClosed -= OnInterstitialClosedMulti;
+                    interMulti.OnAdDisplayFailed -= OnInterstitialDisplayFailedMulti;
+                    MainThreadDispatcher.Enqueue(() => onFail?.Invoke());
+                    interMulti.LoadAd();
+                }
+
+                interMulti.ShowAd(where);
+                return;
+            }
+
             if (_interstitialAd == null || !_interstitialAd.IsAdReady()) { onFail?.Invoke(); return; }
             _interstitialAd.OnAdClosed += OnInterstitialClosed;
             _interstitialAd.OnAdDisplayFailed += OnInterstitialDisplayFailed;
@@ -216,6 +334,45 @@ namespace GameUp.SDK
 
         public void ShowRewardedVideo(string where, Action onSuccess, Action onFail)
         {
+            if (useMultiAdUnitIds && !string.IsNullOrEmpty(where) && _rewardedByWhere.TryGetValue(where, out var rewardMulti) && rewardMulti != null)
+            {
+                if (!rewardMulti.IsAdReady()) { onFail?.Invoke(); return; }
+                AdsRules.BeginInterstitialCappingPause();
+                var rewardGrantedMulti = false;
+                rewardMulti.OnAdClosed += OnRewardedClosedMulti;
+                rewardMulti.OnAdRewarded += OnRewardedEarnedMulti;
+                rewardMulti.OnAdDisplayFailed += OnRewardedDisplayFailedMulti;
+
+                void OnRewardedClosedMulti(LevelPlayAdInfo _)
+                {
+                    rewardMulti.OnAdClosed -= OnRewardedClosedMulti;
+                    rewardMulti.OnAdRewarded -= OnRewardedEarnedMulti;
+                    rewardMulti.OnAdDisplayFailed -= OnRewardedDisplayFailedMulti;
+                    AdsRules.EndInterstitialCappingPause();
+                    if (!rewardGrantedMulti) MainThreadDispatcher.Enqueue(() => onFail?.Invoke());
+                    rewardMulti.LoadAd();
+                }
+
+                void OnRewardedEarnedMulti(LevelPlayAdInfo _, LevelPlayReward __)
+                {
+                    rewardGrantedMulti = true;
+                    MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
+                }
+
+                void OnRewardedDisplayFailedMulti(LevelPlayAdInfo _, LevelPlayAdError __)
+                {
+                    rewardMulti.OnAdClosed -= OnRewardedClosedMulti;
+                    rewardMulti.OnAdRewarded -= OnRewardedEarnedMulti;
+                    rewardMulti.OnAdDisplayFailed -= OnRewardedDisplayFailedMulti;
+                    AdsRules.EndInterstitialCappingPause();
+                    MainThreadDispatcher.Enqueue(() => onFail?.Invoke());
+                    rewardMulti.LoadAd();
+                }
+
+                rewardMulti.ShowAd(where);
+                return;
+            }
+
             if (_rewardedAd == null || !_rewardedAd.IsAdReady()) { onFail?.Invoke(); return; }
             AdsRules.BeginInterstitialCappingPause();
             var rewardGranted = false;
@@ -260,6 +417,13 @@ namespace GameUp.SDK
             _bannerAd?.DestroyAd(); _bannerAd = null;
             _interstitialAd?.DestroyAd(); _interstitialAd = null;
             _rewardedAd?.Dispose(); _rewardedAd = null;
+
+            foreach (var kv in _bannerByWhere) kv.Value?.DestroyAd();
+            foreach (var kv in _interstitialByWhere) kv.Value?.DestroyAd();
+            foreach (var kv in _rewardedByWhere) kv.Value?.Dispose();
+            _bannerByWhere.Clear();
+            _interstitialByWhere.Clear();
+            _rewardedByWhere.Clear();
         }
 #else
         public void Initialize() { }
@@ -278,5 +442,64 @@ namespace GameUp.SDK
         public void ShowRewardedVideo(string where, Action onSuccess, Action onFail) => onFail?.Invoke();
         public void ShowAppOpenAds(string where, Action onSuccess, Action onFail) => onFail?.Invoke();
 #endif
+
+        bool IPlacementAwareAds.IsBannerAvailable(string where)
+        {
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+            if (!useMultiAdUnitIds) return IsBannerAvailable();
+            return !string.IsNullOrEmpty(where) && _bannerByWhere.ContainsKey(where);
+#else
+            return false;
+#endif
+        }
+
+        bool IPlacementAwareAds.IsInterstitialAvailable(string where)
+        {
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+            if (!useMultiAdUnitIds) return IsInterstitialAvailable();
+            return !string.IsNullOrEmpty(where) &&
+                   _interstitialByWhere.TryGetValue(where, out var ad) &&
+                   ad != null &&
+                   ad.IsAdReady();
+#else
+            return false;
+#endif
+        }
+
+        bool IPlacementAwareAds.IsRewardedVideoAvailable(string where)
+        {
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+            if (!useMultiAdUnitIds) return IsRewardedVideoAvailable();
+            return !string.IsNullOrEmpty(where) &&
+                   _rewardedByWhere.TryGetValue(where, out var ad) &&
+                   ad != null &&
+                   ad.IsAdReady();
+#else
+            return false;
+#endif
+        }
+
+        bool IPlacementAwareAds.IsAppOpenAdsAvailable(string where) => false;
+
+        bool IAdUnitIdResolver.TryResolve(int intId, out AdUnitType adType, out string nameId)
+        {
+            adType = AdUnitType.Interstitial;
+            nameId = null;
+
+            if (!useMultiAdUnitIds || adUnitIds == null || adUnitIds.Count == 0)
+                return false;
+
+            for (int i = 0; i < adUnitIds.Count; i++)
+            {
+                var e = adUnitIds[i];
+                if (e == null) continue;
+                if (e.intId != intId) continue;
+                if (!e.IsValid()) continue;
+                adType = e.AdType;
+                nameId = e.NameId;
+                return !string.IsNullOrEmpty(nameId);
+            }
+            return false;
+        }
     }
 }

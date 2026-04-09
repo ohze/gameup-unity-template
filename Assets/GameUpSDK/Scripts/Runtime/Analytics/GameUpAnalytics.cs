@@ -37,7 +37,7 @@ namespace GameUp.SDK
                 stringFields);
         }
 
-        private static void LogFirebase(string eventName, string paramName = null, string paramValue = null)
+        public static void LogFirebase(string eventName, string paramName = null, string paramValue = null)
         {
             if (string.IsNullOrEmpty(eventName)) return;
             FirebaseUtils.LogEvent(eventName, paramName, paramValue);
