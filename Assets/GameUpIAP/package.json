@@ -1,0 +1,26 @@
+{
+  "name": "com.ohze.gameup.iap",
+  "displayName": "GameUp IAP",
+  "version": "1.0.0",
+  "unity": "2022.3",
+  "description": "GameUp IAP - Unity IAP Manager. \n\nDuyLV 2026",
+  "keywords": [
+    "gameup",
+    "iap"
+  ],
+  "author": {
+    "name": "GameUp",
+    "url": "https://github.com/ohze/gameup-unity-template"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ohze/gameup-unity-template.git",
+    "revision": "main",
+    "directory": "Assets/GameUpIAP"
+  },
+  "documentationUrl": "https://github.com/ohze/gameup-unity-template/blob/main/README.md",
+  "changelogUrl": "https://raw.githubusercontent.com/ohze/gameup-unity-template/main/Assets/GameUpIAP/CHANGELOG.md",
+  "dependencies": {
+    "com.unity.purchasing": "5.2.1"
+  }
+}

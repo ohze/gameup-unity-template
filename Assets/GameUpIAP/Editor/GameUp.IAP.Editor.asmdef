@@ -1,0 +1,17 @@
+{
+    "name": "GameUp.IAP.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GameUp.Core.Runtime",
+        "GameUp.IAP.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

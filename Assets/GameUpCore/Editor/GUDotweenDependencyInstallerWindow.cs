@@ -20,6 +20,8 @@ namespace GameUp.Core.Editor
         public const string DotweenModulesAsmdefPath = "Assets/Plugins/Demigiant/DOTween/Modules/DOTween.Modules.asmdef";
         public const string GameUpSdkGitUpmUrl = "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpSDK";
         public const string GameUpSdkPackageName = "com.ohze.gameup.sdk";
+        public const string GameUpIapGitUpmUrl = "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpIAP";
+        public const string GameUpIapPackageName = "com.ohze.gameup.iap";
 
         private static readonly NamedBuildTarget[] SupportTargets =
         {
@@ -146,6 +148,24 @@ namespace GameUp.Core.Editor
             var packagePath = Path.Combine(projectRoot, "Packages", GameUpSdkPackageName);
             return Directory.Exists(packagePath);
         }
+
+        public static bool IsGameUpIapInstalled()
+        {
+            if (AssetDatabase.IsValidFolder("Assets/GameUpIAP"))
+                return true;
+
+            var projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+            if (string.IsNullOrWhiteSpace(projectRoot))
+                return false;
+
+            var packagePath = Path.Combine(projectRoot, "Packages", GameUpIapPackageName);
+            return Directory.Exists(packagePath);
+        }
+
+        public static bool CanInstallGameUpIap()
+        {
+            return IsGameUpSdkInstalled() && GUProjectFolderSetupWindow.IsSetupCompleted();
+        }
     }
 
     public sealed class GUDotweenDependencyInstallerWindow : EditorWindow
@@ -156,6 +176,8 @@ namespace GameUp.Core.Editor
 
         private AddRequest _gameUpSdkInstallRequest;
         private string _gameUpSdkInstallMessage;
+        private AddRequest _gameUpIapInstallRequest;
+        private string _gameUpIapInstallMessage;
         private UnityWebRequest _dotweenDownloadRequest;
         private string _dotweenDownloadedPackagePath;
         private string _dotweenInstallMessage;
@@ -185,6 +207,8 @@ namespace GameUp.Core.Editor
             DrawFinalizeActions();
             EditorGUILayout.Space(12f);
             DrawGameUpSdkInstallActions();
+            EditorGUILayout.Space(12f);
+            DrawGameUpIapInstallActions();
         }
 
         private static void DrawStatus()
@@ -330,6 +354,76 @@ namespace GameUp.Core.Editor
                     ? MessageType.Error
                     : MessageType.Info;
                 EditorGUILayout.HelpBox(_gameUpSdkInstallMessage, msgType);
+            }
+        }
+
+        private void DrawGameUpIapInstallActions()
+        {
+            EditorGUILayout.LabelField("Optional - Install GameUpIAP (Git UPM)", EditorStyles.boldLabel);
+
+            var hasGameUpSdk = GUDotweenDependencyUtility.IsGameUpSdkInstalled();
+            var isGameUpCoreSetupCompleted = GUProjectFolderSetupWindow.IsSetupCompleted();
+            var canInstallGameUpIap = hasGameUpSdk && isGameUpCoreSetupCompleted;
+
+            DrawStatusLine("Prerequisite - GameUpSDK package", hasGameUpSdk);
+            DrawStatusLine("Prerequisite - GameUpCore setup completed", isGameUpCoreSetupCompleted);
+            DrawStatusLine("GameUpIAP package", GUDotweenDependencyUtility.IsGameUpIapInstalled());
+
+            if (!canInstallGameUpIap)
+            {
+                EditorGUILayout.HelpBox(
+                    "Install GameUpIAP requires GameUpSDK installed and GameUpCore setup completed (GameUp/Project/Folder Setup).",
+                    MessageType.Warning);
+            }
+
+            using (new EditorGUI.DisabledScope(!canInstallGameUpIap || (_gameUpIapInstallRequest != null && !_gameUpIapInstallRequest.IsCompleted)))
+            {
+                if (GUILayout.Button("Install GameUpIAP via Git UPM", GUILayout.Height(28f)))
+                {
+                    _gameUpIapInstallMessage = "Installing GameUpIAP...";
+                    _gameUpIapInstallRequest = Client.Add(GUDotweenDependencyUtility.GameUpIapGitUpmUrl);
+                }
+            }
+
+            if (_gameUpIapInstallRequest != null)
+            {
+                if (_gameUpIapInstallRequest.IsCompleted)
+                {
+                    if (_gameUpIapInstallRequest.Status == StatusCode.Success)
+                    {
+                        var result = _gameUpIapInstallRequest.Result;
+                        if (result != null)
+                        {
+                            _gameUpIapInstallMessage = $"Installed: {result.name} {result.version}";
+                        }
+                        else
+                        {
+                            _gameUpIapInstallMessage = "Installed GameUpIAP, but package info is unavailable.";
+                        }
+                    }
+                    else if (_gameUpIapInstallRequest.Status >= StatusCode.Failure)
+                    {
+                        var requestErrorMessage = _gameUpIapInstallRequest.Error != null
+                            ? _gameUpIapInstallRequest.Error.message
+                            : "unknown package manager error.";
+                        _gameUpIapInstallMessage = $"Install failed: {requestErrorMessage}";
+                    }
+
+                    _gameUpIapInstallRequest = null;
+                    AssetDatabase.Refresh();
+                }
+                else
+                {
+                    Repaint();
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(_gameUpIapInstallMessage))
+            {
+                var msgType = _gameUpIapInstallMessage.StartsWith("Install failed:", StringComparison.OrdinalIgnoreCase)
+                    ? MessageType.Error
+                    : MessageType.Info;
+                EditorGUILayout.HelpBox(_gameUpIapInstallMessage, msgType);
             }
         }
 
