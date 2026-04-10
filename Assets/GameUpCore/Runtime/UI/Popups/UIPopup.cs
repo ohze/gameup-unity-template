@@ -267,7 +267,17 @@ namespace GameUp.Core.UI
 
         public static void CloseView()
         {
-            if (Popups.ContainsKey(typeof(T))) Popups[typeof(T)].Close();
+            if (!Popups.TryGetValue(typeof(T), out var popup))
+            {
+                return;
+            }
+
+            if (!popup || !popup.gameObject.activeSelf)
+            {
+                return;
+            }
+
+            popup.Close();
         }
 
         public static void PreloadViewAsync(Action<T> onComplete = null)
