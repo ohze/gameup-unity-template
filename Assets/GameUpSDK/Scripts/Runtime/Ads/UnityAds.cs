@@ -10,7 +10,7 @@ namespace GameUp.SDK
     /// UnityAds wrapper for ironSource (LevelPlay) Mediation. Manages ads through the LevelPlay SDK,
     /// logs ads_unity_* events to Firebase, and ensures callbacks run on the main thread.
     /// </summary>
-    public class UnityAds : MonoBehaviour, IAds
+    public class UnityAds : MonoBehaviour, IAds, IConsentAwareAds
     {
         [Header("LevelPlay App Key (optional - set via code)")]
         [SerializeField] private string levelPlayAppKey;
@@ -26,6 +26,8 @@ namespace GameUp.SDK
         public event Action<string> OnInterstitialLoadFailed;
         public event Action OnRewardedLoaded;
         public event Action<string> OnRewardedLoadFailed;
+        public event Action<string> OnBannerShown;
+        public event Action<string> OnBannerShowFailed;
 
         public void SetLevelPlayConfig(string appKey, string bannerId, string interstitialId, string rewardedId)
         {
@@ -122,8 +124,13 @@ namespace GameUp.SDK
 
         public void SetAfterCheckGDPR()
         {
-            LevelPlay.SetConsent(true);
-            Debug.Log("[CtySDK] UnityAds SetAfterCheckGDPR (consent set).");
+            SetAfterCheckGDPR(true);
+        }
+
+        public void SetAfterCheckGDPR(bool isConsent)
+        {
+            LevelPlay.SetConsent(isConsent);
+            Debug.Log("[CtySDK] UnityAds SetAfterCheckGDPR (consent=" + isConsent + ").");
         }
 
         public void RequestBanner()
@@ -143,9 +150,20 @@ namespace GameUp.SDK
 
         public void ShowBanner(string where)
         {
-            if (_bannerAd == null) { Debug.LogWarning("[CtySDK] UnityAds ShowBanner: banner not configured."); return; }
-            if (!_bannerLoaded) { Debug.Log("[CtySDK] UnityAds ShowBanner: banner not loaded yet."); return; }
+            if (_bannerAd == null)
+            {
+                Debug.LogWarning("[CtySDK] UnityAds ShowBanner: banner not configured.");
+                OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
+                return;
+            }
+            if (!_bannerLoaded)
+            {
+                Debug.Log("[CtySDK] UnityAds ShowBanner: banner not loaded yet.");
+                OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
+                return;
+            }
             _bannerAd.ShowAd();
+            OnBannerShown?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
         }
 
         public void HideBanner(string where) { _bannerAd?.HideAd(); }
@@ -237,6 +255,7 @@ namespace GameUp.SDK
 #else
         public void Initialize() { }
         public void SetAfterCheckGDPR() { }
+        public void SetAfterCheckGDPR(bool isConsent) { }
         public void RequestBanner() { }
         public void RequestInterstitial() { }
         public void RequestRewardedVideo() { }

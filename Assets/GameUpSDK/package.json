@@ -31,6 +31,7 @@
   "documentationUrl": "https://github.com/ohze/gameup-unity-template/blob/main/README.md",
   "changelogUrl": "https://raw.githubusercontent.com/ohze/gameup-unity-template/main/Assets/GameUpSDK/CHANGELOG.md",
   "dependencies": {
-    "com.unity.services.core": "1.12.0"
+    "com.unity.services.core": "1.12.0",
+    "com.unity.ads.ios-support": "1.0.1"
   }
 }

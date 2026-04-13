@@ -81,6 +81,7 @@ namespace GameUp.SDK
             _onRemoveAllAdsChanged = OnRemoveAllAdsValueChanged;
             RemoveAdsSetting.Instance.IsRemoveAllAds.OnValueChange.AddListener(_onRemoveAllAdsChanged);
             Initialize();
+            PrivacyManager.Instance.BeginPrivacyFlow(SetAfterCheckGDPR);
             if (IsRemoveAllAdsActive())
                 HideBannerOnAllNetworks(showBannerPlacementAfterInit);
         }
@@ -198,6 +199,10 @@ namespace GameUp.SDK
                     ad.OnInterstitialLoadFailed += (error) => LogAdsEvent(AdsEvent.InterLoadFail, null, error ?? "unknown");
                     ad.OnRewardedLoaded += () => LogAdsEvent(AdsEvent.RewardCompleteLoad, null, null);
                     ad.OnRewardedLoadFailed += (error) => LogAdsEvent(AdsEvent.RewardLoadFail, null, error ?? "unknown");
+                    ad.OnBannerShown += (placement) =>
+                        LogAdsEventManager(AdsEvent.AdsShowSuccess, AdsEvent.AdTypeBanner, string.IsNullOrEmpty(placement) ? "unknown" : placement);
+                    ad.OnBannerShowFailed += (placement) =>
+                        LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeBanner, string.IsNullOrEmpty(placement) ? "unknown" : placement, "network_show_failed");
                     ad.Initialize();
                 }
                 catch (Exception e)
@@ -206,7 +211,6 @@ namespace GameUp.SDK
                 }
             }
             _initialized = true;
-            SetAfterCheckGDPR();
 
             GULogger.Log("GameUp", $"AdsManager Initialize called for {_ads.Count} networks.");
 
@@ -251,11 +255,22 @@ namespace GameUp.SDK
         /// </summary>
         public void SetAfterCheckGDPR()
         {
+            SetAfterCheckGDPR(true);
+        }
+
+        /// <summary>
+        /// Call after GDPR/consent flow. Forwards consent result to all networks.
+        /// </summary>
+        public void SetAfterCheckGDPR(bool isConsent)
+        {
             foreach (var ad in _ads)
             {
                 try
                 {
-                    ad.SetAfterCheckGDPR();
+                    if (ad is IConsentAwareAds consentAware)
+                        consentAware.SetAfterCheckGDPR(isConsent);
+                    else
+                        ad.SetAfterCheckGDPR();
                 }
                 catch (Exception e)
                 {
@@ -383,7 +398,6 @@ namespace GameUp.SDK
             try
             {
                 network.ShowBanner(where);
-                LogAdsEventManager(AdsEvent.AdsShowSuccess, AdsEvent.AdTypeBanner, where);
             }
             catch (Exception e)
             {
@@ -529,12 +543,12 @@ namespace GameUp.SDK
                 MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
                 return;
             }
-            LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeRewardedVideo, where);
+            // LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeRewardedVideo, where);
             var network = _ads.FirstOrDefault(a => NetworkRewardedAvailable(a, where));
             if (network == null)
             {
-                GULogger.Log("GameUp", "AdsManager ShowRewardedVideo: no network available.");
-                LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeRewardedVideo, where, "network_null");
+                GULogger.Log("GameUp", "AdsManager ShowRewardedVideo: no ads available.");
+                LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeRewardedVideo, where, "no_ads_available");
                 onRqFail?.Invoke();
                 onFail?.Invoke();
                 return;

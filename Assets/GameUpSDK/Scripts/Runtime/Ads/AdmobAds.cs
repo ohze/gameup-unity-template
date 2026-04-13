@@ -11,7 +11,7 @@ namespace GameUp.SDK
     /// <summary>
     /// AdMob (Google Mobile Ads) implementation of IAds. Handles Banner, Interstitial, Rewarded, and App Open.
     /// </summary>
-    public class AdmobAds : MonoBehaviour, IAds, IPlacementAwareAds, IAdUnitIdResolver
+    public class AdmobAds : MonoBehaviour, IAds, IPlacementAwareAds, IAdUnitIdResolver, IConsentAwareAds
     {
         [Header("Ad Unit IDs")]
         [Tooltip("Bật để dùng nhiều Ad Unit theo placement key (where). Tắt = dùng 1 ID/format như hiện tại.")]
@@ -34,6 +34,8 @@ namespace GameUp.SDK
         public event Action<string> OnInterstitialLoadFailed;
         public event Action OnRewardedLoaded;
         public event Action<string> OnRewardedLoadFailed;
+        public event Action<string> OnBannerShown;
+        public event Action<string> OnBannerShowFailed;
 
         private bool _initialized;
 
@@ -45,6 +47,7 @@ namespace GameUp.SDK
         private bool _bannerLoading;
         private bool _bannerRequestInProgress;
         private string _pendingBannerUnitId;
+        private string _bannerPlacementForShow;
 
         private InterstitialAd _interstitialAd;
         private RewardedAd _rewardedAd;
@@ -109,11 +112,16 @@ namespace GameUp.SDK
 
         public void SetAfterCheckGDPR()
         {
+            SetAfterCheckGDPR(true);
+        }
+
+        public void SetAfterCheckGDPR(bool isConsent)
+        {
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
-            // Consent is typically handled by UMP; SDK respects it after init.
-            GULogger.Log("GameUp", "AdmobAds SetAfterCheckGDPR called.");
-            GoogleMobileAds.Mediation.UnityAds.Api.UnityAds.SetConsentMetaData("gdpr.consent", true);
-            GoogleMobileAds.Mediation.IronSource.Api.IronSource.SetMetaData("do_not_sell", "true");
+            // Forward UMP decision to mediation adapters.
+            GULogger.Log("GameUp", $"AdmobAds SetAfterCheckGDPR called. consent={isConsent}");
+            GoogleMobileAds.Mediation.UnityAds.Api.UnityAds.SetConsentMetaData("gdpr.consent", isConsent);
+            GoogleMobileAds.Mediation.IronSource.Api.IronSource.SetMetaData("do_not_sell", isConsent ? "false" : "true");
 #endif
         }
 
@@ -196,6 +204,7 @@ namespace GameUp.SDK
                             {
                                 LogAdTrace("show", AdUnitType.Banner, _bannerUnitIdActive, where: null, extra: "from=auto_on_loaded");
                                 _bannerView?.Show();
+                                OnBannerShown?.Invoke(string.IsNullOrEmpty(_bannerPlacementForShow) ? "main" : _bannerPlacementForShow);
                             }
 
                             if (!string.IsNullOrEmpty(_pendingBannerUnitId) && _pendingBannerUnitId != _bannerUnitIdActive)
@@ -219,6 +228,8 @@ namespace GameUp.SDK
                             var message = loadError?.GetMessage() ?? "unknown";
                             var code = loadError != null ? loadError.GetCode().ToString() : "unknown";
                             GULogger.Warning("GameUp", $"AdmobAds load_fail | type=Banner | where=null | unitId={Safe(_bannerUnitIdActive)} | code={code} | message={message}");
+                            if (_bannerShouldBeVisible)
+                                OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(_bannerPlacementForShow) ? "main" : _bannerPlacementForShow);
 
                             if (!string.IsNullOrEmpty(_pendingBannerUnitId))
                             {
@@ -634,6 +645,7 @@ namespace GameUp.SDK
             MainThreadDispatcher.Enqueue(() =>
             {
                 _bannerShouldBeVisible = true;
+                _bannerPlacementForShow = string.IsNullOrEmpty(where) ? "main" : where;
                 var unitId = ResolveUnitId(AdUnitType.Banner, where);
                 if (!string.IsNullOrEmpty(unitId) && (_bannerView == null || _bannerUnitIdActive != unitId))
                 {
@@ -644,6 +656,7 @@ namespace GameUp.SDK
                 if (_bannerView == null)
                 {
                     GULogger.Warning("GameUp", $"AdmobAds ShowBanner skipped: no BannerView. where={where}, resolvedUnitId={unitId ?? "null"}");
+                    OnBannerShowFailed?.Invoke(_bannerPlacementForShow);
                     return;
                 }
 
@@ -651,6 +664,7 @@ namespace GameUp.SDK
                 {
                     LogAdTrace("show", AdUnitType.Banner, _bannerUnitIdActive, where);
                     _bannerView.Show();
+                    OnBannerShown?.Invoke(_bannerPlacementForShow);
                     return;
                 }
 
