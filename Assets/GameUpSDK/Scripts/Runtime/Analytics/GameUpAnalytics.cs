@@ -1,10 +1,14 @@
 using System.Collections.Generic;
-using UnityEngine;
+using System.Globalization;
+using GameUp.Core;
 #if FIREBASE_DEPENDENCIES_INSTALLED
 using Firebase.Analytics;
 #endif
 #if APPSFLYER_DEPENDENCIES_INSTALLED
 using AppsFlyerSDK;
+#endif
+#if FACEBOOK_DEPENDENCIES_INSTALLED && !UNITY_EDITOR && (UNITY_ANDROID || UNITY_IOS)
+using Facebook.Unity;
 #endif
 
 namespace GameUp.SDK
@@ -212,18 +216,74 @@ namespace GameUp.SDK
         public static void LogPurchase(string currencyCode, int quantity, string contentId, string purchasePrice, string orderId,
             string registrationMethod = null, string customerUserId = null)
         {
-            var p = new Dictionary<string, string>
+            string normalizedCurrency = string.IsNullOrWhiteSpace(currencyCode) ? "USD" : currencyCode;
+            double revenueAmount = 0d;
+            bool hasRevenue = double.TryParse(
+                purchasePrice,
+                NumberStyles.Float | NumberStyles.AllowThousands,
+                CultureInfo.InvariantCulture,
+                out revenueAmount);
+
+            var afParams = new Dictionary<string, string>
             {
-                [AnalyticsEvent.ParamAfCurrencyCode] = currencyCode ?? "",
+                ["af_currency"] = normalizedCurrency,
                 [AnalyticsEvent.ParamAfQuantity] = quantity.ToString(),
                 [AnalyticsEvent.ParamAfContentId] = contentId ?? "",
-                [AnalyticsEvent.ParamAfPurchasePrice] = purchasePrice ?? "",
+                [AnalyticsEvent.ParamAfOrderId] = orderId ?? "",
+                ["af_revenue"] = hasRevenue ? revenueAmount.ToString(CultureInfo.InvariantCulture) : "0"
+            };
+            if (!string.IsNullOrEmpty(registrationMethod)) afParams[AnalyticsEvent.ParamAfRegistrationMethod] = registrationMethod;
+            if (!string.IsNullOrEmpty(customerUserId)) afParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
+            LogAppsFlyer(AnalyticsEvent.AfPurchase, afParams);
+
+            var firebaseParams = new Dictionary<string, string>
+            {
+                [AnalyticsEvent.ParamAfCurrencyCode] = normalizedCurrency,
+                [AnalyticsEvent.ParamAfQuantity] = quantity.ToString(),
+                [AnalyticsEvent.ParamAfContentId] = contentId ?? "",
+                [AnalyticsEvent.ParamAfPurchasePrice] = hasRevenue ? revenueAmount.ToString(CultureInfo.InvariantCulture) : purchasePrice ?? "",
                 [AnalyticsEvent.ParamAfOrderId] = orderId ?? ""
             };
-            if (!string.IsNullOrEmpty(registrationMethod)) p[AnalyticsEvent.ParamAfRegistrationMethod] = registrationMethod;
-            if (!string.IsNullOrEmpty(customerUserId)) p[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
-            LogAppsFlyer(AnalyticsEvent.AfPurchase, p);
-            LogFirebaseParams(AnalyticsEvent.AfPurchase, p);
+            if (!string.IsNullOrEmpty(registrationMethod)) firebaseParams[AnalyticsEvent.ParamAfRegistrationMethod] = registrationMethod;
+            if (!string.IsNullOrEmpty(customerUserId)) firebaseParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
+            LogFirebaseParams(AnalyticsEvent.AfPurchase, firebaseParams);
+
+#if FACEBOOK_DEPENDENCIES_INSTALLED && !UNITY_EDITOR && (UNITY_ANDROID || UNITY_IOS)
+            if (!FacebookSdkBootstrap.IsInitialized)
+                FacebookSdkBootstrap.TryInitialize();
+
+            if (FB.IsInitialized &&
+                decimal.TryParse(
+                    hasRevenue ? revenueAmount.ToString(CultureInfo.InvariantCulture) : purchasePrice,
+                    NumberStyles.Float | NumberStyles.AllowThousands,
+                    CultureInfo.InvariantCulture,
+                    out var purchaseAmount))
+            {
+                var fbParams = new Dictionary<string, object>
+                {
+                    [AnalyticsEvent.ParamAfContentId] = contentId ?? "",
+                    [AnalyticsEvent.ParamAfOrderId] = orderId ?? "",
+                    [AnalyticsEvent.ParamAfQuantity] = quantity.ToString()
+                };
+
+                if (!string.IsNullOrEmpty(customerUserId))
+                    fbParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
+
+                FB.LogPurchase(purchaseAmount, normalizedCurrency, fbParams);
+            }
+            else
+            {
+                GULogger.Warning("GameUpAnalytics", $"Skip FB.LogPurchase - invalid price '{purchasePrice}' or Facebook SDK not initialized.");
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Set AppsFlyer Customer User ID (CUID) để khớp dữ liệu ROI360.
+        /// </summary>
+        public static void SetCustomerUserId(string userId)
+        {
+            AppsFlyerUtils.SetCustomerUserId(userId);
         }
 
         /// <summary> af_tutorial_completion </summary>
@@ -275,6 +335,7 @@ namespace GameUp.SDK
 
             double revenue = data.Revenue.Value;
             string adNetwork = data.AdNetwork ?? "unknown";
+            string currency = "USD";
 
 #if FIREBASE_DEPENDENCIES_INSTALLED
             var parameters = new Parameter[]
@@ -283,16 +344,26 @@ namespace GameUp.SDK
                 new Parameter(FirebaseAnalytics.ParameterAdSource, adNetwork),
                 new Parameter(FirebaseAnalytics.ParameterAdUnitName, data.AdUnit ?? ""),
                 new Parameter(FirebaseAnalytics.ParameterAdFormat, data.InstanceName ?? data.AdFormat ?? ""),
-                new Parameter(FirebaseAnalytics.ParameterCurrency, "USD"),
+                new Parameter(FirebaseAnalytics.ParameterCurrency, currency),
                 new Parameter(FirebaseAnalytics.ParameterValue, revenue)
             };
             FirebaseUtils.LogEvent(FirebaseAnalytics.EventAdImpression, parameters);
 #endif
 
 #if APPSFLYER_DEPENDENCIES_INSTALLED
-            AppsFlyerUtils.LogAdRevenue(adNetwork, GetMediationNetworkFromAdNetwork(adNetwork), revenue, "USD");
+            var adRevenueData = new AFAdRevenueData(
+                adNetwork,
+                GetMediationNetworkFromAdNetwork(adNetwork),
+                currency,
+                revenue);
+            var adRevenueParams = new Dictionary<string, string>();
+            if (!string.IsNullOrEmpty(data.AdUnit)) adRevenueParams[AdRevenueScheme.AD_UNIT] = data.AdUnit;
+            if (!string.IsNullOrEmpty(data.AdFormat)) adRevenueParams[AdRevenueScheme.AD_TYPE] = data.AdFormat;
+            if (!string.IsNullOrEmpty(data.InstanceName)) adRevenueParams[AdRevenueScheme.PLACEMENT] = data.InstanceName;
+
+            AppsFlyerUtils.LogAdRevenue(adRevenueData, adRevenueParams.Count > 0 ? adRevenueParams : null);
 #endif
-            Debug.Log($"[GameUpAnalytics] Logged Ad Revenue: {revenue} USD, network: {adNetwork}");
+            GULogger.Log("GameUpAnalytics", $"Logged Ad Revenue: {revenue} {currency}, network: {adNetwork}");
         }
     }
 }
