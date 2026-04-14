@@ -11,6 +11,7 @@ namespace GameUp.Core
         private readonly Dictionary<GameObject, Transform> _parentPools = new();
         /// <summary> Clone -> prefab key, dùng để GetKeyFromClone O(1) thay vì duyệt toàn bộ pool. </summary>
         private readonly Dictionary<GameObject, GameObject> _cloneToPrefabKey = new();
+        private readonly Dictionary<GameObject, Vector3> _cloneDefaultLocalScale = new();
 
         private Transform _cacheTrs;
 
@@ -39,11 +40,48 @@ namespace GameUp.Core
         private void RegisterClone(GameObject clone, GameObject prefabKey)
         {
             _cloneToPrefabKey[clone] = prefabKey;
+            _cloneDefaultLocalScale[clone] = clone.transform.localScale;
         }
 
         private void UnregisterClone(GameObject clone)
         {
             _cloneToPrefabKey.Remove(clone);
+            _cloneDefaultLocalScale.Remove(clone);
+        }
+
+        private static bool IsUiTransform(Transform target)
+        {
+            return target is RectTransform;
+        }
+
+        private static void SetParentByContext(Transform child, Transform parent, bool worldPositionStays)
+        {
+            if (!child || !parent) return;
+            var shouldUseLocalSpace = IsUiTransform(child) || IsUiTransform(parent);
+            child.SetParent(parent, shouldUseLocalSpace ? false : worldPositionStays);
+        }
+
+        private void RestoreDefaultScale(GameObject clone)
+        {
+            if (!clone) return;
+            if (_cloneDefaultLocalScale.TryGetValue(clone, out var defaultScale))
+            {
+                clone.transform.localScale = defaultScale;
+            }
+        }
+
+        private static void ResetSpawnedTransform(Transform spawnedTransform, bool hasParent)
+        {
+            if (!spawnedTransform || !hasParent) return;
+            if (spawnedTransform is RectTransform rectTransform)
+            {
+                rectTransform.anchoredPosition3D = Vector3.zero;
+                rectTransform.localRotation = Quaternion.identity;
+                return;
+            }
+
+            spawnedTransform.localPosition = Vector3.zero;
+            spawnedTransform.localRotation = Quaternion.identity;
         }
 
         /// <summary>
@@ -95,16 +133,16 @@ namespace GameUp.Core
             var inactive = TryGetFirstInactive(list);
             if (inactive)
             {
-                inactive.transform.SetParent(parent ?? poolParent, worldPositionStays);
+                var targetParent = parent ? parent : poolParent;
+                SetParentByContext(inactive.transform, targetParent, worldPositionStays);
+                RestoreDefaultScale(inactive);
                 inactive.Show();
-                if (parent)
-                {
-                    inactive.transform.position = Vector3.zero;
-                    inactive.transform.rotation = Quaternion.identity;
-                }
+                ResetSpawnedTransform(inactive.transform, parent);
                 return inactive.GetComponent<T>();
             }
             var item = Instantiate(go, parent ?? poolParent, worldPositionStays);
+            RestoreDefaultScale(item.gameObject);
+            ResetSpawnedTransform(item.transform, parent);
             list.Add(item.gameObject);
             RegisterClone(item.gameObject, poolKey);
             return item;
@@ -120,13 +158,16 @@ namespace GameUp.Core
             var inactive = TryGetFirstInactive(list);
             if (inactive)
             {
-                inactive.transform.SetParent(parent ?? poolParent);
+                var targetParent = parent ? parent : poolParent;
+                SetParentByContext(inactive.transform, targetParent, true);
+                RestoreDefaultScale(inactive);
                 inactive.transform.position = position;
                 inactive.transform.rotation = rotation;
                 inactive.Show();
                 return inactive.GetComponent<T>();
             }
             var item = Instantiate(go, position, rotation, parent ?? poolParent);
+            RestoreDefaultScale(item.gameObject);
             list.Add(item.gameObject);
             RegisterClone(item.gameObject, poolKey);
             return item;
@@ -141,13 +182,16 @@ namespace GameUp.Core
             var inactive = TryGetFirstInactive(list);
             if (inactive)
             {
-                inactive.transform.SetParent(parent ?? poolParent, worldPositionStays);
-                if (parent) inactive.transform.localPosition = Vector3.zero;
+                var targetParent = parent ? parent : poolParent;
+                SetParentByContext(inactive.transform, targetParent, worldPositionStays);
+                RestoreDefaultScale(inactive);
+                ResetSpawnedTransform(inactive.transform, parent);
                 inactive.Show();
                 return inactive;
             }
             var item = Instantiate(go, parent ?? poolParent, worldPositionStays);
-            if (parent) item.transform.localPosition = Vector3.zero;
+            RestoreDefaultScale(item);
+            ResetSpawnedTransform(item.transform, parent);
             list.Add(item);
             RegisterClone(item, poolKey);
             return item;
@@ -162,13 +206,16 @@ namespace GameUp.Core
             var inactive = TryGetFirstInactive(list);
             if (inactive)
             {
-                inactive.transform.SetParent(parent ?? poolParent);
+                var targetParent = parent ? parent : poolParent;
+                SetParentByContext(inactive.transform, targetParent, true);
+                RestoreDefaultScale(inactive);
                 inactive.transform.position = position;
                 inactive.transform.rotation = rotation;
                 inactive.Show();
                 return inactive;
             }
             var item = Instantiate(go, position, rotation, parent ?? poolParent);
+            RestoreDefaultScale(item);
             list.Add(item);
             RegisterClone(item, poolKey);
             return item;
@@ -180,7 +227,7 @@ namespace GameUp.Core
             if (key)
             {
                 go.Hide();
-                go.transform.SetParent(_parentPools[key]);
+                SetParentByContext(go.transform, _parentPools[key], true);
             }
             else
             {
@@ -193,7 +240,7 @@ namespace GameUp.Core
             var key = GetKeyFromClone(go);
             if (key)
             {
-                go.transform.SetParent(_parentPools[key]);
+                SetParentByContext(go.transform, _parentPools[key], true);
                 go.Hide();
             }
             else
@@ -222,7 +269,7 @@ namespace GameUp.Core
             foreach (var component in pool)
             {
                 if (component) component.Hide();
-                if (component) component.transform.SetParent(_parentPools[poolKey]);
+                if (component) SetParentByContext(component.transform, _parentPools[poolKey], true);
             }
         }
 
@@ -234,7 +281,7 @@ namespace GameUp.Core
             {
                 var item = pool[index];
                 if (item) item.Hide();
-                if (item) item.transform.SetParent(_parentPools[poolKey]);
+                if (item) SetParentByContext(item.transform, _parentPools[poolKey], true);
             }
         }
 

@@ -28,6 +28,12 @@ namespace GameUp.Core
             return FormatMoneyK(v);
         }
 
+        public static string FormatMoney(this float v, float max = 1000000000)
+        {
+            if (v < max) return v.ToString("N0", CultureInfo.GetCultureInfo("de-DE"));
+            return FormatMoneyK(v);
+        }
+
         public static string FormatMoneyK(double value, int digit = 2)
         {
             if (value >= 1000000000) return $"{(value / 1000000000):F2}B";
@@ -87,7 +93,7 @@ namespace GameUp.Core
 
         public static string ToColor(this string msg, string color) => $"<color={color}>{msg}</color>";
 
-        public static string ToColor(this string msg, Color color) 
+        public static string ToColor(this string msg, Color color)
         {
             return $"<color=#{ColorUtility.ToHtmlStringRGBA(color)}>{msg}</color>";
         }
@@ -95,7 +101,7 @@ namespace GameUp.Core
         public static string ProcessStringLine(this string msg, int maxLengthInLine)
         {
             if (string.IsNullOrEmpty(msg)) return "";
-            
+
             StringBuilder sb = new StringBuilder();
             string[] words = msg.Split(' ');
             int currentLineLength = 0;
@@ -107,7 +113,7 @@ namespace GameUp.Core
                     sb.Append("<br>");
                     currentLineLength = 0;
                 }
-                
+
                 if (currentLineLength > 0)
                 {
                     sb.Append(" ");
@@ -124,7 +130,7 @@ namespace GameUp.Core
         public static string CutNumberFromString(this string msg, string color)
         {
             // Sử dụng Regex để tìm các cụm số, hiệu năng cao và code sạch hơn loop thủ công
-            return DigitRegex.Replace(msg, m => 
+            return DigitRegex.Replace(msg, m =>
             {
                 long val = long.Parse(m.Value);
                 return $"<color={color}>{val.FormatMoney(10000)}</color>";

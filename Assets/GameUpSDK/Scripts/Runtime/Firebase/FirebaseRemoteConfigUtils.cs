@@ -64,16 +64,16 @@ namespace GameUp.SDK
             }
         }
 
-        private static Dictionary<string, object> GetDefaultValues()
+        private Dictionary<string, object> GetDefaultValues()
         {
             return new Dictionary<string, object>
             {
-                { "inter_capping_time", 120 },
-                { "inter_start_level", 3 },
-                { "enable_rate_app", false },
-                { "level_start_show_rate_app", 5 },
-                { "no_internet_popup_enable", true },
-                { "enable_banner", true }
+                { "inter_capping_time", inter_capping_time },
+                { "inter_start_level", inter_start_level },
+                { "enable_rate_app", enable_rate_app },
+                { "level_start_show_rate_app", level_start_show_rate_app },
+                { "no_internet_popup_enable", no_internet_popup_enable },
+                { "enable_banner", enable_banner }
             };
         }
 
