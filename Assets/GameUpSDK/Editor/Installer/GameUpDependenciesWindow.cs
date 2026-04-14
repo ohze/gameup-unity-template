@@ -286,6 +286,13 @@ namespace GameUp.SDK.Installer
         private const string GameAnalyticsDepsDefine = "GAMEANALYTICS_DEPENDENCIES_INSTALLED";
         private const string FacebookDepsDefine = "FACEBOOK_DEPENDENCIES_INSTALLED";
 
+                private const string AdMobReleaseApiUrl = "https://api.github.com/repos/googleads/googleads-mobile-unity/releases/latest";
+        private const string AdMobUnityPackagePrefix = "GoogleMobileAds-v";
+        private const string AdMobUnityPackageSuffix = ".unitypackage";
+        private UnityWebRequest _admobLatestReleaseRequest;
+        private string[] _admobUpdateOriginalHostedUrls;
+        private string[] _admobUpdateOriginalBundledFileNames;
+
         // ─── Static helpers ───────────────────────────────────────────────────────
 
         private static int PackageIndexInCatalog(PackageDef pkg)
@@ -445,6 +452,8 @@ namespace GameUp.SDK.Installer
 
             _activeDownload?.Dispose();
             _activeDownload = null;
+             _admobLatestReleaseRequest?.Dispose();
+            _admobLatestReleaseRequest = null;
         }
 
         private void AfterAssemblyReloadRefresh()
@@ -507,6 +516,7 @@ namespace GameUp.SDK.Installer
             if (_isBatchInstalling) return true;
             if (_installQueue.Count > 0) return true;
             if (_currentAddRequest != null) return true;
+            if (_admobLatestReleaseRequest != null) return true;
             if (_parallelTasks != null && _parallelTasks.Count > 0) return true;
             foreach (var p in s_packages)
             {
@@ -864,9 +874,11 @@ namespace GameUp.SDK.Installer
         private void DrawPackageRow(PackageDef pkg)
         {
             bool isDownloading = _parallelTasks?.Any(t => t.Pkg == pkg && !t.IsDone) == true;
+            bool isResolvingAdMobLatest = IsAdMobPackage(pkg) && _admobLatestReleaseRequest != null;
             bool isInstalling = pkg.IsInstalling
                                 || (_isBatchInstalling && _installQueue.Contains(pkg))
-                                || isDownloading;
+                                || isDownloading
+                                || isResolvingAdMobLatest;
             Color boxColor = pkg.IsInstalled ? new Color(0.18f, 0.45f, 0.18f, 0.3f)
                 : isInstalling ? new Color(0.3f, 0.3f, 0.6f, 0.3f)
                 : new Color(0.45f, 0.18f, 0.18f, 0.3f);
@@ -899,11 +911,21 @@ namespace GameUp.SDK.Installer
 
             // Trạng thái / Cài pack (từng dòng, không cài gom)
             GUILayout.Space(4);
+            EditorGUILayout.BeginVertical(GUILayout.Width(190));
             if (pkg.IsInstalled)
             {
                 var greenStyle = new GUIStyle(EditorStyles.miniLabel)
                 { normal = { textColor = Color.green }, fontStyle = FontStyle.Bold };
                 GUILayout.Label("Đã cài", greenStyle, GUILayout.Width(64));
+            }
+            else if (isResolvingAdMobLatest)
+            {
+                float anim = Mathf.PingPong((float)EditorApplication.timeSinceStartup * 0.9f, 1f);
+                EditorGUILayout.BeginVertical(GUILayout.Width(190));
+                EditorGUILayout.LabelField("Đang kiểm tra release AdMob mới nhất...", EditorStyles.miniLabel, GUILayout.Width(190));
+                var barRect = EditorGUILayout.GetControlRect(GUILayout.Width(190), GUILayout.Height(6));
+                EditorGUI.ProgressBar(barRect, anim, "");
+                EditorGUILayout.EndVertical();
             }
             else if (isDownloading)
             {
@@ -931,7 +953,7 @@ namespace GameUp.SDK.Installer
                 bool canAuto = CanAutoInstall(pkg);
                 if (canAuto)
                 {
-                    EditorGUI.BeginDisabledGroup(true);
+                    EditorGUI.BeginDisabledGroup(IsInteractionLocked());
                     if (GUILayout.Button("Cài pack", GUILayout.Width(88), GUILayout.Height(24)))
                         StartSinglePackageInstall(pkg);
                     EditorGUI.EndDisabledGroup();
@@ -953,6 +975,15 @@ namespace GameUp.SDK.Installer
                 }
             }
 
+             if (IsAdMobPackage(pkg))
+            {
+                EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy());
+                if (GUILayout.Button("Update AdMob mới nhất", GUILayout.Width(190), GUILayout.Height(22)))
+                    StartAdMobLatestUpdate(pkg);
+                EditorGUI.EndDisabledGroup();
+            }
+
+            EditorGUILayout.EndVertical();
             GUILayout.Space(8);
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.Space(4);
@@ -1416,6 +1447,139 @@ namespace GameUp.SDK.Installer
         private void StartDownloadAndImport(PackageDef pkg)
         {
             StartParallelDownloadAndImport(new List<PackageDef> { pkg }, onAllDone: null);
+        }
+
+private static bool IsAdMobPackage(PackageDef pkg)
+        {
+            return pkg != null
+                   && string.Equals(pkg.AssemblyName, "GoogleMobileAds", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void StartAdMobLatestUpdate(PackageDef pkg)
+        {
+            if (pkg == null || IsInstallOrDownloadBusy())
+                return;
+
+            _admobLatestReleaseRequest?.Dispose();
+            _admobLatestReleaseRequest = null;
+
+            pkg.IsInstalling = true;
+            pkg.InstallError = null;
+            Repaint();
+
+            var req = UnityWebRequest.Get(AdMobReleaseApiUrl);
+            req.SetRequestHeader("Accept", "application/vnd.github+json");
+            req.SetRequestHeader("User-Agent", "GameUpSDK-Installer");
+            _admobLatestReleaseRequest = req;
+
+            var op = req.SendWebRequest();
+            op.completed += _ => ResolveAndInstallLatestAdMob(pkg, req);
+        }
+
+        private void ResolveAndInstallLatestAdMob(PackageDef pkg, UnityWebRequest request)
+        {
+            _admobLatestReleaseRequest = null;
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                pkg.IsInstalling = false;
+                pkg.InstallError = "Không lấy được bản AdMob mới nhất: " + request.error;
+                request.Dispose();
+                Repaint();
+                return;
+            }
+
+            string body = request.downloadHandler?.text;
+            request.Dispose();
+
+            if (!TryParseLatestAdMobAsset(body, out string fileName, out string downloadUrl, out string releaseTag, out string error))
+            {
+                pkg.IsInstalling = false;
+                pkg.InstallError = error;
+                Repaint();
+                return;
+            }
+
+            _admobUpdateOriginalHostedUrls = pkg.HostedUrls;
+            _admobUpdateOriginalBundledFileNames = pkg.BundledFileNames;
+            pkg.HostedUrls = new[] { downloadUrl };
+            pkg.BundledFileNames = new[] { fileName };
+
+            StartParallelDownloadAndImport(new List<PackageDef> { pkg }, onAllDone: () =>
+            {
+                pkg.HostedUrls = _admobUpdateOriginalHostedUrls;
+                pkg.BundledFileNames = _admobUpdateOriginalBundledFileNames;
+                _admobUpdateOriginalHostedUrls = null;
+                _admobUpdateOriginalBundledFileNames = null;
+
+                Debug.Log($"[GameUpSDK] AdMob latest update completed from release {releaseTag}: {fileName}");
+                RefreshStatus();
+            });
+        }
+
+        private static bool TryParseLatestAdMobAsset(
+            string releaseJson,
+            out string fileName,
+            out string downloadUrl,
+            out string releaseTag,
+            out string error)
+        {
+            fileName = null;
+            downloadUrl = null;
+            releaseTag = null;
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(releaseJson))
+            {
+                error = "Không nhận được dữ liệu release từ GitHub.";
+                return false;
+            }
+
+            Dictionary<string, object> root;
+            try
+            {
+                root = SimpleJsonHelper.ParseObject(releaseJson);
+            }
+            catch (Exception ex)
+            {
+                error = "Parse release AdMob thất bại: " + ex.Message;
+                return false;
+            }
+
+            if (root == null)
+            {
+                error = "Dữ liệu release AdMob không hợp lệ.";
+                return false;
+            }
+
+            releaseTag = root.TryGetValue("tag_name", out var tagObj) ? tagObj?.ToString() : "unknown";
+            if (!root.TryGetValue("assets", out var assetsObj) || !(assetsObj is List<object> assets))
+            {
+                error = "Release AdMob không có danh sách assets.";
+                return false;
+            }
+
+            foreach (var assetObj in assets)
+            {
+                if (!(assetObj is Dictionary<string, object> asset))
+                    continue;
+
+                string name = asset.TryGetValue("name", out var nameObj) ? nameObj?.ToString() : null;
+                string url = asset.TryGetValue("browser_download_url", out var urlObj) ? urlObj?.ToString() : null;
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url))
+                    continue;
+                if (!name.StartsWith(AdMobUnityPackagePrefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!name.EndsWith(AdMobUnityPackageSuffix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                fileName = name;
+                downloadUrl = url;
+                return true;
+            }
+
+            error = "Không tìm thấy file GoogleMobileAds-v*.unitypackage trong release mới nhất.";
+            return false;
         }
 
         /// <summary>
