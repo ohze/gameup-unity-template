@@ -21,14 +21,27 @@ namespace GameUp.Core.Tutorial
             }
         }
 
+        [Button]
         public void SetComplete()
         {
             _isComplete = true;
             LocalStorageUtils.SetBoolean(Key, true);
         }
 
+        [Button]
         public void UnComplete()
         {
+            _isComplete = false;
+            LocalStorageUtils.SetBoolean(Key, false);
+        }
+
+         [Button]
+        public void UnCompleteStep()
+        {
+            foreach (var step in tutorialSteps)
+            {
+                step.UnComplete();
+            }
             _isComplete = false;
             LocalStorageUtils.SetBoolean(Key, false);
         }

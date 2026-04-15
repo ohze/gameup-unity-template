@@ -29,6 +29,11 @@ namespace GameUp.Core.Tutorial
         {
             _isComplete = true;
         }
+
+        public void UnComplete()
+        {
+            _isComplete = false;
+        }
     }
 
     public enum FocusType

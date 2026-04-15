@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   stepName: 
   useFocus: 1
-  focusType: 0
+  focusType: 1
   destinationPoint: 1
   destinationPoint2: 0
   useTalk: 0
   talkText: 
   useArrow: 1
-  useHandDrag: 0
+  useHandDrag: 1
   arrowDirection: 0

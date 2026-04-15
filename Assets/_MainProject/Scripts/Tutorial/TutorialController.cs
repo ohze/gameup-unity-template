@@ -40,6 +40,7 @@ namespace GameUp.Core.Tutorial
         [Button]
         public void RunTutorial(SOTutorialType tutorial)
         {
+            CompleteStep();
             if (_coroutineTutorial != null) StopCoroutine(_coroutineTutorial);
             _coroutineTutorial = StartCoroutine(IERunTutorial(tutorial));
         }
