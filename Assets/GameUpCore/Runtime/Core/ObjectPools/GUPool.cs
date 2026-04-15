@@ -61,5 +61,10 @@ namespace GameUp.Core
         {
             if (prefab) GUPoolers.Instance.DeSpawnAll(prefab);
         }
+
+        public static void DeSpawnAll<T>(T prefab) where T : Component
+        {
+            if (prefab) GUPoolers.Instance.DeSpawnAll(prefab);
+        }
     }
 }

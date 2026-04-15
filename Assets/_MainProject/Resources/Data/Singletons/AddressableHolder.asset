@@ -19,3 +19,9 @@ MonoBehaviour:
       m_SubObjectName: 
       m_SubObjectType: 
       m_EditorAssetChanged: 0
+  - typeName: SOTutorialController
+    dataRef:
+      m_AssetGUID: 0498d8c8ac2e2104aad45ae96907d9b2
+      m_SubObjectName: 
+      m_SubObjectType: 
+      m_EditorAssetChanged: 0
