@@ -28,6 +28,16 @@ namespace GameUp.Core.Editor
                         "UIParticleImage",
                         "https://github.com/ohze/gameup-unity-template/releases/download/deps/UIParticleImage.unitypackage",
                         "UIParticleImage.unitypackage")
+                }),
+            new HelperModuleData(
+                "Tutorial",
+                "Install helper packages cho Tutorial system.",
+                new List<HelperPackageData>
+                {
+                    new HelperPackageData(
+                        "TutorialByDuyLV",
+                        "https://github.com/ohze/gameup-unity-template/releases/download/deps/TutorialByDuyLV.unitypackage",
+                        "TutorialByDuyLV.unitypackage")
                 })
         };
 
