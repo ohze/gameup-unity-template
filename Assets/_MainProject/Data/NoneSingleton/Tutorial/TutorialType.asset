@@ -15,4 +15,5 @@ MonoBehaviour:
   tutorialType: 0
   tutorialSteps:
   - {fileID: 11400000, guid: 5642cc45c9d2bde4f96b0cbb297b55c3, type: 2}
+  - {fileID: 11400000, guid: 8cc4d9d87a302c64182f1d0e0ebce3db, type: 2}
   - {fileID: 11400000, guid: 9d6f3bca5b53b0444928281bfcbe5f29, type: 2}

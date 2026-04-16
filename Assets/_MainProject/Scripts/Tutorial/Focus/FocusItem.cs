@@ -5,6 +5,7 @@ namespace GameUp.Core.Tutorial
 {
     public class FocusItem : MonoBehaviour
     {
+        [SerializeField] private GameObject blockRaycast;
         [Header("References")]
         [SerializeField] private CanvasGroup canvasGroup;
         [SerializeField] private RectTransform holderTrs;
@@ -76,9 +77,10 @@ namespace GameUp.Core.Tutorial
         [Button]
         public void ShowView(Transform target, Action onComplete = null)
         {
+
             if (!TryGetTargetRect(target, out var anchoredPosition, out var targetSize))
                 return;
-
+            blockRaycast.SetActive(true);
             gameObject.SetActive(true);
             canvasGroup.alpha = 1;
             _tween?.Kill();
@@ -93,6 +95,7 @@ namespace GameUp.Core.Tutorial
             return focusTrs.DOSizeDelta(pivotDeltaSize, showDuration).OnUpdate(UpdateViewByCover).OnComplete(() =>
             {
                 onComplete?.Invoke();
+                blockRaycast.SetActive(false);
             });
         }
 

@@ -141,8 +141,8 @@ namespace GameUp.Core.UI
         protected void FinishClose()
         {
             OnClosed?.Invoke();
-            GUPool.DeSpawn(this);
             DisposeAllTweens();
+            this.DelayFrame(() => GUPool.DeSpawn(this));
         }
 
         protected void KillCloseTweens()

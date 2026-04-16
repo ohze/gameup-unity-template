@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using DG.Tweening;
+using GameUp.Core;
 using GameUp.Core.Helpers;
 using GameUp.Core.UI;
 
@@ -20,6 +21,9 @@ namespace GameUp.Core.Tutorial
         [Header("Hand Drag")]
         [SerializeField] private float handDragDuration = 1f;
         [SerializeField] private Transform handDragPrefab;
+
+        private const string TutorialLogTag = "Tutorial";
+        private const float MissingDestinationLogInterval = 1f;
 
         private Coroutine _coroutineTutorial;
         private Tween _handDragTween;
@@ -58,8 +62,30 @@ namespace GameUp.Core.Tutorial
 
                 CompleteStep();
                 _currentStep = step;
-                var destination = DestinationPoint.GetFirstDestination(step.destinationPoint);
-                var destination2 = DestinationPoint.GetFirstDestination(step.destinationPoint2);
+                var needDestination = NeedDestination(step);
+                var needDestination2 = NeedDestination2(step);
+                if (needDestination || needDestination2)
+                {
+                    var waitStartTime = Time.unscaledTime;
+                    var nextLogTime = waitStartTime;
+                    while (!IsDestinationReady(step, needDestination, needDestination2))
+                    {
+                        if (Time.unscaledTime >= nextLogTime)
+                        {
+                            LogMissingDestination(step, needDestination, needDestination2, Time.unscaledTime - waitStartTime);
+                            nextLogTime = Time.unscaledTime + MissingDestinationLogInterval;
+                        }
+
+                        yield return null;
+                    }
+                }
+
+                var destination = needDestination
+                    ? DestinationPoint.GetFirstDestination(step.destinationPoint)
+                    : null;
+                var destination2 = needDestination2
+                    ? DestinationPoint.GetFirstDestination(step.destinationPoint2)
+                    : null;
                 var addedTutorialClickHandler = false;
                 if (step.useTalk)
                 {
@@ -125,6 +151,57 @@ namespace GameUp.Core.Tutorial
 
             tutorial.SetComplete();
             CheckAllTutDone();
+        }
+
+        private bool NeedDestination(SOTutorialStep step)
+        {
+            if (step == null)
+                return false;
+
+            return step.useFocus || step.useArrow || step.useHandDrag;
+        }
+
+        private bool NeedDestination2(SOTutorialStep step)
+        {
+            if (step == null)
+                return false;
+
+            return step.useHandDrag || (step.useFocus && step.focusType == FocusType.Multi);
+        }
+
+        private bool IsDestinationReady(SOTutorialStep step, bool needDestination, bool needDestination2)
+        {
+            if (step == null)
+                return false;
+
+            var destinationReady = !needDestination
+                || DestinationPoint.HasDestination(step.destinationPoint);
+            var destination2Ready = !needDestination2
+                || DestinationPoint.HasDestination(step.destinationPoint2);
+            return destinationReady && destination2Ready;
+        }
+
+        private void LogMissingDestination(SOTutorialStep step, bool needDestination, bool needDestination2, float waitingTime)
+        {
+            if (step == null)
+                return;
+
+            var missingDestination = needDestination && !DestinationPoint.HasDestination(step.destinationPoint);
+            var missingDestination2 = needDestination2 && !DestinationPoint.HasDestination(step.destinationPoint2);
+            if (!missingDestination && !missingDestination2)
+                return;
+
+            var missingText = string.Empty;
+            if (missingDestination)
+                missingText = $"{step.destinationPoint}";
+
+            if (missingDestination2)
+                missingText = string.IsNullOrEmpty(missingText)
+                    ? $"{step.destinationPoint2}"
+                    : $"{missingText}, {step.destinationPoint2}";
+
+            var stepName = string.IsNullOrEmpty(step.stepName) ? step.name : step.stepName;
+            GULogger.Warning(TutorialLogTag, $"Waiting destination for step '{stepName}'. Missing: {missingText}. Waited: {waitingTime:F1}s.");
         }
         #endregion
 
