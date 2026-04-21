@@ -7,7 +7,6 @@
         "GameUp.UI.Runtime"
     ],
     "includePlatforms": [
-        "Android",
         "Editor"
     ],
     "excludePlatforms": [],
