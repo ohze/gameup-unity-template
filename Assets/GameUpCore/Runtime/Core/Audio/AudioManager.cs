@@ -37,7 +37,7 @@ namespace GameUp.Core
                 PreloadIdentities();
             }
         }
-
+#if UNITY_EDITOR
         private void OnValidate()
         {
             if (musicSource == null)
@@ -46,7 +46,7 @@ namespace GameUp.Core
                 GameUtils.SaveAssets(this);
             }
         }
-
+#endif
         private void OnEnable()
         {
             AudioSetting.Instance.IsMusicOn.OnValueChange.AddListener(OnMusicChange);
