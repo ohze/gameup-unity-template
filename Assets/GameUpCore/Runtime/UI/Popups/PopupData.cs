@@ -62,7 +62,9 @@ namespace GameUp.Core.UI
         public void SetupPathPopup(string path)
         {
             pathPopup = path;
+#if UNITY_EDITOR
             GameUtils.SaveAssets(this);
+#endif
         }
 
         [Button]
