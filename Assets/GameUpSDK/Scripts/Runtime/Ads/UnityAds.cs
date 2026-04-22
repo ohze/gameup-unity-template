@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using GameUp.Core;
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
 using Unity.Services.LevelPlay;
 #endif
@@ -48,13 +49,13 @@ namespace GameUp.SDK
         {
             if (_initialized)
             {
-                Debug.Log("[CtySDK] UnityAds already initialized.");
+                GULogger.Log("GameUp", "UnityAds already initialized.");
                 return;
             }
 
             if (string.IsNullOrEmpty(levelPlayAppKey))
             {
-                Debug.LogWarning("[CtySDK] UnityAds: LevelPlay App Key not set.");
+                GULogger.Warning("GameUp", "UnityAds: LevelPlay App Key not set.");
                 _initialized = true;
                 return;
             }
@@ -73,7 +74,7 @@ namespace GameUp.SDK
                 LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
                 CreateAdUnits();
                 SubscribeToAdEvents();
-                Debug.Log("[CtySDK] UnityAds (LevelPlay) initialized.");
+                GULogger.Log("GameUp", "UnityAds (LevelPlay) initialized.");
             });
         }
 
@@ -84,7 +85,7 @@ namespace GameUp.SDK
                 _initialized = true;
                 LevelPlay.OnInitSuccess -= OnLevelPlayInitSuccess;
                 LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
-                Debug.Log("[CtySDK] UnityAds LevelPlay init failed: " + error);
+                GULogger.Log("GameUp", $"UnityAds LevelPlay init failed: {error}");
             });
         }
 
@@ -130,13 +131,18 @@ namespace GameUp.SDK
         public void SetAfterCheckGDPR(bool isConsent)
         {
             LevelPlay.SetConsent(isConsent);
-            Debug.Log("[CtySDK] UnityAds SetAfterCheckGDPR (consent=" + isConsent + ").");
+            GULogger.Log("GameUp", $"UnityAds SetAfterCheckGDPR (consent={isConsent}).");
         }
 
         public void RequestBanner()
         {
-            if (_bannerAd == null) { Debug.Log("[CtySDK] UnityAds RequestBanner: banner ad unit not configured."); return; }
+            if (_bannerAd == null) { GULogger.Log("GameUp", "UnityAds RequestBanner: banner ad unit not configured."); return; }
             _bannerAd.LoadAd();
+        }
+
+        public void RequestCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom)
+        {
+            RequestBanner();
         }
 
         public void RequestInterstitial() { _interstitialAd?.LoadAd(); }
@@ -144,6 +150,7 @@ namespace GameUp.SDK
         public void RequestAppOpenAds() { }
 
         public bool IsBannerAvailable() => _bannerAd != null && _bannerLoaded;
+        public bool IsCollapsibleBannerAvailable() => false;
         public bool IsInterstitialAvailable() => _interstitialAd != null && _interstitialAd.IsAdReady();
         public bool IsRewardedVideoAvailable() => _rewardedAd != null && _rewardedAd.IsAdReady();
         public bool IsAppOpenAdsAvailable() => false;
@@ -152,18 +159,23 @@ namespace GameUp.SDK
         {
             if (_bannerAd == null)
             {
-                Debug.LogWarning("[CtySDK] UnityAds ShowBanner: banner not configured.");
+                GULogger.Warning("GameUp", "UnityAds ShowBanner: banner not configured.");
                 OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
                 return;
             }
             if (!_bannerLoaded)
             {
-                Debug.Log("[CtySDK] UnityAds ShowBanner: banner not loaded yet.");
+                GULogger.Log("GameUp", "UnityAds ShowBanner: banner not loaded yet.");
                 OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
                 return;
             }
             _bannerAd.ShowAd();
             OnBannerShown?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
+        }
+
+        public void ShowCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom)
+        {
+            ShowBanner(where);
         }
 
         public void HideBanner(string where) { _bannerAd?.HideAd(); }
@@ -172,7 +184,7 @@ namespace GameUp.SDK
         {
             if (_interstitialAd == null || !_interstitialAd.IsAdReady())
             {
-                Debug.Log("[CtySDK] UnityAds ShowInterstitial: ad not ready.");
+                GULogger.Log("GameUp", "UnityAds ShowInterstitial: ad not ready.");
                 onFail?.Invoke(); return;
             }
             _interstitialAd.OnAdClosed += OnInterstitialClosed;
@@ -201,7 +213,7 @@ namespace GameUp.SDK
         {
             if (_rewardedAd == null || !_rewardedAd.IsAdReady())
             {
-                Debug.Log("[CtySDK] UnityAds ShowRewardedVideo: ad not ready.");
+                GULogger.Log("GameUp", "UnityAds ShowRewardedVideo: ad not ready.");
                 onFail?.Invoke(); return;
             }
             AdsRules.BeginInterstitialCappingPause();
@@ -241,7 +253,7 @@ namespace GameUp.SDK
 
         public void ShowAppOpenAds(string where, Action onSuccess, Action onFail)
         {
-            Debug.Log("[CtySDK] UnityAds ShowAppOpenAds: not supported by LevelPlay.");
+            GULogger.Log("GameUp", "UnityAds ShowAppOpenAds: not supported by LevelPlay.");
             onFail?.Invoke();
         }
 
@@ -257,14 +269,17 @@ namespace GameUp.SDK
         public void SetAfterCheckGDPR() { }
         public void SetAfterCheckGDPR(bool isConsent) { }
         public void RequestBanner() { }
+        public void RequestCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom) { }
         public void RequestInterstitial() { }
         public void RequestRewardedVideo() { }
         public void RequestAppOpenAds() { }
         public bool IsBannerAvailable() => false;
+        public bool IsCollapsibleBannerAvailable() => false;
         public bool IsInterstitialAvailable() => false;
         public bool IsRewardedVideoAvailable() => false;
         public bool IsAppOpenAdsAvailable() => false;
         public void ShowBanner(string where) { }
+        public void ShowCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom) { }
         public void HideBanner(string where) { }
         public void ShowInterstitial(string where, Action onSuccess, Action onFail) => onFail?.Invoke();
         public void ShowRewardedVideo(string where, Action onSuccess, Action onFail) => onFail?.Invoke();

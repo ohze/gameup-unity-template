@@ -250,6 +250,16 @@ namespace GameUp.SDK
             });
         }
 
+        public bool IsCollapsibleBannerReadyForPlacement(string where)
+        {
+            return _ads.Any(a =>
+            {
+                if (a is IPlacementAwareAds placementAware)
+                    return placementAware.IsCollapsibleBannerAvailable(where);
+                return a.IsCollapsibleBannerAvailable();
+            });
+        }
+
         /// <summary>
         /// Call after GDPR/consent flow. Forwards to all networks.
         /// </summary>
@@ -360,6 +370,13 @@ namespace GameUp.SDK
             return a.IsAppOpenAdsAvailable();
         }
 
+        private static bool NetworkCollapsibleBannerAvailable(IAds a, string where)
+        {
+            if (a is IPlacementAwareAds placementAware)
+                return placementAware.IsCollapsibleBannerAvailable(where);
+            return a.IsCollapsibleBannerAvailable();
+        }
+
         private static string BuildShowFailExceptionReason(Exception exception)
         {
             if (exception == null)
@@ -404,6 +421,61 @@ namespace GameUp.SDK
                 GULogger.Error("GameUp", $"AdsManager ShowBanner: {e}");
                 LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeBanner, where, BuildShowFailExceptionReason(e));
             }
+        }
+
+        public void RequestCollapsibleBanner(string where = null, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom)
+        {
+            foreach (var ad in _ads)
+            {
+                try
+                {
+                    ad.RequestCollapsibleBanner(where, placement);
+                }
+                catch (Exception e)
+                {
+                    GULogger.Error("GameUp", $"AdsManager RequestCollapsibleBanner failed for {ad.GetType().Name}: {e}");
+                }
+            }
+        }
+
+        public void ShowCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom, Action onRqFail = null)
+        {
+            if (IsRemoveAllAdsActive())
+            {
+                GULogger.Log("GameUp", "AdsManager ShowCollapsibleBanner: disabled (RemoveAllAds).");
+                return;
+            }
+            if (!AdsRules.IsBannerEnabled())
+            {
+                GULogger.Log("GameUp", "AdsManager ShowCollapsibleBanner: disabled by Remote Config (enable_banner).");
+                return;
+            }
+
+            LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeBanner, where);
+            var network = _ads.FirstOrDefault(a => NetworkCollapsibleBannerAvailable(a, where));
+            if (network == null)
+            {
+                GULogger.Log("GameUp", "AdsManager ShowCollapsibleBanner: no network available.");
+                LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeBanner, where, "network_null");
+                onRqFail?.Invoke();
+                return;
+            }
+
+            LogAdsEventManager(AdsEvent.AdsAvailable, AdsEvent.AdTypeBanner, where);
+            try
+            {
+                network.ShowCollapsibleBanner(where, placement);
+            }
+            catch (Exception e)
+            {
+                GULogger.Error("GameUp", $"AdsManager ShowCollapsibleBanner: {e}");
+                LogAdsEventManager(AdsEvent.AdsShowFail, AdsEvent.AdTypeBanner, where, BuildShowFailExceptionReason(e));
+            }
+        }
+
+        public void ShowCollapsibleBanner(int whereId, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom, Action onRqFail = null)
+        {
+            ShowCollapsibleBanner(whereId.ToString(), placement, onRqFail);
         }
 
         public void ShowBanner(int whereId, Action onRqFail = null)
@@ -493,6 +565,24 @@ namespace GameUp.SDK
                 onFail?.Invoke();
                 return;
             }
+            ShowInterstitialInternal(where, currentLevel, onSuccess, onFail, onRqFail);
+        }
+
+        public void ShowInterWithoutCondition(string where, int currentLevel, Action onSuccess = null, Action onFail = null,
+            Action onRqFail = null)
+        {
+            if (IsInterstitialRemoved())
+            {
+                GULogger.Log("GameUp", "AdsManager ShowInterWithoutCondition: skipped (RemoveInter / RemoveAllAds).");
+                onSuccess?.Invoke();
+                return;
+            }
+            ShowInterstitialInternal(where, currentLevel, onSuccess, onFail, onRqFail);
+        }
+
+        private void ShowInterstitialInternal(string where, int currentLevel, Action onSuccess = null, Action onFail = null,
+            Action onRqFail = null)
+        {
             LogAdsEventManager(AdsEvent.AdsRequest, AdsEvent.AdTypeInterstitial, where);
             var network = _ads.FirstOrDefault(a => NetworkInterstitialAvailable(a, where));
             if (network == null)

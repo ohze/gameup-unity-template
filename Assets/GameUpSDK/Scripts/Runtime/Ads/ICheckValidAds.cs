@@ -6,6 +6,7 @@ namespace GameUp.SDK
     public interface ICheckValidAds
     {
         bool IsBannerAvailable();
+        bool IsCollapsibleBannerAvailable();
         bool IsInterstitialAvailable();
         bool IsRewardedVideoAvailable();
         bool IsAppOpenAdsAvailable();

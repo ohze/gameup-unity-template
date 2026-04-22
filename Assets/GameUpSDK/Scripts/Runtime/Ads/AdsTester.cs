@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using GameUp.Core;
 using UnityEngine;
+using GameUp.Core;
 
 namespace GameUp.SDK
 {
@@ -21,6 +21,12 @@ namespace GameUp.SDK
         public AdUnitType adType = AdUnitType.Interstitial;
         public string where = "main";
 
+        [Header("Banner Options")]
+        [Tooltip("If true and adType=Banner, call ShowCollapsibleBanner(where, placement).")]
+        public bool useCollapsibleBanner;
+
+        public CollapsibleBannerPlacement collapsiblePlacement = CollapsibleBannerPlacement.Bottom;
+
         [Tooltip("Used for Interstitial/Rewarded when needed.")]
         public int currentLevel = 1;
 
@@ -30,9 +36,12 @@ namespace GameUp.SDK
                 return buttonLabel;
 
             if (useIntId)
-                return $"ShowById: {intId}";
+                return "ShowById: " + intId;
 
-            return $"{adType}: {where}";
+            if (adType == AdUnitType.Banner && useCollapsibleBanner)
+                return "CollapsibleBanner(" + collapsiblePlacement + "): " + where;
+
+            return adType + ": " + where;
         }
     }
 
@@ -67,6 +76,9 @@ namespace GameUp.SDK
         [SerializeField] private bool showUtilityButtons = true;
         [SerializeField] private float uiScale = 2f;
 
+        [Header("Utility Defaults")]
+        [SerializeField] private string utilityBannerWhere = "main";
+
         private Vector2 _scrollPos;
         private GUIStyle _windowStyle;
         private GUIStyle _buttonStyle;
@@ -96,8 +108,8 @@ namespace GameUp.SDK
                 panelHeight * scale);
             GUILayout.BeginArea(area, "Ads Tester", _windowStyle);
 
-            GUILayout.Label($"Source: {_activeSourceName}", _labelStyle);
-            GUILayout.Label($"Mode: {mode} (from useMultiAdUnitIds)", _labelStyle);
+            GUILayout.Label("Source: " + _activeSourceName, _labelStyle);
+            GUILayout.Label("Mode: " + mode + " (from useMultiAdUnitIds)", _labelStyle);
 
             GUILayout.Space(8f * scale);
             DrawTestButtons(scale);
@@ -139,6 +151,20 @@ namespace GameUp.SDK
             {
                 AdsManager.Instance?.RequestAll();
                 GULogger.Log("GameUp", "AdsTester -> RequestAll");
+            }
+
+            if (GUILayout.Button("RequestCollapsibleBanner (Bottom)", _buttonStyle, GUILayout.Height(34f * scale)))
+            {
+                string where = string.IsNullOrEmpty(utilityBannerWhere) ? "main" : utilityBannerWhere;
+                AdsManager.Instance?.RequestCollapsibleBanner(where, CollapsibleBannerPlacement.Bottom);
+                GULogger.Log("GameUp", $"AdsTester -> RequestCollapsibleBanner Bottom | where={where}");
+            }
+
+            if (GUILayout.Button("RequestCollapsibleBanner (Top)", _buttonStyle, GUILayout.Height(34f * scale)))
+            {
+                string where = string.IsNullOrEmpty(utilityBannerWhere) ? "main" : utilityBannerWhere;
+                AdsManager.Instance?.RequestCollapsibleBanner(where, CollapsibleBannerPlacement.Top);
+                GULogger.Log("GameUp", $"AdsTester -> RequestCollapsibleBanner Top | where={where}");
             }
 
             if (GUILayout.Button("Reset Interstitial Capping", _buttonStyle, GUILayout.Height(34f * scale)))
@@ -208,8 +234,16 @@ namespace GameUp.SDK
             switch (item.adType)
             {
                 case AdUnitType.Banner:
-                    AdsManager.Instance.ShowBanner(where);
-                    GULogger.Log("GameUp", $"AdsTester show -> Banner {where}");
+                    if (item.useCollapsibleBanner)
+                    {
+                        AdsManager.Instance.ShowCollapsibleBanner(where, item.collapsiblePlacement);
+                        GULogger.Log("GameUp", $"AdsTester show -> CollapsibleBanner({item.collapsiblePlacement}) {where}");
+                    }
+                    else
+                    {
+                        AdsManager.Instance.ShowBanner(where);
+                        GULogger.Log("GameUp", $"AdsTester show -> Banner {where}");
+                    }
                     break;
                 case AdUnitType.Interstitial:
                     AdsManager.Instance.ShowInterstitial(where, Mathf.Max(0, item.currentLevel),
@@ -358,9 +392,14 @@ namespace GameUp.SDK
             if (string.IsNullOrEmpty(where))
                 return;
 
-            string unique = $"{adType}|{where}";
-            if (!uniqueKeys.Add(unique))
+            if (adType == AdUnitType.Banner)
+            {
+                AddBannerItems(where, source, uniqueKeys);
                 return;
+            }
+
+            string unique = adType + "|" + where + "|normal";
+            if (!uniqueKeys.Add(unique)) return;
 
             multiItems.Add(new AdsTestItem
             {
@@ -368,7 +407,7 @@ namespace GameUp.SDK
                 adType = adType,
                 where = where,
                 currentLevel = 1,
-                buttonLabel = $"{source} - {adType}: {where}"
+                buttonLabel = source + " - " + adType + ": " + where
             });
         }
 
@@ -377,14 +416,78 @@ namespace GameUp.SDK
             if (string.IsNullOrEmpty(adUnitId))
                 return;
 
+            if (adType == AdUnitType.Banner)
+            {
+                AddBannerItems(where, source + " - Banner (Single)", uniqueKeys: null, forceSingleList: true);
+                return;
+            }
+
             _singleItems.Add(new AdsTestItem
             {
                 useIntId = false,
                 adType = adType,
                 where = where,
                 currentLevel = 1,
-                buttonLabel = $"{source} - {adType} (Single)"
+                buttonLabel = source + " - " + adType + " (Single)"
             });
+        }
+
+        private void AddBannerItems(string where, string source, HashSet<string> uniqueKeys)
+        {
+            AddBannerItems(where, source, uniqueKeys, forceSingleList: false);
+        }
+
+        private void AddBannerItems(string where, string source, HashSet<string> uniqueKeys, bool forceSingleList)
+        {
+            var target = forceSingleList ? _singleItems : multiItems;
+
+            // Normal banner
+            string keyNormal = "Banner|" + where + "|normal";
+            if (uniqueKeys == null || uniqueKeys.Add(keyNormal))
+            {
+                target.Add(new AdsTestItem
+                {
+                    useIntId = false,
+                    adType = AdUnitType.Banner,
+                    where = where,
+                    currentLevel = 1,
+                    useCollapsibleBanner = false,
+                    collapsiblePlacement = CollapsibleBannerPlacement.None,
+                    buttonLabel = source + " - Banner: " + where
+                });
+            }
+
+            // Collapsible bottom
+            string keyBottom = "Banner|" + where + "|collapsible_bottom";
+            if (uniqueKeys == null || uniqueKeys.Add(keyBottom))
+            {
+                target.Add(new AdsTestItem
+                {
+                    useIntId = false,
+                    adType = AdUnitType.Banner,
+                    where = where,
+                    currentLevel = 1,
+                    useCollapsibleBanner = true,
+                    collapsiblePlacement = CollapsibleBannerPlacement.Bottom,
+                    buttonLabel = source + " - CollapsibleBanner(Bottom): " + where
+                });
+            }
+
+            // Collapsible top
+            string keyTop = "Banner|" + where + "|collapsible_top";
+            if (uniqueKeys == null || uniqueKeys.Add(keyTop))
+            {
+                target.Add(new AdsTestItem
+                {
+                    useIntId = false,
+                    adType = AdUnitType.Banner,
+                    where = where,
+                    currentLevel = 1,
+                    useCollapsibleBanner = true,
+                    collapsiblePlacement = CollapsibleBannerPlacement.Top,
+                    buttonLabel = source + " - CollapsibleBanner(Top): " + where
+                });
+            }
         }
 
         private static T ReadPrivateField<T>(object target, string fieldName)

@@ -6,6 +6,8 @@ using GoogleMobileAds.Api;
 using GoogleMobileAds.Common;
 #endif
 
+
+
 namespace GameUp.SDK
 {
     /// <summary>
@@ -44,10 +46,14 @@ namespace GameUp.SDK
         private string _bannerUnitIdActive;
         private bool _bannerShouldBeVisible;
         private bool _bannerLoaded;
+        private bool _bannerIsCollapsible;
         private bool _bannerLoading;
         private bool _bannerRequestInProgress;
         private string _pendingBannerUnitId;
+        private CollapsibleBannerPlacement _bannerCollapsiblePlacementActive = CollapsibleBannerPlacement.None;
+        private CollapsibleBannerPlacement _pendingBannerCollapsiblePlacement = CollapsibleBannerPlacement.None;
         private string _bannerPlacementForShow;
+        private AdPosition _bannerPositionActive = AdPosition.Bottom;
 
         private InterstitialAd _interstitialAd;
         private RewardedAd _rewardedAd;
@@ -73,6 +79,130 @@ namespace GameUp.SDK
                 message = $"{message} | {extra}";
             GULogger.Log("GameUp", message);
         }
+
+#if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
+        private static string ToCollapsibleKeyword(CollapsibleBannerPlacement placement)
+        {
+            switch (placement)
+            {
+                case CollapsibleBannerPlacement.Top: return "top";
+                case CollapsibleBannerPlacement.Bottom: return "bottom";
+                default: return null;
+            }
+        }
+
+        private static AdPosition GetBannerPosition(CollapsibleBannerPlacement placement)
+        {
+            return placement == CollapsibleBannerPlacement.Top ? AdPosition.Top : AdPosition.Bottom;
+        }
+
+        private string ResolveBannerUnitIdForRequest(string where)
+        {
+            var requestedUnitId = ResolveUnitId(AdUnitType.Banner, where);
+            if (!string.IsNullOrEmpty(requestedUnitId))
+                return requestedUnitId;
+
+            if (!useMultiAdUnitIds)
+                return bannerAdUnitId;
+
+            string fallbackUnitId = null;
+            for (int i = 0; i < adUnitIds.Count; i++)
+            {
+                var e = adUnitIds[i];
+                if (e == null || e.AdType != AdUnitType.Banner || !e.IsValid()) continue;
+                if (string.Equals(e.NameId, "main", StringComparison.OrdinalIgnoreCase))
+                    return e.Id;
+                if (fallbackUnitId == null)
+                    fallbackUnitId = e.Id;
+            }
+
+            return fallbackUnitId;
+        }
+
+        private static AdRequest BuildBannerRequest(CollapsibleBannerPlacement placement)
+        {
+            var request = new AdRequest();
+            var collapsibleKeyword = ToCollapsibleKeyword(placement);
+            if (!string.IsNullOrEmpty(collapsibleKeyword))
+                request.Extras.Add("collapsible", collapsibleKeyword);
+            return request;
+        }
+
+        private static bool TryReadIsCollapsible(BannerView bannerView, out bool isCollapsible)
+        {
+            isCollapsible = false;
+            if (bannerView == null)
+                return false;
+
+            try
+            {
+                var method = typeof(BannerView).GetMethod("IsCollapsible", Type.EmptyTypes);
+                if (method == null || method.ReturnType != typeof(bool))
+                    return false;
+
+                isCollapsible = (bool)method.Invoke(bannerView, null);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void ShowBannerInternal(string where, CollapsibleBannerPlacement placement)
+        {
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                _bannerShouldBeVisible = true;
+                _bannerPlacementForShow = string.IsNullOrEmpty(where) ? "main" : where;
+
+                var unitId = ResolveBannerUnitIdForRequest(where);
+                var targetPosition = GetBannerPosition(placement);
+                var requiresReload = !string.IsNullOrEmpty(unitId) &&
+                                     (_bannerView == null ||
+                                      _bannerUnitIdActive != unitId ||
+                                      _bannerCollapsiblePlacementActive != placement ||
+                                      _bannerPositionActive != targetPosition);
+
+                if (requiresReload)
+                {
+                    RequestBannerInternal(unitId, placement, where);
+                    return;
+                }
+
+                if (_bannerView == null)
+                {
+                    GULogger.Warning("GameUp", $"AdmobAds ShowBanner skipped: no BannerView. where={where}, resolvedUnitId={unitId ?? "null"}");
+                    OnBannerShowFailed?.Invoke(_bannerPlacementForShow);
+                    return;
+                }
+
+                if (_bannerLoaded)
+                {
+                    LogAdTrace(
+                        "show",
+                        AdUnitType.Banner,
+                        _bannerUnitIdActive,
+                        where,
+                        "collapsibleRequest=" + (_bannerCollapsiblePlacementActive != CollapsibleBannerPlacement.None) +
+                        ", isCollapsible=" + _bannerIsCollapsible);
+                    _bannerView.Show();
+                    OnBannerShown?.Invoke(_bannerPlacementForShow);
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(unitId) && !_bannerLoading)
+                {
+                    LogAdTrace("show_deferred", AdUnitType.Banner, unitId, where, "reason=not_loaded_retry_request");
+                    RequestBannerInternal(unitId, placement, where);
+                }
+                else
+                {
+                    GULogger.Log("GameUp", $"AdmobAds ShowBanner waiting load. where={where}, activeUnitId={_bannerUnitIdActive ?? "null"}");
+                }
+            });
+        }
+#endif
 
         public void SetAdUnitIds(string banner, string interstitial, string rewarded, string appOpen)
         {
@@ -129,65 +259,62 @@ namespace GameUp.SDK
         {
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
             if (!_initialized) return;
-            if (!useMultiAdUnitIds)
-            {
-                if (string.IsNullOrEmpty(bannerAdUnitId)) return;
-                RequestBannerInternal(bannerAdUnitId);
-                return;
-            }
-
-            // Banner in multi mode: preload "main" if present, otherwise preload first valid Banner entry.
-            string unitId = null;
-            for (int i = 0; i < adUnitIds.Count; i++)
-            {
-                var e = adUnitIds[i];
-                if (e == null || e.AdType != AdUnitType.Banner || !e.IsValid()) continue;
-                if (string.Equals(e.NameId, "main", StringComparison.Ordinal))
-                {
-                    unitId = e.Id;
-                    break;
-                }
-                if (unitId == null) unitId = e.Id;
-            }
+            var unitId = ResolveBannerUnitIdForRequest(where: null);
             if (!string.IsNullOrEmpty(unitId))
-                RequestBannerInternal(unitId);
+                RequestBannerInternal(unitId, CollapsibleBannerPlacement.None, where: null);
+#endif
+        }
+
+        public void RequestCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom)
+        {
+#if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
+            if (!_initialized) return;
+            var unitId = ResolveBannerUnitIdForRequest(where);
+            if (!string.IsNullOrEmpty(unitId))
+                RequestBannerInternal(unitId, placement == CollapsibleBannerPlacement.None ? CollapsibleBannerPlacement.Bottom : placement, where);
 #endif
         }
 
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
-        private void RequestBannerInternal(string unitId)
+        private void RequestBannerInternal(string unitId, CollapsibleBannerPlacement placement, string where)
         {
             MainThreadDispatcher.Enqueue(() =>
             {
-                LogAdTrace("request", AdUnitType.Banner, unitId, where: null);
+                var collapsibleKeyword = ToCollapsibleKeyword(placement);
+                LogAdTrace("request", AdUnitType.Banner, unitId, where, "collapsible=" + Safe(collapsibleKeyword));
                 if (_bannerRequestInProgress)
                 {
-                    if (_bannerUnitIdActive == unitId)
+                    if (_bannerUnitIdActive == unitId && _bannerCollapsiblePlacementActive == placement)
                     {
-                        LogAdTrace("request_skip", AdUnitType.Banner, unitId, where: null, extra: "reason=request_in_progress_same_unit");
+                        LogAdTrace("request_skip", AdUnitType.Banner, unitId, where, extra: "reason=request_in_progress_same_request");
                         return;
                     }
 
                     _pendingBannerUnitId = unitId;
-                    LogAdTrace("request_deferred", AdUnitType.Banner, unitId, where: null, extra: "reason=request_in_progress_pending_switch");
+                    _pendingBannerCollapsiblePlacement = placement;
+                    LogAdTrace("request_deferred", AdUnitType.Banner, unitId, where, extra: "reason=request_in_progress_pending_switch,collapsible=" + Safe(collapsibleKeyword));
                     return;
                 }
 
-                if (_bannerView != null && _bannerUnitIdActive != unitId)
+                var targetPosition = GetBannerPosition(placement);
+                if (_bannerView != null && (_bannerUnitIdActive != unitId || _bannerPositionActive != targetPosition))
                 {
                     _bannerView.Destroy();
                     _bannerView = null;
                     _bannerLoaded = false;
+                    _bannerIsCollapsible = false;
                     _bannerLoading = false;
                     _bannerRequestInProgress = false;
                 }
 
                 _bannerUnitIdActive = unitId;
+                _bannerCollapsiblePlacementActive = placement;
+                _bannerPositionActive = targetPosition;
                 if (_bannerView == null)
                 {
                     var adaptiveBannerSize = AdSize.GetCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(AdSize.FullWidth);
                     GULogger.Log("GameUp", $"AdmobAds banner_adaptive_size | unitId={Safe(unitId)} | width={adaptiveBannerSize.Width} | height={adaptiveBannerSize.Height}");
-                    _bannerView = new BannerView(unitId, adaptiveBannerSize, AdPosition.Bottom);
+                    _bannerView = new BannerView(unitId, adaptiveBannerSize, targetPosition);
                     var currentBannerView = _bannerView;
                     _bannerView.OnBannerAdLoaded += () =>
                     {
@@ -199,19 +326,35 @@ namespace GameUp.SDK
                             _bannerLoaded = true;
                             _bannerLoading = false;
                             _bannerRequestInProgress = false;
-                            LogAdTrace("load_success", AdUnitType.Banner, _bannerUnitIdActive, where: null);
+                            if (!TryReadIsCollapsible(currentBannerView, out _bannerIsCollapsible))
+                                _bannerIsCollapsible = _bannerCollapsiblePlacementActive != CollapsibleBannerPlacement.None;
+                            LogAdTrace(
+                                "load_success",
+                                AdUnitType.Banner,
+                                _bannerUnitIdActive,
+                                _bannerPlacementForShow,
+                                "requestedCollapsible=" + Safe(ToCollapsibleKeyword(_bannerCollapsiblePlacementActive)) +
+                                ", isCollapsible=" + _bannerIsCollapsible);
                             if (_bannerShouldBeVisible)
                             {
-                                LogAdTrace("show", AdUnitType.Banner, _bannerUnitIdActive, where: null, extra: "from=auto_on_loaded");
+                                LogAdTrace(
+                                    "show",
+                                    AdUnitType.Banner,
+                                    _bannerUnitIdActive,
+                                    _bannerPlacementForShow,
+                                    "from=auto_on_loaded,isCollapsible=" + _bannerIsCollapsible);
                                 _bannerView?.Show();
                                 OnBannerShown?.Invoke(string.IsNullOrEmpty(_bannerPlacementForShow) ? "main" : _bannerPlacementForShow);
                             }
 
-                            if (!string.IsNullOrEmpty(_pendingBannerUnitId) && _pendingBannerUnitId != _bannerUnitIdActive)
+                            if (!string.IsNullOrEmpty(_pendingBannerUnitId) &&
+                                (_pendingBannerUnitId != _bannerUnitIdActive || _pendingBannerCollapsiblePlacement != _bannerCollapsiblePlacementActive))
                             {
                                 var pendingUnitId = _pendingBannerUnitId;
+                                var pendingPlacement = _pendingBannerCollapsiblePlacement;
                                 _pendingBannerUnitId = null;
-                                RequestBannerInternal(pendingUnitId);
+                                _pendingBannerCollapsiblePlacement = CollapsibleBannerPlacement.None;
+                                RequestBannerInternal(pendingUnitId, pendingPlacement, _bannerPlacementForShow);
                             }
                         });
                     };
@@ -223,19 +366,23 @@ namespace GameUp.SDK
                                 return;
 
                             _bannerLoaded = false;
+                            if (!TryReadIsCollapsible(currentBannerView, out _bannerIsCollapsible))
+                                _bannerIsCollapsible = _bannerCollapsiblePlacementActive != CollapsibleBannerPlacement.None;
                             _bannerLoading = false;
                             _bannerRequestInProgress = false;
                             var message = loadError?.GetMessage() ?? "unknown";
                             var code = loadError != null ? loadError.GetCode().ToString() : "unknown";
-                            GULogger.Warning("GameUp", $"AdmobAds load_fail | type=Banner | where=null | unitId={Safe(_bannerUnitIdActive)} | code={code} | message={message}");
+                            GULogger.Warning("GameUp", $"AdmobAds load_fail | type=Banner | where={Safe(_bannerPlacementForShow)} | unitId={Safe(_bannerUnitIdActive)} | code={code} | message={message} | collapsible={Safe(ToCollapsibleKeyword(_bannerCollapsiblePlacementActive))} | isCollapsible={_bannerIsCollapsible}");
                             if (_bannerShouldBeVisible)
                                 OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(_bannerPlacementForShow) ? "main" : _bannerPlacementForShow);
 
                             if (!string.IsNullOrEmpty(_pendingBannerUnitId))
                             {
                                 var pendingUnitId = _pendingBannerUnitId;
+                                var pendingPlacement = _pendingBannerCollapsiblePlacement;
                                 _pendingBannerUnitId = null;
-                                RequestBannerInternal(pendingUnitId);
+                                _pendingBannerCollapsiblePlacement = CollapsibleBannerPlacement.None;
+                                RequestBannerInternal(pendingUnitId, pendingPlacement, _bannerPlacementForShow);
                             }
                         });
                     };
@@ -259,8 +406,9 @@ namespace GameUp.SDK
                     };
                 }
 
-                var request = new AdRequest();
+                var request = BuildBannerRequest(placement);
                 _bannerLoaded = false;
+                _bannerIsCollapsible = false;
                 _bannerLoading = true;
                 _bannerRequestInProgress = true;
                 _bannerView.Hide();
@@ -639,44 +787,26 @@ namespace GameUp.SDK
 #endif
         }
 
+        public bool IsCollapsibleBannerAvailable()
+        {
+#if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
+            return !string.IsNullOrEmpty(ResolveBannerUnitIdForRequest(where: null));
+#else
+            return false;
+#endif
+        }
+
         public void ShowBanner(string where)
         {
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
-            MainThreadDispatcher.Enqueue(() =>
-            {
-                _bannerShouldBeVisible = true;
-                _bannerPlacementForShow = string.IsNullOrEmpty(where) ? "main" : where;
-                var unitId = ResolveUnitId(AdUnitType.Banner, where);
-                if (!string.IsNullOrEmpty(unitId) && (_bannerView == null || _bannerUnitIdActive != unitId))
-                {
-                    RequestBannerInternal(unitId);
-                    return;
-                }
+            ShowBannerInternal(where, CollapsibleBannerPlacement.None);
+#endif
+        }
 
-                if (_bannerView == null)
-                {
-                    GULogger.Warning("GameUp", $"AdmobAds ShowBanner skipped: no BannerView. where={where}, resolvedUnitId={unitId ?? "null"}");
-                    OnBannerShowFailed?.Invoke(_bannerPlacementForShow);
-                    return;
-                }
-
-                if (_bannerLoaded)
-                {
-                    LogAdTrace("show", AdUnitType.Banner, _bannerUnitIdActive, where);
-                    _bannerView.Show();
-                    OnBannerShown?.Invoke(_bannerPlacementForShow);
-                    return;
-                }
-
-                // Retry load for current/target placement if previous load failed or still pending.
-                if (!string.IsNullOrEmpty(unitId) && !_bannerLoading)
-                {
-                    LogAdTrace("show_deferred", AdUnitType.Banner, unitId, where, "reason=not_loaded_retry_request");
-                    RequestBannerInternal(unitId);
-                }
-                else
-                    GULogger.Log("GameUp", $"AdmobAds ShowBanner waiting load. where={where}, activeUnitId={_bannerUnitIdActive ?? "null"}");
-            });
+        public void ShowCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom)
+        {
+#if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
+            ShowBannerInternal(where, placement == CollapsibleBannerPlacement.None ? CollapsibleBannerPlacement.Bottom : placement);
 #endif
         }
 
@@ -947,6 +1077,16 @@ namespace GameUp.SDK
             if (!useMultiAdUnitIds) return IsBannerAvailable();
             var unitId = ResolveUnitId(AdUnitType.Banner, where);
             return !string.IsNullOrEmpty(unitId); // banner can be created on demand
+#else
+            return false;
+#endif
+        }
+
+        bool IPlacementAwareAds.IsCollapsibleBannerAvailable(string where)
+        {
+#if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
+            if (!useMultiAdUnitIds) return IsCollapsibleBannerAvailable();
+            return !string.IsNullOrEmpty(ResolveUnitId(AdUnitType.Banner, where));
 #else
             return false;
 #endif

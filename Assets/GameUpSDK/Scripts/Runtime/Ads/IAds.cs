@@ -2,6 +2,13 @@ using System;
 
 namespace GameUp.SDK
 {
+    public enum CollapsibleBannerPlacement
+    {
+        None,
+        Top,
+        Bottom
+    }
+
     public enum AdUnitType
     {
         Banner,
@@ -41,6 +48,7 @@ namespace GameUp.SDK
     public interface IPlacementAwareAds
     {
         bool IsBannerAvailable(string where);
+        bool IsCollapsibleBannerAvailable(string where);
         bool IsInterstitialAvailable(string where);
         bool IsRewardedVideoAvailable(string where);
         bool IsAppOpenAdsAvailable(string where);

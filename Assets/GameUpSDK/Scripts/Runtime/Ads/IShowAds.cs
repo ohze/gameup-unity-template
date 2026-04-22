@@ -8,6 +8,7 @@ namespace GameUp.SDK
     public interface IShowAds
     {
         void ShowBanner(string where);
+        void ShowCollapsibleBanner(string where, CollapsibleBannerPlacement placement = CollapsibleBannerPlacement.Bottom);
         void HideBanner(string where);
         void ShowInterstitial(string where, Action onSuccess, Action onFail);
         void ShowRewardedVideo(string where, Action onSuccess, Action onFail);
