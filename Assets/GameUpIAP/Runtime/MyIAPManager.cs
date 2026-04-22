@@ -44,6 +44,7 @@ namespace GameUp.IAP
 
         private List<IAPProductDefinition> _products = new();
         private readonly Dictionary<string, Action<bool>> _purchaseCallbacks = new();
+        private readonly Dictionary<string, int?> _purchaseLevels = new();
         private readonly HashSet<string> _configuredProductIds = new();
 
         private StoreController _storeController;
@@ -169,20 +170,20 @@ namespace GameUp.IAP
             }
         }
 
-        public void BuyProduct(string productId, Action<bool> onPurchaseComplete = null)
+        public void BuyProduct(string productId, Action<bool> onPurchaseComplete = null, int? level = null)
         {
             if (string.IsNullOrWhiteSpace(productId))
             {
                 GULogger.Warning(Tag, "BuyProduct failed because productId is empty.");
-                LogPurchaseFail(productId, "empty_product_id");
+                LogPurchaseFail(productId, "empty_product_id", level);
                 onPurchaseComplete?.Invoke(false);
                 return;
             }
 
             if (testMode)
             {
-                LogPurchaseStart(productId);
-                LogPurchaseSuccess(productId, "TEST", "0", "TEST_ORDER");
+                LogPurchaseStart(productId, level);
+                LogPurchaseSuccess(productId, "TEST", "0", "TEST_ORDER", level);
                 onPurchaseComplete?.Invoke(true);
                 return;
             }
@@ -190,7 +191,7 @@ namespace GameUp.IAP
             if (!IsIAPInitialized)
             {
                 GULogger.Warning(Tag, $"BuyProduct failed because IAP is not initialized yet. productId={productId}");
-                LogPurchaseFail(productId, "iap_not_initialized");
+                LogPurchaseFail(productId, "iap_not_initialized", level);
                 onPurchaseComplete?.Invoke(false);
                 return;
             }
@@ -199,13 +200,14 @@ namespace GameUp.IAP
             if (product == null || !product.availableToPurchase)
             {
                 GULogger.Warning(Tag, $"BuyProduct failed because product is unavailable. productId={productId}");
-                LogPurchaseFail(productId, "product_unavailable");
+                LogPurchaseFail(productId, "product_unavailable", level);
                 onPurchaseComplete?.Invoke(false);
                 return;
             }
 
             _purchaseCallbacks[productId] = onPurchaseComplete;
-            LogPurchaseStart(productId);
+            _purchaseLevels[productId] = level;
+            LogPurchaseStart(productId, level);
             _storeController.PurchaseProduct(product);
         }
 
@@ -447,12 +449,19 @@ namespace GameUp.IAP
         private void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure)
         {
             GULogger.Warning(Tag, $"Fetch purchases failed: {failure}");
-            LogPurchaseFail(string.Empty, "purchases_fetch_failed");
+            LogPurchaseFail(string.Empty, "purchases_fetch_failed", null);
         }
 
         private void OnPurchasePending(PendingOrder order)
         {
             var productId = GetProductIdFromOrder(order);
+            int? level = null;
+            if (!string.IsNullOrWhiteSpace(productId) && _purchaseLevels.TryGetValue(productId, out var storedLevel))
+            {
+                level = storedLevel;
+                _purchaseLevels.Remove(productId);
+            }
+
             if (!string.IsNullOrWhiteSpace(productId) && _purchaseCallbacks.TryGetValue(productId, out var callback))
             {
                 callback?.Invoke(true);
@@ -466,11 +475,11 @@ namespace GameUp.IAP
                     ? "USD"
                     : product.metadata.isoCurrencyCode;
                 var purchasePrice = product.metadata.localizedPrice.ToString(CultureInfo.InvariantCulture);
-                LogPurchaseSuccess(productId, currencyCode, purchasePrice, string.Empty);
+                LogPurchaseSuccess(productId, currencyCode, purchasePrice, string.Empty, level);
             }
             else
             {
-                LogPurchaseSuccess(productId, "USD", "0", string.Empty);
+                LogPurchaseSuccess(productId, "USD", "0", string.Empty, level);
             }
 
             _storeController.ConfirmPurchase(order);
@@ -497,41 +506,53 @@ namespace GameUp.IAP
             });
         }
 
-        private void LogPurchaseStart(string productId)
+        private void LogPurchaseStart(string productId, int? level)
         {
             if (!enableAnalytics)
             {
                 return;
             }
 
-            GameUpAnalytics.LogFirebaseParams(EventIapPurchaseStart, new Dictionary<string, string>
+            var p = new Dictionary<string, string>
             {
                 ["af_content_id"] = productId ?? string.Empty
-            });
+            };
+            if (level.HasValue)
+            {
+                p[AnalyticsEvent.ParamLevel] = level.Value.ToString();
+            }
+
+            GameUpAnalytics.LogFirebaseParams(EventIapPurchaseStart, p);
         }
 
-        private void LogPurchaseFail(string productId, string reason)
+        private void LogPurchaseFail(string productId, string reason, int? level)
         {
             if (!enableAnalytics)
             {
                 return;
             }
 
-            GameUpAnalytics.LogFirebaseParams(EventIapPurchaseFail, new Dictionary<string, string>
+            var p = new Dictionary<string, string>
             {
                 ["af_content_id"] = productId ?? string.Empty,
                 ["source"] = reason ?? string.Empty
-            });
+            };
+            if (level.HasValue)
+            {
+                p[AnalyticsEvent.ParamLevel] = level.Value.ToString();
+            }
+
+            GameUpAnalytics.LogFirebaseParams(EventIapPurchaseFail, p);
         }
 
-        private void LogPurchaseSuccess(string productId, string currencyCode, string purchasePrice, string orderId)
+        private void LogPurchaseSuccess(string productId, string currencyCode, string purchasePrice, string orderId, int? level)
         {
             if (!enableAnalytics)
             {
                 return;
             }
 
-            GameUpAnalytics.LogPurchase(currencyCode, 1, productId, purchasePrice, orderId);
+            GameUpAnalytics.LogPurchase(currencyCode, 1, productId, purchasePrice, orderId, null, null, level);
         }
     }
 }

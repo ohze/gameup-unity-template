@@ -212,9 +212,9 @@ namespace GameUp.SDK
             LogAppsFlyer(AnalyticsEvent.AfCompleteRegistration, p.Count > 0 ? p : null);
         }
 
-        /// <summary> af_purchase </summary>
+        /// <summary> af_purchase; <paramref name="level"/> — level đang chơi khi mua (Firebase/AppsFlyer/Facebook params). </summary>
         public static void LogPurchase(string currencyCode, int quantity, string contentId, string purchasePrice, string orderId,
-            string registrationMethod = null, string customerUserId = null)
+            string registrationMethod = null, string customerUserId = null, int? level = null)
         {
             string normalizedCurrency = string.IsNullOrWhiteSpace(currencyCode) ? "USD" : currencyCode;
             double revenueAmount = 0d;
@@ -234,6 +234,7 @@ namespace GameUp.SDK
             };
             if (!string.IsNullOrEmpty(registrationMethod)) afParams[AnalyticsEvent.ParamAfRegistrationMethod] = registrationMethod;
             if (!string.IsNullOrEmpty(customerUserId)) afParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
+            if (level.HasValue) afParams[AnalyticsEvent.ParamLevel] = level.Value.ToString();
             LogAppsFlyer(AnalyticsEvent.AfPurchase, afParams);
 
             var firebaseParams = new Dictionary<string, string>
@@ -246,6 +247,7 @@ namespace GameUp.SDK
             };
             if (!string.IsNullOrEmpty(registrationMethod)) firebaseParams[AnalyticsEvent.ParamAfRegistrationMethod] = registrationMethod;
             if (!string.IsNullOrEmpty(customerUserId)) firebaseParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
+            if (level.HasValue) firebaseParams[AnalyticsEvent.ParamLevel] = level.Value.ToString();
             LogFirebaseParams(AnalyticsEvent.AfPurchase, firebaseParams);
 
 #if FACEBOOK_DEPENDENCIES_INSTALLED && !UNITY_EDITOR && (UNITY_ANDROID || UNITY_IOS)
@@ -268,6 +270,9 @@ namespace GameUp.SDK
 
                 if (!string.IsNullOrEmpty(customerUserId))
                     fbParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
+
+                if (level.HasValue)
+                    fbParams[AnalyticsEvent.ParamLevel] = level.Value.ToString();
 
                 FB.LogPurchase(purchaseAmount, normalizedCurrency, fbParams);
             }
