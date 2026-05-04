@@ -1,12 +1,11 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "displayName": "GameUp Core",
-  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer. Cursor: package ships templates in Documentation~/cursor-rules; on first editor load they copy to .cursor/rules if missing, or use menu GameUp/Project/Install Cursor IDE rules. Template repo: https://github.com/ohze/gameup-unity-template \n\nDuyLV 2026",
+  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer. Cursor IDE (optional): UPM does not allow git URLs inside a package's dependencies — add to the *project* Packages/manifest.json: \"com.boxqkrtm.ide.cursor\": \"https://github.com/boxqkrtm/com.unity.ide.cursor.git\". Cursor rules: templates in Documentation~/cursor-rules; first editor load copies to .cursor/rules if missing; menu GameUp/Project/Install Cursor IDE rules. Repo: https://github.com/ohze/gameup-unity-template \n\nDuyLV 2026",
   "unity": "2022.3",
   "dependencies": {
-    "com.unity.addressables": "1.22.3",
-    "com.boxqkrtm.ide.cursor": "https://github.com/boxqkrtm/com.unity.ide.cursor.git"
+    "com.unity.addressables": "1.22.3"
   },
   "repository": {
     "type": "git",
