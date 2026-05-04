@@ -1,0 +1,34 @@
+---
+description: Quy ước script game tại Assets/_MainProject/Scripts
+globs: Assets/_MainProject/Scripts/**/*.cs
+alwaysApply: false
+---
+
+# `_MainProject/Scripts` — code game (không phải Core)
+
+## Phạm vi
+
+- Chỉ đặt **logic/feature game** (Gameplay, UI game, Tutorial, Audio ID, helper project…).
+- **Không** copy-paste hoặc “fork” lại lớp đã có trong GameUp Core; gọi Core qua `using GameUp.Core` / `GameUp.Core.UI`.
+
+## Cấu trúc thư mục
+
+- `Core/` — helper chỉ dùng cho game này (vd: điểm đích, bridge), không trùng vai với `GameUp.Core`.
+- `Gameplay/` — luồng chơi, entity game.
+- `UI/` — view/panel **cụ thể game** (có thể `MonoBehaviour` hoặc kế thừa `UIBaseView` / `UIScreen` / `UIPopup` tùy nhu cầu).
+- `Audio/` — enum/ID âm thanh game, mapping sang `AudioIdentity` / database.
+- `Tutorial/` — flow tutorial; SO + Editor trong cùng cây feature.
+- Editor-only: thư mục `Editor/` dưới feature, bọc `#if UNITY_EDITOR` khi cần.
+
+## Namespace
+
+- Tránh namespace `GameUp.Core` / `GameUp.Core.UI` cho type **mới** của game — dùng namespace riêng project (vd: `GameUp.Game`, `YourStudio.Game.UI`, …) để phân biệt với package.
+- Giữ **một class = một file**, tên file trùng tên public type.
+
+## Assembly
+
+- Nếu thêm `.asmdef` cho `_MainProject`: tham chiếu `GameUp.Core.Runtime` và (khi dùng UI Core + DOTween) `GameUp.UI.Runtime`.
+
+## Tuân thủ chung
+
+- Naming, logging (`GULogger`), SO, Scene/Prefab: theo `.cursorrules` và `doc/unity_conventions.md` của repo.

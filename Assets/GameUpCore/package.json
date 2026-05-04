@@ -1,11 +1,17 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "displayName": "GameUp Core",
-  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer. \n\nDuyLV 2026",
+  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer. Cursor: package ships templates in Documentation~/cursor-rules; on first editor load they copy to .cursor/rules if missing, or use menu GameUp/Project/Install Cursor IDE rules. Template repo: https://github.com/ohze/gameup-unity-template \n\nDuyLV 2026",
   "unity": "2022.3",
   "dependencies": {
-    "com.unity.addressables": "1.22.3"
+    "com.unity.addressables": "1.22.3",
+    "com.boxqkrtm.ide.cursor": "https://github.com/boxqkrtm/com.unity.ide.cursor.git"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ohze/gameup-unity-template.git",
+    "directory": "Assets/GameUpCore"
   },
   "author": {
     "name": "GameUp",

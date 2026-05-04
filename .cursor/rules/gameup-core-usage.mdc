@@ -1,0 +1,43 @@
+---
+description: Tận dụng GameUp Core (API, namespace, UPM) khi viết C# Unity
+alwaysApply: true
+---
+
+# GameUp Core — dùng đúng lực framework
+
+Khi gợi ý/sửa C# trong project này, **ưu tiên API có sẵn** thay vì tự làm lại (singleton tự chế, pool thủ công, `Debug.Log`, v.v.).
+
+## Vị trí code Core
+
+- **Embedded:** `Assets/GameUpCore/…`
+- **UPM (đã cài package):** `Packages/com.ohze.gameup.core/…` — **không** chỉnh sửa trực tiếp nếu đây là bản restore từ registry/Git; mở rộng bằng code game tại `Assets/_MainProject/`.
+
+Asmdef runtime: `GameUp.Core.Runtime` (`GameUp.Core`, `GameUp.Core.Serializer`), `GameUp.UI.Runtime` (`GameUp.Core.UI`, cần DOTween + define `DOTween__DEPENDENCIES_INSTALLED` theo installer).
+
+## Module chính (namespace)
+
+| Nhu cầu | Dùng |
+|--------|------|
+| Log | `GULogger` (`GameUp.Core`) — không `Debug.Log` trong feature |
+| Singleton Mono | `MonoSingleton<T>` |
+| Singleton C# / SO | `Singleton<T>`, `ScriptableObjectSingleton<T>`, `ResourcesSingleton` |
+| Signal / “event” type-safe | `Signal`, `BaseSignal`, `IBaseSignal` trong `GameUp.Core` |
+| Pool object | `GUPool`, `GUPoolers` |
+| Audio + Addressables | `AudioManager`, `AudioIdentity` / `AudioIdentityReference`, `AudioDatabase`, `AudioSetting` |
+| Lưu local / JSON / mã hóa | `BaseDataSave<T>`, `LocalStorageUtils`, `JsonHelper`, `EncryptUtils`, `FileStorageUtils` |
+| Addressables prefab/component | `ComponentReference<T>`, `DataReference`, `AddressableDataHolder` |
+| Coroutine không gắn MonoBehaviour | `CoroutineRunner` |
+| Thời gian game | `TimeManager`, `TimeUtils` |
+| UI nền: màn / popup | `UIScreen`, `UIPopup` kế thừa `UIBaseView`; data `ScreenData`, `PopupData`; animation `UIBaseAnimation`, `UIDefaultAnimation`, DOTween helpers trong `TransitionUtils` |
+| Loading / Toast | `Loading`, `LoadingOverlayBase`, `Toast`, `ToastItem` |
+| Canvas / an toàn notch | `SafeArea`, `MultiResolution` |
+| Tìm object theo ID scene | `ObjectFinder` (UI holder, v.v.) |
+| Extension / tiện ích | `GameUtils`, `StringUtils`, `UIExtension`, `MonoExtension`, `CoroutineExtension`, `[Button]` attribute |
+
+## UI game mới
+
+- Màn hình/popup game: class **kế thừa** `UIScreen` / `UIPopup` (hoặc `UIBaseView`), đặt prefab đúng pipeline Core (Resources `Data/ScreenData`, `Data/PopupData`, holder trong scene theo `ObjectFinder`).
+
+## Ghi chú
+
+- `package.json` có thể nhắn từ khóa rộng (EventBus/FSM); trong repo hiện tại hãy bám **Signal + các class trên**, không giả định có FSM riêng nếu chưa thấy trong package.

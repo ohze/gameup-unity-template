@@ -1,5 +1,6 @@
 # GameUp Unity — Cursor AI Rules
 # Nguồn: doc/unity_conventions.md — áp dụng khi viết/sửa C#, Scene, Prefab, ScriptableObject.
+# Bổ sung theo ngữ cảnh: `.cursor/rules/` (gameup-core-usage, mainproject-scripts, gameup-core-upm-package).
 
 ## C# Naming
 - **Class / Struct:** PascalCase; tên phải là danh từ hoặc cụm danh từ (vd: `PlayerManager`, `WeaponConfig`). Không bắt đầu bằng động từ.
@@ -19,16 +20,16 @@
 - **Giữ file gọn:** nếu sau refactor không còn dùng class/field/method nào, xóa luôn phần không dùng (tránh “dead code”).
 
 ## Logging
-- **Không** gọi `UnityEngine.Debug` (`Debug.Log`, `Debug.LogWarning`, `Debug.LogError`, `Debug.LogException`, …) trong code game/feature; dùng `GameUp.Core.GULogger` tại `Assets/GameUpCore/Runtime/Core/Logger/GULogger.cs` (`Log` / `Verbose` / `Warning` / `Error` / `Exception`, có overload kèm `tag`).
+- **Không** gọi `UnityEngine.Debug` (`Debug.Log`, `Debug.LogWarning`, `Debug.LogError`, `Debug.LogException`, …) trong code game/feature; dùng `GameUp.Core.GULogger` (`Log` / `Verbose` / `Warning` / `Error` / `Exception`, có overload kèm `tag`). File nguồn: embedded `Assets/GameUpCore/Runtime/Core/Logger/GULogger.cs`, hoặc UPM `Packages/com.ohze.gameup.core/Runtime/Core/Logger/GULogger.cs`.
 - Chỉ `GULogger` (hoặc lớp logger nội bộ khác của core) được phép wrap `Debug`; không thêm chỗ gọi `Debug` trực tiếp ngoài đó khi viết/sửa code mới.
 
 ## Folder structure (Assets)
-- Gom asset game vào thư mục gốc project (vd: `Assets/_Project/` hoặc `GameUpCore/`), không để rải rác ngoài `Assets/`.
+- Gom asset game vào thư mục gốc project (template này: `Assets/_MainProject/`; có thể dùng `Assets/_Project/` tương tự), không để rải rác ngoài `Assets/`. Framework: `Assets/GameUpCore/` hoặc package `Packages/com.ohze.gameup.core/` — không trùng hai nguồn Core.
 - Không trộn code nội bộ với `Plugins` hay `ThirdParty`.
-- Gợi ý: `_Project/Art`, `Audio`, `Prefabs`, `Scenes`, `Scripts` (Core / Gameplay / UI), `ScriptableObjects`; riêng `Plugins` (dll/native), `ThirdParty` (Asset Store).
+- Gợi ý: `Art`, `Audio`, `Prefabs`, `Scenes`, `Scripts` (Core / Gameplay / UI), `ScriptableObjects`; riêng `Plugins` (dll/native), `ThirdParty` (Asset Store).
 
 ## ScriptableObject
-- Lưu tập trung `Assets/_Project/ScriptableObjects/` (chia nhỏ theo danh mục); có thể đặt gần Prefab/logic nếu gắn chặt.
+- Lưu tập trung (vd: `Assets/_MainProject/ScriptableObjects/` hoặc `Assets/_Project/ScriptableObjects/`, chia nhỏ theo danh mục); có thể đặt gần Prefab/logic nếu gắn chặt.
 - Luôn có `[CreateAssetMenu]` với `menuName` phân cấp rõ (vd: `"GameUp/Entity Data/Enemy"`).
 - **Tên class/file SO:** prefix `SO` + suffix mục đích: `Data`, `Config`, `Settings` (vd: `SO_EnemyConfig`, `SOGameSettings`). `fileName` asset có thể dạng `SO_...`.
 
@@ -39,5 +40,5 @@
 - UI/entity lớn → **Nested Prefab** để nhiều người sửa song song, giảm conflict.
 
 ## Khi gợi ý code
-- Tuân thủ naming/style ở trên; script mới đặt đúng `Scripts/Core|Gameplay|UI` theo vai trò.
+- Tuân thủ naming/style ở trên; script game mới trong template: `Assets/_MainProject/Scripts/` (chia `Core|Gameplay|UI|…` theo vai trò). Ưu tiên API GameUp Core thay vì làm lại — xem `.cursor/rules/gameup-core-usage.mdc`.
 - Tham chiếu đầy đủ: `doc/unity_conventions.md`.

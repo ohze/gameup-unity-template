@@ -1,0 +1,23 @@
+---
+description: GameUp Core khi cài qua UPM (Packages) — đường dẫn và giới hạn sửa
+globs: Packages/com.ohze.gameup.core/**/*.cs
+alwaysApply: false
+---
+
+# Core dưới dạng UPM (`com.ohze.gameup.core`)
+
+## Đường dẫn
+
+- Mã nguồn runtime: `Packages/com.ohze.gameup.core/Runtime/…` (tương đương `Assets/GameUpCore/Runtime/…` khi dev embedded).
+- Editor: `…/Editor/…`, prefab mẫu trong package tương tự cấu trúc `Prefab/`.
+
+## Quy tắc khi Agent mở file trong `Packages/com.ohze.gameup.core/`
+
+1. **Mặc định chỉ đọc / fix lỗi rõ ràng** — package từ registry là nguồn chuẩn; tránh refactor lớn trong `Packages/`.
+2. **Tính năng game** → sửa tại `Assets/_MainProject/Scripts` (hoặc submodule/fork của core nếu team quản lý riêng).
+3. Giữ **namespace** `GameUp.Core`, `GameUp.Core.UI`, `GameUp.Core.Editor` — không nhét type game vào đây khi làm việc trên bản package consumer.
+4. **Version & dependency:** `package.json` của package khai báo `com.unity.addressables`; UI runtime cần DOTween + define — không xóa constraint đó khi sửa package.
+
+## Trùng embedded vs package
+
+- Trong một solution Unity chỉ nên có **một** nguồn Core (embedded **hoặc** UPM), tránh trùng asmdef.
