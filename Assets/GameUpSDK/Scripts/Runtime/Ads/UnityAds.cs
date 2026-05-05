@@ -1,8 +1,12 @@
 using System;
 using UnityEngine;
 using GameUp.Core;
+using UnityEngine.Serialization;
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
 using Unity.Services.LevelPlay;
+#endif
+#if UNITY_EDITOR
+using UnityEditor;
 #endif
 
 namespace GameUp.SDK
@@ -17,9 +21,17 @@ namespace GameUp.SDK
         [SerializeField] private string levelPlayAppKey;
 
         [Header("Ad Unit IDs")]
-        [SerializeField] private string bannerAdUnitId;
-        [SerializeField] private string interstitialAdUnitId;
-        [SerializeField] private string rewardedVideoAdUnitId;
+        [FormerlySerializedAs("bannerAdUnitId")]
+        [SerializeField] private string bannerAdUnitIdAndroid;
+        [SerializeField] private string bannerAdUnitIdIOS;
+
+        [FormerlySerializedAs("interstitialAdUnitId")]
+        [SerializeField] private string interstitialAdUnitIdAndroid;
+        [SerializeField] private string interstitialAdUnitIdIOS;
+
+        [FormerlySerializedAs("rewardedVideoAdUnitId")]
+        [SerializeField] private string rewardedVideoAdUnitIdAndroid;
+        [SerializeField] private string rewardedVideoAdUnitIdIOS;
 
         public int OrderExecute { get; set; }
 
@@ -33,9 +45,13 @@ namespace GameUp.SDK
         public void SetLevelPlayConfig(string appKey, string bannerId, string interstitialId, string rewardedId)
         {
             levelPlayAppKey = appKey;
-            bannerAdUnitId = bannerId;
-            interstitialAdUnitId = interstitialId;
-            rewardedVideoAdUnitId = rewardedId;
+            // Keep backward compatibility: old API sets both platforms.
+            bannerAdUnitIdAndroid = bannerId;
+            bannerAdUnitIdIOS = bannerId;
+            interstitialAdUnitIdAndroid = interstitialId;
+            interstitialAdUnitIdIOS = interstitialId;
+            rewardedVideoAdUnitIdAndroid = rewardedId;
+            rewardedVideoAdUnitIdIOS = rewardedId;
         }
 
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
@@ -91,12 +107,52 @@ namespace GameUp.SDK
 
         private void CreateAdUnits()
         {
-            if (!string.IsNullOrEmpty(bannerAdUnitId))
-                _bannerAd = new LevelPlayBannerAd(bannerAdUnitId);
-            if (!string.IsNullOrEmpty(interstitialAdUnitId))
-                _interstitialAd = new LevelPlayInterstitialAd(interstitialAdUnitId);
-            if (!string.IsNullOrEmpty(rewardedVideoAdUnitId))
-                _rewardedAd = new LevelPlayRewardedAd(rewardedVideoAdUnitId);
+            var bannerId = GetSingleUnitId(AdUnitType.Banner);
+            var interstitialId = GetSingleUnitId(AdUnitType.Interstitial);
+            var rewardedId = GetSingleUnitId(AdUnitType.RewardedVideo);
+            if (!string.IsNullOrEmpty(bannerId))
+                _bannerAd = new LevelPlayBannerAd(bannerId);
+            if (!string.IsNullOrEmpty(interstitialId))
+                _interstitialAd = new LevelPlayInterstitialAd(interstitialId);
+            if (!string.IsNullOrEmpty(rewardedId))
+                _rewardedAd = new LevelPlayRewardedAd(rewardedId);
+        }
+
+        private enum RuntimeAdPlatform
+        {
+            Android,
+            IOS
+        }
+
+        private static RuntimeAdPlatform GetRuntimeAdPlatform()
+        {
+            if (GameUtils.IsIOS)
+                return RuntimeAdPlatform.IOS;
+            if (GameUtils.IsAndroid)
+                return RuntimeAdPlatform.Android;
+#if UNITY_EDITOR
+            return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS
+                ? RuntimeAdPlatform.IOS
+                : RuntimeAdPlatform.Android;
+#else
+            return RuntimeAdPlatform.Android;
+#endif
+        }
+
+        private string GetSingleUnitId(AdUnitType type)
+        {
+            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
+            switch (type)
+            {
+                case AdUnitType.Banner:
+                    return isAndroid ? bannerAdUnitIdAndroid : bannerAdUnitIdIOS;
+                case AdUnitType.Interstitial:
+                    return isAndroid ? interstitialAdUnitIdAndroid : interstitialAdUnitIdIOS;
+                case AdUnitType.RewardedVideo:
+                    return isAndroid ? rewardedVideoAdUnitIdAndroid : rewardedVideoAdUnitIdIOS;
+                default:
+                    return null;
+            }
         }
 
         private void SubscribeToAdEvents()

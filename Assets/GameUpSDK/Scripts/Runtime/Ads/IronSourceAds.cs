@@ -1,8 +1,12 @@
 using System;
 using UnityEngine;
 using GameUp.Core;
+using UnityEngine.Serialization;
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
 using Unity.Services.LevelPlay;
+#endif
+#if UNITY_EDITOR
+using UnityEditor;
 #endif
 
 namespace GameUp.SDK
@@ -23,13 +27,25 @@ namespace GameUp.SDK
         [Tooltip("Bật để dùng nhiều Placement/Ad Unit theo placement key (where). Tắt = dùng 1 ID/format như hiện tại.")]
         [SerializeField] private bool useMultiAdUnitIds;
 
-        [Tooltip("Danh sách mapping: (AdType, NameId=where, Id=placement id). Chỉ dùng khi useMultiAdUnitIds=true.")]
-        [SerializeField] private System.Collections.Generic.List<AdUnitIdEntry> adUnitIds = new System.Collections.Generic.List<AdUnitIdEntry>();
+        [Tooltip("Danh sách mapping Android: (AdType, NameId=where, Id=placement id). Chỉ dùng khi useMultiAdUnitIds=true.")]
+        [FormerlySerializedAs("adUnitIds")]
+        [SerializeField] private System.Collections.Generic.List<AdUnitIdEntry> adUnitIdsAndroid = new System.Collections.Generic.List<AdUnitIdEntry>();
+
+        [Tooltip("Danh sách mapping iOS: (AdType, NameId=where, Id=placement id). Chỉ dùng khi useMultiAdUnitIds=true.")]
+        [SerializeField] private System.Collections.Generic.List<AdUnitIdEntry> adUnitIdsIOS = new System.Collections.Generic.List<AdUnitIdEntry>();
 
         [Header("Ad Unit / Placement IDs (để trống = dùng placement mặc định)")]
-        [SerializeField] private string bannerAdUnitId;
-        [SerializeField] private string interstitialAdUnitId;
-        [SerializeField] private string rewardedVideoAdUnitId;
+        [FormerlySerializedAs("bannerAdUnitId")]
+        [SerializeField] private string bannerAdUnitIdAndroid;
+        [SerializeField] private string bannerAdUnitIdIOS;
+
+        [FormerlySerializedAs("interstitialAdUnitId")]
+        [SerializeField] private string interstitialAdUnitIdAndroid;
+        [SerializeField] private string interstitialAdUnitIdIOS;
+
+        [FormerlySerializedAs("rewardedVideoAdUnitId")]
+        [SerializeField] private string rewardedVideoAdUnitIdAndroid;
+        [SerializeField] private string rewardedVideoAdUnitIdIOS;
 
         public int OrderExecute { get; set; }
 
@@ -48,9 +64,13 @@ namespace GameUp.SDK
         public void SetLevelPlayConfig(string appKey, string bannerId, string interstitialId, string rewardedId)
         {
             levelPlayAppKey = appKey;
-            bannerAdUnitId = bannerId;
-            interstitialAdUnitId = interstitialId;
-            rewardedVideoAdUnitId = rewardedId;
+            // Keep backward compatibility: old API sets both platforms.
+            bannerAdUnitIdAndroid = bannerId;
+            bannerAdUnitIdIOS = bannerId;
+            interstitialAdUnitIdAndroid = interstitialId;
+            interstitialAdUnitIdIOS = interstitialId;
+            rewardedVideoAdUnitIdAndroid = rewardedId;
+            rewardedVideoAdUnitIdIOS = rewardedId;
         }
 
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
@@ -193,9 +213,9 @@ namespace GameUp.SDK
 
             if (!useMultiAdUnitIds)
             {
-                var bannerId = string.IsNullOrEmpty(bannerAdUnitId) ? DefaultBannerId : bannerAdUnitId;
-                var interId = string.IsNullOrEmpty(interstitialAdUnitId) ? DefaultInterstitialId : interstitialAdUnitId;
-                var rewardId = string.IsNullOrEmpty(rewardedVideoAdUnitId) ? DefaultRewardedId : rewardedVideoAdUnitId;
+                var bannerId = GetSingleUnitIdOrDefault(AdUnitType.Banner, DefaultBannerId);
+                var interId = GetSingleUnitIdOrDefault(AdUnitType.Interstitial, DefaultInterstitialId);
+                var rewardId = GetSingleUnitIdOrDefault(AdUnitType.RewardedVideo, DefaultRewardedId);
 
                 _bannerAd = new LevelPlayBannerAd(bannerId, bannerConfig);
                 _interstitialAd = new LevelPlayInterstitialAd(interId);
@@ -208,9 +228,10 @@ namespace GameUp.SDK
             _rewardedByWhere.Clear();
             _bannerLoadedByWhere.Clear();
 
-            for (int i = 0; i < adUnitIds.Count; i++)
+            var activeAdUnitIds = GetActiveAdUnitIds();
+            for (int i = 0; i < activeAdUnitIds.Count; i++)
             {
-                var e = adUnitIds[i];
+                var e = activeAdUnitIds[i];
                 if (e == null || !e.IsValid()) continue;
                 if (string.IsNullOrEmpty(e.NameId)) continue;
 
@@ -232,12 +253,67 @@ namespace GameUp.SDK
             }
 
             // Fallback single/default objects for callers still using old APIs.
-            var bannerFallbackId = string.IsNullOrEmpty(bannerAdUnitId) ? DefaultBannerId : bannerAdUnitId;
-            var interFallbackId = string.IsNullOrEmpty(interstitialAdUnitId) ? DefaultInterstitialId : interstitialAdUnitId;
-            var rewardFallbackId = string.IsNullOrEmpty(rewardedVideoAdUnitId) ? DefaultRewardedId : rewardedVideoAdUnitId;
+            var bannerFallbackId = GetSingleUnitIdOrDefault(AdUnitType.Banner, DefaultBannerId);
+            var interFallbackId = GetSingleUnitIdOrDefault(AdUnitType.Interstitial, DefaultInterstitialId);
+            var rewardFallbackId = GetSingleUnitIdOrDefault(AdUnitType.RewardedVideo, DefaultRewardedId);
             _bannerAd = new LevelPlayBannerAd(bannerFallbackId, bannerConfig);
             _interstitialAd = new LevelPlayInterstitialAd(interFallbackId);
             _rewardedAd = new LevelPlayRewardedAd(rewardFallbackId);
+        }
+
+        private enum RuntimeAdPlatform
+        {
+            Android,
+            IOS
+        }
+
+        private static RuntimeAdPlatform GetRuntimeAdPlatform()
+        {
+            if (GameUtils.IsIOS)
+                return RuntimeAdPlatform.IOS;
+            if (GameUtils.IsAndroid)
+                return RuntimeAdPlatform.Android;
+#if UNITY_EDITOR
+            return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS
+                ? RuntimeAdPlatform.IOS
+                : RuntimeAdPlatform.Android;
+#else
+            return RuntimeAdPlatform.Android;
+#endif
+        }
+
+        private string GetSingleUnitId(AdUnitType type)
+        {
+            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
+            switch (type)
+            {
+                case AdUnitType.Banner:
+                    return isAndroid ? bannerAdUnitIdAndroid : bannerAdUnitIdIOS;
+                case AdUnitType.Interstitial:
+                    return isAndroid ? interstitialAdUnitIdAndroid : interstitialAdUnitIdIOS;
+                case AdUnitType.RewardedVideo:
+                    return isAndroid ? rewardedVideoAdUnitIdAndroid : rewardedVideoAdUnitIdIOS;
+                default:
+                    return null;
+            }
+        }
+
+        private string GetSingleUnitIdOrDefault(AdUnitType type, string fallbackDefault)
+        {
+            var id = GetSingleUnitId(type);
+            return string.IsNullOrEmpty(id) ? fallbackDefault : id;
+        }
+
+        private System.Collections.Generic.List<AdUnitIdEntry> GetActiveAdUnitIds()
+        {
+            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
+            var preferred = isAndroid ? adUnitIdsAndroid : adUnitIdsIOS;
+            var fallback = isAndroid ? adUnitIdsIOS : adUnitIdsAndroid;
+            if (preferred != null && preferred.Count > 0)
+                return preferred;
+            if (fallback != null && fallback.Count > 0)
+                return fallback;
+            return preferred ?? new System.Collections.Generic.List<AdUnitIdEntry>();
         }
 
         private static LevelPlayAdSize GetLevelPlayAdSize(BannerSize size)
@@ -559,12 +635,13 @@ namespace GameUp.SDK
             adType = AdUnitType.Interstitial;
             nameId = null;
 
-            if (!useMultiAdUnitIds || adUnitIds == null || adUnitIds.Count == 0)
+            var activeAdUnitIds = GetActiveAdUnitIds();
+            if (!useMultiAdUnitIds || activeAdUnitIds == null || activeAdUnitIds.Count == 0)
                 return false;
 
-            for (int i = 0; i < adUnitIds.Count; i++)
+            for (int i = 0; i < activeAdUnitIds.Count; i++)
             {
-                var e = adUnitIds[i];
+                var e = activeAdUnitIds[i];
                 if (e == null) continue;
                 if (e.intId != intId) continue;
                 if (!e.IsValid()) continue;

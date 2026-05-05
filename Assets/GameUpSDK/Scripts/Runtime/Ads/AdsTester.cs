@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using GameUp.Core;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace GameUp.SDK
 {
@@ -345,15 +348,15 @@ namespace GameUp.SDK
             mode = useMulti ? TestMode.Multi : TestMode.Single;
             if (useMulti)
             {
-                var entries = ReadPrivateField<List<AdUnitIdEntry>>(src, "adUnitIds");
+                var entries = ReadPlatformAdUnitEntries(src, "adUnitIdsAndroid", "adUnitIdsIOS", "adUnitIds");
                 AddMultiItems(entries, "AdMob", uniqueKeys);
                 return;
             }
 
-            AddSingleItemIfValid(AdUnitType.Banner, "main", ReadPrivateField<string>(src, "bannerAdUnitId"), "AdMob");
-            AddSingleItemIfValid(AdUnitType.Interstitial, "main", ReadPrivateField<string>(src, "interstitialAdUnitId"), "AdMob");
-            AddSingleItemIfValid(AdUnitType.RewardedVideo, "main", ReadPrivateField<string>(src, "rewardedAdUnitId"), "AdMob");
-            AddSingleItemIfValid(AdUnitType.AppOpen, "main", ReadPrivateField<string>(src, "appOpenAdUnitId"), "AdMob");
+            AddSingleItemIfValid(AdUnitType.Banner, "main", ReadPlatformSingleId(src, "bannerAdUnitIdAndroid", "bannerAdUnitIdIOS", "bannerAdUnitId"), "AdMob");
+            AddSingleItemIfValid(AdUnitType.Interstitial, "main", ReadPlatformSingleId(src, "interstitialAdUnitIdAndroid", "interstitialAdUnitIdIOS", "interstitialAdUnitId"), "AdMob");
+            AddSingleItemIfValid(AdUnitType.RewardedVideo, "main", ReadPlatformSingleId(src, "rewardedAdUnitIdAndroid", "rewardedAdUnitIdIOS", "rewardedAdUnitId"), "AdMob");
+            AddSingleItemIfValid(AdUnitType.AppOpen, "main", ReadPlatformSingleId(src, "appOpenAdUnitIdAndroid", "appOpenAdUnitIdIOS", "appOpenAdUnitId"), "AdMob");
         }
 
         private void BuildFromIronSource(IronSourceAds src, HashSet<string> uniqueKeys)
@@ -363,14 +366,14 @@ namespace GameUp.SDK
             mode = useMulti ? TestMode.Multi : TestMode.Single;
             if (useMulti)
             {
-                var entries = ReadPrivateField<List<AdUnitIdEntry>>(src, "adUnitIds");
+                var entries = ReadPlatformAdUnitEntries(src, "adUnitIdsAndroid", "adUnitIdsIOS", "adUnitIds");
                 AddMultiItems(entries, "LevelPlay", uniqueKeys);
                 return;
             }
 
-            AddSingleItemIfValid(AdUnitType.Banner, "main", ReadPrivateField<string>(src, "bannerAdUnitId"), "LevelPlay");
-            AddSingleItemIfValid(AdUnitType.Interstitial, "main", ReadPrivateField<string>(src, "interstitialAdUnitId"), "LevelPlay");
-            AddSingleItemIfValid(AdUnitType.RewardedVideo, "main", ReadPrivateField<string>(src, "rewardedVideoAdUnitId"), "LevelPlay");
+            AddSingleItemIfValid(AdUnitType.Banner, "main", ReadPlatformSingleId(src, "bannerAdUnitIdAndroid", "bannerAdUnitIdIOS", "bannerAdUnitId"), "LevelPlay");
+            AddSingleItemIfValid(AdUnitType.Interstitial, "main", ReadPlatformSingleId(src, "interstitialAdUnitIdAndroid", "interstitialAdUnitIdIOS", "interstitialAdUnitId"), "LevelPlay");
+            AddSingleItemIfValid(AdUnitType.RewardedVideo, "main", ReadPlatformSingleId(src, "rewardedVideoAdUnitIdAndroid", "rewardedVideoAdUnitIdIOS", "rewardedVideoAdUnitId"), "LevelPlay");
         }
 
         private void AddMultiItems(List<AdUnitIdEntry> entries, string source, HashSet<string> uniqueKeys)
@@ -504,6 +507,51 @@ namespace GameUp.SDK
                 return casted;
 
             return default;
+        }
+
+        private static string ReadPlatformSingleId(object target, string androidFieldName, string iosFieldName, string legacyFieldName = null)
+        {
+            bool useIOS = IsIOSBuildTarget();
+            string preferred = ReadPrivateField<string>(target, useIOS ? iosFieldName : androidFieldName);
+            if (!string.IsNullOrEmpty(preferred))
+                return preferred;
+
+            string fallback = ReadPrivateField<string>(target, useIOS ? androidFieldName : iosFieldName);
+            if (!string.IsNullOrEmpty(fallback))
+                return fallback;
+
+            return string.IsNullOrEmpty(legacyFieldName) ? null : ReadPrivateField<string>(target, legacyFieldName);
+        }
+
+        private static List<AdUnitIdEntry> ReadPlatformAdUnitEntries(object target, string androidFieldName, string iosFieldName, string legacyFieldName = null)
+        {
+            bool useIOS = IsIOSBuildTarget();
+            var preferred = ReadPrivateField<List<AdUnitIdEntry>>(target, useIOS ? iosFieldName : androidFieldName);
+            if (preferred != null && preferred.Count > 0)
+                return preferred;
+
+            var fallback = ReadPrivateField<List<AdUnitIdEntry>>(target, useIOS ? androidFieldName : iosFieldName);
+            if (fallback != null && fallback.Count > 0)
+                return fallback;
+
+            return string.IsNullOrEmpty(legacyFieldName)
+                ? preferred ?? fallback
+                : ReadPrivateField<List<AdUnitIdEntry>>(target, legacyFieldName);
+        }
+
+        private static bool IsIOSBuildTarget()
+        {
+            if (GameUtils.IsIOS)
+                return true;
+#if UNITY_EDITOR
+            if (GameUtils.IsEditor)
+                return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS;
+#endif
+#if UNITY_IOS || UNITY_IPHONE
+            return true;
+#else
+            return false;
+#endif
         }
 
         private static void CopyItem(AdsTestItem from, AdsTestItem to)

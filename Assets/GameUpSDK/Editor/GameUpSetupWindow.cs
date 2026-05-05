@@ -121,24 +121,41 @@ namespace GameUp.SDK.Editor
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
         // IronSource (IronSourceAds: levelPlayAppKey, bannerAdUnitId, interstitialAdUnitId, rewardedVideoAdUnitId)
         private string _ironSourceAppKey = "";
-        private string _ironSourceBannerId = "";
-        private string _ironSourceInterstitialId = "";
-        private string _ironSourceRewardedId = "";
+        private AdMobIdEditorPlatform _ironSourceEditorPlatform = AdMobIdEditorPlatform.Android;
+        private string _ironSourceBannerIdAndroid = "";
+        private string _ironSourceInterstitialIdAndroid = "";
+        private string _ironSourceRewardedIdAndroid = "";
+        private string _ironSourceBannerIdIOS = "";
+        private string _ironSourceInterstitialIdIOS = "";
+        private string _ironSourceRewardedIdIOS = "";
         private bool _ironSourceUseMultiAdUnitIds;
-        private List<GameUp.SDK.AdUnitIdEntry> _ironSourceAdUnitIds = new List<GameUp.SDK.AdUnitIdEntry>();
+        private List<GameUp.SDK.AdUnitIdEntry> _ironSourceAdUnitIdsAndroid = new List<GameUp.SDK.AdUnitIdEntry>();
+        private List<GameUp.SDK.AdUnitIdEntry> _ironSourceAdUnitIdsIOS = new List<GameUp.SDK.AdUnitIdEntry>();
 
         // LevelPlay Mediation Settings (LevelPlayMediationSettings.asset)
         private string _levelPlayAndroidAppKey = "";
         private string _levelPlayIOSAppKey = "";
 #endif
 
-        // AdMob (AdmobAds: bannerAdUnitId, interstitialAdUnitId, rewardedAdUnitId, appOpenAdUnitId)
-        private string _admobBannerId = "";
-        private string _admobInterstitialId = "";
-        private string _admobRewardedId = "";
-        private string _admobAppOpenId = "";
+        private enum AdMobIdEditorPlatform
+        {
+            Android,
+            IOS
+        }
+
+        // AdMob (AdmobAds: *AdUnitIdAndroid / *AdUnitIdIOS)
+        private AdMobIdEditorPlatform _admobEditorPlatform = AdMobIdEditorPlatform.Android;
+        private string _admobBannerIdAndroid = "";
+        private string _admobInterstitialIdAndroid = "";
+        private string _admobRewardedIdAndroid = "";
+        private string _admobAppOpenIdAndroid = "";
+        private string _admobBannerIdIOS = "";
+        private string _admobInterstitialIdIOS = "";
+        private string _admobRewardedIdIOS = "";
+        private string _admobAppOpenIdIOS = "";
         private bool _admobUseMultiAdUnitIds;
-        private List<GameUp.SDK.AdUnitIdEntry> _admobAdUnitIds = new List<GameUp.SDK.AdUnitIdEntry>();
+        private List<GameUp.SDK.AdUnitIdEntry> _admobAdUnitIdsAndroid = new List<GameUp.SDK.AdUnitIdEntry>();
+        private List<GameUp.SDK.AdUnitIdEntry> _admobAdUnitIdsIOS = new List<GameUp.SDK.AdUnitIdEntry>();
 
         // Google Mobile Ads App IDs (GoogleMobileAdsSettings.asset)
         private string _googleMobileAdsAndroidAppId = "";
@@ -177,6 +194,10 @@ namespace GameUp.SDK.Editor
 
         private void OnEnable()
         {
+            _admobEditorPlatform = GetDefaultAdmobEditorPlatform();
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+            _ironSourceEditorPlatform = GetDefaultAdmobEditorPlatform();
+#endif
             LoadFromSceneOrPrefabs();
 
             _lastPrimaryMediation = GetPrimaryMediationFromDefines();
@@ -909,18 +930,21 @@ namespace GameUp.SDK.Editor
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("Multi IDs (by placement key = where)", EditorStyles.miniBoldLabel);
             _ironSourceUseMultiAdUnitIds = EditorGUILayout.Toggle("Use Multi IDs", _ironSourceUseMultiAdUnitIds);
+            _ironSourceEditorPlatform = (AdMobIdEditorPlatform)EditorGUILayout.EnumPopup("ID Platform", _ironSourceEditorPlatform);
 
             if (_ironSourceUseMultiAdUnitIds)
             {
                 EditorGUILayout.HelpBox("Mỗi dòng: IntId + AdType + NameId(where) + Id(LevelPlay placement id).", MessageType.Info);
-                DrawAdUnitIdList(ref _ironSourceAdUnitIds);
+                var list = GetSelectedIronSourceAdUnitIdList();
+                DrawAdUnitIdList(ref list);
+                SetSelectedIronSourceAdUnitIdList(list);
             }
             else
             {
                 EditorGUILayout.LabelField("Ad Unit / Placement IDs (tùy chọn; để trống = dùng DefaultBanner, DefaultInterstitial, DefaultRewardedVideo)", EditorStyles.miniBoldLabel);
-                _ironSourceBannerId = EditorGUILayout.TextField("Banner ID", _ironSourceBannerId);
-                _ironSourceInterstitialId = EditorGUILayout.TextField("Interstitial ID", _ironSourceInterstitialId);
-                _ironSourceRewardedId = EditorGUILayout.TextField("Rewarded ID", _ironSourceRewardedId);
+                SetSelectedIronSourceBannerId(EditorGUILayout.TextField("Banner ID", GetSelectedIronSourceBannerId()));
+                SetSelectedIronSourceInterstitialId(EditorGUILayout.TextField("Interstitial ID", GetSelectedIronSourceInterstitialId()));
+                SetSelectedIronSourceRewardedId(EditorGUILayout.TextField("Rewarded ID", GetSelectedIronSourceRewardedId()));
             }
 
             EditorGUILayout.Space(12);
@@ -937,6 +961,7 @@ namespace GameUp.SDK.Editor
             EditorGUILayout.HelpBox(
                 "SDK mặc định chỉ dùng IronSource Mediation. Thêm AdmobAds vào adsBehaviours trong prefab SDK nếu cần App Open.\n" +
                 "Target: AdmobAds trên " + PathAdMob, MessageType.None);
+            _admobEditorPlatform = (AdMobIdEditorPlatform)EditorGUILayout.EnumPopup("ID Platform", _admobEditorPlatform);
             EditorGUILayout.Space(8);
             EditorGUILayout.LabelField("Multi IDs (by placement key = where)", EditorStyles.miniBoldLabel);
             _admobUseMultiAdUnitIds = EditorGUILayout.Toggle("Use Multi IDs", _admobUseMultiAdUnitIds);
@@ -944,15 +969,18 @@ namespace GameUp.SDK.Editor
             if (_admobUseMultiAdUnitIds)
             {
                 EditorGUILayout.HelpBox("Mỗi dòng: IntId + AdType + NameId(where) + Id(Ad Unit). AdsManager sẽ chọn quảng cáo theo where.", MessageType.Info);
-                DrawAdUnitIdList(ref _admobAdUnitIds);
+                var list = GetSelectedAdmobAdUnitIdList();
+                DrawAdUnitIdList(ref list);
+                SetSelectedAdmobAdUnitIdList(list);
             }
             else
             {
-                EditorGUILayout.LabelField("Ad Unit IDs (single) (chỉ cần nếu dùng App Open)", EditorStyles.miniBoldLabel);
-                _admobBannerId = EditorGUILayout.TextField("Banner ID", _admobBannerId);
-                _admobInterstitialId = EditorGUILayout.TextField("Interstitial ID", _admobInterstitialId);
-                _admobRewardedId = EditorGUILayout.TextField("Rewarded ID", _admobRewardedId);
-                _admobAppOpenId = EditorGUILayout.TextField("App Open ID", _admobAppOpenId);
+                string platformLabel = _admobEditorPlatform == AdMobIdEditorPlatform.Android ? "Android" : "iOS";
+                EditorGUILayout.LabelField("Ad Unit IDs (" + platformLabel + ")", EditorStyles.miniBoldLabel);
+                SetSelectedAdmobBannerId(EditorGUILayout.TextField("Banner ID", GetSelectedAdmobBannerId()));
+                SetSelectedAdmobInterstitialId(EditorGUILayout.TextField("Interstitial ID", GetSelectedAdmobInterstitialId()));
+                SetSelectedAdmobRewardedId(EditorGUILayout.TextField("Rewarded ID", GetSelectedAdmobRewardedId()));
+                SetSelectedAdmobAppOpenId(EditorGUILayout.TextField("App Open ID", GetSelectedAdmobAppOpenId()));
             }
 
             EditorGUILayout.Space(12);
@@ -968,6 +996,14 @@ namespace GameUp.SDK.Editor
             NormalizeIntIds(list);
 
             EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(new GUIContent("IntId", "ID số nội bộ để gọi AdsManager.ShowById(intId)."), EditorStyles.miniBoldLabel, GUILayout.Width(60));
+            EditorGUILayout.LabelField(new GUIContent("AdType", "Loại quảng cáo: Banner / Interstitial / Rewarded / AppOpen."), EditorStyles.miniBoldLabel, GUILayout.Width(110));
+            EditorGUILayout.LabelField(new GUIContent("NameId (where)", "Placement key dùng khi show ads theo where."), EditorStyles.miniBoldLabel, GUILayout.MinWidth(120));
+            EditorGUILayout.LabelField(new GUIContent("AdUnitId / PlacementId", "ID thật từ network dashboard (AdMob Ad Unit ID hoặc LevelPlay Placement ID)."), EditorStyles.miniBoldLabel, GUILayout.MinWidth(160));
+            GUILayout.Space(24);
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(2);
             for (int i = 0; i < list.Count; i++)
             {
                 var e = list[i] ?? (list[i] = new GameUp.SDK.AdUnitIdEntry());
@@ -1118,15 +1154,123 @@ namespace GameUp.SDK.Editor
             bool isLevelPlay = IsPrimaryMediationLevelPlay();
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
             if (isLevelPlay)
-                return !string.IsNullOrEmpty(_ironSourceBannerId);
+                return !string.IsNullOrEmpty(GetSelectedIronSourceBannerId());
 #endif
-            return !string.IsNullOrEmpty(_admobBannerId);
+            return !string.IsNullOrEmpty(GetSelectedAdmobBannerId());
         }
 
         private static string GetPrimaryMediationLabel()
         {
             return IsPrimaryMediationLevelPlay() ? "LevelPlay" : "AdMob";
         }
+
+        private static AdMobIdEditorPlatform GetDefaultAdmobEditorPlatform()
+        {
+            return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS
+                ? AdMobIdEditorPlatform.IOS
+                : AdMobIdEditorPlatform.Android;
+        }
+
+        private string GetSelectedAdmobBannerId()
+        {
+            return _admobEditorPlatform == AdMobIdEditorPlatform.Android ? _admobBannerIdAndroid : _admobBannerIdIOS;
+        }
+
+        private string GetSelectedAdmobInterstitialId()
+        {
+            return _admobEditorPlatform == AdMobIdEditorPlatform.Android ? _admobInterstitialIdAndroid : _admobInterstitialIdIOS;
+        }
+
+        private string GetSelectedAdmobRewardedId()
+        {
+            return _admobEditorPlatform == AdMobIdEditorPlatform.Android ? _admobRewardedIdAndroid : _admobRewardedIdIOS;
+        }
+
+        private string GetSelectedAdmobAppOpenId()
+        {
+            return _admobEditorPlatform == AdMobIdEditorPlatform.Android ? _admobAppOpenIdAndroid : _admobAppOpenIdIOS;
+        }
+
+        private void SetSelectedAdmobBannerId(string value)
+        {
+            if (_admobEditorPlatform == AdMobIdEditorPlatform.Android) _admobBannerIdAndroid = value;
+            else _admobBannerIdIOS = value;
+        }
+
+        private void SetSelectedAdmobInterstitialId(string value)
+        {
+            if (_admobEditorPlatform == AdMobIdEditorPlatform.Android) _admobInterstitialIdAndroid = value;
+            else _admobInterstitialIdIOS = value;
+        }
+
+        private void SetSelectedAdmobRewardedId(string value)
+        {
+            if (_admobEditorPlatform == AdMobIdEditorPlatform.Android) _admobRewardedIdAndroid = value;
+            else _admobRewardedIdIOS = value;
+        }
+
+        private void SetSelectedAdmobAppOpenId(string value)
+        {
+            if (_admobEditorPlatform == AdMobIdEditorPlatform.Android) _admobAppOpenIdAndroid = value;
+            else _admobAppOpenIdIOS = value;
+        }
+
+        private List<GameUp.SDK.AdUnitIdEntry> GetSelectedAdmobAdUnitIdList()
+        {
+            return _admobEditorPlatform == AdMobIdEditorPlatform.Android ? _admobAdUnitIdsAndroid : _admobAdUnitIdsIOS;
+        }
+
+        private void SetSelectedAdmobAdUnitIdList(List<GameUp.SDK.AdUnitIdEntry> list)
+        {
+            if (_admobEditorPlatform == AdMobIdEditorPlatform.Android) _admobAdUnitIdsAndroid = list;
+            else _admobAdUnitIdsIOS = list;
+        }
+
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+        private string GetSelectedIronSourceBannerId()
+        {
+            return _ironSourceEditorPlatform == AdMobIdEditorPlatform.Android ? _ironSourceBannerIdAndroid : _ironSourceBannerIdIOS;
+        }
+
+        private string GetSelectedIronSourceInterstitialId()
+        {
+            return _ironSourceEditorPlatform == AdMobIdEditorPlatform.Android ? _ironSourceInterstitialIdAndroid : _ironSourceInterstitialIdIOS;
+        }
+
+        private string GetSelectedIronSourceRewardedId()
+        {
+            return _ironSourceEditorPlatform == AdMobIdEditorPlatform.Android ? _ironSourceRewardedIdAndroid : _ironSourceRewardedIdIOS;
+        }
+
+        private void SetSelectedIronSourceBannerId(string value)
+        {
+            if (_ironSourceEditorPlatform == AdMobIdEditorPlatform.Android) _ironSourceBannerIdAndroid = value;
+            else _ironSourceBannerIdIOS = value;
+        }
+
+        private void SetSelectedIronSourceInterstitialId(string value)
+        {
+            if (_ironSourceEditorPlatform == AdMobIdEditorPlatform.Android) _ironSourceInterstitialIdAndroid = value;
+            else _ironSourceInterstitialIdIOS = value;
+        }
+
+        private void SetSelectedIronSourceRewardedId(string value)
+        {
+            if (_ironSourceEditorPlatform == AdMobIdEditorPlatform.Android) _ironSourceRewardedIdAndroid = value;
+            else _ironSourceRewardedIdIOS = value;
+        }
+
+        private List<GameUp.SDK.AdUnitIdEntry> GetSelectedIronSourceAdUnitIdList()
+        {
+            return _ironSourceEditorPlatform == AdMobIdEditorPlatform.Android ? _ironSourceAdUnitIdsAndroid : _ironSourceAdUnitIdsIOS;
+        }
+
+        private void SetSelectedIronSourceAdUnitIdList(List<GameUp.SDK.AdUnitIdEntry> list)
+        {
+            if (_ironSourceEditorPlatform == AdMobIdEditorPlatform.Android) _ironSourceAdUnitIdsAndroid = list;
+            else _ironSourceAdUnitIdsIOS = list;
+        }
+#endif
 
         private List<string> BuildBannerPlacementOptionsForPrimaryMediation()
         {
@@ -1135,12 +1279,12 @@ namespace GameUp.SDK.Editor
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
             if (isLevelPlay)
             {
-                AppendBannerPlacements(result, _ironSourceUseMultiAdUnitIds, _ironSourceAdUnitIds, _ironSourceBannerId);
+                AppendBannerPlacements(result, _ironSourceUseMultiAdUnitIds, GetSelectedIronSourceAdUnitIdList(), GetSelectedIronSourceBannerId());
             }
             else
 #endif
             {
-                AppendBannerPlacements(result, _admobUseMultiAdUnitIds, _admobAdUnitIds, _admobBannerId);
+                AppendBannerPlacements(result, _admobUseMultiAdUnitIds, GetSelectedAdmobAdUnitIdList(), GetSelectedAdmobBannerId());
             }
 
             if (!string.IsNullOrEmpty(_adsShowBannerPlacementAfterInit) &&
@@ -1270,12 +1414,9 @@ namespace GameUp.SDK.Editor
             if (admob != null)
             {
                 var so = new SerializedObject(admob);
-                Assign(so, "bannerAdUnitId", ref _admobBannerId);
-                Assign(so, "interstitialAdUnitId", ref _admobInterstitialId);
-                Assign(so, "rewardedAdUnitId", ref _admobRewardedId);
-                Assign(so, "appOpenAdUnitId", ref _admobAppOpenId);
+                AssignAdmobSingleIds(so);
                 AssignBool(so, "useMultiAdUnitIds", ref _admobUseMultiAdUnitIds);
-                AssignAdUnitIdList(so, "adUnitIds", _admobAdUnitIds);
+                AssignAdmobMultiIds(so);
             }
 
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
@@ -1284,11 +1425,9 @@ namespace GameUp.SDK.Editor
             {
                 var so = new SerializedObject(iron);
                 Assign(so, "levelPlayAppKey", ref _ironSourceAppKey);
-                Assign(so, "bannerAdUnitId", ref _ironSourceBannerId);
-                Assign(so, "interstitialAdUnitId", ref _ironSourceInterstitialId);
-                Assign(so, "rewardedVideoAdUnitId", ref _ironSourceRewardedId);
+                AssignIronSourceSingleIds(so);
                 AssignBool(so, "useMultiAdUnitIds", ref _ironSourceUseMultiAdUnitIds);
-                AssignAdUnitIdList(so, "adUnitIds", _ironSourceAdUnitIds);
+                AssignIronSourceMultiIds(so);
             }
 #endif
 
@@ -1356,11 +1495,9 @@ namespace GameUp.SDK.Editor
             if (comp == null) return false;
             var so = new SerializedObject(comp);
             Assign(so, "levelPlayAppKey", ref _ironSourceAppKey);
-            Assign(so, "bannerAdUnitId", ref _ironSourceBannerId);
-            Assign(so, "interstitialAdUnitId", ref _ironSourceInterstitialId);
-            Assign(so, "rewardedVideoAdUnitId", ref _ironSourceRewardedId);
+            AssignIronSourceSingleIds(so);
             AssignBool(so, "useMultiAdUnitIds", ref _ironSourceUseMultiAdUnitIds);
-            AssignAdUnitIdList(so, "adUnitIds", _ironSourceAdUnitIds);
+            AssignIronSourceMultiIds(so);
             return true;
         }
 #endif
@@ -1372,12 +1509,9 @@ namespace GameUp.SDK.Editor
             var comp = go.GetComponent<GameUp.SDK.AdmobAds>();
             if (comp == null) return false;
             var so = new SerializedObject(comp);
-            Assign(so, "bannerAdUnitId", ref _admobBannerId);
-            Assign(so, "interstitialAdUnitId", ref _admobInterstitialId);
-            Assign(so, "rewardedAdUnitId", ref _admobRewardedId);
-            Assign(so, "appOpenAdUnitId", ref _admobAppOpenId);
+            AssignAdmobSingleIds(so);
             AssignBool(so, "useMultiAdUnitIds", ref _admobUseMultiAdUnitIds);
-            AssignAdUnitIdList(so, "adUnitIds", _admobAdUnitIds);
+            AssignAdmobMultiIds(so);
             return true;
         }
 
@@ -2014,11 +2148,9 @@ namespace GameUp.SDK.Editor
             if (comp == null) return false;
             var so = new SerializedObject(comp);
             Set(so, "levelPlayAppKey", _ironSourceAppKey);
-            Set(so, "bannerAdUnitId", _ironSourceBannerId);
-            Set(so, "interstitialAdUnitId", _ironSourceInterstitialId);
-            Set(so, "rewardedVideoAdUnitId", _ironSourceRewardedId);
+            SetIronSourceSingleIds(so);
             SetBool(so, "useMultiAdUnitIds", _ironSourceUseMultiAdUnitIds);
-            SetAdUnitIdList(so, "adUnitIds", _ironSourceAdUnitIds);
+            SetIronSourceMultiIds(so);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(comp);
             return true;
@@ -2030,12 +2162,9 @@ namespace GameUp.SDK.Editor
             var comp = sdkRoot.GetComponentInChildren<GameUp.SDK.AdmobAds>(true);
             if (comp == null) return false;
             var so = new SerializedObject(comp);
-            Set(so, "bannerAdUnitId", _admobBannerId);
-            Set(so, "interstitialAdUnitId", _admobInterstitialId);
-            Set(so, "rewardedAdUnitId", _admobRewardedId);
-            Set(so, "appOpenAdUnitId", _admobAppOpenId);
+            SetAdmobSingleIds(so);
             SetBool(so, "useMultiAdUnitIds", _admobUseMultiAdUnitIds);
-            SetAdUnitIdList(so, "adUnitIds", _admobAdUnitIds);
+            SetAdmobMultiIds(so);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(comp);
             return true;
@@ -2095,11 +2224,9 @@ namespace GameUp.SDK.Editor
 
                 var so = new SerializedObject(comp);
                 Set(so, "levelPlayAppKey", _ironSourceAppKey);
-                Set(so, "bannerAdUnitId", _ironSourceBannerId);
-                Set(so, "interstitialAdUnitId", _ironSourceInterstitialId);
-                Set(so, "rewardedVideoAdUnitId", _ironSourceRewardedId);
+                SetIronSourceSingleIds(so);
                 SetBool(so, "useMultiAdUnitIds", _ironSourceUseMultiAdUnitIds);
-                SetAdUnitIdList(so, "adUnitIds", _ironSourceAdUnitIds);
+                SetIronSourceMultiIds(so);
                 so.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(comp);
                 PrefabUtility.SaveAsPrefabAsset(root, PathIronSource);
@@ -2129,12 +2256,9 @@ namespace GameUp.SDK.Editor
                 }
 
                 var so = new SerializedObject(comp);
-                Set(so, "bannerAdUnitId", _admobBannerId);
-                Set(so, "interstitialAdUnitId", _admobInterstitialId);
-                Set(so, "rewardedAdUnitId", _admobRewardedId);
-                Set(so, "appOpenAdUnitId", _admobAppOpenId);
+                SetAdmobSingleIds(so);
                 SetBool(so, "useMultiAdUnitIds", _admobUseMultiAdUnitIds);
-                SetAdUnitIdList(so, "adUnitIds", _admobAdUnitIds);
+                SetAdmobMultiIds(so);
                 so.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(comp);
                 PrefabUtility.SaveAsPrefabAsset(root, PathAdMob);
@@ -2172,11 +2296,9 @@ namespace GameUp.SDK.Editor
             if (comp == null) return false;
             var so = new SerializedObject(comp);
             Set(so, "levelPlayAppKey", _ironSourceAppKey);
-            Set(so, "bannerAdUnitId", _ironSourceBannerId);
-            Set(so, "interstitialAdUnitId", _ironSourceInterstitialId);
-            Set(so, "rewardedVideoAdUnitId", _ironSourceRewardedId);
+            SetIronSourceSingleIds(so);
             SetBool(so, "useMultiAdUnitIds", _ironSourceUseMultiAdUnitIds);
-            SetAdUnitIdList(so, "adUnitIds", _ironSourceAdUnitIds);
+            SetIronSourceMultiIds(so);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(comp);
             PrefabUtility.RecordPrefabInstancePropertyModifications(comp);
@@ -2190,16 +2312,186 @@ namespace GameUp.SDK.Editor
             var comp = sdkRoot.GetComponentInChildren<GameUp.SDK.AdmobAds>(true);
             if (comp == null) return false;
             var so = new SerializedObject(comp);
-            Set(so, "bannerAdUnitId", _admobBannerId);
-            Set(so, "interstitialAdUnitId", _admobInterstitialId);
-            Set(so, "rewardedAdUnitId", _admobRewardedId);
-            Set(so, "appOpenAdUnitId", _admobAppOpenId);
+            SetAdmobSingleIds(so);
             SetBool(so, "useMultiAdUnitIds", _admobUseMultiAdUnitIds);
-            SetAdUnitIdList(so, "adUnitIds", _admobAdUnitIds);
+            SetAdmobMultiIds(so);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(comp);
             PrefabUtility.RecordPrefabInstancePropertyModifications(comp);
             return true;
+        }
+
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+        private void AssignIronSourceSingleIds(SerializedObject so)
+        {
+            Assign(so, "bannerAdUnitIdAndroid", ref _ironSourceBannerIdAndroid);
+            Assign(so, "interstitialAdUnitIdAndroid", ref _ironSourceInterstitialIdAndroid);
+            Assign(so, "rewardedVideoAdUnitIdAndroid", ref _ironSourceRewardedIdAndroid);
+            Assign(so, "bannerAdUnitIdIOS", ref _ironSourceBannerIdIOS);
+            Assign(so, "interstitialAdUnitIdIOS", ref _ironSourceInterstitialIdIOS);
+            Assign(so, "rewardedVideoAdUnitIdIOS", ref _ironSourceRewardedIdIOS);
+
+            string legacyBanner = "";
+            string legacyInterstitial = "";
+            string legacyRewarded = "";
+            Assign(so, "bannerAdUnitId", ref legacyBanner);
+            Assign(so, "interstitialAdUnitId", ref legacyInterstitial);
+            Assign(so, "rewardedVideoAdUnitId", ref legacyRewarded);
+
+            if (string.IsNullOrEmpty(_ironSourceBannerIdAndroid) && string.IsNullOrEmpty(_ironSourceBannerIdIOS) && !string.IsNullOrEmpty(legacyBanner))
+            {
+                _ironSourceBannerIdAndroid = legacyBanner;
+                _ironSourceBannerIdIOS = legacyBanner;
+            }
+            if (string.IsNullOrEmpty(_ironSourceInterstitialIdAndroid) && string.IsNullOrEmpty(_ironSourceInterstitialIdIOS) && !string.IsNullOrEmpty(legacyInterstitial))
+            {
+                _ironSourceInterstitialIdAndroid = legacyInterstitial;
+                _ironSourceInterstitialIdIOS = legacyInterstitial;
+            }
+            if (string.IsNullOrEmpty(_ironSourceRewardedIdAndroid) && string.IsNullOrEmpty(_ironSourceRewardedIdIOS) && !string.IsNullOrEmpty(legacyRewarded))
+            {
+                _ironSourceRewardedIdAndroid = legacyRewarded;
+                _ironSourceRewardedIdIOS = legacyRewarded;
+            }
+        }
+
+        private void SetIronSourceSingleIds(SerializedObject so)
+        {
+            Set(so, "bannerAdUnitIdAndroid", _ironSourceBannerIdAndroid);
+            Set(so, "interstitialAdUnitIdAndroid", _ironSourceInterstitialIdAndroid);
+            Set(so, "rewardedVideoAdUnitIdAndroid", _ironSourceRewardedIdAndroid);
+            Set(so, "bannerAdUnitIdIOS", _ironSourceBannerIdIOS);
+            Set(so, "interstitialAdUnitIdIOS", _ironSourceInterstitialIdIOS);
+            Set(so, "rewardedVideoAdUnitIdIOS", _ironSourceRewardedIdIOS);
+        }
+
+        private void AssignIronSourceMultiIds(SerializedObject so)
+        {
+            AssignAdUnitIdList(so, "adUnitIdsAndroid", _ironSourceAdUnitIdsAndroid);
+            AssignAdUnitIdList(so, "adUnitIdsIOS", _ironSourceAdUnitIdsIOS);
+            if ((_ironSourceAdUnitIdsAndroid == null || _ironSourceAdUnitIdsAndroid.Count == 0) &&
+                (_ironSourceAdUnitIdsIOS == null || _ironSourceAdUnitIdsIOS.Count == 0))
+            {
+                var legacy = new List<GameUp.SDK.AdUnitIdEntry>();
+                AssignAdUnitIdList(so, "adUnitIds", legacy);
+                if (legacy.Count > 0)
+                {
+                    _ironSourceAdUnitIdsAndroid = CloneAdUnitIdEntries(legacy);
+                    _ironSourceAdUnitIdsIOS = CloneAdUnitIdEntries(legacy);
+                }
+            }
+        }
+
+        private void SetIronSourceMultiIds(SerializedObject so)
+        {
+            SetAdUnitIdList(so, "adUnitIdsAndroid", _ironSourceAdUnitIdsAndroid);
+            SetAdUnitIdList(so, "adUnitIdsIOS", _ironSourceAdUnitIdsIOS);
+        }
+#endif
+
+        private void AssignAdmobSingleIds(SerializedObject so)
+        {
+            // New platform-separated fields.
+            Assign(so, "bannerAdUnitIdAndroid", ref _admobBannerIdAndroid);
+            Assign(so, "interstitialAdUnitIdAndroid", ref _admobInterstitialIdAndroid);
+            Assign(so, "rewardedAdUnitIdAndroid", ref _admobRewardedIdAndroid);
+            Assign(so, "appOpenAdUnitIdAndroid", ref _admobAppOpenIdAndroid);
+            Assign(so, "bannerAdUnitIdIOS", ref _admobBannerIdIOS);
+            Assign(so, "interstitialAdUnitIdIOS", ref _admobInterstitialIdIOS);
+            Assign(so, "rewardedAdUnitIdIOS", ref _admobRewardedIdIOS);
+            Assign(so, "appOpenAdUnitIdIOS", ref _admobAppOpenIdIOS);
+
+            // Backward compatibility with old single fields.
+            string legacyBanner = "";
+            string legacyInterstitial = "";
+            string legacyRewarded = "";
+            string legacyAppOpen = "";
+            Assign(so, "bannerAdUnitId", ref legacyBanner);
+            Assign(so, "interstitialAdUnitId", ref legacyInterstitial);
+            Assign(so, "rewardedAdUnitId", ref legacyRewarded);
+            Assign(so, "appOpenAdUnitId", ref legacyAppOpen);
+
+            if (string.IsNullOrEmpty(_admobBannerIdAndroid) && string.IsNullOrEmpty(_admobBannerIdIOS) && !string.IsNullOrEmpty(legacyBanner))
+            {
+                _admobBannerIdAndroid = legacyBanner;
+                _admobBannerIdIOS = legacyBanner;
+            }
+            if (string.IsNullOrEmpty(_admobInterstitialIdAndroid) && string.IsNullOrEmpty(_admobInterstitialIdIOS) && !string.IsNullOrEmpty(legacyInterstitial))
+            {
+                _admobInterstitialIdAndroid = legacyInterstitial;
+                _admobInterstitialIdIOS = legacyInterstitial;
+            }
+            if (string.IsNullOrEmpty(_admobRewardedIdAndroid) && string.IsNullOrEmpty(_admobRewardedIdIOS) && !string.IsNullOrEmpty(legacyRewarded))
+            {
+                _admobRewardedIdAndroid = legacyRewarded;
+                _admobRewardedIdIOS = legacyRewarded;
+            }
+            if (string.IsNullOrEmpty(_admobAppOpenIdAndroid) && string.IsNullOrEmpty(_admobAppOpenIdIOS) && !string.IsNullOrEmpty(legacyAppOpen))
+            {
+                _admobAppOpenIdAndroid = legacyAppOpen;
+                _admobAppOpenIdIOS = legacyAppOpen;
+            }
+        }
+
+        private void SetAdmobSingleIds(SerializedObject so)
+        {
+            Set(so, "bannerAdUnitIdAndroid", _admobBannerIdAndroid);
+            Set(so, "interstitialAdUnitIdAndroid", _admobInterstitialIdAndroid);
+            Set(so, "rewardedAdUnitIdAndroid", _admobRewardedIdAndroid);
+            Set(so, "appOpenAdUnitIdAndroid", _admobAppOpenIdAndroid);
+            Set(so, "bannerAdUnitIdIOS", _admobBannerIdIOS);
+            Set(so, "interstitialAdUnitIdIOS", _admobInterstitialIdIOS);
+            Set(so, "rewardedAdUnitIdIOS", _admobRewardedIdIOS);
+            Set(so, "appOpenAdUnitIdIOS", _admobAppOpenIdIOS);
+        }
+
+        private void AssignAdmobMultiIds(SerializedObject so)
+        {
+            AssignAdUnitIdList(so, "adUnitIdsAndroid", _admobAdUnitIdsAndroid);
+            AssignAdUnitIdList(so, "adUnitIdsIOS", _admobAdUnitIdsIOS);
+            if ((_admobAdUnitIdsAndroid == null || _admobAdUnitIdsAndroid.Count == 0) &&
+                (_admobAdUnitIdsIOS == null || _admobAdUnitIdsIOS.Count == 0))
+            {
+                var legacy = new List<GameUp.SDK.AdUnitIdEntry>();
+                AssignAdUnitIdList(so, "adUnitIds", legacy);
+                if (legacy.Count > 0)
+                {
+                    _admobAdUnitIdsAndroid = CloneAdUnitIdEntries(legacy);
+                    _admobAdUnitIdsIOS = CloneAdUnitIdEntries(legacy);
+                }
+            }
+        }
+
+        private void SetAdmobMultiIds(SerializedObject so)
+        {
+            SetAdUnitIdList(so, "adUnitIdsAndroid", _admobAdUnitIdsAndroid);
+            SetAdUnitIdList(so, "adUnitIdsIOS", _admobAdUnitIdsIOS);
+        }
+
+        private static List<GameUp.SDK.AdUnitIdEntry> CloneAdUnitIdEntries(List<GameUp.SDK.AdUnitIdEntry> source)
+        {
+            var result = new List<GameUp.SDK.AdUnitIdEntry>();
+            if (source == null) return result;
+            for (int i = 0; i < source.Count; i++)
+            {
+                var e = source[i];
+                if (e == null)
+                {
+                    result.Add(null);
+                    continue;
+                }
+
+                result.Add(new GameUp.SDK.AdUnitIdEntry
+                {
+                    adType = e.adType,
+                    intId = e.intId,
+                    nameId = e.nameId,
+                    id = e.id
+                });
+            }
+
+            NormalizeIntIds(result);
+            return result;
         }
 
         private static void Set(SerializedObject so, string propName, string value)
