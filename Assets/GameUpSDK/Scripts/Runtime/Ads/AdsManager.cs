@@ -260,6 +260,36 @@ namespace GameUp.SDK
             });
         }
 
+        public bool IsInterstitialReadyForPlacement(string where)
+        {
+            return _ads.Any(a =>
+            {
+                if (a is IPlacementAwareAds placementAware)
+                    return placementAware.IsInterstitialAvailable(where);
+                return a.IsInterstitialAvailable();
+            });
+        }
+
+        public bool IsRewardedVideoReadyForPlacement(string where)
+        {
+            return _ads.Any(a =>
+            {
+                if (a is IPlacementAwareAds placementAware)
+                    return placementAware.IsRewardedVideoAvailable(where);
+                return a.IsRewardedVideoAvailable();
+            });
+        }
+
+        public bool IsAppOpenReadyForPlacement(string where)
+        {
+            return _ads.Any(a =>
+            {
+                if (a is IPlacementAwareAds placementAware)
+                    return placementAware.IsAppOpenAdsAvailable(where);
+                return a.IsAppOpenAdsAvailable();
+            });
+        }
+
         /// <summary>
         /// Call after GDPR/consent flow. Forwards to all networks.
         /// </summary>
