@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace GameUpSDK.Editor
+namespace GameUp.SDK.Editor
 {
     [CustomEditor(typeof(ScreenshotCapture))]
     public class ScreenshotCaptureEditor : UnityEditor.Editor
