@@ -544,6 +544,7 @@ namespace GameUp.SDK.Installer
         /// <summary>Bật khi batch bắt đầu từ &quot;Cài tất cả&quot; — gợi ý menu Ensure GameAnalytics asmdef khi xong.</summary>
         private bool _gameAnalyticsSetupHintAfterBatch;
         private bool _wasCompiling;
+        private bool _wasBusy;
 
         // Queue PackageManager (GitUrl / ScopedRegistry)
         private readonly Queue<PackageDef> _installQueue = new Queue<PackageDef>();
@@ -706,6 +707,7 @@ namespace GameUp.SDK.Installer
         {
             RefreshStatus();
             _wasCompiling = EditorApplication.isCompiling;
+            _wasBusy = IsInstallOrDownloadBusy();
             EditorApplication.update += EditorUpdateRepaintWhenBusy;
 
             // Khi đổi Scripting Define Symbols, Unity sẽ trigger compile + domain reload.
@@ -798,30 +800,50 @@ namespace GameUp.SDK.Installer
         private void EditorUpdateRepaintWhenBusy()
         {
             bool compiling = EditorApplication.isCompiling;
+            bool busy = IsInstallOrDownloadBusy();
 
             // Compile vừa kết thúc → assemblies đã reload, refresh trạng thái package một lần.
             if (_wasCompiling && !compiling)
                 RefreshStatus();
 
-            _wasCompiling = compiling;
+            // Khi các job cài/tải vừa kết thúc, refresh lại ngay để bật lại nút gỡ/cài.
+            if (_wasBusy && !busy)
+                RefreshStatus();
 
-            if (compiling || IsInstallOrDownloadBusy())
+            bool stateChanged = (_wasCompiling != compiling) || (_wasBusy != busy);
+            _wasCompiling = compiling;
+            _wasBusy = busy;
+
+            if (compiling || busy || stateChanged)
                 Repaint();
         }
 
         private bool IsInstallOrDownloadBusy()
         {
-            if (_isBatchInstalling) return true;
-            if (_installQueue.Count > 0) return true;
-            if (_currentAddRequest != null) return true;
-            if (_admobLatestReleaseRequest != null) return true;
-            if (_parallelTasks != null && _parallelTasks.Count > 0) return true;
-            foreach (var p in s_packages)
+            bool hasQueueItems = _installQueue.Count > 0;
+            bool hasRunningAddRequest = _currentAddRequest != null && !_currentAddRequest.IsCompleted;
+            bool hasResolvingAdMobLatest = _admobLatestReleaseRequest != null && !_admobLatestReleaseRequest.isDone;
+            bool hasRunningParallelDownloads = _parallelTasks?.Any(t => !t.IsDone && t.Request != null && !t.Request.isDone) == true;
+            bool hasInstallingPackage = s_packages.Any(p => p.IsInstalling);
+
+            // Tự phục hồi cờ batch nếu không còn tác vụ nào thực sự chạy.
+            if (_isBatchInstalling
+                && !hasQueueItems
+                && !hasRunningAddRequest
+                && !hasResolvingAdMobLatest
+                && !hasRunningParallelDownloads
+                && !hasInstallingPackage)
             {
-                if (p.IsInstalling) return true;
+                _isBatchInstalling = false;
+                _batchScope = null;
             }
 
-            return false;
+            return _isBatchInstalling
+                   || hasQueueItems
+                   || hasRunningAddRequest
+                   || hasResolvingAdMobLatest
+                   || hasRunningParallelDownloads
+                   || hasInstallingPackage;
         }
 
         /// <summary>Khóa mọi thao tác: đang compile hoặc đang cài/tải package.</summary>
@@ -885,9 +907,10 @@ namespace GameUp.SDK.Installer
             EditorGUILayout.Space(4);
 
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
-            DrawPackageList(includeAdMobAdapters: false);
+            DrawPackageList(includeAdMobAdapters: false, allowPerPackageRemove: false);
             EditorGUILayout.EndScrollView();
 
+            DrawSetupDependenciesBulkRemoveSection();
             DrawFooter();
             EditorGUILayout.EndVertical();
 
@@ -1192,7 +1215,7 @@ namespace GameUp.SDK.Installer
                 SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
         }
 
-        private void DrawPackageList(bool includeAdMobAdapters)
+        private void DrawPackageList(bool includeAdMobAdapters, bool allowPerPackageRemove = true)
         {
             bool drewRequired = false, drewOptional = false;
             bool? lastRequired = null;
@@ -1224,7 +1247,7 @@ namespace GameUp.SDK.Installer
                     drewOptional = true;
                 }
 
-                DrawPackageRow(pkg);
+                DrawPackageRow(pkg, allowPerPackageRemove);
                 lastRequired = pkg.Required;
             }
         }
@@ -1272,7 +1295,7 @@ namespace GameUp.SDK.Installer
             if (_foldoutAdMobMediationAdapters)
             {
                 foreach (var adapter in adapters)
-                    DrawPackageRow(adapter);
+                    DrawPackageRow(adapter, allowPerPackageRemove: true);
             }
             EditorGUILayout.EndScrollView();
         }
@@ -1296,7 +1319,7 @@ namespace GameUp.SDK.Installer
             EditorGUI.DrawRect(rect, color);
         }
 
-        private void DrawPackageRow(PackageDef pkg)
+        private void DrawPackageRow(PackageDef pkg, bool allowPerPackageRemove)
         {
             bool isDownloading = _parallelTasks?.Any(t => t.Pkg == pkg && !t.IsDone) == true;
             bool isResolvingAdMobLatest = IsAdMobPackage(pkg) && _admobLatestReleaseRequest != null;
@@ -1408,7 +1431,7 @@ namespace GameUp.SDK.Installer
                 EditorGUI.EndDisabledGroup();
             }
 
-            if (pkg.IsAdMobMediationAdapter && pkg.IsInstalled)
+            if (allowPerPackageRemove && pkg.IsAdMobMediationAdapter && pkg.IsInstalled)
             {
                 bool canRemove = HasInstalledAssetPath(pkg);
                 EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy() || !canRemove);
@@ -1416,7 +1439,7 @@ namespace GameUp.SDK.Installer
                     ConfirmAndRemoveAdMobAdapter(pkg);
                 EditorGUI.EndDisabledGroup();
             }
-            else if (!pkg.IsAdMobMediationAdapter && pkg.IsInstalled)
+            else if (allowPerPackageRemove && !pkg.IsAdMobMediationAdapter && pkg.IsInstalled)
             {
                 bool canRemove = CanRemovePackage(pkg);
                 EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy() || !canRemove);
@@ -1476,6 +1499,33 @@ namespace GameUp.SDK.Installer
                     RequestOpenSetup();
                 EditorGUI.EndDisabledGroup();
             }
+        }
+
+        private void DrawSetupDependenciesBulkRemoveSection()
+        {
+            EditorGUILayout.Space(6);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.LabelField("Gỡ dependencies", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Tab SetupDependencies chỉ hỗ trợ gỡ toàn bộ dependencies một lần để tránh trạng thái define/package bị lệch.",
+                MessageType.Warning);
+
+            var removablePkgs = s_packages
+                .Where(p => !p.IsAdMobMediationAdapter && CanRemovePackage(p))
+                .ToList();
+
+            EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy() || removablePkgs.Count == 0);
+            if (GUILayout.Button(
+                    removablePkgs.Count > 0
+                        ? $"🗑 Gỡ toàn bộ dependencies trong tab này ({removablePkgs.Count})"
+                        : "✓ Không còn dependencies để gỡ",
+                    GUILayout.Height(28)))
+            {
+                ConfirmAndRemoveSetupDependenciesBulk(removablePkgs);
+            }
+
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndVertical();
         }
 
         private void RequestManualRefresh()
@@ -2320,15 +2370,22 @@ namespace GameUp.SDK.Installer
 
         // ─── Status refresh ───────────────────────────────────────────────────────
 
-        private void RefreshStatus()
+        private void RefreshStatus(bool syncDefines = true)
         {
-            EnsurePrimaryMediationDefines();
+            if (syncDefines)
+                EnsurePrimaryMediationDefines();
 
             foreach (var pkg in s_packages)
             {
                 pkg.IsInstalled = IsPackageInstalled(pkg);
                 pkg.IsInstalling = false;
                 pkg.InstallError = null;
+            }
+
+            if (!syncDefines)
+            {
+                Repaint();
+                return;
             }
 
             // Auto set/clear Facebook define (Editor assembly = SDK đã import)
@@ -2413,10 +2470,19 @@ namespace GameUp.SDK.Installer
 
         private static bool IsPackageInstalled(PackageDef pkg)
         {
+            if (pkg == null)
+                return false;
+
             bool byAssembly = !string.IsNullOrEmpty(pkg.AssemblyName) && IsAssemblyLoaded(pkg.AssemblyName);
             bool byAssetPath = HasInstalledAssetPath(pkg);
             bool byType = !string.IsNullOrEmpty(pkg.InstalledTypeFullName) &&
                           IsTypeInAnyLoadedAssembly(pkg.InstalledTypeFullName);
+
+            // AdMob mediation adapters cần phản ánh trạng thái thư mục asset thực tế.
+            // Assembly có thể còn loaded trong AppDomain một lúc sau khi xóa asset.
+            if (pkg.IsAdMobMediationAdapter)
+                return byAssetPath;
+
             if (!string.IsNullOrEmpty(pkg.InstalledTypeFullName))
                 return byAssembly || byType || byAssetPath;
             if (!string.IsNullOrEmpty(pkg.InstalledAssetPath))
@@ -2445,7 +2511,16 @@ namespace GameUp.SDK.Installer
             if (pkg == null || string.IsNullOrEmpty(pkg.InstalledAssetPath))
                 return false;
 
-            return !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(pkg.InstalledAssetPath));
+            string path = pkg.InstalledAssetPath.Replace('\\', '/');
+
+            // Với path thư mục (đa số adapter), chỉ coi là "đã cài" khi folder thực sự tồn tại.
+            if (!Path.HasExtension(path))
+                return AssetDatabase.IsValidFolder(path);
+
+            if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)))
+                return false;
+
+            return AssetDatabase.LoadMainAssetAtPath(path) != null;
         }
 
         private static List<string> GetRemovableAssetPaths(PackageDef pkg)
@@ -2552,6 +2627,97 @@ namespace GameUp.SDK.Installer
             AssetDatabase.Refresh();
             RefreshStatus();
             Debug.Log("[GameUpSDK] Đã gỡ adapter: " + pkg.DisplayName);
+        }
+
+        private void ConfirmAndRemoveSetupDependenciesBulk(List<PackageDef> packages)
+        {
+            if (packages == null || packages.Count == 0)
+                return;
+
+            var existingPaths = packages
+                .SelectMany(GetRemovableAssetPaths)
+                .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p)))
+                .Distinct()
+                .ToList();
+
+            // Dọn thêm các thư mục phụ trợ/residual thường còn sót sau khi gỡ dependencies.
+            foreach (string residualPath in GetSetupDependenciesResidualPaths())
+            {
+                if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(residualPath)) &&
+                    !existingPaths.Contains(residualPath))
+                {
+                    existingPaths.Add(residualPath);
+                }
+            }
+
+            if (existingPaths.Count == 0)
+            {
+                EditorUtility.DisplayDialog(
+                    "GameUp SDK — Gỡ toàn bộ dependencies",
+                    "Không tìm thấy asset path để gỡ.",
+                    "OK");
+                return;
+            }
+
+            string preview = string.Join("\n• ", existingPaths.Take(12));
+            if (existingPaths.Count > 12)
+                preview += $"\n• ... và {existingPaths.Count - 12} path khác";
+
+            if (!EditorUtility.DisplayDialog(
+                    "GameUp SDK — Gỡ toàn bộ dependencies",
+                    "Bạn có chắc muốn gỡ toàn bộ dependencies trong tab SetupDependencies?\n\n" +
+                    $"Sẽ xóa {existingPaths.Count} path:\n• {preview}\n\n" +
+                    "Sẽ clear define symbols liên quan trước khi gỡ pack.",
+                    "Gỡ toàn bộ",
+                    "Hủy"))
+                return;
+
+            // Clear define trước để tránh conditionals/compile lệch trạng thái trong lúc gỡ.
+            ClearDependencyDefinesAfterBulkRemove();
+
+            if (!TryDeleteAssets(existingPaths, out string error))
+            {
+                EditorUtility.DisplayDialog(
+                    "GameUp SDK — Gỡ dependencies thất bại",
+                    error,
+                    "OK");
+                return;
+            }
+
+            AssetDatabase.Refresh();
+            // Tránh auto-sync define ngay vì assemblies có thể còn loaded trong AppDomain tạm thời.
+            RefreshStatus(syncDefines: false);
+            Debug.Log("[GameUpSDK] Đã gỡ toàn bộ dependencies trong tab SetupDependencies.");
+        }
+
+        private static void ClearDependencyDefinesAfterBulkRemove()
+        {
+            SetDefine(LevelPlayDepsDefine, false);
+            SetDefine(AdMobDepsDefine, false);
+            SetDefine(FirebaseDepsDefine, false);
+            SetDefine(AppsFlyerDepsDefine, false);
+            SetDefine(GameAnalyticsDepsDefine, false);
+            SetDefine(FacebookDepsDefine, false);
+            SetDepsReadyDefine(false);
+
+            // Reset mediation về mặc định an toàn sau khi gỡ toàn bộ dependencies.
+            SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
+            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
+        }
+
+        private static IEnumerable<string> GetSetupDependenciesResidualPaths()
+        {
+            return new[]
+            {
+                "Assets/Editor Default Resources",
+                "Assets/ExternalDependencyManager",
+                "Assets/Editor",
+                "Assets/GeneratedLocalRepo",
+                "Assets/StreamingAssets",
+                "Assets/SDK",
+                "Assets/Plugins",
+                "Assets/Resources/GameAnalytics",
+            };
         }
 
         private static bool TryDeleteInstalledAssetPath(PackageDef pkg, out string error)
