@@ -18,12 +18,19 @@ namespace GameUp.Core.Editor
         private const string MarkerFile = "gameup-core-usage.mdc";
         private const string IdeCursorGitUrl = "https://github.com/boxqkrtm/com.unity.ide.cursor.git";
         private const string IdeCursorPackageDirName = "com.boxqkrtm.ide.cursor";
+        private const string CursorRulesTemplatesDirName = "cursor-rules";
+        private const string CursorProjectRootTemplatesDirName = "cursor-project-root";
+        private const string CursorSkillsTemplatesDirName = "cursor-skills";
+        private const string CursorHooksTemplatesDirName = "cursor-hooks";
 
         private static AddRequest _ideCursorAddRequest;
 
         private static string ProjectRoot => Directory.GetParent(Application.dataPath).FullName;
 
+        private static string DestCursorDir => Path.Combine(ProjectRoot, ".cursor");
         private static string DestRulesDir => Path.Combine(ProjectRoot, ".cursor", "rules");
+        private static string DestSkillsDir => Path.Combine(ProjectRoot, ".cursor", "skills");
+        private static string DestHooksDir => Path.Combine(ProjectRoot, ".cursor", "hooks");
 
         [InitializeOnLoadMethod]
         private static void OnEditorLoad()
@@ -64,8 +71,10 @@ namespace GameUp.Core.Editor
                 return;
             }
 
-            var rulesSrc = Path.Combine(packageRoot, "Documentation~", "cursor-rules");
-            var rootTemplates = Path.Combine(packageRoot, "Documentation~", "cursor-project-root");
+            var rulesSrc = Path.Combine(packageRoot, "Documentation~", CursorRulesTemplatesDirName);
+            var rootTemplates = Path.Combine(packageRoot, "Documentation~", CursorProjectRootTemplatesDirName);
+            var skillsSrc = Path.Combine(packageRoot, "Documentation~", CursorSkillsTemplatesDirName);
+            var hooksSrc = Path.Combine(packageRoot, "Documentation~", CursorHooksTemplatesDirName);
             if (!Directory.Exists(rulesSrc))
             {
                 EditorUtility.DisplayDialog(
@@ -88,7 +97,7 @@ namespace GameUp.Core.Editor
                     "GameUp Core",
                     "Thực hiện:\n" +
                     "• Thêm package IDE Cursor qua Git (nếu chưa có): com.boxqkrtm.ide.cursor\n" +
-                    "• Ghi đè / cập nhật .cursor/rules/*.mdc, .cursorrules, .cursorignore (mẫu cursorignore) tại gốc project\n\n" +
+                    "• Ghi đè / cập nhật .cursor/rules/*.mdc, .cursor/skills/*, .cursor/hooks*, .cursorrules, .cursorignore tại gốc project\n\n" +
                     "Tiếp tục?",
                     "OK",
                     "Cancel"))
@@ -100,12 +109,14 @@ namespace GameUp.Core.Editor
             CopyProjectRootTemplate(Path.Combine(rootTemplates, ".cursorrules"), Path.Combine(ProjectRoot, ".cursorrules"));
             // File mẫu tên `cursorignore` (không dấu chấm) để tránh hạn chế FS/tooling khi đóng gói.
             CopyProjectRootTemplate(Path.Combine(rootTemplates, "cursorignore"), Path.Combine(ProjectRoot, ".cursorignore"));
+            CopyAllSkills(skillsSrc, DestSkillsDir, overwrite: true);
+            CopyHooksTemplates(hooksSrc, overwrite: true);
 
             RequestAddIdeCursorPackage();
 
             GULogger.Log(
                 "CursorRules",
-                "Đã cập nhật .cursor/rules, .cursorrules, .cursorignore. Nếu package IDE Cursor chưa có, Unity đang thêm qua Git URL (xem Package Manager / Console).");
+                "Đã cập nhật .cursor/rules, .cursor/skills, .cursor/hooks, .cursorrules, .cursorignore. Nếu package IDE Cursor chưa có, Unity đang thêm qua Git URL (xem Package Manager / Console).");
         }
 
         private static void CopyProjectRootTemplate(string sourceFile, string destFile)
@@ -173,7 +184,7 @@ namespace GameUp.Core.Editor
                 return false;
             }
 
-            var p = Path.Combine(root, "Documentation~", "cursor-rules");
+            var p = Path.Combine(root, "Documentation~", CursorRulesTemplatesDirName);
             if (Directory.Exists(p))
             {
                 path = p;
@@ -220,6 +231,65 @@ namespace GameUp.Core.Editor
                 }
 
                 File.Copy(file, dest, overwrite);
+            }
+        }
+
+        private static void CopyAllSkills(string sourceDir, string destDir, bool overwrite)
+        {
+            if (!Directory.Exists(sourceDir))
+            {
+                GULogger.Warning("CursorRules", $"Thiếu thư mục skill mẫu: {sourceDir}");
+                return;
+            }
+
+            CopyDirectoryRecursive(sourceDir, destDir, overwrite);
+        }
+
+        private static void CopyHooksTemplates(string sourceDir, bool overwrite)
+        {
+            if (!Directory.Exists(sourceDir))
+            {
+                GULogger.Warning("CursorRules", $"Thiếu thư mục hook mẫu: {sourceDir}");
+                return;
+            }
+
+            Directory.CreateDirectory(DestCursorDir);
+
+            var hooksJson = Path.Combine(sourceDir, "hooks.json");
+            if (File.Exists(hooksJson))
+            {
+                File.Copy(hooksJson, Path.Combine(DestCursorDir, "hooks.json"), overwrite);
+            }
+
+            var hooksDir = Path.Combine(sourceDir, "hooks");
+            if (Directory.Exists(hooksDir))
+            {
+                CopyDirectoryRecursive(hooksDir, DestHooksDir, overwrite);
+            }
+        }
+
+        private static void CopyDirectoryRecursive(string sourceDir, string destDir, bool overwrite)
+        {
+            Directory.CreateDirectory(destDir);
+            var normalizedSource = sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            foreach (var directory in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                var relative = directory.Substring(normalizedSource.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                Directory.CreateDirectory(Path.Combine(destDir, relative));
+            }
+
+            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                var relative = file.Substring(normalizedSource.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var destination = Path.Combine(destDir, relative);
+                var destinationDir = Path.GetDirectoryName(destination);
+                if (!string.IsNullOrEmpty(destinationDir))
+                {
+                    Directory.CreateDirectory(destinationDir);
+                }
+
+                File.Copy(file, destination, overwrite);
             }
         }
     }

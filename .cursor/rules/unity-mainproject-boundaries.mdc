@@ -1,0 +1,13 @@
+---
+description: Unity C# folder ownership for game code under _MainProject
+globs: Assets/_MainProject/**/*.cs
+alwaysApply: false
+---
+
+# _MainProject Code Boundaries
+
+- Keep game feature code in `Assets/_MainProject/Scripts/...`.
+- Keep runtime code and editor code separated; editor helpers belong in `Editor/`.
+- Do not place new game logic in `Packages/com.ohze.gameup.core/...`; extend from `Assets/_MainProject` instead.
+- Respect GameUp Core APIs first (`GULogger`, `Signal`, `UIScreen`/`UIPopup`, `GUPool`) before custom reinventions.
+- Keep feature folders vertical where possible (`Feature/Runtime`, `Feature/Editor`, `Feature/Tests`) to reduce coupling.

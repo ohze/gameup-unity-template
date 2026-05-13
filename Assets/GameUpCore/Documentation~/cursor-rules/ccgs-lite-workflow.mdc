@@ -1,0 +1,12 @@
+---
+description: Lightweight CCGS-style workflow gates for Unity tasks
+alwaysApply: true
+---
+
+# CCGS-Lite Workflow Gates
+
+- Start each feature with a short brief: player value, scope, and acceptance criteria.
+- Before coding, list assumptions and technical risks that can trigger rework.
+- Implement in small increments and validate after each increment.
+- For non-trivial changes, include at least one test strategy (EditMode, PlayMode, or manual steps).
+- When finishing, report changed files, what was tested, and remaining risks.

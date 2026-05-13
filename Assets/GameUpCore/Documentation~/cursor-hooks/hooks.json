@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "powershell -ExecutionPolicy Bypass -File .cursor/hooks/safe-shell-gate.ps1",
+        "matcher": "git\\s+push\\s+--force|git\\s+reset\\s+--hard|rm\\s+-rf|Remove-Item.*-Recurse.*-Force",
+        "failClosed": false
+      }
+    ]
+  }
+}

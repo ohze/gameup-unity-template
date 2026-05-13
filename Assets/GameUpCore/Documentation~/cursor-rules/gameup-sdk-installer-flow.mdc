@@ -1,0 +1,14 @@
+---
+description: Installer flow guardrails for GameUp package install and update
+globs: Assets/GameUpSDK/Editor/Installer/**/*.cs
+alwaysApply: false
+---
+
+# GameUp SDK Installer Flow
+
+- Treat install and update as two explicit flows with clear completion checks.
+- Before changing installer logic, verify package dependencies and define-symbol side effects.
+- Keep startup behavior idempotent: avoid reopening setup UI repeatedly in one session.
+- Use project-scoped persistence keys for setup completion and keep reset path available.
+- When adding post-install steps, run them only after dependency checks succeed.
+- For failures, keep logs actionable and include manual recovery instructions.

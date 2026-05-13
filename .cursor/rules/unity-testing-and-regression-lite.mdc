@@ -1,0 +1,13 @@
+---
+description: Unity test and regression expectations for C# gameplay changes
+globs: Assets/**/*.cs
+alwaysApply: false
+---
+
+# Unity Testing and Regression (Lite)
+
+- Prefer EditMode tests for pure logic and PlayMode tests for scene behavior.
+- For each bug fix, add or update a regression check that fails before and passes after.
+- Cover success path, failure path, and at least one edge case for non-trivial logic.
+- Keep manual test scenarios reproducible (scene, setup, expected result, platform).
+- Avoid flaky timing assertions; use deterministic setup and clear tolerances.
