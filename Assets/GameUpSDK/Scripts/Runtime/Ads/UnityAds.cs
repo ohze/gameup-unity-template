@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using GameUp.Core;
 using UnityEngine.Serialization;
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
 using Unity.Services.LevelPlay;
@@ -65,13 +64,13 @@ namespace GameUp.SDK
         {
             if (_initialized)
             {
-                GULogger.Log("GameUp", "UnityAds already initialized.");
+                Debug.Log("[CtySDK] UnityAds already initialized.");
                 return;
             }
 
             if (string.IsNullOrEmpty(levelPlayAppKey))
             {
-                GULogger.Warning("GameUp", "UnityAds: LevelPlay App Key not set.");
+                Debug.LogWarning("[CtySDK] UnityAds: LevelPlay App Key not set.");
                 _initialized = true;
                 return;
             }
@@ -90,7 +89,7 @@ namespace GameUp.SDK
                 LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
                 CreateAdUnits();
                 SubscribeToAdEvents();
-                GULogger.Log("GameUp", "UnityAds (LevelPlay) initialized.");
+                Debug.Log("[CtySDK] UnityAds (LevelPlay) initialized.");
             });
         }
 
@@ -101,7 +100,7 @@ namespace GameUp.SDK
                 _initialized = true;
                 LevelPlay.OnInitSuccess -= OnLevelPlayInitSuccess;
                 LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
-                GULogger.Log("GameUp", $"UnityAds LevelPlay init failed: {error}");
+                Debug.Log("[CtySDK] UnityAds LevelPlay init failed: " + error);
             });
         }
 
@@ -126,11 +125,11 @@ namespace GameUp.SDK
 
         private static RuntimeAdPlatform GetRuntimeAdPlatform()
         {
-            if (GameUtils.IsIOS)
-                return RuntimeAdPlatform.IOS;
-            if (GameUtils.IsAndroid)
-                return RuntimeAdPlatform.Android;
-#if UNITY_EDITOR
+#if UNITY_ANDROID
+            return RuntimeAdPlatform.Android;
+#elif UNITY_IOS || UNITY_IPHONE
+            return RuntimeAdPlatform.IOS;
+#elif UNITY_EDITOR
             return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS
                 ? RuntimeAdPlatform.IOS
                 : RuntimeAdPlatform.Android;
@@ -187,12 +186,12 @@ namespace GameUp.SDK
         public void SetAfterCheckGDPR(bool isConsent)
         {
             LevelPlay.SetConsent(isConsent);
-            GULogger.Log("GameUp", $"UnityAds SetAfterCheckGDPR (consent={isConsent}).");
+            Debug.Log("[CtySDK] UnityAds SetAfterCheckGDPR (consent=" + isConsent + ").");
         }
 
         public void RequestBanner()
         {
-            if (_bannerAd == null) { GULogger.Log("GameUp", "UnityAds RequestBanner: banner ad unit not configured."); return; }
+            if (_bannerAd == null) { Debug.Log("[CtySDK] UnityAds RequestBanner: banner ad unit not configured."); return; }
             _bannerAd.LoadAd();
         }
 
@@ -215,13 +214,13 @@ namespace GameUp.SDK
         {
             if (_bannerAd == null)
             {
-                GULogger.Warning("GameUp", "UnityAds ShowBanner: banner not configured.");
+                Debug.LogWarning("[CtySDK] UnityAds ShowBanner: banner not configured.");
                 OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
                 return;
             }
             if (!_bannerLoaded)
             {
-                GULogger.Log("GameUp", "UnityAds ShowBanner: banner not loaded yet.");
+                Debug.Log("[CtySDK] UnityAds ShowBanner: banner not loaded yet.");
                 OnBannerShowFailed?.Invoke(string.IsNullOrEmpty(where) ? "main" : where);
                 return;
             }
@@ -240,7 +239,7 @@ namespace GameUp.SDK
         {
             if (_interstitialAd == null || !_interstitialAd.IsAdReady())
             {
-                GULogger.Log("GameUp", "UnityAds ShowInterstitial: ad not ready.");
+                Debug.Log("[CtySDK] UnityAds ShowInterstitial: ad not ready.");
                 onFail?.Invoke(); return;
             }
             _interstitialAd.OnAdClosed += OnInterstitialClosed;
@@ -269,7 +268,7 @@ namespace GameUp.SDK
         {
             if (_rewardedAd == null || !_rewardedAd.IsAdReady())
             {
-                GULogger.Log("GameUp", "UnityAds ShowRewardedVideo: ad not ready.");
+                Debug.Log("[CtySDK] UnityAds ShowRewardedVideo: ad not ready.");
                 onFail?.Invoke(); return;
             }
             AdsRules.BeginInterstitialCappingPause();
@@ -309,7 +308,7 @@ namespace GameUp.SDK
 
         public void ShowAppOpenAds(string where, Action onSuccess, Action onFail)
         {
-            GULogger.Log("GameUp", "UnityAds ShowAppOpenAds: not supported by LevelPlay.");
+            Debug.Log("[CtySDK] UnityAds ShowAppOpenAds: not supported by LevelPlay.");
             onFail?.Invoke();
         }
 

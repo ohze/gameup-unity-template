@@ -1,28 +1,25 @@
 #if UNITY_IOS
-using System.IO;
 using UnityEditor;
 using UnityEditor.Callbacks;
 using UnityEditor.iOS.Xcode;
+using System.IO;
 
-namespace GameUp.SDK.Editor
+public class IosPrivacyPostProcess
 {
-    public class IosPrivacyPostProcess
+    [PostProcessBuild]
+    public static void OnPostProcessBuild(BuildTarget target, string pathToBuiltProject)
     {
-        [PostProcessBuild]
-        public static void OnPostProcessBuild(BuildTarget target, string pathToBuiltProject)
-        {
-            if (target != BuildTarget.iOS)
-                return;
+        if (target != BuildTarget.iOS) return;
 
-            var plistPath = Path.Combine(pathToBuiltProject, "Info.plist");
-            var plist = new PlistDocument();
-            plist.ReadFromFile(plistPath);
+        string plistPath = Path.Combine(pathToBuiltProject, "Info.plist");
+        PlistDocument plist = new PlistDocument();
+        plist.ReadFromFile(plistPath);
 
-            var trackingDescription = "This data helps us provide personalized advertising and a better experience for you.";
-            plist.root.SetString("NSUserTrackingUsageDescription", trackingDescription);
+        // Thêm dòng thông báo xin quyền ATT
+        string trackingDescription = "This data helps us provide personalized advertising and a better experience for you.";
+        plist.root.SetString("NSUserTrackingUsageDescription", trackingDescription);
 
-            plist.WriteToFile(plistPath);
-        }
+        plist.WriteToFile(plistPath);
     }
 }
 #endif

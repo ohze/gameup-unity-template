@@ -45,12 +45,14 @@ namespace GameUp.SDK
         public enum PrimaryMediation
         {
             LevelPlay,
-            AdMob
+            AdMob,
+            Max
         }
 
         [Header("Ad behaviours (auto collected from children on Awake)")]
         [SerializeField] private List<IronSourceAds> levelPlayAdsBehaviours = new List<IronSourceAds>();
         [SerializeField] private List<AdmobAds> admobAdsBehaviours = new List<AdmobAds>();
+        [SerializeField] private List<MaxAds> maxAdsBehaviours = new List<MaxAds>();
 
         [Header("Banner sau Initialize")]
         [Tooltip("Chỉ có hiệu lực khi enable_banner (Remote Config) = true. enable_banner ưu tiên cao hơn.")]
@@ -107,6 +109,14 @@ namespace GameUp.SDK
                     continue;
                 admobAdsBehaviours.Add(a);
             }
+
+            maxAdsBehaviours.Clear();
+            foreach (var a in GetComponentsInChildren<MaxAds>(true))
+            {
+                if (a.transform == transform)
+                    continue;
+                maxAdsBehaviours.Add(a);
+            }
         }
 
         private void OnDestroy()
@@ -149,18 +159,26 @@ namespace GameUp.SDK
 
         private void BuildAdsList()
         {
-            // Mediation chính do Scripting Define Symbols (GameUp SDK/Setup Dependencies) — ổn khi SDK cài dạng package.
-#if GAMEUP_PRIMARY_MEDIATION_ADMOB
-            IEnumerable<IAds> preferred = admobAdsBehaviours.Where(a => a != null).Cast<IAds>();
-            IEnumerable<IAds> fallback = levelPlayAdsBehaviours.Where(a => a != null).Cast<IAds>();
+            IEnumerable<IAds> preferred;
+            var fallbacks = new List<IAds>();
+
+#if GAMEUP_PRIMARY_MEDIATION_MAX
+            preferred = maxAdsBehaviours.Where(a => a != null).Cast<IAds>();
+            fallbacks.AddRange(admobAdsBehaviours.Where(a => a != null).Cast<IAds>());
+            fallbacks.AddRange(levelPlayAdsBehaviours.Where(a => a != null).Cast<IAds>());
+#elif GAMEUP_PRIMARY_MEDIATION_ADMOB
+            preferred = admobAdsBehaviours.Where(a => a != null).Cast<IAds>();
+            fallbacks.AddRange(levelPlayAdsBehaviours.Where(a => a != null).Cast<IAds>());
+            fallbacks.AddRange(maxAdsBehaviours.Where(a => a != null).Cast<IAds>());
 #else
-            IEnumerable<IAds> preferred = levelPlayAdsBehaviours.Where(a => a != null).Cast<IAds>();
-            IEnumerable<IAds> fallback = admobAdsBehaviours.Where(a => a != null).Cast<IAds>();
+            preferred = levelPlayAdsBehaviours.Where(a => a != null).Cast<IAds>();
+            fallbacks.AddRange(admobAdsBehaviours.Where(a => a != null).Cast<IAds>());
+            fallbacks.AddRange(maxAdsBehaviours.Where(a => a != null).Cast<IAds>());
 #endif
 
             var list = preferred.ToList();
             if (list.Count == 0)
-                list = fallback.ToList();
+                list = fallbacks;
 
             _ads = list
                 .OrderBy(a => a.OrderExecute)

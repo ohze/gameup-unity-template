@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using GameUp.Core;
 using UnityEngine.Serialization;
 #if LEVELPLAY_DEPENDENCIES_INSTALLED
 using Unity.Services.LevelPlay;
@@ -13,28 +12,28 @@ namespace GameUp.SDK
 {
     /// <summary>
     /// IronSource (LevelPlay) Mediation implementation of IAds.
-    /// Chỉ cần App Key để lấy quảng cáo; AdMob và Unity Ads chạy qua mediation.
-    /// Nếu không nhập Ad Unit ID, dùng placement mặc định (DefaultBanner, DefaultInterstitial, DefaultRewardedVideo).
-    /// LevelPlay không hỗ trợ App Open; các method App Open no-op / return false.
+    /// Chá»‰ cáº§n App Key Ä‘á»ƒ láº¥y quáº£ng cÃ¡o; AdMob vÃ  Unity Ads cháº¡y qua mediation.
+    /// Náº¿u khÃ´ng nháº­p Ad Unit ID, dÃ¹ng placement máº·c Ä‘á»‹nh (DefaultBanner, DefaultInterstitial, DefaultRewardedVideo).
+    /// LevelPlay khÃ´ng há»— trá»£ App Open; cÃ¡c method App Open no-op / return false.
     /// </summary>
 
     public class IronSourceAds : MonoBehaviour, IAds, IBannerSizeConfig, IPlacementAwareAds, IAdUnitIdResolver, IConsentAwareAds
     {
-        [Header("LevelPlay App Key (bắt buộc - lấy từ LevelPlay dashboard)")]
+        [Header("LevelPlay App Key (báº¯t buá»™c - láº¥y tá»« LevelPlay dashboard)")]
         [SerializeField] private string levelPlayAppKey;
 
         [Header("Multi Ad Unit IDs")]
-        [Tooltip("Bật để dùng nhiều Placement/Ad Unit theo placement key (where). Tắt = dùng 1 ID/format như hiện tại.")]
+        [Tooltip("Báº­t Ä‘á»ƒ dÃ¹ng nhiá»u Placement/Ad Unit theo placement key (where). Táº¯t = dÃ¹ng 1 ID/format nhÆ° hiá»‡n táº¡i.")]
         [SerializeField] private bool useMultiAdUnitIds;
 
-        [Tooltip("Danh sách mapping Android: (AdType, NameId=where, Id=placement id). Chỉ dùng khi useMultiAdUnitIds=true.")]
+        [Tooltip("Danh sÃ¡ch mapping Android: (AdType, NameId=where, Id=placement id). Chá»‰ dÃ¹ng khi useMultiAdUnitIds=true.")]
         [FormerlySerializedAs("adUnitIds")]
         [SerializeField] private System.Collections.Generic.List<AdUnitIdEntry> adUnitIdsAndroid = new System.Collections.Generic.List<AdUnitIdEntry>();
 
-        [Tooltip("Danh sách mapping iOS: (AdType, NameId=where, Id=placement id). Chỉ dùng khi useMultiAdUnitIds=true.")]
+        [Tooltip("Danh sÃ¡ch mapping iOS: (AdType, NameId=where, Id=placement id). Chá»‰ dÃ¹ng khi useMultiAdUnitIds=true.")]
         [SerializeField] private System.Collections.Generic.List<AdUnitIdEntry> adUnitIdsIOS = new System.Collections.Generic.List<AdUnitIdEntry>();
 
-        [Header("Ad Unit / Placement IDs (để trống = dùng placement mặc định)")]
+        [Header("Ad Unit / Placement IDs (Ä‘á»ƒ trá»‘ng = dÃ¹ng placement máº·c Ä‘á»‹nh)")]
         [FormerlySerializedAs("bannerAdUnitId")]
         [SerializeField] private string bannerAdUnitIdAndroid;
         [SerializeField] private string bannerAdUnitIdIOS;
@@ -93,13 +92,13 @@ namespace GameUp.SDK
         {
             if (_initialized)
             {
-                GULogger.Log("GameUp", "IronSourceAds already initialized.");
+                Debug.Log("[CtySDK] IronSourceAds already initialized.");
                 return;
             }
 
             if (string.IsNullOrEmpty(levelPlayAppKey))
             {
-                GULogger.Warning("GameUp", "IronSourceAds: LevelPlay App Key not set.");
+                Debug.LogWarning("[CtySDK] IronSourceAds: LevelPlay App Key not set.");
                 _initialized = true;
                 return;
             }
@@ -122,13 +121,13 @@ namespace GameUp.SDK
                 RequestBanner();
                 RequestInterstitial();
                 RequestRewardedVideo();
-                GULogger.Log("GameUp", "IronSourceAds (LevelPlay) initialized.");
+                Debug.Log("[CtySDK] IronSourceAds (LevelPlay) initialized.");
             });
         }
 
         /// <summary>
         /// Subscribe to LevelPlay impression data (fired after ad is shown with revenue). Forward to AdsEvent for GameUpAnalytics.LogAdImpression.
-        /// OnImpressionDataReady runs on background thread → dispatch to main thread then raise.
+        /// OnImpressionDataReady runs on background thread â†’ dispatch to main thread then raise.
         /// </summary>
         private void SubscribeToImpressionData()
         {
@@ -198,13 +197,13 @@ namespace GameUp.SDK
                 _initialized = true;
                 LevelPlay.OnInitSuccess -= OnLevelPlayInitSuccess;
                 LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
-                GULogger.Log("GameUp", $"IronSourceAds LevelPlay init failed: {error}");
+                Debug.Log("[CtySDK] IronSourceAds LevelPlay init failed: " + error);
             });
         }
 
         private void CreateAdUnits()
         {
-            // SetDisplayOnLoad(false): không tự hiện sau khi load; chỉ hiện khi AdsManager gọi ShowBanner → ShowAd().
+            // SetDisplayOnLoad(false): khÃ´ng tá»± hiá»‡n sau khi load; chá»‰ hiá»‡n khi AdsManager gá»i ShowBanner â†’ ShowAd().
             var bannerConfig = new LevelPlayBannerAd.Config.Builder()
                 .SetSize(GetLevelPlayAdSize(_bannerSize))
                 .SetPosition(LevelPlayBannerPosition.BottomCenter)
@@ -269,11 +268,11 @@ namespace GameUp.SDK
 
         private static RuntimeAdPlatform GetRuntimeAdPlatform()
         {
-            if (GameUtils.IsIOS)
-                return RuntimeAdPlatform.IOS;
-            if (GameUtils.IsAndroid)
-                return RuntimeAdPlatform.Android;
-#if UNITY_EDITOR
+#if UNITY_ANDROID
+            return RuntimeAdPlatform.Android;
+#elif UNITY_IOS || UNITY_IPHONE
+            return RuntimeAdPlatform.IOS;
+#elif UNITY_EDITOR
             return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS
                 ? RuntimeAdPlatform.IOS
                 : RuntimeAdPlatform.Android;
@@ -336,7 +335,7 @@ namespace GameUp.SDK
         public void SetAfterCheckGDPR(bool isConsent)
         {
             LevelPlay.SetConsent(isConsent);
-            GULogger.Log("GameUp", $"IronSourceAds SetAfterCheckGDPR (consent={isConsent}).");
+            Debug.Log("[CtySDK] IronSourceAds SetAfterCheckGDPR (consent=" + isConsent + ").");
         }
 
         public void RequestBanner()
@@ -347,12 +346,12 @@ namespace GameUp.SDK
                 _bannerAd?.LoadAd();
                 return;
             }
-            _bannerLoaded = false;
             foreach (var kv in _bannerByWhere)
             {
                 _bannerLoadedByWhere[kv.Key] = false;
                 kv.Value?.LoadAd();
             }
+            _bannerLoaded = false;
             _bannerAd?.LoadAd();
         }
 
@@ -418,7 +417,6 @@ namespace GameUp.SDK
         {
             ShowBanner(where);
         }
-
         public void HideBanner(string where) { _bannerAd?.HideAd(); }
 
         public void ShowInterstitial(string where, Action onSuccess, Action onFail)
@@ -635,7 +633,21 @@ namespace GameUp.SDK
             adType = AdUnitType.Interstitial;
             nameId = null;
 
-            var activeAdUnitIds = GetActiveAdUnitIds();
+            var preferred = adUnitIdsAndroid;
+            var fallback = adUnitIdsIOS;
+#if UNITY_IOS || UNITY_IPHONE
+            preferred = adUnitIdsIOS;
+            fallback = adUnitIdsAndroid;
+#elif UNITY_EDITOR
+            if (EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS)
+            {
+                preferred = adUnitIdsIOS;
+                fallback = adUnitIdsAndroid;
+            }
+#endif
+            var activeAdUnitIds = (preferred != null && preferred.Count > 0)
+                ? preferred
+                : (fallback != null && fallback.Count > 0 ? fallback : preferred);
             if (!useMultiAdUnitIds || activeAdUnitIds == null || activeAdUnitIds.Count == 0)
                 return false;
 

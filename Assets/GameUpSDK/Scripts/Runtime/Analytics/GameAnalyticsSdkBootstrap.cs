@@ -6,9 +6,9 @@ using GameAnalyticsSDK;
 namespace GameUp.SDK
 {
     /// <summary>
-    /// Gọi <c>GameAnalytics.Initialize()</c> theo bước 2.5 tài liệu GA Unity — SDK không tự init trong <c>Awake</c>.
-    /// Dùng <see cref="RuntimeInitializeLoadType.AfterSceneLoad"/> để chạy sau <c>Awake</c> của GameObject GameAnalytics (nếu có trong scene).
-    /// Vẫn cần <c>Resources/GameAnalytics/Settings</c> (game key / secret) và nên có một GameObject GameAnalytics (menu Window → GameAnalytics).
+    /// Gá»i <c>GameAnalytics.Initialize()</c> theo bÆ°á»›c 2.5 tÃ i liá»‡u GA Unity â€” SDK khÃ´ng tá»± init trong <c>Awake</c>.
+    /// DÃ¹ng <see cref="RuntimeInitializeLoadType.AfterSceneLoad"/> Ä‘á»ƒ cháº¡y sau <c>Awake</c> cá»§a GameObject GameAnalytics (náº¿u cÃ³ trong scene).
+    /// Váº«n cáº§n <c>Resources/GameAnalytics/Settings</c> (game key / secret) vÃ  nÃªn cÃ³ má»™t GameObject GameAnalytics (menu Window â†’ GameAnalytics).
     /// </summary>
     public static class GameAnalyticsSdkBootstrap
     {
@@ -23,9 +23,9 @@ namespace GameUp.SDK
 #endif
 
         /// <summary>
-        /// Khởi tạo GameAnalytics một lần. An toàn gọi lại. Trên iOS 14.5+, nếu cần ATT trước khi init để IDFA,
-        /// xem <see href="https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/">GA Unity — ATT</see>
-        /// (dùng <c>RequestTrackingAuthorization</c> rồi <c>Initialize</c> thay vì chỉ dựa vào auto bootstrap).
+        /// Khá»Ÿi táº¡o GameAnalytics má»™t láº§n. An toÃ n gá»i láº¡i. TrÃªn iOS 14.5+, náº¿u cáº§n ATT trÆ°á»›c khi init Ä‘á»ƒ IDFA,
+        /// xem <see href="https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/">GA Unity â€” ATT</see>
+        /// (dÃ¹ng <c>RequestTrackingAuthorization</c> rá»“i <c>Initialize</c> thay vÃ¬ chá»‰ dá»±a vÃ o auto bootstrap).
         /// </summary>
         public static void TryInitialize()
         {
@@ -34,7 +34,7 @@ namespace GameUp.SDK
                 return;
 
             GameAnalytics.Initialize();
-            Debug.Log(LogTag + " Đã gọi GameAnalytics.Initialize() (platform: " + Application.platform + ").");
+            Debug.Log(LogTag + " ÄÃ£ gá»i GameAnalytics.Initialize() (platform: " + Application.platform + ").");
 #endif
         }
     }

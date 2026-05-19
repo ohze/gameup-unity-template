@@ -4,6 +4,19 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.4] — 2026-05-19
+
+### Added
+
+- **AppLovin MAX** (`MaxAds`, `GAMEUP_PRIMARY_MEDIATION_MAX`, `MAXSDK_DEPENDENCIES_INSTALLED`) — mediation thứ ba, cài qua Setup Dependencies.
+- **AppMetrica** (`AppMetricaActivator`, `APPMETRICA_DEPENDENCIES_INSTALLED`) — analytics tùy chọn.
+- **RemoteExtraData** ScriptableObject — cấu hình remote bổ sung (vd `wave_start_show_inters`).
+- Prefab `MaxAds`, `AppmetricaObject`.
+
+### Changed
+
+- Đồng bộ logic từ `sdk-gameup` v1.2.4: installer, Setup window, ads/analytics runtime; giữ namespace `GameUp.SDK`, `GULogger`, `MonoSingleton` từ GameUp Core và `RemoveAdsSetting` của template.
+
 ## [1.1.3] — 2026-04-02
 
 ### Summary

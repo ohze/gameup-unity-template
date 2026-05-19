@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Globalization;
 using System.Reflection;
-using GameUp.Core;
+using System.Threading.Tasks;
 using UnityEngine;
+using GameUp.Core;
+using UnityEngine.Serialization;
 #if FIREBASE_DEPENDENCIES_INSTALLED
 using Firebase;
 using Firebase.Extensions;
@@ -13,23 +15,23 @@ using Firebase.RemoteConfig;
 namespace GameUp.SDK
 {
     /// <summary>
-    /// Firebase Remote Config: tên biến trùng với key trên Remote để tự động map (reflection).
-    /// Number → int, Boolean → bool.
+    /// Firebase Remote Config: tÃªn biáº¿n trÃ¹ng vá»›i key trÃªn Remote Ä‘á»ƒ tá»± Ä‘á»™ng map (reflection).
+    /// Number â†’ int, Boolean â†’ bool.
     /// </summary>
     public class FirebaseRemoteConfigUtils : MonoSingleton<FirebaseRemoteConfigUtils>
     {
-        // ---------- Config (tên biến = key trên Remote Config) ----------
-        /// <summary>Khoảng thời gian tối thiểu (giây) giữa 2 lần hiển thị Interstitial.</summary>
+        // ---------- Config (tÃªn biáº¿n = key trÃªn Remote Config) ----------
+        /// <summary>Khoáº£ng thá»i gian tá»‘i thiá»ƒu (giÃ¢y) giá»¯a 2 láº§n hiá»ƒn thá»‹ Interstitial.</summary>
         public int inter_capping_time = 120;
-        /// <summary>Level bắt đầu hiện Interstitial (level tính từ 1).</summary>
+        /// <summary>Level báº¯t Ä‘áº§u hiá»‡n Interstitial (level tÃ­nh tá»« 1).</summary>
         public int inter_start_level = 3;
-        /// <summary>Tắt/Bật hiển thị Rate App trong Game.</summary>
+        /// <summary>Táº¯t/Báº­t hiá»ƒn thá»‹ Rate App trong Game.</summary>
         public bool enable_rate_app = false;
-        /// <summary>Level hiện Rate App.</summary>
+        /// <summary>Level hiá»‡n Rate App.</summary>
         public int level_start_show_rate_app = 5;
-        /// <summary>Tắt/Bật hiển thị Popup yêu cầu Internet.</summary>
+        /// <summary>Táº¯t/Báº­t hiá»ƒn thá»‹ Popup yÃªu cáº§u Internet.</summary>
         public bool no_internet_popup_enable = true;
-        /// <summary>Tắt/Bật hiển thị Banner trong Game. Ưu tiên cao hơn AdsManager.showBannerAfterInit: nếu false thì không show banner (kể cả khi showBannerAfterInit = true).</summary>
+        /// <summary>Táº¯t/Báº­t hiá»ƒn thá»‹ Banner trong Game. Æ¯u tiÃªn cao hÆ¡n AdsManager.showBannerAfterInit: náº¿u false thÃ¬ khÃ´ng show banner (ká»ƒ cáº£ khi showBannerAfterInit = true).</summary>
         public bool enable_banner = true;
 
         [SerializeField]
@@ -38,14 +40,13 @@ namespace GameUp.SDK
         public bool IsRemoteConfigReady => _remoteConfigReady;
         public Action<bool> OnFetchCompleted;
 
-
         private static bool IsEditor()
         {
             return Application.platform == RuntimePlatform.OSXEditor ||
                    Application.platform == RuntimePlatform.WindowsEditor;
         }
 
-        /// <summary>Áp dụng giá trị mặc định lên các field (dùng trong Editor và khi Firebase lỗi).</summary>
+        /// <summary>Ãp dá»¥ng giÃ¡ trá»‹ máº·c Ä‘á»‹nh lÃªn cÃ¡c field (dÃ¹ng trong Editor vÃ  khi Firebase lá»—i).</summary>
         protected void ApplyDefaultValues()
         {
             var defaults = GetDefaultValues();
@@ -60,15 +61,15 @@ namespace GameUp.SDK
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning("[GameUp] RemoteConfig UpdateKeys " + kv.Key + ": " + ex.Message);
+                    GULogger.Warning("GameUp", "RemoteConfig UpdateKeys " + kv.Key + ": " + ex.Message);
                 }
             }
         }
 
         /// <summary>
-        /// Default values dùng cho SetDefaultsAsync và fallback khi Firebase lỗi.
-        /// Mặc định sẽ tự lấy tất cả public instance field (int/bool/string/float/double/long) trên các target.
-        /// Dự án khác có thể override để thêm/ghi đè key tùy ý.
+        /// Default values dÃ¹ng cho SetDefaultsAsync vÃ  fallback khi Firebase lá»—i.
+        /// Máº·c Ä‘á»‹nh sáº½ tá»± láº¥y táº¥t cáº£ public instance field (int/bool/string/float/double/long) trÃªn cÃ¡c target.
+        /// Dá»± Ã¡n khÃ¡c cÃ³ thá»ƒ override Ä‘á»ƒ thÃªm/ghi Ä‘Ã¨ key tÃ¹y Ã½.
         /// </summary>
         protected virtual Dictionary<string, object> GetDefaultValues()
         {
@@ -121,6 +122,71 @@ namespace GameUp.SDK
             return defaults;
         }
 
+        protected void BindingFieldsFromDefaults(KeyValuePair<string, object> kv, object o)
+        {
+            if (o == null) return;
+            var field = o.GetType().GetField(kv.Key, BindingFlags.Public | BindingFlags.Instance);
+            if (field == null) return;
+
+            try
+            {
+                object value = ConvertDefaultValue(kv.Value, field.FieldType);
+                if (value == null && field.FieldType.IsValueType)
+                {
+                    // Value types cannot be assigned null.
+                    return;
+                }
+
+                field.SetValue(o, value);
+                GULogger.Log("GameUp", $"RemoteConfig UpdateKeys {kv.Key}: {kv.Value}");
+            }
+            catch (Exception ex)
+            {
+                GULogger.Warning("GameUp", $"RemoteConfig BindingDefaults {kv.Key} failed: {ex.Message}");
+            }
+        }
+
+        private static object ConvertDefaultValue(object value, Type targetType)
+        {
+            if (targetType == null) return null;
+            if (value == null) return null;
+
+            if (targetType.IsInstanceOfType(value))
+            {
+                return value;
+            }
+
+            try
+            {
+                if (targetType == typeof(int))
+                    return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+                if (targetType == typeof(long))
+                    return Convert.ToInt64(value, CultureInfo.InvariantCulture);
+                if (targetType == typeof(bool))
+                {
+                    if (value is string s)
+                    {
+                        if (bool.TryParse(s, out var parsedBool)) return parsedBool;
+                        if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt)) return parsedInt != 0;
+                    }
+                    if (value is IConvertible)
+                        return Convert.ToInt32(value, CultureInfo.InvariantCulture) != 0;
+                }
+                if (targetType == typeof(string))
+                    return value.ToString();
+                if (targetType == typeof(float))
+                    return Convert.ToSingle(value, CultureInfo.InvariantCulture);
+                if (targetType == typeof(double))
+                    return Convert.ToDouble(value, CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                // Let caller handle the fallback path.
+            }
+
+            return null;
+        }
+
 #if FIREBASE_DEPENDENCIES_INSTALLED
         private FirebaseRemoteConfig _remoteConfig;
 
@@ -131,11 +197,11 @@ namespace GameUp.SDK
                 ApplyDefaultValues();
                 _remoteConfigReady = true;
                 OnFetchCompleted?.Invoke(true);
-                Debug.Log("[GameUp] FirebaseRemoteConfig: Editor mode - using default values for testing.");
+                GULogger.Log("GameUp", "FirebaseRemoteConfig: Editor mode - using default values for testing.");
                 return;
             }
 
-            if (FirebaseUtils.Instance.FirebaseInitialized)
+            if (FirebaseUtils.Instance.IsInitialized)
             {
                 InitRemoteConfig();
                 return;
@@ -149,7 +215,7 @@ namespace GameUp.SDK
             FirebaseUtils.Instance.onInitialized -= OnFirebaseInitialized;
             if (!success)
             {
-                Debug.LogWarning("[GameUp] FirebaseRemoteConfig: Firebase init failed, using defaults.");
+                GULogger.Warning("GameUp", "FirebaseRemoteConfig: Firebase init failed, using defaults.");
                 ApplyDefaultValues();
                 _remoteConfigReady = true;
                 OnFetchCompleted?.Invoke(false);
@@ -165,7 +231,7 @@ namespace GameUp.SDK
                 var app = FirebaseApp.DefaultInstance;
                 if (app == null)
                 {
-                    Debug.LogWarning("[GameUp] FirebaseRemoteConfig: FirebaseApp null, using defaults.");
+                    GULogger.Warning("GameUp", "FirebaseRemoteConfig: FirebaseApp null, using defaults.");
                     ApplyDefaultValues();
                     _remoteConfigReady = true;
                     OnFetchCompleted?.Invoke(false);
@@ -193,12 +259,12 @@ namespace GameUp.SDK
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[GameUp] FirebaseRemoteConfig EnsureInitializedAsync error: " + e);
+                GULogger.Warning("GameUp", "FirebaseRemoteConfig EnsureInitializedAsync error: " + e);
             }
 
             bool activated = (await _remoteConfig.FetchAndActivateAsync());
-            Debug.Log("[GameUp] FirebaseRemoteConfig activated: " + activated);
-            Debug.Log("[GameUp] FirebaseRemoteConfig activated: " + _remoteConfig.GetValue("enable_rate_app").BooleanValue);
+            GULogger.Log("GameUp", "FirebaseRemoteConfig activated: " + activated);
+            GULogger.Log("GameUp", "FirebaseRemoteConfig activated: " + _remoteConfig.GetValue("enable_rate_app").BooleanValue);
             UpdateKeysFromRemote();
             _remoteConfigReady = true;
             OnFetchCompleted?.Invoke(activated);
@@ -219,7 +285,7 @@ namespace GameUp.SDK
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning("[GameUp] RemoteConfig UpdateKeys " + k + ": " + ex.Message);
+                    GULogger.Warning("GameUp", "RemoteConfig UpdateKeys " + k + ": " + ex.Message);
                 }
             }
         }
@@ -227,53 +293,43 @@ namespace GameUp.SDK
         protected void BindingFields(string key, object o)
         {
             if (o == null) return;
+
             var field = o.GetType().GetField(key, BindingFlags.Public | BindingFlags.Instance);
-            if (field != null)
+            if (field == null) return;
+
+            var configValue = _remoteConfig.GetValue(key);
+            object assignedValue;
+
+            switch (Type.GetTypeCode(field.FieldType))
             {
-                if (field.FieldType == typeof(int))
-                    field.SetValue(o, (int)_remoteConfig.GetValue(key).LongValue);
-                else if (field.FieldType == typeof(long))
-                    field.SetValue(o, _remoteConfig.GetValue(key).LongValue);
-                else if (field.FieldType == typeof(bool))
-                    field.SetValue(o, _remoteConfig.GetValue(key).BooleanValue);
-                else if (field.FieldType == typeof(string))
-                    field.SetValue(o, _remoteConfig.GetValue(key).StringValue);
-                else if (field.FieldType == typeof(float))
-                {
-                    field.SetValue(o, (float)_remoteConfig.GetValue(key).DoubleValue);
-                }
-                else if (field.FieldType == typeof(double))
-                {
-                    field.SetValue(o, _remoteConfig.GetValue(key).DoubleValue);
-                }
+                case TypeCode.Int32:
+                    assignedValue = (int)configValue.LongValue;
+                    break;
+                case TypeCode.Int64:
+                    assignedValue = configValue.LongValue;
+                    break;
+                case TypeCode.Boolean:
+                    assignedValue = configValue.BooleanValue;
+                    break;
+                case TypeCode.String:
+                    assignedValue = configValue.StringValue;
+                    break;
+                case TypeCode.Single: // float
+                    assignedValue = (float)configValue.DoubleValue;
+                    break;
+                case TypeCode.Double:
+                    assignedValue = configValue.DoubleValue;
+                    break;
+                default:
+                    GULogger.Warning("GameUp", $"RemoteConfig key '{key}' unsupported type: {field.FieldType}");
+                    return;
             }
-            Debug.Log($"[GameUp] RemoteConfig UpdateKeys {key}: {_remoteConfig.GetValue(key)}");
+
+            field.SetValue(o, assignedValue);
+            GULogger.Log("GameUp", $"RemoteConfig UpdateKeys {key}: {assignedValue} (source={configValue.Source})");
         }
 
-        protected void BindingFieldsFromDefaults(KeyValuePair<string, object> kv, object o)
-        {
-            if (o == null) return;
-            var field = o.GetType().GetField(kv.Key, BindingFlags.Public | BindingFlags.Instance);
-            if (field != null)
-            {
-                Debug.Log(kv.Value);
-                if (field.FieldType == typeof(int) && kv.Value is int i)
-                    field.SetValue(o, i);
-                else if (field.FieldType == typeof(long) && kv.Value is long l)
-                    field.SetValue(o, l);
-                else if (field.FieldType == typeof(bool) && kv.Value is bool b)
-                    field.SetValue(o, b);
-                else if (field.FieldType == typeof(string) && kv.Value is string s)
-                    field.SetValue(o, s);
-                else if (field.FieldType == typeof(float) && kv.Value is float f)
-                    field.SetValue(o, f);
-                else if (field.FieldType == typeof(double) && kv.Value is double d)
-                    field.SetValue(o, d);
-                Debug.Log($"[GameUp] RemoteConfig UpdateKeys {kv.Key}: {kv.Value}");
-            }
-        }
-
-        /// <summary>Fetch và activate config (gọi lại khi cần refresh).</summary>
+        /// <summary>Fetch vÃ  activate config (gá»i láº¡i khi cáº§n refresh).</summary>
         public void FetchAndActivate(Action<bool> onDone = null)
         {
             if (_remoteConfig == null) { onDone?.Invoke(false); return; }
@@ -281,7 +337,7 @@ namespace GameUp.SDK
             {
                 bool ok = task.IsCompletedSuccessfully && task.Result;
                 if (task.IsFaulted && task.Exception != null)
-                    Debug.LogWarning("[GameUp] RemoteConfig FetchAndActivate: " + task.Exception.Message);
+                    GULogger.Warning("GameUp", "RemoteConfig FetchAndActivate: " + task.Exception.Message);
                 if (ok) UpdateKeysFromRemote();
                 onDone?.Invoke(ok);
             });

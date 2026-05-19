@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+
 #if UNITY_IOS
 using System.IO;
 using UnityEditor.iOS.Xcode;
@@ -10,7 +11,7 @@ namespace GameUp.SDK.Editor
 {
     public class GameUpPostProcess : IPostprocessBuildWithReport
     {
-        private const string TrackingUsageDescription = "Du lieu nay giup hien thi quang cao phu hop hon voi ban.";
+        private const string TrackingUsageDescription = "Dữ li�?u này giúp hi�fn th�< quảng cáo phù hợp hơn v�>i bạn.";
 
         public int callbackOrder => 0;
 

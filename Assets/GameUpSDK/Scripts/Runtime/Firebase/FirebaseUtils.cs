@@ -1,7 +1,7 @@
 using System;
+using UnityEngine;
 using System.Collections.Generic;
 using GameUp.Core;
-using UnityEngine;
 #if FIREBASE_DEPENDENCIES_INSTALLED
 using Firebase;
 using Firebase.Analytics;
@@ -15,13 +15,12 @@ namespace GameUp.SDK
     {
         private bool _initialized;
         public Action<bool> onInitialized;
-        /// <summary>True khi Firebase đã init xong (dùng để RemoteConfig init sau).</summary>
-        public bool FirebaseInitialized => _initialized;
+        /// <summary>True khi Firebase Ä‘Ã£ init xong (dÃ¹ng Ä‘á»ƒ RemoteConfig init sau).</summary>
+        public bool IsInitialized => _initialized;
 
 #if FIREBASE_DEPENDENCIES_INSTALLED
-        protected override void Awake()
+        private void Awake()
         {
-            base.Awake();
             FirebaseInit();
         }
 
@@ -52,6 +51,7 @@ namespace GameUp.SDK
             }
             else
             {
+                _initialized = true;
                 onInitialized?.Invoke(true);
             }
         }
@@ -151,9 +151,8 @@ namespace GameUp.SDK
 
         #endregion
 #else
-        protected override void Awake()
+        private void Awake()
         {
-            base.Awake();
             _initialized = true;
             onInitialized?.Invoke(true);
         }

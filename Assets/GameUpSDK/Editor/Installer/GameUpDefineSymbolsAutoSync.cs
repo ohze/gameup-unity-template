@@ -24,12 +24,14 @@ namespace GameUp.SDK.Installer
             BuildTargetGroup.Standalone,
         };
 
-        private const string LevelPlayDepsDefine = "LEVELPLAY_DEPENDENCIES_INSTALLED";
-        private const string AdMobDepsDefine = "ADMOB_DEPENDENCIES_INSTALLED";
-        private const string FirebaseDepsDefine = "FIREBASE_DEPENDENCIES_INSTALLED";
-        private const string AppsFlyerDepsDefine = "APPSFLYER_DEPENDENCIES_INSTALLED";
-        private const string GameAnalyticsDepsDefine = "GAMEANALYTICS_DEPENDENCIES_INSTALLED";
-        private const string FacebookDepsDefine = "FACEBOOK_DEPENDENCIES_INSTALLED";
+        private const string LevelPlayDepsDefine = GUDefinetion.LevelPlayDepsInstalled;
+        private const string AdMobDepsDefine = GUDefinetion.AdMobDepsInstalled;
+        private const string MaxSdkDepsDefine = GUDefinetion.MaxDepsInstalled;
+        private const string FirebaseDepsDefine = GUDefinetion.FirebaseDepsInstalled;
+        private const string AppsFlyerDepsDefine = GUDefinetion.AppsFlyerDepsInstalled;
+        private const string GameAnalyticsDepsDefine = GUDefinetion.GameAnalyticsDepsInstalled;
+        private const string FacebookDepsDefine = GUDefinetion.FacebookDepsInstalled;
+        private const string AppmetricaDepsDefine = GUDefinetion.AppMetricaDepsInstalled;
 
         private const string SessionThrottleKey = "GameUpSDK_DefinesAutoSync_Throttled";
 
@@ -135,21 +137,24 @@ namespace GameUp.SDK.Installer
 
             bool levelPlayInstalled = IsAssemblyLoaded("Unity.LevelPlay");
             bool admobInstalled = IsAssemblyLoaded("GoogleMobileAds");
+            bool maxInstalled = IsAssemblyLoaded("MaxSdk.Scripts");
             bool firebaseInstalled = IsAssemblyLoaded("Firebase.App");
             bool appsFlyerInstalled = IsAssemblyLoaded("AppsFlyer");
             bool gameAnalyticsInstalled = GameUpDependenciesWindow.IsGameAnalyticsSdkPresent();
             bool facebookInstalled = IsAssemblyLoaded("Facebook.Unity.Editor");
+            bool appMetricaInstalled = IsAssemblyLoaded("AppMetrica");
 
             SetDefine(LevelPlayDepsDefine, levelPlayInstalled);
             SetDefine(AdMobDepsDefine, admobInstalled);
+            SetDefine(MaxSdkDepsDefine, maxInstalled);
             SetDefine(FirebaseDepsDefine, firebaseInstalled);
             SetDefine(AppsFlyerDepsDefine, appsFlyerInstalled);
             SetDefine(GameAnalyticsDepsDefine, gameAnalyticsInstalled);
             SetDefine(FacebookDepsDefine, facebookInstalled);
+            SetDefine(AppmetricaDepsDefine, appMetricaInstalled);
 
-            // Backward compat: bật khi có (Firebase hoặc AppsFlyer hoặc GameAnalytics) AND (AdMob hoặc LevelPlay)
-            bool hasAnalytics = firebaseInstalled || appsFlyerInstalled || gameAnalyticsInstalled;
-            bool hasMediation = admobInstalled || levelPlayInstalled;
+            bool hasAnalytics = firebaseInstalled || appsFlyerInstalled || gameAnalyticsInstalled || appMetricaInstalled;
+            bool hasMediation = admobInstalled || levelPlayInstalled || maxInstalled;
             bool sdkEnabled = hasAnalytics && hasMediation;
             GameUpDependenciesWindow.SetDepsReadyDefine(sdkEnabled);
         }
@@ -189,7 +194,7 @@ namespace GameUp.SDK.Installer
             AssetDatabase.ImportAsset(GameAnalyticsRuntimeAsmdefAssetPath, ImportAssetOptions.ForceUpdate);
             createdNewAsmdef = true;
             message =
-                "Đã tạo " + GameAnalyticsRuntimeAsmdefAssetPath + ". GameUpSDK.Runtime tham chiếu assembly tên GameAnalyticsSDK — đợi Unity recompile.";
+                "Đã tạo " + GameAnalyticsRuntimeAsmdefAssetPath + ". GameUp.SDK.Runtime tham chiếu assembly tên GameAnalyticsSDK — đợi Unity recompile.";
             return true;
         }
 
@@ -197,15 +202,32 @@ namespace GameUp.SDK.Installer
         {
             bool lp = HasDefine(GUDefinetion.PrimaryMediationLevelPlay);
             bool admob = HasDefine(GUDefinetion.PrimaryMediationAdMob);
-            if (!lp && !admob)
+            bool max = HasDefine(GUDefinetion.PrimaryMediationMax);
+            int active = (lp ? 1 : 0) + (admob ? 1 : 0) + (max ? 1 : 0);
+            if (active == 0)
             {
                 SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
                 return;
             }
 
-            // Nếu lỡ có cả 2, ưu tiên giữ AdMob (giống logic window).
-            if (lp && admob)
+            if (active <= 1)
+                return;
+
+            if (admob)
+            {
                 SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
+                SetDefine(GUDefinetion.PrimaryMediationMax, false);
+            }
+            else if (max)
+            {
+                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
+                SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
+            }
+            else
+            {
+                SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
+                SetDefine(GUDefinetion.PrimaryMediationMax, false);
+            }
         }
 
         private static bool IsAssemblyLoaded(string assemblyName)

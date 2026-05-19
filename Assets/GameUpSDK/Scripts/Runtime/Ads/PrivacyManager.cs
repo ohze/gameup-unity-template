@@ -1,8 +1,7 @@
 using System;
 using System.Collections;
-using System.Globalization;
-using GameUp.Core;
 using UnityEngine;
+using GameUp.Core;
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IOS)
 using GoogleMobileAds.Ump.Api;
 #endif
@@ -25,9 +24,8 @@ namespace GameUp.SDK
         public bool IsCompleted => _completed;
         public bool ConsentGranted => _consentGranted;
 
-        protected override void Awake()
+        private void Awake()
         {
-            base.Awake();
             DontDestroyOnLoad(gameObject);
         }
 
@@ -53,49 +51,34 @@ namespace GameUp.SDK
         private IEnumerator RunPrivacyFlowCoroutine()
         {
 #if UNITY_IOS && !UNITY_EDITOR
-            if (RequiresAttPrompt())
-                yield return RequestAttCoroutine();
+            yield return RequestAttCoroutine();
 #endif
 
             yield return RequestUmpCoroutine();
 
             _completed = true;
 
+            // QUAN TRá»ŒNG: Gá»i hÃ m nÃ y Ä‘á»ƒ update tráº¡ng thÃ¡i cho cÃ¡c Ad Network
+            // Giáº£ sá»­ AdsManager cá»§a báº¡n lÃ  Singleton
+            if (AdsManager.Instance != null)
+            {
+                AdsManager.Instance.SetAfterCheckGDPR(_consentGranted);
+            }
+
             _onCompleted?.Invoke(_consentGranted);
             _onCompleted = null;
         }
 
 #if UNITY_IOS && !UNITY_EDITOR
-        private static bool RequiresAttPrompt()
-        {
-            return TryGetIosVersion(out var version) && version >= 14.5f;
-        }
-
-        private static bool TryGetIosVersion(out float version)
-        {
-            version = 0f;
-            var os = SystemInfo.operatingSystem;
-            if (string.IsNullOrEmpty(os))
-                return false;
-
-            var marker = "iPhone OS ";
-            var index = os.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (index < 0)
-                return false;
-
-            var value = os.Substring(index + marker.Length).Trim();
-            var segments = value.Split('.');
-            if (segments.Length < 2)
-                return false;
-
-            var normalized = segments[0] + "." + segments[1];
-            return float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out version);
-        }
-
         private IEnumerator RequestAttCoroutine()
         {
+            // ATT dialog is more reliable when app is active and one frame has passed.
+            while (!Application.isFocused)
+                yield return null;
+            yield return null;
+
             ATTrackingStatusBinding.AuthorizationTrackingStatus status = ATTrackingStatusBinding.GetAuthorizationTrackingStatus();
-            if (status == 0)
+            if (status == ATTrackingStatusBinding.AuthorizationTrackingStatus.NOT_DETERMINED)
             {
                 ATTrackingStatusBinding.RequestAuthorizationTracking();
                 const float timeout = 30f;
@@ -105,18 +88,26 @@ namespace GameUp.SDK
                     yield return null;
                     elapsed += Time.unscaledDeltaTime;
                     status = ATTrackingStatusBinding.GetAuthorizationTrackingStatus();
-                    if (status != 0)
+                    if (status != ATTrackingStatusBinding.AuthorizationTrackingStatus.NOT_DETERMINED)
                         break;
                 }
             }
 
-            GULogger.Log("GameUp", $"PrivacyManager ATT finished. status={status}");
+            GULogger.Log("GameUp", "PrivacyManager ATT finished. status=" + status);
         }
 #endif
 
         private IEnumerator RequestUmpCoroutine()
         {
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IOS)
+#if UNITY_IOS && !UNITY_EDITOR
+            if(ATTrackingStatusBinding.GetAuthorizationTrackingStatus() == ATTrackingStatusBinding.AuthorizationTrackingStatus.DENIED)
+            {
+                _consentGranted = false;
+                GULogger.Log("GameUp", "PrivacyManager ATT denied -> consent = false");
+                yield break;
+            }
+#endif
             bool done = false;
             bool canRequestAds = true;
 
@@ -125,7 +116,7 @@ namespace GameUp.SDK
             {
                 if (error != null)
                 {
-                    GULogger.Warning("GameUp", $"PrivacyManager UMP update failed: {error.Message}");
+                    GULogger.Warning("GameUp", "PrivacyManager UMP update failed: " + error.Message);
                     canRequestAds = false;
                     done = true;
                     return;
@@ -134,7 +125,7 @@ namespace GameUp.SDK
                 ConsentForm.LoadAndShowConsentFormIfRequired(formError =>
                 {
                     if (formError != null)
-                        GULogger.Warning("GameUp", $"PrivacyManager UMP form failed: {formError.Message}");
+                        GULogger.Warning("GameUp", "PrivacyManager UMP form failed: " + formError.Message);
 
                     canRequestAds = ConsentInformation.CanRequestAds();
                     done = true;
@@ -145,7 +136,7 @@ namespace GameUp.SDK
                 yield return null;
 
             _consentGranted = canRequestAds;
-            GULogger.Log("GameUp", $"PrivacyManager UMP finished. consent={_consentGranted}");
+            GULogger.Log("GameUp", "PrivacyManager UMP finished. consent=" + _consentGranted);
 #else
             _consentGranted = true;
             yield break;

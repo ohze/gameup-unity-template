@@ -1,7 +1,7 @@
 {
   "name": "com.ohze.gameup.sdk",
   "displayName": "GameUp SDK",
-  "version": "1.0.0",
+  "version": "1.2.4",
   "unity": "2022.3",
   "description": "GameUp SDK — quảng cáo (IronSource LevelPlay / AdMob, App Open), analytics (Firebase, AppsFlyer), GameAnalytics (level/wave) và Facebook SDK (bootstrap / analytics).\n\nSau khi cài, cửa sổ Setup Dependencies hướng dẫn Firebase, AppsFlyer, GameAnalytics, Facebook, mediation và đồng bộ Scripting Define Symbols. \n\nDuyLV 2026",
   "keywords": [

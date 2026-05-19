@@ -160,14 +160,14 @@ namespace GameUp.SDK
             {
                 string where = string.IsNullOrEmpty(utilityBannerWhere) ? "main" : utilityBannerWhere;
                 AdsManager.Instance?.RequestCollapsibleBanner(where, CollapsibleBannerPlacement.Bottom);
-                GULogger.Log("GameUp", $"AdsTester -> RequestCollapsibleBanner Bottom | where={where}");
+                GULogger.Log("GameUp", "AdsTester -> RequestCollapsibleBanner Bottom | where=" + where);
             }
 
             if (GUILayout.Button("RequestCollapsibleBanner (Top)", _buttonStyle, GUILayout.Height(34f * scale)))
             {
                 string where = string.IsNullOrEmpty(utilityBannerWhere) ? "main" : utilityBannerWhere;
                 AdsManager.Instance?.RequestCollapsibleBanner(where, CollapsibleBannerPlacement.Top);
-                GULogger.Log("GameUp", $"AdsTester -> RequestCollapsibleBanner Top | where={where}");
+                GULogger.Log("GameUp", "AdsTester -> RequestCollapsibleBanner Top | where=" + where);
             }
 
             if (GUILayout.Button("Reset Interstitial Capping", _buttonStyle, GUILayout.Height(34f * scale)))
@@ -228,8 +228,8 @@ namespace GameUp.SDK
             if (item.useIntId)
             {
                 AdsManager.Instance.ShowById(item.intId, Mathf.Max(0, item.currentLevel),
-                    () => GULogger.Log("GameUp", $"AdsTester success -> ShowById {item.intId}"),
-                    () => GULogger.Warning("GameUp", $"AdsTester fail -> ShowById {item.intId}"));
+                    () => GULogger.Log("GameUp", "AdsTester success -> ShowById " + item.intId),
+                    () => GULogger.Warning("GameUp", "AdsTester fail -> ShowById " + item.intId));
                 return;
             }
 
@@ -240,31 +240,31 @@ namespace GameUp.SDK
                     if (item.useCollapsibleBanner)
                     {
                         AdsManager.Instance.ShowCollapsibleBanner(where, item.collapsiblePlacement);
-                        GULogger.Log("GameUp", $"AdsTester show -> CollapsibleBanner({item.collapsiblePlacement}) {where}");
+                        GULogger.Log("GameUp", "AdsTester show -> CollapsibleBanner(" + item.collapsiblePlacement + ") " + where);
                     }
                     else
                     {
                         AdsManager.Instance.ShowBanner(where);
-                        GULogger.Log("GameUp", $"AdsTester show -> Banner {where}");
+                        GULogger.Log("GameUp", "AdsTester show -> Banner " + where);
                     }
                     break;
                 case AdUnitType.Interstitial:
                     AdsManager.Instance.ShowInterstitial(where, Mathf.Max(0, item.currentLevel),
-                        () => GULogger.Log("GameUp", $"AdsTester success -> Interstitial {where}"),
-                        () => GULogger.Warning("GameUp", $"AdsTester fail -> Interstitial {where}"));
+                        () => GULogger.Log("GameUp", "AdsTester success -> Interstitial " + where),
+                        () => GULogger.Warning("GameUp", "AdsTester fail -> Interstitial " + where));
                     break;
                 case AdUnitType.RewardedVideo:
                     AdsManager.Instance.ShowRewardedVideo(where, Mathf.Max(0, item.currentLevel),
-                        () => GULogger.Log("GameUp", $"AdsTester success -> Rewarded {where}"),
-                        () => GULogger.Warning("GameUp", $"AdsTester fail -> Rewarded {where}"));
+                        () => GULogger.Log("GameUp", "AdsTester success -> Rewarded " + where),
+                        () => GULogger.Warning("GameUp", "AdsTester fail -> Rewarded " + where));
                     break;
                 case AdUnitType.AppOpen:
                     AdsManager.Instance.ShowAppOpenAds(where,
-                        () => GULogger.Log("GameUp", $"AdsTester success -> AppOpen {where}"),
-                        () => GULogger.Warning("GameUp", $"AdsTester fail -> AppOpen {where}"));
+                        () => GULogger.Log("GameUp", "AdsTester success -> AppOpen " + where),
+                        () => GULogger.Warning("GameUp", "AdsTester fail -> AppOpen " + where));
                     break;
                 default:
-                    GULogger.Warning("GameUp", $"AdsTester unsupported ad type: {item.adType}");
+                    GULogger.Warning("GameUp", "AdsTester unsupported ad type: " + item.adType);
                     break;
             }
         }
@@ -312,7 +312,7 @@ namespace GameUp.SDK
             }
 
             int count = mode == TestMode.Single ? _singleItems.Count : multiItems.Count;
-            GULogger.Log("GameUp", $"AdsTester -> Source={_activeSourceName}, Mode={mode}, built {count} test item(s).");
+            GULogger.Log("GameUp", "AdsTester -> Source=" + _activeSourceName + ", Mode=" + mode + ", built " + count + " test item(s).");
         }
 
         private AdmobAds FindPrimaryAdmob(AdsManager manager)
@@ -541,14 +541,10 @@ namespace GameUp.SDK
 
         private static bool IsIOSBuildTarget()
         {
-            if (GameUtils.IsIOS)
-                return true;
-#if UNITY_EDITOR
-            if (GameUtils.IsEditor)
-                return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS;
-#endif
 #if UNITY_IOS || UNITY_IPHONE
             return true;
+#elif UNITY_EDITOR
+            return EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS;
 #else
             return false;
 #endif

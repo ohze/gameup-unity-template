@@ -2,7 +2,6 @@ using UnityEngine;
 using System.Collections;
 using System;
 using System.IO;
-using GameUp.Core;
 
 namespace GameUp.SDK
 {
@@ -73,7 +72,7 @@ namespace GameUp.SDK
             int targetWidth = Mathf.Max(1, width);
             int targetHeight = Mathf.Max(1, height);
 
-            Texture2D screenTexture = GameUtils.TakeScreenShot();
+            Texture2D screenTexture = ScreenCapture.CaptureScreenshotAsTexture();
             SaveTextureToFile(screenTexture, targetWidth, targetHeight);
         }
 
@@ -174,7 +173,7 @@ namespace GameUp.SDK
             int targetWidth = Mathf.Max(1, width);
             int targetHeight = Mathf.Max(1, height);
 
-            Texture2D screenTexture = GameUtils.TakeScreenShot();
+            Texture2D screenTexture = ScreenCapture.CaptureScreenshotAsTexture();
             SaveTextureToFile(screenTexture, targetWidth, targetHeight);
         }
 #endif

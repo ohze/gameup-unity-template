@@ -12,9 +12,12 @@ namespace GameUp.SDK
         public const string AdMobDepsInstalled = "ADMOB_DEPENDENCIES_INSTALLED";
         public const string LevelPlayDepsInstalled = "LEVELPLAY_DEPENDENCIES_INSTALLED";
         public const string FacebookDepsInstalled = "FACEBOOK_DEPENDENCIES_INSTALLED";
+        public const string MaxDepsInstalled = "MAXSDK_DEPENDENCIES_INSTALLED";
+        public const string AppMetricaDepsInstalled = "APPMETRICA_DEPENDENCIES_INSTALLED";
 
-        /// <summary>Chỉ một trong hai được bật; do GameUpDependenciesWindow set — phù hợp khi SDK là UPM package (không cần asset trong Assets/).</summary>
+        /// <summary>Chỉ một mediation primary được bật; do GameUpDependenciesWindow set.</summary>
         public const string PrimaryMediationLevelPlay = "GAMEUP_PRIMARY_MEDIATION_LEVELPLAY";
         public const string PrimaryMediationAdMob = "GAMEUP_PRIMARY_MEDIATION_ADMOB";
+        public const string PrimaryMediationMax = "GAMEUP_PRIMARY_MEDIATION_MAX";
     }
 }

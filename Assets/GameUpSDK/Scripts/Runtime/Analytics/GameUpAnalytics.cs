@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
-using GameUp.Core;
+using UnityEngine;
 #if FIREBASE_DEPENDENCIES_INSTALLED
 using Firebase.Analytics;
 #endif
@@ -14,13 +14,13 @@ using Facebook.Unity;
 namespace GameUp.SDK
 {
     /// <summary>
-    /// Game analytics: Firebase và/hoặc AppsFlyer (MMP). GameAnalytics: progression (Start / Complete / Fail) theo
-    /// <see href="https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/event-tracking">GA Unity — Progression events</see>
-    /// (level → wave; wave toàn level = <c>w0</c>, wave gameplay = <c>w</c> + số). Cần init GameAnalytics + keys trong scene.
+    /// Game analytics: Firebase vÃ /hoáº·c AppsFlyer (MMP). GameAnalytics: progression (Start / Complete / Fail) theo
+    /// <see href="https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/event-tracking">GA Unity â€” Progression events</see>
+    /// (world <c>main</c> â†’ level â†’ wave). Cáº§n init GameAnalytics + keys trong scene.
     /// </summary>
     public static class GameUpAnalytics
     {
-        /// <summary>Wave segment khi log theo cả level, chưa vào wave cụ thể.</summary>
+        /// <summary>Wave segment khi log theo cáº£ level, chÆ°a vÃ o wave cá»¥ thá»ƒ.</summary>
         private const int GaWholeLevelWave = 0;
 
         private static string GaWavePart(int wave) => "w" + wave;
@@ -65,7 +65,7 @@ namespace GameUp.SDK
 
         // ---------- Firebase: Virtual currency ----------
 
-        /// <summary> start_level_1 - khi bắt đầu level 1 </summary>
+        /// <summary> start_level_1 - khi báº¯t Ä‘áº§u level 1 </summary>
         public static void LogStartLevel1()
         {
             LogFirebase(AnalyticsEvent.StartLevel1);
@@ -102,15 +102,15 @@ namespace GameUp.SDK
 
         // ---------- Firebase: Loading ----------
 
-        /// <summary> start_loading - khi bắt đầu loading </summary>
+        /// <summary> start_loading - khi báº¯t Ä‘áº§u loading </summary>
         public static void LogStartLoading() => LogFirebase(AnalyticsEvent.StartLoading);
 
-        /// <summary> complete_loading - khi hoàn thành loading, vào màn hình home </summary>
+        /// <summary> complete_loading - khi hoÃ n thÃ nh loading, vÃ o mÃ n hÃ¬nh home </summary>
         public static void LogCompleteLoading() => LogFirebase(AnalyticsEvent.CompleteLoading);
 
-        // ---------- Level (Firebase + AppsFlyer af_level_achieved - chung mục đích) ----------
+        // ---------- Level (Firebase + AppsFlyer af_level_achieved - chung má»¥c Ä‘Ã­ch) ----------
 
-        /// <summary> level_start: level (từ 1), index (lần bắt đầu thứ bao nhiêu); GA progression: level → <c>w0</c>. </summary>
+        /// <summary> level_start: level (tá»« 1), index (láº§n báº¯t Ä‘áº§u thá»© bao nhiÃªu); GA progression: level â†’ <c>w0</c>. </summary>
         public static void LogLevelStart(int level, int index)
         {
             var p = new Dictionary<string, string>
@@ -122,7 +122,7 @@ namespace GameUp.SDK
             LogGameAnalyticsProgression(GaProgressionStatus.Start, level, GaWholeLevelWave, stringFields: p);
         }
 
-        /// <summary> level_fail: level, index, time; GA progression: level → <c>w0</c>. </summary>
+        /// <summary> level_fail: level, index, time; GA progression: level â†’ <c>w0</c>. </summary>
         public static void LogLevelFail(int level, int index, float timeSeconds)
         {
             var p = new Dictionary<string, string>
@@ -135,7 +135,7 @@ namespace GameUp.SDK
             LogGameAnalyticsProgression(GaProgressionStatus.Fail, level, GaWholeLevelWave, stringFields: p);
         }
 
-        /// <summary> level_complete (Firebase) + af_level_achieved (AppsFlyer): level, index, time; optional af_score; GA progression: level → <c>w0</c>. </summary>
+        /// <summary> level_complete (Firebase) + af_level_achieved (AppsFlyer): level, index, time; optional af_score; GA progression: level â†’ <c>w0</c>. </summary>
         public static void LogLevelComplete(int level, int index, float timeSeconds, int? score = null)
         {
             var fb = new Dictionary<string, string>
@@ -160,12 +160,12 @@ namespace GameUp.SDK
 
         // ---------- Firebase: Button ----------
 
-        /// <summary> button_click: source (tên button, bao gồm vị trí) </summary>
+        /// <summary> button_click: source (tÃªn button, bao gá»“m vá»‹ trÃ­) </summary>
         public static void LogButtonClick(string source) => LogFirebase(AnalyticsEvent.ButtonClick, AnalyticsEvent.ParamSource, source ?? "");
 
         // ---------- Firebase: Wave ----------
 
-        /// <summary> wave_start: level, wave; GA progression: level → <c>w</c>{wave}. </summary>
+        /// <summary> wave_start: level, wave; GA progression: level â†’ <c>w</c>{wave}. </summary>
         public static void LogWaveStart(int level, int wave)
         {
             var p = new Dictionary<string, string>
@@ -177,7 +177,7 @@ namespace GameUp.SDK
             LogGameAnalyticsProgression(GaProgressionStatus.Start, level, wave, stringFields: p);
         }
 
-        /// <summary> wave_fail: level, wave; GA progression: level → <c>w</c>{wave}. </summary>
+        /// <summary> wave_fail: level, wave; GA progression: level â†’ <c>w</c>{wave}. </summary>
         public static void LogWaveFail(int level, int wave)
         {
             var p = new Dictionary<string, string>
@@ -189,7 +189,7 @@ namespace GameUp.SDK
             LogGameAnalyticsProgression(GaProgressionStatus.Fail, level, wave, stringFields: p);
         }
 
-        /// <summary> wave_complete: level, wave; GA progression: level → <c>w</c>{wave}. </summary>
+        /// <summary> wave_complete: level, wave; GA progression: level â†’ <c>w</c>{wave}. </summary>
         public static void LogWaveComplete(int level, int wave)
         {
             var p = new Dictionary<string, string>
@@ -212,7 +212,7 @@ namespace GameUp.SDK
             LogAppsFlyer(AnalyticsEvent.AfCompleteRegistration, p.Count > 0 ? p : null);
         }
 
-        /// <summary> af_purchase; <paramref name="level"/> — level đang chơi khi mua (Firebase/AppsFlyer/Facebook params). </summary>
+        /// <summary> af_purchase; <paramref name="level"/> â€” level Ä‘ang chÆ¡i khi mua (Firebase/AppsFlyer/Facebook params). </summary>
         public static void LogPurchase(string currencyCode, int quantity, string contentId, string purchasePrice, string orderId,
             string registrationMethod = null, string customerUserId = null, int? level = null)
         {
@@ -235,7 +235,14 @@ namespace GameUp.SDK
             if (!string.IsNullOrEmpty(registrationMethod)) afParams[AnalyticsEvent.ParamAfRegistrationMethod] = registrationMethod;
             if (!string.IsNullOrEmpty(customerUserId)) afParams[AnalyticsEvent.ParamAfCustomerUserId] = customerUserId;
             if (level.HasValue) afParams[AnalyticsEvent.ParamLevel] = level.Value.ToString();
-            LogAppsFlyer(AnalyticsEvent.AfPurchase, afParams);
+            if (!AppsFlyerUtils.ShouldSkipManualPurchaseRevenueEvent())
+            {
+                LogAppsFlyer(AnalyticsEvent.AfPurchase, afParams);
+            }
+            else
+            {
+                Debug.Log("[GameUpAnalytics] Skip manual af_purchase for iOS because ROI360 Purchase Connector is enabled.");
+            }
 
             var firebaseParams = new Dictionary<string, string>
             {
@@ -278,13 +285,13 @@ namespace GameUp.SDK
             }
             else
             {
-                GULogger.Warning("GameUpAnalytics", $"Skip FB.LogPurchase - invalid price '{purchasePrice}' or Facebook SDK not initialized.");
+                Debug.LogWarning($"[GameUpAnalytics] Skip FB.LogPurchase - invalid price '{purchasePrice}' or Facebook SDK not initialized.");
             }
 #endif
         }
 
         /// <summary>
-        /// Set AppsFlyer Customer User ID (CUID) để khớp dữ liệu ROI360.
+        /// Set AppsFlyer Customer User ID (CUID) Ä‘á»ƒ khá»›p dá»¯ liá»‡u ROI360.
         /// </summary>
         public static void SetCustomerUserId(string userId)
         {
@@ -368,7 +375,7 @@ namespace GameUp.SDK
 
             AppsFlyerUtils.LogAdRevenue(adRevenueData, adRevenueParams.Count > 0 ? adRevenueParams : null);
 #endif
-            GULogger.Log("GameUpAnalytics", $"Logged Ad Revenue: {revenue} {currency}, network: {adNetwork}");
+            Debug.Log($"[GameUpAnalytics] Logged Ad Revenue: {revenue} {currency}, network: {adNetwork}");
         }
     }
 }
