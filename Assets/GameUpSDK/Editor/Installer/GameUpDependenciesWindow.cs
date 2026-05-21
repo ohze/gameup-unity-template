@@ -240,7 +240,7 @@ namespace GameUp.SDK.Installer
                 RemoveAssetPaths = new[] { "Assets/AppsFlyer" },
                 InstallPriority = 45,
             },
-            new PackageDef
+             new PackageDef
             {
                 DisplayName = "GameAnalytics SDK",
                 Description = "Tùy chọn. Analytics sản phẩm (funnels, progression). GameUpAnalytics gửi design event (tiền tố gameup:) khi bật define GAMEANALYTICS_DEPENDENCIES_INSTALLED. Cần GameObject GameAnalytics + keys trong scene (Window → GameAnalytics).",
@@ -248,12 +248,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GameAnalyticsSDK",
                 InstalledTypeFullName = "GameAnalyticsSDK.GameAnalytics",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "GameAnalytics/GA_SDK_UNITY_7.10.6.unitypackage" },
+                BundledFileNames = new[] { "GameAnalytics.unitypackage" },
                 HostedUrls = new[]
                 {
-                    "https://download.gameanalytics.com/unity/7.10.6/GA_SDK_UNITY.unitypackage",
+                    "https://github.com/ohze/gameup-unity-template/releases/download/deps/GameAnalytics.unitypackage",
                 },
-                DownloadUrl = "https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/",
+                DownloadUrl = "https://github.com/ohze/gameup-unity-template/releases/download/deps/GameAnalytics.unitypackage",
                 DownloadLabel = "GameAnalytics Unity SDK →",
                 RemoveAssetPaths = new[] { "Assets/GameAnalytics" },
                 InstallPriority = 46,
