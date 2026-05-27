@@ -6,8 +6,6 @@
         "Unity.LevelPlay",
         "AppsFlyer",
         "GameAnalyticsSDK",
-        "GoogleMobileAds.Mediation.UnityAds.Api",
-        "GoogleMobileAds.Mediation.IronSource.Api",
         "Unity.Advertisement.IosSupport",
         "MaxSdk.Scripts",
         "AppMetrica"

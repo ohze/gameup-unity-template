@@ -72,6 +72,11 @@ namespace GameUp.SDK.Installer
             /// <summary>Đánh dấu package là adapter thuộc AdMob Mediation.</summary>
             public bool IsAdMobMediationAdapter;
 
+            /// <summary>
+            /// Bắt buộc khi Primary Mediation = AdMob (mediation stack GameUp SDK + forward GDPR consent).
+            /// </summary>
+            public bool RequiredForAdMobRuntime;
+
             public InstallMethod Method;
 
             // Git URL (dùng khi Method == GitUrl)
@@ -371,20 +376,22 @@ namespace GameUp.SDK.Installer
             new PackageDef
             {
                 DisplayName = "AdMob Adapter — IronSource Ads",
-                Description = "Adapter mediation cho IronSource Ads (Unity).",
+                Description =
+                    "Bắt buộc với Primary Mediation = AdMob (GameUp SDK). Adapter mediation IronSource / LevelPlay trong waterfall AdMob.",
                 Required = false,
                 AssemblyName = "GoogleMobileAds.Mediation.IronSource.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/IronSource",
                 IsAdMobMediationAdapter = true,
+                RequiredForAdMobRuntime = true,
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "IronSourceUnityAdapter-4.5.0.zip" },
+                BundledFileNames = new[] { "IronSourceUnityAdapter-4.5.1.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/ironsource/IronSourceUnityAdapter-4.5.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/ironsource/IronSourceUnityAdapter-4.5.1.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/ironsource",
                 DownloadLabel = "Chi tiết adapter →",
-                InstallPriority = 35,
+                InstallPriority = 31,
             },
             new PackageDef
             {
@@ -551,20 +558,22 @@ namespace GameUp.SDK.Installer
             new PackageDef
             {
                 DisplayName = "AdMob Adapter — Unity Ads",
-                Description = "Adapter mediation cho Unity Ads (Unity).",
+                Description =
+                    "Bắt buộc với Primary Mediation = AdMob (GameUp SDK). Adapter mediation Unity Ads trong waterfall AdMob.",
                 Required = false,
                 AssemblyName = "GoogleMobileAds.Mediation.UnityAds.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/UnityAds",
                 IsAdMobMediationAdapter = true,
+                RequiredForAdMobRuntime = true,
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "UnityAdsUnityAdapter-3.17.0.zip" },
+                BundledFileNames = new[] { "UnityAdsUnityAdapter-3.18.0.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/unity/UnityAdsUnityAdapter-3.17.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/unity/UnityAdsUnityAdapter-3.18.0.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/unity",
                 DownloadLabel = "Chi tiết adapter →",
-                InstallPriority = 35,
+                InstallPriority = 31,
             },
         };
 
@@ -650,6 +659,11 @@ namespace GameUp.SDK.Installer
         private static IEnumerable<PackageDef> GetAdMobMediationAdapters()
         {
             return s_packages.Where(p => p.IsAdMobMediationAdapter);
+        }
+
+        private static IEnumerable<PackageDef> GetRequiredAdMobRuntimeAdapters()
+        {
+            return GetAdMobMediationAdapters().Where(p => p.RequiredForAdMobRuntime);
         }
 
         [MenuItem("GameUp/SDK/Setup Dependencies")]
@@ -1039,7 +1053,7 @@ namespace GameUp.SDK.Installer
             string planDesc = pm switch
             {
                 AdsManager.PrimaryMediation.AdMob =>
-                    "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads.",
+                    "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads, AdMob adapters (Unity Ads + IronSource — bắt buộc).",
                 AdsManager.PrimaryMediation.Max =>
                     "Facebook, Firebase, AppsFlyer, GameAnalytics, AppLovin MAX.",
                 _ => "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.",
@@ -1055,8 +1069,24 @@ namespace GameUp.SDK.Installer
                 "Thứ tự nên cài: (1) Facebook → (2) Firebase (kèm EDM) — chờ compile/resolve xong — → " +
                 "(3) Google Mobile Ads, LevelPlay hoặc MAX (trùng với Primary Mediation) → " +
                 "(4) AppsFlyer → (5) GameAnalytics. " +
-                "AdMob Mediation adapters (nếu cần) cài riêng trong tab \"AdMob Mediation\" — không khuyến nghị cài hàng loạt.",
+                "Với AdMob: installer tự cài thêm adapter Unity Ads + IronSource (bắt buộc cho GameUp SDK). " +
+                "Adapter mediation khác (AppLovin, Meta, …) cài tùy chọn trong tab \"AdMob Mediation\".",
                 MessageType.None);
+
+            if (pm == AdsManager.PrimaryMediation.AdMob)
+            {
+                var missingRequiredAdapters = GetRequiredAdMobRuntimeAdapters()
+                    .Where(p => !p.IsInstalled)
+                    .ToList();
+                if (missingRequiredAdapters.Count > 0)
+                {
+                    EditorGUILayout.HelpBox(
+                        "Thiếu adapter AdMob bắt buộc: " +
+                        string.Join(", ", missingRequiredAdapters.Select(p => p.DisplayName)) +
+                        ". Mediation trên AdMob console và forward GDPR consent cần 2 adapter này — bấm \"Cài tất cả\" hoặc cài từng dòng trong tab AdMob Mediation.",
+                        MessageType.Warning);
+                }
+            }
 
             if (missingManual.Count > 0)
             {
@@ -1092,7 +1122,8 @@ namespace GameUp.SDK.Installer
             EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.HelpBox(
-                "AdMob Mediation adapters nằm trong tab \"AdMob Mediation\" — tự chọn và cài từng adapter theo network bạn dùng.",
+                "Adapter bắt buộc (Unity Ads, IronSource) nằm trong \"Cài tất cả\" khi Primary Mediation = AdMob. " +
+                "Tab này dùng để cài thêm network khác hoặc gỡ từng adapter.",
                 MessageType.None);
 
             EditorGUILayout.HelpBox(
@@ -1195,7 +1226,7 @@ namespace GameUp.SDK.Installer
             Debug.Log("[GameUpSDK] Đã xóa " + FacebookExamplesAssetPath);
         }
 
-        /// <summary>Firebase + AppsFlyer + bộ mediation cốt lõi theo lựa chọn (AdMob: GMA; LevelPlay: LevelPlay; Max: MAX). Không gồm AdMob Mediation adapters.</summary>
+        /// <summary>Firebase + AppsFlyer + bộ mediation cốt lõi theo lựa chọn. AdMob gồm thêm 2 adapter bắt buộc (Unity Ads + IronSource).</summary>
         private static List<PackageDef> GetPackagesForSdkSetup(AdsManager.PrimaryMediation mediation)
         {
             var list = new List<PackageDef>();
@@ -1207,6 +1238,12 @@ namespace GameUp.SDK.Installer
                     list.Add(p);
             }
 
+            void AddPackage(PackageDef pkg)
+            {
+                if (pkg != null && !list.Contains(pkg))
+                    list.Add(pkg);
+            }
+
             AddByAssembly("Facebook.Unity.Editor");
             AddByAssembly("Firebase.App");
             AddByAssembly("AppsFlyer");
@@ -1215,6 +1252,8 @@ namespace GameUp.SDK.Installer
             if (mediation == AdsManager.PrimaryMediation.AdMob)
             {
                 AddByAssembly("GoogleMobileAds");
+                foreach (var adapter in GetRequiredAdMobRuntimeAdapters())
+                    AddPackage(adapter);
             }
             else if (mediation == AdsManager.PrimaryMediation.Max)
             {
@@ -1317,7 +1356,8 @@ namespace GameUp.SDK.Installer
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.LabelField("AdMob Mediation Adapters", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Danh sách adapter AdMob theo Google. Chỉ cài adapter cho network bạn thực sự dùng — bấm \"Cài pack\" trên từng dòng. " +
+                "Adapter bắt buộc với GameUp SDK + AdMob: Unity Ads và IronSource (được cài kèm khi bấm \"Cài tất cả\" ở tab Setup Dependencies). " +
+                "Các adapter khác chỉ cài nếu bạn bật network tương ứng trên AdMob Mediation. " +
                 "Installer tự tải .zip, giải nén và import .unitypackage.",
                 MessageType.Info);
 

@@ -278,10 +278,8 @@ namespace GameUp.SDK
         public void SetAfterCheckGDPR(bool isConsent)
         {
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IPHONE)
-            // Forward UMP decision to mediation adapters.
             GULogger.Log("GameUp", "AdmobAds SetAfterCheckGDPR called. consent=" + isConsent);
-            GoogleMobileAds.Mediation.UnityAds.Api.UnityAds.SetConsentMetaData("gdpr.consent", isConsent);
-            GoogleMobileAds.Mediation.IronSource.Api.IronSource.SetMetaData("do_not_sell", isConsent ? "false" : "true");
+            AdMobMediationConsentBridge.ForwardGdprConsent(isConsent);
 #endif
         }
 
