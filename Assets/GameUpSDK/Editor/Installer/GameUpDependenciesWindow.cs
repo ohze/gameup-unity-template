@@ -1569,7 +1569,8 @@ namespace GameUp.SDK.Installer
             EditorGUILayout.HelpBox(
                 "Chỉ gỡ dependencies bên thứ ba của GameUp SDK (Facebook, Firebase, AdMob, …). " +
                 "GameUp Core và dependencies Core (vd DOTween) được giữ nguyên. " +
-                "Tab này hỗ trợ gỡ toàn bộ SDK dependencies một lần để tránh define/package bị lệch.",
+                "Tab này hỗ trợ gỡ toàn bộ SDK dependencies một lần để tránh define/package bị lệch.\n" +
+                "Lưu ý: khung Mediation bên trái có thể báo \"Còn N mục có thể cài\" sau khi gỡ — đó là gợi ý cài lại, không phải báo còn sót file.",
                 MessageType.Warning);
 
             var removablePkgs = s_packages
@@ -2451,56 +2452,51 @@ namespace GameUp.SDK.Installer
             }
 
             // Auto set/clear Facebook define (Editor assembly = SDK đã import)
-            bool facebookInstalled = IsAssemblyLoaded("Facebook.Unity.Editor");
+            bool facebookInstalled = IsPackageInstalled(FindPackageByAssembly("Facebook.Unity.Editor"));
             if (facebookInstalled && !HasDefine(FacebookDepsDefine))
                 SetDefine(FacebookDepsDefine, true);
             else if (!facebookInstalled && HasDefine(FacebookDepsDefine))
                 SetDefine(FacebookDepsDefine, false);
 
             // Auto set/clear LevelPlay define theo trạng thái package
-            bool levelPlayInstalled = IsAssemblyLoaded("Unity.LevelPlay");
+            bool levelPlayInstalled = IsPackageInstalled(FindPackageByAssembly("Unity.LevelPlay"));
             if (levelPlayInstalled && !HasDefine(LevelPlayDepsDefine))
                 SetDefine(LevelPlayDepsDefine, true);
             else if (!levelPlayInstalled && HasDefine(LevelPlayDepsDefine))
                 SetDefine(LevelPlayDepsDefine, false);
 
-            // Auto set/clear LevelPlay define theo trạng thái package
-            bool maxInstalled = IsAssemblyLoaded("MaxSdk.Scripts");
+            bool maxInstalled = IsPackageInstalled(FindPackageByAssembly("MaxSdk.Scripts"));
             if (maxInstalled && !HasDefine(MaxSdkDepsDefine))
                 SetDefine(MaxSdkDepsDefine, true);
             else if (!maxInstalled && HasDefine(MaxSdkDepsDefine))
                 SetDefine(MaxSdkDepsDefine, false);
 
             // Auto set/clear AdMob define theo AdMob core package.
-            // Adapter mediation không ảnh hưởng define này.
             bool admobInstalled = IsAdMobCoreInstalled();
             if (admobInstalled && !HasDefine(AdMobDepsDefine))
                 SetDefine(AdMobDepsDefine, true);
             else if (!admobInstalled && HasDefine(AdMobDepsDefine))
                 SetDefine(AdMobDepsDefine, false);
 
-            // Auto set/clear Firebase define theo trạng thái package
-            bool firebaseInstalled = IsAssemblyLoaded("Firebase.App");
+            bool firebaseInstalled = IsPackageInstalled(FindPackageByAssembly("Firebase.App"));
             if (firebaseInstalled && !HasDefine(FirebaseDepsDefine))
                 SetDefine(FirebaseDepsDefine, true);
             else if (!firebaseInstalled && HasDefine(FirebaseDepsDefine))
                 SetDefine(FirebaseDepsDefine, false);
 
-            bool appMetricaInstalled = IsAssemblyLoaded("AppMetrica");
+            bool appMetricaInstalled = IsPackageInstalled(FindPackageByAssembly("AppMetrica"));
             if (appMetricaInstalled && !HasDefine(AppmetricaDepsDefine))
                 SetDefine(AppmetricaDepsDefine, true);
             else if (!appMetricaInstalled && HasDefine(AppmetricaDepsDefine))
                 SetDefine(AppmetricaDepsDefine, false);
 
-            // Auto set/clear AppsFlyer define theo trạng thái package
-            bool appsFlyerInstalled = IsAssemblyLoaded("AppsFlyer");
+            bool appsFlyerInstalled = IsPackageInstalled(FindPackageByAssembly("AppsFlyer"));
             if (appsFlyerInstalled && !HasDefine(AppsFlyerDepsDefine))
                 SetDefine(AppsFlyerDepsDefine, true);
             else if (!appsFlyerInstalled && HasDefine(AppsFlyerDepsDefine))
                 SetDefine(AppsFlyerDepsDefine, false);
 
-            // GameAnalytics: UPM (assembly GameAnalyticsSDK) hoặc .unitypackage cổ điển (type trong Assembly-CSharp)
-            bool gameAnalyticsInstalled = IsGameAnalyticsSdkPresent();
+            bool gameAnalyticsInstalled = IsPackageInstalled(FindPackageByAssembly("GameAnalyticsSDK"));
             if (gameAnalyticsInstalled && !HasDefine(GameAnalyticsDepsDefine))
                 SetDefine(GameAnalyticsDepsDefine, true);
             else if (!gameAnalyticsInstalled && HasDefine(GameAnalyticsDepsDefine))
@@ -2548,13 +2544,20 @@ namespace GameUp.SDK.Installer
             if (pkg == null)
                 return false;
 
+            // Package import bằng .unitypackage: ưu tiên asset trên disk — assembly có thể còn trong AppDomain sau khi gỡ.
+            var removablePaths = GetRemovableAssetPaths(pkg);
+            if (removablePaths.Count > 0)
+            {
+                if (!removablePaths.Any(AssetPathExists))
+                    return false;
+            }
+
             bool byAssembly = !string.IsNullOrEmpty(pkg.AssemblyName) && IsAssemblyLoaded(pkg.AssemblyName);
             bool byAssetPath = HasInstalledAssetPath(pkg);
             bool byType = !string.IsNullOrEmpty(pkg.InstalledTypeFullName) &&
                           IsTypeInAnyLoadedAssembly(pkg.InstalledTypeFullName);
 
             // AdMob mediation adapters cần phản ánh trạng thái thư mục asset thực tế.
-            // Assembly có thể còn loaded trong AppDomain một lúc sau khi xóa asset.
             if (pkg.IsAdMobMediationAdapter)
                 return byAssetPath;
 
@@ -2619,10 +2622,31 @@ namespace GameUp.SDK.Installer
             return paths;
         }
 
+        private static PackageDef FindPackageByAssembly(string assemblyName)
+        {
+            if (string.IsNullOrEmpty(assemblyName))
+                return null;
+
+            return s_packages.FirstOrDefault(p =>
+                !p.IsAdMobMediationAdapter &&
+                string.Equals(p.AssemblyName, assemblyName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool AssetPathExists(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return false;
+
+            path = path.Replace('\\', '/');
+            if (AssetDatabase.IsValidFolder(path))
+                return true;
+
+            return !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path));
+        }
+
         private static bool CanRemovePackage(PackageDef pkg)
         {
-            return GetRemovableAssetPaths(pkg)
-                .Any(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p)));
+            return GetRemovableAssetPaths(pkg).Any(AssetPathExists);
         }
 
         private void ConfirmAndRemovePackage(PackageDef pkg)
@@ -2631,8 +2655,8 @@ namespace GameUp.SDK.Installer
                 return;
 
             var existingPaths = FilterSdkRemovablePaths(
-                    GetRemovableAssetPaths(pkg)
-                        .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p))))
+                    GetRemovableAssetPaths(pkg).Where(AssetPathExists))
+                .OrderByDescending(p => p.Length)
                 .ToList();
 
             if (existingPaths.Count == 0)
@@ -2713,10 +2737,9 @@ namespace GameUp.SDK.Installer
             var existingPaths = FilterSdkRemovablePaths(
                     packages
                         .SelectMany(GetRemovableAssetPaths)
-                        .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p)))
-                        .Concat(GetSetupDependenciesResidualPaths()
-                            .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p))))
-                )
+                        .Where(AssetPathExists)
+                        .Concat(GetSetupDependenciesResidualPaths().Where(AssetPathExists)))
+                .OrderByDescending(p => p.Length)
                 .ToList();
 
             if (existingPaths.Count == 0)
@@ -2745,19 +2768,28 @@ namespace GameUp.SDK.Installer
             // Clear define trước để tránh conditionals/compile lệch trạng thái trong lúc gỡ.
             ClearDependencyDefinesAfterBulkRemove();
 
-            if (!TryDeleteAssets(existingPaths, out string error))
+            TryDeleteAssets(existingPaths, out string error, out List<string> failedPaths);
+
+            AssetDatabase.Refresh();
+            RefreshStatus(syncDefines: true);
+
+            if (failedPaths.Count == 0)
             {
-                EditorUtility.DisplayDialog(
-                    "GameUp SDK — Gỡ dependencies thất bại",
-                    error,
-                    "OK");
+                Debug.Log("[GameUpSDK] Đã gỡ toàn bộ SDK dependencies trong tab SetupDependencies (Core/DOTween giữ nguyên).");
                 return;
             }
 
-            AssetDatabase.Refresh();
-            // Tránh auto-sync define ngay vì assemblies có thể còn loaded trong AppDomain tạm thời.
-            RefreshStatus(syncDefines: false);
-            Debug.Log("[GameUpSDK] Đã gỡ toàn bộ SDK dependencies trong tab SetupDependencies (Core/DOTween giữ nguyên).");
+            string detail = error;
+            detail += "\n\nPath chưa xóa được:\n• " + string.Join("\n• ", failedPaths);
+            detail += "\n\nCác path khác có thể đã được gỡ. Bấm \"Làm mới trạng thái\" sau khi xóa thủ công phần còn sót.";
+
+            EditorUtility.DisplayDialog(
+                "GameUp SDK — Gỡ SDK dependencies (một phần)",
+                detail,
+                "OK");
+
+            Debug.LogWarning(
+                "[GameUpSDK] Gỡ SDK dependencies một phần. Còn sót: " + string.Join(", ", failedPaths));
         }
 
         private static void ClearDependencyDefinesAfterBulkRemove()
@@ -2858,33 +2890,100 @@ namespace GameUp.SDK.Installer
 
         private static bool TryDeleteAssets(List<string> assetPaths, out string error)
         {
+            return TryDeleteAssets(assetPaths, out error, out _);
+        }
+
+        private static bool TryDeleteAssets(List<string> assetPaths, out string error, out List<string> failedPaths)
+        {
             error = null;
+            failedPaths = new List<string>();
             if (assetPaths == null || assetPaths.Count == 0)
             {
                 error = "Không có asset path để xóa.";
                 return false;
             }
 
-            foreach (string path in FilterSdkRemovablePaths(assetPaths))
+            foreach (string path in FilterSdkRemovablePaths(assetPaths).OrderByDescending(p => p.Length))
             {
-                if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)))
-                    continue;
-
-                if (!AssetDatabase.DeleteAsset(path))
+                if (!TryDeleteSingleAssetPath(path, out string pathError))
                 {
-                    error = "AssetDatabase.DeleteAsset trả về false: " + path;
-                    return false;
+                    failedPaths.Add(path);
+                    if (string.IsNullOrEmpty(error))
+                        error = pathError;
                 }
             }
 
-            return true;
+            return failedPaths.Count == 0;
+        }
+
+        private static bool TryDeleteSingleAssetPath(string assetPath, out string error)
+        {
+            error = null;
+            if (string.IsNullOrEmpty(assetPath) || IsCoreProtectedAssetPath(assetPath))
+                return true;
+
+            assetPath = assetPath.Replace('\\', '/');
+            if (!AssetPathExists(assetPath))
+                return true;
+
+            if (AssetDatabase.IsValidFolder(assetPath))
+            {
+                string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { assetPath });
+                foreach (string childPath in guids
+                             .Select(AssetDatabase.GUIDToAssetPath)
+                             .Where(p => !string.Equals(p, assetPath, StringComparison.OrdinalIgnoreCase))
+                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                             .OrderByDescending(p => p.Length))
+                {
+                    if (!TryDeleteSingleAssetPath(childPath, out error))
+                        return false;
+                }
+            }
+
+            if (AssetDatabase.DeleteAsset(assetPath))
+                return true;
+
+            return TryDeleteAssetPathViaFileSystem(assetPath, out error);
+        }
+
+        private static bool TryDeleteAssetPathViaFileSystem(string assetPath, out string error)
+        {
+            error = null;
+            try
+            {
+                string projectRoot = Path.GetDirectoryName(Application.dataPath);
+                string fullPath = Path.GetFullPath(Path.Combine(projectRoot, assetPath));
+                string metaPath = fullPath + ".meta";
+
+                if (Directory.Exists(fullPath))
+                    Directory.Delete(fullPath, recursive: true);
+                else if (File.Exists(fullPath))
+                    File.Delete(fullPath);
+                else if (!AssetPathExists(assetPath))
+                    return true;
+
+                if (File.Exists(metaPath))
+                    File.Delete(metaPath);
+
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                if (!AssetPathExists(assetPath))
+                    return true;
+            }
+            catch (Exception ex)
+            {
+                error = $"Không xóa được {assetPath}: {ex.Message}";
+                return false;
+            }
+
+            error = "AssetDatabase.DeleteAsset trả về false: " + assetPath;
+            return false;
         }
 
         /// <summary>UPM có .asmdef GameAnalyticsSDK; .unitypackage chuẩn GA nằm trong Assembly-CSharp.</summary>
         internal static bool IsGameAnalyticsSdkPresent()
         {
-            return IsAssemblyLoaded("GameAnalyticsSDK") ||
-                   IsTypeInAnyLoadedAssembly("GameAnalyticsSDK.GameAnalytics");
+            var pkg = FindPackageByAssembly("GameAnalyticsSDK");
+            return pkg != null && IsPackageInstalled(pkg);
         }
 
         private static bool IsTypeInAnyLoadedAssembly(string fullTypeName)
