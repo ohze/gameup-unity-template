@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 namespace GameUp.Core.UI
 {
     /// <summary>
-    /// Loading mở vòng cutout từ tâm. Có thể giữ một vùng đen tại tâm trong thời gian cấu hình rồi mới chạy tween mở mask.
+    /// Loading iris cutout: mở thì vòng tròn đóng kín vào tâm; đóng thì mở rộng ra rồi trả pool.
     /// </summary>
     public class LoadingItemCutoutMask : LoadingOverlayBase
     {
@@ -16,7 +16,7 @@ namespace GameUp.Core.UI
         [SerializeField] private RectTransform boundsParent;
         [SerializeField] private float maskAnimationDuration = 1f;
 
-        [Tooltip("Thời gian (giây) hiển thị đen tâm trước khi bắt đầu mở rộng cutout. 0 = bỏ qua.")]
+        [Tooltip("Thời gian (giây) giữ overlay đen kín sau khi vòng tròn đóng xong, trước OnOpened. 0 = bỏ qua.")]
         [SerializeField] private float centerBlackHoldDuration = 0.1f;
 
         [Tooltip("CanvasGroup của layer đen tại tâm (child UI). Để trống thì không flash đen nhưng vẫn có thể delay nếu duration > 0.")]
@@ -25,6 +25,7 @@ namespace GameUp.Core.UI
 #if DOTween__DEPENDENCIES_INSTALLED
         private Tween _maskTween;
         private Tween _centerHoldTween;
+        private Tween _closeMaskTween;
 #endif
         private Vector3 DefaultCutoutLocalPosition => Vector3.zero;
 
@@ -43,6 +44,9 @@ namespace GameUp.Core.UI
 
             if (centerBlack)
                 centerBlack.alpha = 0f;
+
+            if (OverlayGroup)
+                OverlayGroup.alpha = 1f;
         }
 
         /// <summary>
@@ -72,25 +76,19 @@ namespace GameUp.Core.UI
             }
 
             StopIntroTweensOnly();
+            KillCloseMaskTween();
 
-            cutoutMask.sizeDelta = Vector2.zero;
             cutoutMask.localPosition = ResolveCutoutStartLocalPosition();
             ClearPendingStart();
 
             OverlayGroup.alpha = 1f;
 
-            if (centerBlackHoldDuration > 0f)
-            {
-                if (centerBlack)
-                    centerBlack.alpha = 1f;
+            if (centerBlack)
+                centerBlack.alpha = 0f;
 
-                _centerHoldTween = DOVirtual.DelayedCall(centerBlackHoldDuration, BeginCutoutExpandAfterHold)
-                    .SetUpdate(true);
-            }
-            else
-            {
-                BeginCutoutExpandAfterHold();
-            }
+            float openSize = GetDiagonalCoverSize(boundsParent);
+            cutoutMask.sizeDelta = new Vector2(openSize, openSize);
+            BeginCutoutCloseIntro();
 #else
             OverlayGroup.alpha = 1f;
             if (cutoutMask)
@@ -108,25 +106,47 @@ namespace GameUp.Core.UI
         }
 
 #if DOTween__DEPENDENCIES_INSTALLED
-        private void BeginCutoutExpandAfterHold()
+        private void BeginCutoutCloseIntro()
         {
-            _centerHoldTween = null;
-
-            if (centerBlack)
-                centerBlack.alpha = 0f;
-
             if (!cutoutMask || !boundsParent)
             {
                 OnOpened?.Invoke();
                 return;
             }
 
-            float targetSize = GetDiagonalCoverSize(boundsParent);
             _maskTween?.Kill();
-            _maskTween = cutoutMask.DOSizeDelta(new Vector2(targetSize, targetSize), maskAnimationDuration)
+            _maskTween = cutoutMask.DOSizeDelta(Vector2.zero, maskAnimationDuration)
                 .SetEase(Ease.Linear)
                 .SetUpdate(true)
-                .OnComplete(() => OnOpened?.Invoke());
+                .OnComplete(OnCutoutCloseIntroComplete);
+        }
+
+        private void OnCutoutCloseIntroComplete()
+        {
+            _maskTween = null;
+
+            if (centerBlackHoldDuration > 0f)
+            {
+                if (centerBlack)
+                    centerBlack.alpha = 1f;
+
+                _centerHoldTween = DOVirtual.DelayedCall(centerBlackHoldDuration, FinishCutoutCloseIntroHold)
+                    .SetUpdate(true);
+            }
+            else
+            {
+                OnOpened?.Invoke();
+            }
+        }
+
+        private void FinishCutoutCloseIntroHold()
+        {
+            _centerHoldTween = null;
+
+            if (centerBlack)
+                centerBlack.alpha = 0f;
+
+            OnOpened?.Invoke();
         }
 #endif
 
@@ -137,6 +157,14 @@ namespace GameUp.Core.UI
             _centerHoldTween = null;
             _maskTween?.Kill();
             _maskTween = null;
+#endif
+        }
+
+        private void KillCloseMaskTween()
+        {
+#if DOTween__DEPENDENCIES_INSTALLED
+            _closeMaskTween?.Kill();
+            _closeMaskTween = null;
 #endif
         }
 
@@ -224,10 +252,7 @@ namespace GameUp.Core.UI
         protected override void StopIntroTweens()
         {
             StopIntroTweensOnly();
-            if (cutoutMask)
-                cutoutMask.sizeDelta = Vector2.zero;
-            if (centerBlack)
-                centerBlack.alpha = 0f;
+            KillCloseMaskTween();
         }
 
         private static float GetDiagonalCoverSize(RectTransform rect)
@@ -239,13 +264,44 @@ namespace GameUp.Core.UI
 
         public override void Close()
         {
-            StopIntroTweens();
+            StopIntroTweensOnly();
+            KillCloseMaskTween();
 #if DOTween__DEPENDENCIES_INSTALLED
             _autoCloseTween?.Kill();
             _autoCloseTween = null;
 #endif
 
             KillCloseTweens();
+
+#if DOTween__DEPENDENCIES_INSTALLED
+            if (cutoutMask && boundsParent)
+            {
+                if (centerBlack)
+                    centerBlack.alpha = 0f;
+
+                OverlayGroup.alpha = 1f;
+
+                float targetSize = GetDiagonalCoverSize(boundsParent);
+                cutoutMask.sizeDelta = Vector2.zero;
+
+                _closeMaskTween = cutoutMask.DOSizeDelta(new Vector2(targetSize, targetSize), maskAnimationDuration)
+                    .SetEase(Ease.Linear)
+                    .SetUpdate(true)
+                    .OnComplete(FinishCutoutExpandClose);
+                return;
+            }
+#endif
+
+            FinishClose();
+        }
+
+        private void FinishCutoutExpandClose()
+        {
+            _closeMaskTween = null;
+
+            if (OverlayGroup)
+                OverlayGroup.alpha = 0f;
+
             FinishClose();
         }
     }

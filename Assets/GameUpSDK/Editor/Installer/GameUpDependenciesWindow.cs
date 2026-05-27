@@ -1004,7 +1004,8 @@ namespace GameUp.SDK.Installer
             EditorGUILayout.Space(4);
 
             EditorGUILayout.HelpBox(
-                "Có thể cài nhanh bằng \"Cài tất cả\" trong khung Mediation (đúng thứ tự khuyến nghị), hoặc cài từng bước bằng \"Cài pack\" trên từng dòng — nên chờ Unity compile (và EDM/Android Resolver nếu bật) giữa các bước khi cài lẻ.\n" +
+                "Có thể cài nhanh bằng \"Cài tất cả\" trong khung Mediation (chỉ các pack cần thiết theo Primary Mediation), hoặc cài từng bước bằng \"Cài pack\" trên từng dòng — nên chờ Unity compile (và EDM/Android Resolver nếu bật) giữa các bước khi cài lẻ.\n" +
+                "AdMob Mediation adapters cài thủ công trong tab \"AdMob Mediation\" (không nằm trong \"Cài tất cả\").\n" +
                 "Khi đang compile hoặc đang cài/tải, nút Mediation và \"Cài pack\" đều bị khóa.",
                 MessageType.Info);
 
@@ -1033,25 +1034,28 @@ namespace GameUp.SDK.Installer
             var pm = GetPrimaryMediationFromDefines();
             var planned = GetPackagesForSdkSetup(pm);
             var missingAuto = planned.Where(p => !p.IsInstalled && CanAutoInstall(p)).ToList();
-            var missingAutoCore = missingAuto.Where(p => !p.IsAdMobMediationAdapter).ToList();
-            var missingAutoAdapters = missingAuto.Where(p => p.IsAdMobMediationAdapter).ToList();
             var missingManual = planned.Where(p => !p.IsInstalled && !CanAutoInstall(p)).ToList();
 
-            string planDesc = pm == AdsManager.PrimaryMediation.AdMob
-                ? "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads, toàn bộ AdMob Mediation adapters."
-                : "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.";
+            string planDesc = pm switch
+            {
+                AdsManager.PrimaryMediation.AdMob =>
+                    "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads.",
+                AdsManager.PrimaryMediation.Max =>
+                    "Facebook, Firebase, AppsFlyer, GameAnalytics, AppLovin MAX.",
+                _ => "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.",
+            };
 
             EditorGUILayout.HelpBox(
-                "Primary Mediation chọn bộ pack quảng cáo (AdMob + adapters hay LevelPlay). " +
+                "Primary Mediation chọn bộ pack quảng cáo cốt lõi (AdMob, LevelPlay hay MAX). " +
                 "Dùng nút bên dưới để cài một lần mọi mục còn thiếu trong bộ đó (đúng thứ tự), hoặc \"Cài pack\" từng dòng trong danh sách.\n" +
                 "Bộ theo mediation hiện tại: " + planDesc,
                 MessageType.Info);
 
             EditorGUILayout.HelpBox(
                 "Thứ tự nên cài: (1) Facebook → (2) Firebase (kèm EDM) — chờ compile/resolve xong — → " +
-                "(3) Google Mobile Ads hoặc LevelPlay (trùng với Primary Mediation) → " +
-                "(4) AdMob Mediation adapters (chỉ khi dùng AdMob) → (5) AppsFlyer → (6) GameAnalytics. " +
-                "Các mục tùy chọn có thể bỏ qua nếu không dùng.",
+                "(3) Google Mobile Ads, LevelPlay hoặc MAX (trùng với Primary Mediation) → " +
+                "(4) AppsFlyer → (5) GameAnalytics. " +
+                "AdMob Mediation adapters (nếu cần) cài riêng trong tab \"AdMob Mediation\" — không khuyến nghị cài hàng loạt.",
                 MessageType.None);
 
             if (missingManual.Count > 0)
@@ -1061,17 +1065,11 @@ namespace GameUp.SDK.Installer
                     MessageType.Warning);
             }
 
-            if (missingAutoCore.Count > 0)
+            if (missingAuto.Count > 0)
             {
                 EditorGUILayout.HelpBox(
-                    $"Còn {missingAutoCore.Count} mục chính có thể cài tự động — bấm \"Cài tất cả\" hoặc \"Cài pack\" lần lượt từ trên xuống trong danh sách.",
+                    $"Còn {missingAuto.Count} mục có thể cài tự động — bấm \"Cài tất cả\" hoặc \"Cài pack\" lần lượt từ trên xuống trong danh sách.",
                     MessageType.Warning);
-            }
-            else if (missingAutoAdapters.Count > 0)
-            {
-                EditorGUILayout.HelpBox(
-                    $"Còn {missingAutoAdapters.Count} AdMob mediation adapter chưa cài (tùy chọn, có thể bỏ qua nếu không dùng network tương ứng).",
-                    MessageType.None);
             }
             else
             {
@@ -1094,7 +1092,7 @@ namespace GameUp.SDK.Installer
             EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.HelpBox(
-                "Danh sách và cài nhanh toàn bộ AdMob Mediation Adapters nằm trong tab \"AdMob Mediation\".",
+                "AdMob Mediation adapters nằm trong tab \"AdMob Mediation\" — tự chọn và cài từng adapter theo network bạn dùng.",
                 MessageType.None);
 
             EditorGUILayout.HelpBox(
@@ -1197,7 +1195,7 @@ namespace GameUp.SDK.Installer
             Debug.Log("[GameUpSDK] Đã xóa " + FacebookExamplesAssetPath);
         }
 
-        /// <summary>Firebase + AppsFlyer + bộ mediation theo lựa chọn (AdMob: GMA + adapters; LevelPlay: LevelPlay), đã sort <see cref="PackageDef.InstallPriority"/>.</summary>
+        /// <summary>Firebase + AppsFlyer + bộ mediation cốt lõi theo lựa chọn (AdMob: GMA; LevelPlay: LevelPlay; Max: MAX). Không gồm AdMob Mediation adapters.</summary>
         private static List<PackageDef> GetPackagesForSdkSetup(AdsManager.PrimaryMediation mediation)
         {
             var list = new List<PackageDef>();
@@ -1217,11 +1215,6 @@ namespace GameUp.SDK.Installer
             if (mediation == AdsManager.PrimaryMediation.AdMob)
             {
                 AddByAssembly("GoogleMobileAds");
-                foreach (var p in GetAdMobMediationAdapters())
-                {
-                    if (!list.Contains(p))
-                        list.Add(p);
-                }
             }
             else if (mediation == AdsManager.PrimaryMediation.Max)
             {
@@ -1324,7 +1317,8 @@ namespace GameUp.SDK.Installer
             EditorGUILayout.BeginVertical("box");
             EditorGUILayout.LabelField("AdMob Mediation Adapters", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Tab này hiển thị toàn bộ adapter AdMob theo danh sách Google. Installer tự tải .zip, giải nén và import .unitypackage.",
+                "Danh sách adapter AdMob theo Google. Chỉ cài adapter cho network bạn thực sự dùng — bấm \"Cài pack\" trên từng dòng. " +
+                "Installer tự tải .zip, giải nén và import .unitypackage.",
                 MessageType.Info);
 
             var pm = GetPrimaryMediationFromDefines();
@@ -1336,27 +1330,15 @@ namespace GameUp.SDK.Installer
             }
 
             var adapters = OrderedInstallSequence(GetAdMobMediationAdapters()).ToList();
-            var missingAdapters = adapters.Where(p => !p.IsInstalled && CanAutoInstall(p)).ToList();
+            var installedAdapterCount = adapters.Count(p => p.IsInstalled);
 
-            EditorGUI.BeginDisabledGroup(IsInteractionLocked() || missingAdapters.Count == 0);
-            if (GUILayout.Button(
-                    missingAdapters.Count > 0
-                        ? $"⚡ Cài nhanh tất cả adapter AdMob còn thiếu ({missingAdapters.Count})"
-                        : "✓ Đã đủ adapter AdMob (theo danh sách Google)",
-                    GUILayout.Height(26)))
-            {
-                if (missingAdapters.Count > 0)
-                    StartBatchInstall(missingAdapters);
-            }
-
-            EditorGUI.EndDisabledGroup();
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.Space(4);
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             _foldoutAdMobMediationAdapters = EditorGUILayout.Foldout(
                 _foldoutAdMobMediationAdapters,
-                $"Danh sách adapter ({adapters.Count - missingAdapters.Count}/{adapters.Count} đã cài)",
+                $"Danh sách adapter ({installedAdapterCount}/{adapters.Count} đã cài)",
                 true);
 
             if (_foldoutAdMobMediationAdapters)
