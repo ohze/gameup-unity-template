@@ -1550,13 +1550,26 @@ namespace GameUp.SDK.Installer
             }
         }
 
+        /// <summary>
+        /// Asset path/prefix thuộc GameUp Core hoặc dependencies Core — không xóa khi gỡ SDK.
+        /// (vd DOTween nằm dưới Assets/Plugins/Demigiant.)
+        /// </summary>
+        private static readonly string[] s_coreProtectedAssetPathPrefixes =
+        {
+            "Assets/GameUpCore",
+            "Assets/_MainProject",
+            "Assets/Plugins/Demigiant",
+        };
+
         private void DrawSetupDependenciesBulkRemoveSection()
         {
             EditorGUILayout.Space(6);
             EditorGUILayout.BeginVertical("box");
-            EditorGUILayout.LabelField("Gỡ dependencies", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Gỡ SDK dependencies", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Tab SetupDependencies chỉ hỗ trợ gỡ toàn bộ dependencies một lần để tránh trạng thái define/package bị lệch.",
+                "Chỉ gỡ dependencies bên thứ ba của GameUp SDK (Facebook, Firebase, AdMob, …). " +
+                "GameUp Core và dependencies Core (vd DOTween) được giữ nguyên. " +
+                "Tab này hỗ trợ gỡ toàn bộ SDK dependencies một lần để tránh define/package bị lệch.",
                 MessageType.Warning);
 
             var removablePkgs = s_packages
@@ -1566,8 +1579,8 @@ namespace GameUp.SDK.Installer
             EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy() || removablePkgs.Count == 0);
             if (GUILayout.Button(
                     removablePkgs.Count > 0
-                        ? $"🗑 Gỡ toàn bộ dependencies trong tab này ({removablePkgs.Count})"
-                        : "✓ Không còn dependencies để gỡ",
+                        ? $"🗑 Gỡ toàn bộ SDK dependencies ({removablePkgs.Count})"
+                        : "✓ Không còn SDK dependencies để gỡ",
                     GUILayout.Height(28)))
             {
                 ConfirmAndRemoveSetupDependenciesBulk(removablePkgs);
@@ -2617,8 +2630,9 @@ namespace GameUp.SDK.Installer
             if (pkg == null)
                 return;
 
-            var existingPaths = GetRemovableAssetPaths(pkg)
-                .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p)))
+            var existingPaths = FilterSdkRemovablePaths(
+                    GetRemovableAssetPaths(pkg)
+                        .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p))))
                 .ToList();
 
             if (existingPaths.Count == 0)
@@ -2696,27 +2710,20 @@ namespace GameUp.SDK.Installer
             if (packages == null || packages.Count == 0)
                 return;
 
-            var existingPaths = packages
-                .SelectMany(GetRemovableAssetPaths)
-                .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p)))
-                .Distinct()
+            var existingPaths = FilterSdkRemovablePaths(
+                    packages
+                        .SelectMany(GetRemovableAssetPaths)
+                        .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p)))
+                        .Concat(GetSetupDependenciesResidualPaths()
+                            .Where(p => !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(p))))
+                )
                 .ToList();
-
-            // Dọn thêm các thư mục phụ trợ/residual thường còn sót sau khi gỡ dependencies.
-            foreach (string residualPath in GetSetupDependenciesResidualPaths())
-            {
-                if (!string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(residualPath)) &&
-                    !existingPaths.Contains(residualPath))
-                {
-                    existingPaths.Add(residualPath);
-                }
-            }
 
             if (existingPaths.Count == 0)
             {
                 EditorUtility.DisplayDialog(
-                    "GameUp SDK — Gỡ toàn bộ dependencies",
-                    "Không tìm thấy asset path để gỡ.",
+                    "GameUp SDK — Gỡ SDK dependencies",
+                    "Không tìm thấy SDK dependency path để gỡ.",
                     "OK");
                 return;
             }
@@ -2726,11 +2733,12 @@ namespace GameUp.SDK.Installer
                 preview += $"\n• ... và {existingPaths.Count - 12} path khác";
 
             if (!EditorUtility.DisplayDialog(
-                    "GameUp SDK — Gỡ toàn bộ dependencies",
-                    "Bạn có chắc muốn gỡ toàn bộ dependencies trong tab SetupDependencies?\n\n" +
+                    "GameUp SDK — Gỡ SDK dependencies",
+                    "Bạn có chắc muốn gỡ toàn bộ SDK dependencies trong tab SetupDependencies?\n\n" +
                     $"Sẽ xóa {existingPaths.Count} path:\n• {preview}\n\n" +
-                    "Sẽ clear define symbols liên quan trước khi gỡ pack.",
-                    "Gỡ toàn bộ",
+                    "GameUp Core và DOTween không bị gỡ.\n" +
+                    "Sẽ clear define symbols SDK trước khi gỡ pack.",
+                    "Gỡ SDK dependencies",
                     "Hủy"))
                 return;
 
@@ -2749,7 +2757,7 @@ namespace GameUp.SDK.Installer
             AssetDatabase.Refresh();
             // Tránh auto-sync define ngay vì assemblies có thể còn loaded trong AppDomain tạm thời.
             RefreshStatus(syncDefines: false);
-            Debug.Log("[GameUpSDK] Đã gỡ toàn bộ dependencies trong tab SetupDependencies.");
+            Debug.Log("[GameUpSDK] Đã gỡ toàn bộ SDK dependencies trong tab SetupDependencies (Core/DOTween giữ nguyên).");
         }
 
         private static void ClearDependencyDefinesAfterBulkRemove()
@@ -2770,19 +2778,56 @@ namespace GameUp.SDK.Installer
             SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
         }
 
+        /// <summary>
+        /// Residual do SDK third-party để lại (Firebase EDM, native plugins…).
+        /// Không liệt kê Assets/Plugins, Assets/Editor, Assets/StreamingAssets — có thể chứa Core (DOTween) hoặc nội dung game.
+        /// </summary>
         private static IEnumerable<string> GetSetupDependenciesResidualPaths()
         {
             return new[]
             {
-                "Assets/Editor Default Resources",
+                "Assets/Editor Default Resources/Firebase",
                 "Assets/ExternalDependencyManager",
-                "Assets/Editor",
-                "Assets/GeneratedLocalRepo",
-                "Assets/StreamingAssets",
-                "Assets/SDK",
-                "Assets/Plugins",
+                "Assets/GeneratedLocalRepo/Firebase",
+                "Assets/Plugins/Android",
+                "Assets/Plugins/iOS/Firebase",
+                "Assets/Plugins/tvOS/Firebase",
+                "Assets/Plugins/iOS/GADUAdNetworkExtras.h",
                 "Assets/Resources/GameAnalytics",
+                "Assets/SDK",
             };
+        }
+
+        private static bool IsCoreProtectedAssetPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return false;
+
+            foreach (string prefix in s_coreProtectedAssetPathPrefixes)
+            {
+                if (path.Equals(prefix, StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static IEnumerable<string> FilterSdkRemovablePaths(IEnumerable<string> paths)
+        {
+            if (paths == null)
+                yield break;
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string path in paths)
+            {
+                if (string.IsNullOrEmpty(path) || IsCoreProtectedAssetPath(path) || !seen.Add(path))
+                    continue;
+
+                yield return path;
+            }
         }
 
         private static bool TryDeleteInstalledAssetPath(PackageDef pkg, out string error)
@@ -2820,11 +2865,8 @@ namespace GameUp.SDK.Installer
                 return false;
             }
 
-            foreach (string path in assetPaths.Distinct())
+            foreach (string path in FilterSdkRemovablePaths(assetPaths))
             {
-                if (string.IsNullOrEmpty(path))
-                    continue;
-
                 if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)))
                     continue;
 
