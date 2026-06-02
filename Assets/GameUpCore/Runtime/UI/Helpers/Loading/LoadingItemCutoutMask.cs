@@ -295,6 +295,7 @@ namespace GameUp.Core.UI
             FinishClose();
         }
 
+#if DOTween__DEPENDENCIES_INSTALLED
         private void FinishCutoutExpandClose()
         {
             _closeMaskTween = null;
@@ -304,5 +305,6 @@ namespace GameUp.Core.UI
 
             FinishClose();
         }
+#endif
     }
 }
