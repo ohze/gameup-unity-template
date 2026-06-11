@@ -8,6 +8,11 @@ using UnityEngine;
 
 namespace GameUp.Core.Editor
 {
+    internal sealed class SerializableReturnValueHost<T> : ScriptableObject
+    {
+        public T Value;
+    }
+
     internal static class ButtonMethodDrawer
     {
         private const BindingFlags MethodFlags = BindingFlags.Public | BindingFlags.NonPublic
@@ -97,24 +102,79 @@ namespace GameUp.Core.Editor
             return currentValue ?? GetDefaultValue(param);
         }
 
+        private static bool IsMarkedSerializableType(Type type)
+        {
+            if (type.IsPrimitive || type.IsEnum || type == typeof(string))
+                return false;
+
+            if (typeof(UnityEngine.Object).IsAssignableFrom(type))
+                return false;
+
+            return Attribute.IsDefined(type, typeof(SerializableAttribute), inherit: false);
+        }
+
+        private static void DrawSerializableResultField(GUIContent label, Type type, object value)
+        {
+            ScriptableObject host = null;
+
+            try
+            {
+                var hostType = typeof(SerializableReturnValueHost<>).MakeGenericType(type);
+                host = (ScriptableObject)ScriptableObject.CreateInstance(hostType);
+                var valueField = hostType.GetField(nameof(SerializableReturnValueHost<int>.Value),
+                    BindingFlags.Public | BindingFlags.Instance);
+
+                if (value != null || type.IsValueType)
+                    valueField.SetValue(host, value ?? Activator.CreateInstance(type));
+
+                var serializedObject = new SerializedObject(host);
+                var property = serializedObject.FindProperty(nameof(SerializableReturnValueHost<int>.Value));
+                if (property == null)
+                {
+                    EditorGUILayout.TextField(label, value?.ToString() ?? "null");
+                    return;
+                }
+
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.PropertyField(property, label, true);
+                EditorGUI.EndDisabledGroup();
+            }
+            catch (Exception ex)
+            {
+                EditorGUILayout.TextField(label, value?.ToString() ?? $"({ex.Message})");
+            }
+            finally
+            {
+                if (host != null)
+                    ScriptableObject.DestroyImmediate(host);
+            }
+        }
+
         private static void DrawResultField(MethodInfo method, object value)
         {
             var type = method.ReturnType;
             var label = new GUIContent("Result");
 
-            EditorGUI.BeginDisabledGroup(true);
-
             if (type == typeof(void))
+                return;
+
+            if (value == null && type.IsValueType && Nullable.GetUnderlyingType(type) == null)
             {
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.TextField(label, "(chua goi)");
                 EditorGUI.EndDisabledGroup();
                 return;
             }
 
-            if (value == null && type.IsValueType && Nullable.GetUnderlyingType(type) == null)
+            if (IsMarkedSerializableType(type))
             {
-                EditorGUILayout.TextField(label, "(chua goi)");
+                DrawSerializableResultField(label, type, value);
+                return;
             }
-            else if (type == typeof(int))
+
+            EditorGUI.BeginDisabledGroup(true);
+
+            if (type == typeof(int))
                 EditorGUILayout.IntField(label, value is int i ? i : default);
             else if (type == typeof(float))
                 EditorGUILayout.FloatField(label, value is float f ? f : default);
