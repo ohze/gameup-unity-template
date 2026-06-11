@@ -8,15 +8,12 @@ using UnityEngine;
 
 namespace GameUp.Core.Editor
 {
-    internal sealed class SerializableReturnValueHost<T> : ScriptableObject
-    {
-        public T Value;
-    }
-
     internal static class ButtonMethodDrawer
     {
         private const BindingFlags MethodFlags = BindingFlags.Public | BindingFlags.NonPublic
             | BindingFlags.Instance | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+
+        private const BindingFlags SerializableFieldFlags = BindingFlags.Public | BindingFlags.Instance;
 
         private static readonly Dictionary<Type, List<(MethodInfo Method, ButtonAttribute Attr)>> _cache = new();
         private static readonly Dictionary<string, object[]> _parameterCache = new();
@@ -113,66 +110,54 @@ namespace GameUp.Core.Editor
             return Attribute.IsDefined(type, typeof(SerializableAttribute), inherit: false);
         }
 
-        private static void DrawSerializableResultField(GUIContent label, Type type, object value)
+        private static void DrawSerializableObjectFields(Type type, object instance)
         {
-            ScriptableObject host = null;
-
-            try
+            foreach (var field in type.GetFields(SerializableFieldFlags))
             {
-                var hostType = typeof(SerializableReturnValueHost<>).MakeGenericType(type);
-                host = (ScriptableObject)ScriptableObject.CreateInstance(hostType);
-                var valueField = hostType.GetField(nameof(SerializableReturnValueHost<int>.Value),
-                    BindingFlags.Public | BindingFlags.Instance);
+                if (field.IsStatic)
+                    continue;
 
-                if (value != null || type.IsValueType)
-                    valueField.SetValue(host, value ?? Activator.CreateInstance(type));
-
-                var serializedObject = new SerializedObject(host);
-                var property = serializedObject.FindProperty(nameof(SerializableReturnValueHost<int>.Value));
-                if (property == null)
-                {
-                    EditorGUILayout.TextField(label, value?.ToString() ?? "null");
-                    return;
-                }
-
-                EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.PropertyField(property, label, true);
-                EditorGUI.EndDisabledGroup();
-            }
-            catch (Exception ex)
-            {
-                EditorGUILayout.TextField(label, value?.ToString() ?? $"({ex.Message})");
-            }
-            finally
-            {
-                if (host != null)
-                    ScriptableObject.DestroyImmediate(host);
+                var fieldLabel = new GUIContent(ObjectNames.NicifyVariableName(field.Name));
+                DrawReadOnlyValueField(fieldLabel, field.FieldType, field.GetValue(instance));
             }
         }
 
-        private static void DrawResultField(MethodInfo method, object value)
+        private static void DrawSerializableResultField(GUIContent label, Type type, object value)
         {
-            var type = method.ReturnType;
-            var label = new GUIContent("Result");
-
-            if (type == typeof(void))
-                return;
-
-            if (value == null && type.IsValueType && Nullable.GetUnderlyingType(type) == null)
+            if (value == null && !type.IsValueType)
             {
-                EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.TextField(label, "(chua goi)");
-                EditorGUI.EndDisabledGroup();
+                EditorGUILayout.LabelField(label, "null");
                 return;
             }
 
+            var instance = value ?? Activator.CreateInstance(type);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+            DrawSerializableObjectFields(type, instance);
+            EditorGUI.indentLevel--;
+            EditorGUILayout.EndVertical();
+        }
+
+        private static void DrawReadOnlyValueField(GUIContent label, Type type, object value)
+        {
             if (IsMarkedSerializableType(type))
             {
-                DrawSerializableResultField(label, type, value);
+                if (value == null && !type.IsValueType)
+                {
+                    EditorGUILayout.LabelField(label, "null");
+                    return;
+                }
+
+                var nested = value ?? Activator.CreateInstance(type);
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+                EditorGUI.indentLevel++;
+                DrawSerializableObjectFields(type, nested);
+                EditorGUI.indentLevel--;
+                EditorGUILayout.EndVertical();
                 return;
             }
-
-            EditorGUI.BeginDisabledGroup(true);
 
             if (type == typeof(int))
                 EditorGUILayout.IntField(label, value is int i ? i : default);
@@ -202,6 +187,30 @@ namespace GameUp.Core.Editor
                 EditorGUILayout.EnumPopup(label, value as Enum ?? (Enum)Enum.ToObject(type, 0));
             else
                 EditorGUILayout.TextField(label, value?.ToString() ?? "null");
+        }
+
+        private static void DrawResultField(MethodInfo method, object value)
+        {
+            var type = method.ReturnType;
+            var label = new GUIContent("Result");
+
+            if (type == typeof(void))
+                return;
+
+            if (value == null && type.IsValueType && Nullable.GetUnderlyingType(type) == null)
+            {
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.TextField(label, "(chua goi)");
+                EditorGUI.EndDisabledGroup();
+                return;
+            }
+
+            EditorGUI.BeginDisabledGroup(true);
+
+            if (IsMarkedSerializableType(type))
+                DrawSerializableResultField(label, type, value);
+            else
+                DrawReadOnlyValueField(label, type, value);
 
             EditorGUI.EndDisabledGroup();
         }
