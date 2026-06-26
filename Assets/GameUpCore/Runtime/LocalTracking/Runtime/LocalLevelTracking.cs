@@ -20,6 +20,14 @@ namespace GameUpCore.Runtime.LocalTracking
             _playerLevels ??= LocalStorageUtils.HasKey(PlayerLevelKey)
                 ? LocalStorageUtils.GetObject<List<PlayerLevelTracking>>(PlayerLevelKey)
                 : new List<PlayerLevelTracking>();
+
+            // TỰ ĐỘNG THÊM VIEWER VÀO GAME ĐỂ BẬT TẮT RUNTIME
+            if (GameObject.Find("RuntimeLevelTrackingViewer") == null)
+            {
+                GameObject viewerObj = new GameObject("RuntimeLevelTrackingViewer");
+                viewerObj.AddComponent<RuntimeLevelTrackingViewer>();
+                UnityEngine.Object.DontDestroyOnLoad(viewerObj); // Giữ lại qua các Scene
+            }
         }
 
         private void SavePlayerLevels()
@@ -30,7 +38,8 @@ namespace GameUpCore.Runtime.LocalTracking
         public void StartLevel(int level)
         {
             Initialize();
-            _timeStartLevel = Time.realtimeSinceStartup;
+            _timeStartLevel = Time.unscaledTime;
+            _timeStartLevel = Time.unscaledTime;
             if (_playerLevels.Any(s => s.level == level))
             {
                 _currentPlayerLevel = _playerLevels.First(s => s.level == level);
@@ -53,7 +62,7 @@ namespace GameUpCore.Runtime.LocalTracking
 
         public void WinLevel(int level)
         {
-            var currentTime = Time.realtimeSinceStartup;
+            var currentTime = Time.unscaledTime;
             var duration = currentTime - _timeStartLevel;
             _currentPlayerLevel.levelDuration = duration;
             SavePlayerLevels();
@@ -61,7 +70,7 @@ namespace GameUpCore.Runtime.LocalTracking
 
         public void LoseLevel(int level, string reason)
         {
-            var currentTime = Time.realtimeSinceStartup;
+            var currentTime = Time.unscaledTime;
             var duration = currentTime - _timeStartLevel;
             if (duration > _currentPlayerLevel.levelDuration)
             {
@@ -84,6 +93,7 @@ namespace GameUpCore.Runtime.LocalTracking
                 });
             }
             SavePlayerLevels();
+            Initialize();
         }
     }
 
