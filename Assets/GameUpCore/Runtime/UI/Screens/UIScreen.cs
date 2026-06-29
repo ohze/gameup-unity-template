@@ -32,7 +32,19 @@ namespace GameUp.Core.UI
 
         protected static readonly Dictionary<Type, UIScreen> Screens = new();
         protected static readonly Stack<UIScreen> HistoryView = new Stack<UIScreen>();
-        public static UIScreen currentScreen;
+
+        public static event Action<UIScreen> OnCurrentScreenChanged;
+
+        private static UIScreen _currentScreen;
+        public static UIScreen currentScreen
+        {
+            get => _currentScreen;
+            set
+            {
+                _currentScreen = value;
+                OnCurrentScreenChanged?.Invoke(value);
+            }
+        }
 
         private static Transform ScreenHolder
         {

@@ -27,6 +27,7 @@ namespace GameUp.Core.UI
             if (btn != null)
                 btn.onClick.AddListener(OpenSelectedScreen);
 
+            UIScreen.OnCurrentScreenChanged += OnCurrentScreenChanged;
             RefreshSelectState();
         }
 
@@ -36,6 +37,15 @@ namespace GameUp.Core.UI
 
             if (btn != null)
                 btn.onClick.RemoveListener(OpenSelectedScreen);
+
+            UIScreen.OnCurrentScreenChanged -= OnCurrentScreenChanged;
+        }
+
+        private void OnCurrentScreenChanged(UIScreen screen)
+        {
+            if (_selectButton == null) return;
+            var type = ResolveUIScreenType(screenTypeName);
+            _selectButton.IsSelect = type != null && screen != null && screen.GetType() == type;
         }
 
         public void OpenSelectedScreen()
@@ -54,7 +64,6 @@ namespace GameUp.Core.UI
             }
 
             UIScreen.OpenScreenByTypeAsync(type, rememberInHistory);
-            UpdateAllSelectStates(type);
         }
 
         public void RefreshSelectState()
@@ -76,17 +85,6 @@ namespace GameUp.Core.UI
 
                 var type = ResolveUIScreenType(instance.screenTypeName);
                 instance._selectButton.IsSelect = type != null && type == currentType;
-            }
-        }
-
-        private static void UpdateAllSelectStates(Type activeType)
-        {
-            foreach (var instance in AllInstances)
-            {
-                if (instance == null || instance._selectButton == null) continue;
-
-                var type = ResolveUIScreenType(instance.screenTypeName);
-                instance._selectButton.IsSelect = type != null && type == activeType;
             }
         }
 
