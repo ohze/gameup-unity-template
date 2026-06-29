@@ -15,7 +15,6 @@ namespace GameUp.Core.UI
             get => _isSelect;
             set
             {
-                if (_isSelect == value) return;
                 _isSelect = value;
                 if (views == null) return;
 
