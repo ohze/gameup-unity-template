@@ -90,7 +90,6 @@ namespace GameUp.Core.UI
 
 #if DOTween__DEPENDENCIES_INSTALLED
             _sequence = DOTween.Sequence();
-
             _sequence
                 .Append(targetImage.rectTransform.DOSizeDelta(targetBgSize, 0.25f).SetEase(Ease.OutQuad))
                 .Join(targetIconImage.rectTransform.DOSizeDelta(targetIconSize, 0.25f).SetEase(Ease.OutQuad))
@@ -104,7 +103,7 @@ namespace GameUp.Core.UI
 #else
             targetImage.rectTransform.sizeDelta = targetBgSize;
             targetIconImage.rectTransform.sizeDelta = targetIconSize;
-            targetIconImage.rectTransform.ChangeAnchorPos(targetY);
+            targetIconImage.rectTransform.anchoredPosition = targetY;
             targetIconImage.rectTransform.localScale = Vector3.one * iconPunchScale;
             if (!isSelected)
                 targetIconImage.rectTransform.localScale = Vector3.one;
