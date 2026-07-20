@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+           tools:keep="@layout/gameup_native_collapsible, 
+                @layout/gameup_native_fullscreen, 
+                @drawable/gameup_bg_rounded, 
+                @drawable/gameup_bg_circle, 
+                @drawable/gameup_bg_media, 
+                @drawable/gameup_bg_cta_fs, 
+                @drawable/gameup_bg_cta_bn, 
+                @color/*, 
+                @dimen/*" />

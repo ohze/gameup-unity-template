@@ -11,6 +11,23 @@ namespace GameUp.SDK
     {
         [SerializeField] private string apiKey;
         [SerializeField] private bool enableLogs;
+        [SerializeField] private bool enableEventLogging = true;
+
+        /// <summary>Bật gửi game events qua <see cref="AppMetricaUtils"/> / <see cref="GameUpAnalytics"/>.</summary>
+        public static bool EnableEventLogging =>
+#if APPMETRICA_DEPENDENCIES_INSTALLED
+            Instance != null && Instance.enableEventLogging;
+#else
+            false;
+#endif
+
+        /// <summary>Bật <c>Debug.Log</c> xác nhận gửi event trong <see cref="AppMetricaUtils"/> (tab Appmetrica → SDK debug logs).</summary>
+        public static bool IsUtilsDebugLogEnabled =>
+#if APPMETRICA_DEPENDENCIES_INSTALLED
+            Instance != null && Instance.enableLogs;
+#else
+            false;
+#endif
         
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Activate()

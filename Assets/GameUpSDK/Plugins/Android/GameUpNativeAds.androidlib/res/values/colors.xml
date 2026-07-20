@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="gu_bn_bg">#FFFFFF</color>
+    <color name="gu_bn_info_bg">#FFFFFF</color>
+    <color name="gu_bn_headline">#212121</color>
+    <color name="gu_bn_body">#666666</color>
+    <color name="gu_bn_btn_bg">#F48B44</color>
+    <color name="gu_bn_btn_outline">#D35400</color> <color name="gu_bn_btn_text">#FFFFFF</color>
+
+    <color name="gu_fs_bg">#FFFFFF</color>
+    <color name="gu_fs_info_bg">#FFFFFF</color>
+    <color name="gu_fs_headline">#212121</color>
+    <color name="gu_fs_body">#666666</color>
+    <color name="gu_fs_btn_bg">#F48B44</color>
+    <color name="gu_fs_btn_outline">#D35400</color>
+    <color name="gu_fs_btn_text">#FFFFFF</color>
+</resources>

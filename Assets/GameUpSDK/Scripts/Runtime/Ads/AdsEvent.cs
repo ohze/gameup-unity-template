@@ -25,7 +25,10 @@ namespace GameUp.SDK
         /// Subscribe in AdsManager and pass to GameUpAnalytics.LogAdImpression.
         /// </summary>
         public static event Action<AdImpressionData> OnImpressionDataReady;
+        public static event Action<string, string> OnBannerSwap;
+        
         internal static void RaiseImpressionDataReady(AdImpressionData data) => OnImpressionDataReady?.Invoke(data);
+        internal static void RaiseBannerSwap(string lastWhere, string currentWhere) => OnBannerSwap?.Invoke(lastWhere, currentWhere);
         // Interstitial Events
         public const string InterStartLoad = "ad_inter_start_load";
         public const string InterCompleteLoad = "ad_inter_complete_load";
@@ -65,5 +68,6 @@ namespace GameUp.SDK
         public const string AdTypeInterstitial = "interstitial";
         public const string AdTypeRewardedVideo = "rewarded_video";
         public const string AdTypeAppOpen = "app_open";
+        public const string AdTypeNativeAd = "native_ad";
     }
 }

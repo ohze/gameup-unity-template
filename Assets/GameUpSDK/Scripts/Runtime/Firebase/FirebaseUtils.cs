@@ -16,11 +16,12 @@ namespace GameUp.SDK
         private bool _initialized;
         public Action<bool> onInitialized;
         /// <summary>True khi Firebase Ä‘Ã£ init xong (dÃ¹ng Ä‘á»ƒ RemoteConfig init sau).</summary>
-        public bool IsInitialized => _initialized;
+        public new bool IsInitialized => _initialized;
 
 #if FIREBASE_DEPENDENCIES_INSTALLED
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             FirebaseInit();
         }
 
@@ -151,8 +152,9 @@ namespace GameUp.SDK
 
         #endregion
 #else
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             _initialized = true;
             onInitialized?.Invoke(true);
         }

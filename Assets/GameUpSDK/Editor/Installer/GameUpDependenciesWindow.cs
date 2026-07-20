@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using GameUp.SDK;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEditor.PackageManager;
@@ -113,7 +114,7 @@ namespace GameUp.SDK.Installer
             public string[] DeleteAssetPathsAfterImport;
 
             /// <summary>
-            /// Thứ tự cài khuyến nghị (số nhỏ trước): Facebook → Firebase (EDM) → AdMob/LevelPlay → adapters AdMob → AppsFlyer → GameAnalytics.
+            /// Thứ tự cài khuyến nghị (số nhỏ trước): Facebook → Firebase (EDM) → AdMob/LevelPlay → AppsFlyer → GameAnalytics.
             /// Batch install, import sau download và danh sách UI đều sort theo trường này.
             /// </summary>
             public int InstallPriority;
@@ -1036,7 +1037,7 @@ namespace GameUp.SDK.Installer
 
             EditorGUI.BeginDisabledGroup(IsInteractionLocked());
             var current = GetPrimaryMediationFromDefines();
-            var next = (AdsManager.PrimaryMediation)EditorGUILayout.EnumPopup("Primary Mediation", current);
+            var next = (MediationProvider)EditorGUILayout.EnumPopup("Primary Mediation", current);
             if (next != current)
             {
                 SetPrimaryMediationDefines(next);
@@ -1052,9 +1053,9 @@ namespace GameUp.SDK.Installer
 
             string planDesc = pm switch
             {
-                AdsManager.PrimaryMediation.AdMob =>
+                MediationProvider.Admob =>
                     "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads, AdMob adapters (Unity Ads + IronSource — bắt buộc).",
-                AdsManager.PrimaryMediation.Max =>
+                MediationProvider.Max =>
                     "Facebook, Firebase, AppsFlyer, GameAnalytics, AppLovin MAX.",
                 _ => "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.",
             };
@@ -1073,7 +1074,7 @@ namespace GameUp.SDK.Installer
                 "Adapter mediation khác (AppLovin, Meta, …) cài tùy chọn trong tab \"AdMob Mediation\".",
                 MessageType.None);
 
-            if (pm == AdsManager.PrimaryMediation.AdMob)
+            if (pm == MediationProvider.Admob)
             {
                 var missingRequiredAdapters = GetRequiredAdMobRuntimeAdapters()
                     .Where(p => !p.IsInstalled)
@@ -1104,15 +1105,15 @@ namespace GameUp.SDK.Installer
             else
             {
                 EditorGUILayout.HelpBox(
-                    "Theo Primary Mediation, không còn mục nào thiếu mà installer tự cài được (hoặc đã đủ).",
+                    "Theo Primary Mediation, không còn dependency cốt lõi nào thiếu mà installer tự cài được (hoặc đã đủ).",
                     MessageType.None);
             }
 
             EditorGUI.BeginDisabledGroup(IsInteractionLocked() || missingAuto.Count == 0);
             if (GUILayout.Button(
                     missingAuto.Count > 0
-                        ? $"⬇ Cài tất cả còn thiếu ({missingAuto.Count}) — theo thứ tự khuyến nghị"
-                        : "✓ Đã đủ package (tự động) cho Primary Mediation",
+                        ? $"⬇ Cài tất cả dependency cốt lõi còn thiếu ({missingAuto.Count})"
+                        : "✓ Đã đủ dependency cốt lõi (tự động) cho Primary Mediation",
                     GUILayout.Height(28)))
             {
                 if (missingAuto.Count > 0)
@@ -1227,7 +1228,7 @@ namespace GameUp.SDK.Installer
         }
 
         /// <summary>Firebase + AppsFlyer + bộ mediation cốt lõi theo lựa chọn. AdMob gồm thêm 2 adapter bắt buộc (Unity Ads + IronSource).</summary>
-        private static List<PackageDef> GetPackagesForSdkSetup(AdsManager.PrimaryMediation mediation)
+        private static List<PackageDef> GetPackagesForSdkSetup(MediationProvider mediation)
         {
             var list = new List<PackageDef>();
 
@@ -1249,13 +1250,13 @@ namespace GameUp.SDK.Installer
             AddByAssembly("AppsFlyer");
             AddByAssembly("GameAnalyticsSDK");
 
-            if (mediation == AdsManager.PrimaryMediation.AdMob)
+            if (mediation == MediationProvider.Admob)
             {
                 AddByAssembly("GoogleMobileAds");
                 foreach (var adapter in GetRequiredAdMobRuntimeAdapters())
                     AddPackage(adapter);
             }
-            else if (mediation == AdsManager.PrimaryMediation.Max)
+            else if (mediation == MediationProvider.Max)
             {
                 AddByAssembly("MaxSdk.Scripts");
             }
@@ -1267,18 +1268,18 @@ namespace GameUp.SDK.Installer
             return OrderedInstallSequence(list).ToList();
         }
 
-        private static AdsManager.PrimaryMediation GetPrimaryMediationFromDefines()
+        private static MediationProvider GetPrimaryMediationFromDefines()
         {
-            if (HasDefine(GUDefinetion.PrimaryMediationAdMob)) return AdsManager.PrimaryMediation.AdMob;
-            if (HasDefine(GUDefinetion.PrimaryMediationMax)) return AdsManager.PrimaryMediation.Max;
-            return AdsManager.PrimaryMediation.LevelPlay;
+            if (HasDefine(GUDefinetion.PrimaryMediationAdMob)) return MediationProvider.Admob;
+            if (HasDefine(GUDefinetion.PrimaryMediationMax)) return MediationProvider.Max;
+            return MediationProvider.IronSource;
         }
 
-        private static void SetPrimaryMediationDefines(AdsManager.PrimaryMediation mediation)
+        private static void SetPrimaryMediationDefines(MediationProvider mediation)
         {
-            SetDefine(GUDefinetion.PrimaryMediationAdMob, mediation == AdsManager.PrimaryMediation.AdMob);
-            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, mediation == AdsManager.PrimaryMediation.LevelPlay);
-            SetDefine(GUDefinetion.PrimaryMediationMax, mediation == AdsManager.PrimaryMediation.Max);
+            SetDefine(GUDefinetion.PrimaryMediationAdMob, mediation == MediationProvider.Admob);
+            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, mediation == MediationProvider.IronSource);
+            SetDefine(GUDefinetion.PrimaryMediationMax, mediation == MediationProvider.Max);
         }
 
         /// <summary>Đảm bảo có đúng một define mediation (mặc định LevelPlay nếu chưa có).</summary>
@@ -1362,20 +1363,19 @@ namespace GameUp.SDK.Installer
                 MessageType.Info);
 
             var pm = GetPrimaryMediationFromDefines();
-            if (pm != AdsManager.PrimaryMediation.AdMob)
+            if (pm != MediationProvider.Admob)
             {
                 EditorGUILayout.HelpBox(
                     "Primary Mediation hiện không phải AdMob. Bạn vẫn có thể cài adapter trước, nhưng nên chuyển Primary Mediation = AdMob nếu muốn dùng bộ này.",
                     MessageType.Warning);
             }
 
-            var adapters = OrderedInstallSequence(GetAdMobMediationAdapters()).ToList();
-            var installedAdapterCount = adapters.Count(p => p.IsInstalled);
-
             EditorGUILayout.EndVertical();
 
             EditorGUILayout.Space(4);
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
+            var adapters = OrderedInstallSequence(GetAdMobMediationAdapters()).ToList();
+            var installedAdapterCount = adapters.Count(p => p.IsInstalled);
             _foldoutAdMobMediationAdapters = EditorGUILayout.Foldout(
                 _foldoutAdMobMediationAdapters,
                 $"Danh sách adapter ({installedAdapterCount}/{adapters.Count} đã cài)",

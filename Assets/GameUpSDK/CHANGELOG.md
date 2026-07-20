@@ -4,6 +4,41 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.5] — 2026-07-20
+
+### Summary
+
+Đồng bộ toàn bộ logic + tài nguyên từ `sdk-gameup` v1.2.5 (≈90 commit sau v1.2.4): kiến trúc AdsManager mới (waterfall đa network), Native Ads bridge (Android/iOS), capping rules, ECPM floor, native banner/fullscreen.
+
+### Added
+
+- **Bật/tắt eCPM Waterfall Floor** (đồng bộ `sdk-gameup@06c76fe`): `AdUnitConfig.enableWaterfallFloor` + `GetActiveFloors()`. Tắt (mặc định) → chỉ dùng 1 ad unit ID (`_All`); bật → chạy 3 tầng High → Medium → All. Mọi `IsAvailable`/`Show`/`Load` của Admob/IronSource/MAX đọc theo `GetActiveFloors()` thay vì luôn duyệt hết enum `EcpmFloor`.
+- **Custom Inspector cho các Network** (`Editor/Networks/`): `AdmobNetworkEditor`, `IronSourceNetworkEditor`, `MaxNetworkEditor` + `NetworkEditorUI` — cấu hình ad unit ID ngay trên prefab network, dùng chung UI với cửa sổ SDK Setup (`SetupTabBase.DrawConfigDataUI` ủy quyền sang `NetworkEditorUI`). UI tự ẩn ô High/Medium khi tắt waterfall; Banner luôn tắt waterfall.
+- `AdmobNetwork.showMediationInspector` — mở AdMob Ad Inspector ngay sau khi init để debug mediation.
+- `BaseAdFormat.WhereByKey(key)` — helper tra placement theo key.
+
+- **Kiến trúc ads mới** `Scripts/Runtime/Ads/Refactor/`: `AdsManager` (waterfall theo `mediationPriority`), `IAdNetwork`/`INetwork`, `AdmobNetwork` + `AdmobAdFormat` (ECPM floor, native banner/collapsible, native fullscreen), `IronsourceNetwork`, `MaxNetwork`, `AdsTracker`, `AdUnitConfig`/`AdUnitIdEntry` (ad unit theo platform), `TimerHelper`, Dummy AOA/native.
+- **AdsRules**: `AdCappingManager`, `CappingTimeCondition`, `IAdCondition` — điều kiện hiển thị + capping time theo loại ad.
+- **Native Ads bridge**: `Plugins/Android/GameUpNativeAds.androidlib` (layout/drawable/values), `NativeBannerManager.java`, `UnityNativeFullScreen.java`; iOS: `NativeBannerManager.mm`, `UnityiOSNativeFullScreen.mm`; C#: `AdmobNativeBannerBridge`, `FullScreenNativeAdManager`, `RuntimeCollapsibleUI`.
+- **AdHistoryTracker** — theo dõi thời điểm đóng ad để bỏ qua AOA ngay sau ad khác.
+- **Analytics**: `AppMetricaEvent`, `AppMetricaUtils`, `VideoAdsAppMetricaTracker` (track video ads qua AppMetrica).
+- **Editor**: `Editor/Setup/` (SetupTabBase + tab Admob/Max/IronSource/AppsFlyer/AppMetrica/FirebaseRC/Facebook/GameAnalytics, generate `AdPlacement`), `GameUpAndroidBuildProcessor` (tự thêm proguard rules cho native ads).
+- `GameUtils.cs` (runtime helpers).
+
+### Changed
+
+- `PrivacyManager`: chạy UMP trước khi initialize networks (`BeginPrivacyFlow` từ `AdsManager.Start`).
+- `AdsEvent`, `AdsExample`, `AppMetricaActivator`, `GameUpAnalytics`: đồng bộ theo v1.2.5.
+- Installer `GameUpDependenciesWindow`: chuyển sang enum `MediationProvider` (thay `AdsManager.PrimaryMediation`); giữ policy template — AdMob primary tự cài adapter Unity Ads + IronSource, hỗ trợ "Cài tất cả" với MAX, URL tải từ `ohze/gameup-unity-template` releases.
+- Prefabs `SDK`, `AdmobAds`, `IronSourceAds`, `MaxAds`, `AppmetricaObject`: cấu trúc mới theo network refactor.
+- `GameUp.SDK.Runtime.asmdef`: thêm reference `UnityEngine.UI` (RuntimeCollapsibleUI).
+- Giữ quy ước template: namespace `GameUp.SDK`, `GULogger`/`MonoSingleton` từ GameUp Core, tích hợp `RemoveAdsSetting` vào AdsManager mới (chặn inter/banner/AOA/native khi mua Remove Ads; Rewarded vẫn cho phép).
+
+### Removed
+
+- Kiến trúc ads cũ: `AdmobAds`, `IronSourceAds`, `MaxAds`, `UnityAds`, `IAds`/`IShowAds`/`IRequestAds`/`IInitialAds`/`ICheckValidAds`, `AdsRules.cs`, `AdsManager` cũ, `AdsTester`, `AdMobMediationConsentBridge` (upstream bỏ forward consent tới adapter), prefab `UnityAds`.
+- `Editor/GameUpSetupWindow.cs` cũ (thay bằng `Editor/Setup/GameUpSetupWindow.cs`).
+
 ## [1.2.4] — 2026-05-19
 
 ### Added

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using GameUp.SDK;
 using UnityEngine;
 using GameUp.Core;
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IOS)
@@ -24,8 +25,9 @@ namespace GameUp.SDK
         public bool IsCompleted => _completed;
         public bool ConsentGranted => _consentGranted;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
             DontDestroyOnLoad(gameObject);
         }
 
@@ -62,7 +64,7 @@ namespace GameUp.SDK
             // Giáº£ sá»­ AdsManager cá»§a báº¡n lÃ  Singleton
             if (AdsManager.Instance != null)
             {
-                AdsManager.Instance.SetAfterCheckGDPR(_consentGranted);
+                AdsManager.Instance.SetConsent(_consentGranted);
             }
 
             _onCompleted?.Invoke(_consentGranted);

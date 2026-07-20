@@ -1,73 +1,73 @@
+using GameUp.Core;
 using UnityEngine;
 using System;
+using GameUp.SDK; // Đảm bảo sử dụng namespace mới chứa AdsManager
 
 namespace GameUp.SDK
 {
     public class AdsExample : MonoBehaviour
     {
         private int _currentLevel = 1;
-        private string _statusLog = "Sáºµn sÃ ng. Nháº¥n cÃ¡c nÃºt bÃªn dÆ°á»›i Ä‘á»ƒ test ad.";
+        private string _statusLog = "Sẵn sàng. Nhấn các nút bên dưới để test quảng cáo.";
         private Vector2 _scrollPosition;
+
+        private void Start()
+        {
+            AdCappingManager.Instance.SetCappingLimit(AdUnitType.Interstitial, 15, 0);
+            AdsManager.Instance.AddCondition(new CappingTimeCondition(AdUnitType.Interstitial));
+        }
 
         private void OnGUI()
         {
-            // Thiáº¿t láº­p vÃ¹ng hiá»ƒn thá»‹ UI báº±ng GUILayout táº¡i gÃ³c trÃªn bÃªn trÃ¡i mÃ n hÃ¬nh
-            GUILayout.BeginArea(new Rect(20, 20, 350, Screen.height - 40));
-            _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Width(350), GUILayout.Height(Screen.height - 40));
+            // Thiết lập vùng hiển thị UI bằng GUILayout tại góc trên bên trái màn hình
+            GUILayout.BeginArea(new Rect(20, 20, 380, Screen.height - 40));
+            _scrollPosition = GUILayout.BeginScrollView(_scrollPosition, GUILayout.Width(380),
+                GUILayout.Height(Screen.height - 40));
 
             GUILayout.Box("--- GAMEUP SDK ADS DEMO ---", GUILayout.ExpandWidth(true));
-            
-            // Hiá»ƒn thá»‹ tráº¡ng thÃ¡i mÃ´ phá»ng
-            GUILayout.Label($"<b>Tráº¡ng thÃ¡i:</b> {_statusLog}", new GUIStyle(GUI.skin.label) { richText = true, wordWrap = true });
-            GUILayout.Label($"MÃ´ phá»ng Level hiá»‡n táº¡i: {_currentLevel}");
-            
-            // TÄƒng giáº£m level giáº£ láº­p Ä‘á»ƒ test Ä‘iá»u kiá»‡n inter_start_level
+
+            // Hiển thị trạng thái mô phỏng
+            GUILayout.Label($"<b>Trạng thái:</b> {_statusLog}",
+                new GUIStyle(GUI.skin.label) { richText = true, wordWrap = true });
+            GUILayout.Label($"Mô phỏng Level hiện tại: {_currentLevel}");
+
+            // Tăng giảm level giả lập để test điều kiện inter_start_level
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Level -1")) { _currentLevel = Mathf.Max(1, _currentLevel - 1); }
-            if (GUILayout.Button("Level +1")) { _currentLevel++; }
+            if (GUILayout.Button("Level -1", GUILayout.Height(30)))
+            {
+                _currentLevel = Mathf.Max(1, _currentLevel - 1);
+            }
+
+            if (GUILayout.Button("Level +1", GUILayout.Height(30)))
+            {
+                _currentLevel++;
+            }
+
             GUILayout.EndHorizontal();
 
             GUILayout.Space(15);
 
             // =================================================================
-            // SECTION 1: REQUESTS / PRELOAD ADS
+            // SECTION 1: INIT / PRELOAD ADS
             // =================================================================
-            GUILayout.Box("1. Táº£i TrÆ°á»›c Quáº£ng CÃ¡o (Preload)", GUILayout.ExpandWidth(true));
-            
-            if (GUILayout.Button("Request All Ads (Táº£i táº¥t cáº£ cÃ¡c Ä‘á»‹nh dáº¡ng)", GUILayout.Height(35)))
-            {
-                LogStatus("Äang gá»i RequestAll()...");
-                AdsManager.Instance.RequestAll();
-            }
-
-            if (GUILayout.Button("Preload Collapsible Banner", GUILayout.Height(30)))
-            {
-                LogStatus("Äang táº£i trÆ°á»›c Collapsible Banner cho vá»‹ trÃ­ 'main'...");
-                AdsManager.Instance.RequestCollapsibleBanner("main", CollapsibleBannerPlacement.Bottom);
-            }
+            GUILayout.Box("1. Khởi tạo Hệ thống", GUILayout.ExpandWidth(true));
 
             GUILayout.Space(10);
 
             // =================================================================
             // SECTION 2: BANNER ADS
             // =================================================================
-            GUILayout.Box("2. Quáº£ng cÃ¡o Banner", GUILayout.ExpandWidth(true));
+            GUILayout.Box("2. Quảng cáo Banner", GUILayout.ExpandWidth(true));
 
             if (GUILayout.Button("Show Standard Banner ('main')", GUILayout.Height(30)))
             {
-                LogStatus("YÃªu cáº§u hiá»ƒn thá»‹ Banner tiÃªu chuáº©n vá»‹ trÃ­ 'main'...");
-                AdsManager.Instance.ShowBanner("main", onRqFail: () => LogStatus("Show Standard Banner tháº¥t báº¡i (onRqFail)."));
+                LogStatus("Yêu cầu hiển thị Banner tiêu chuẩn...");
+                AdsManager.Instance.ShowBanner("main");
             }
-
-            if (GUILayout.Button("Show Collapsible Banner (Bottom)", GUILayout.Height(30)))
-            {
-                LogStatus("YÃªu cáº§u hiá»ƒn thá»‹ Collapsible Banner dáº¡ng trÆ°á»£t á»Ÿ dÆ°á»›i mÃ n hÃ¬nh...");
-                AdsManager.Instance.ShowCollapsibleBanner("main", CollapsibleBannerPlacement.Bottom, onRqFail: () => LogStatus("Show Collapsible Banner tháº¥t báº¡i."));
-            }
-
+            
             if (GUILayout.Button("Hide Banner", GUILayout.Height(30)))
             {
-                LogStatus("Äang áº©n Banner vá»‹ trÃ­ 'main'...");
+                LogStatus("Đang ẩn Banner vị trí 'main'...");
                 AdsManager.Instance.HideBanner("main");
             }
 
@@ -76,31 +76,18 @@ namespace GameUp.SDK
             // =================================================================
             // SECTION 3: INTERSTITIAL ADS
             // =================================================================
-            GUILayout.Box("3. Quáº£ng cÃ¡o Xen Káº½ (Interstitial)", GUILayout.ExpandWidth(true));
+            GUILayout.Box("3. Quảng cáo Xen Kẽ (Interstitial)", GUILayout.ExpandWidth(true));
 
-            if (GUILayout.Button("Show Interstitial (Kiá»ƒm tra luáº­t)", GUILayout.Height(35)))
+            if (GUILayout.Button("Show Interstitial (Có check Rule)", GUILayout.Height(35)))
             {
-                LogStatus("YÃªu cáº§u hiá»ƒn thá»‹ Interstitial (CÃ³ check capping time vÃ  level)...");
-                
+                LogStatus("Đang kiểm tra Capping/Level và gọi Interstitial...");
+
                 AdsManager.Instance.ShowInterstitial(
                     where: "end_game_revive",
                     currentLevel: _currentLevel,
-                    onSuccess: () => LogStatus("Interstitial Ä‘Ã£ xem xong hoáº·c Ä‘Æ°á»£c Ä‘Ã³ng thÃ nh cÃ´ng!"),
-                    onFail: () => LogStatus("Interstitial bá»‹ cháº·n (ChÆ°a Ä‘á»§ thá»i gian capping hoáº·c chÆ°a Ä‘áº¡t level yÃªu cáº§u)."),
-                    onRqFail: () => LogStatus("KhÃ´ng cÃ³ máº¡ng quáº£ng cÃ¡o nÃ o sáºµn sÃ ng xá»­ lÃ½ Interstitial.")
-                );
-            }
-
-            if (GUILayout.Button("Force Show Interstitial (Ã‰p hiá»ƒn thá»‹)", GUILayout.Height(30)))
-            {
-                LogStatus("YÃªu cáº§u Ã©p hiá»ƒn thá»‹ Interstitial (Bá» qua Ä‘iá»u kiá»‡n kiá»ƒm tra)...");
-                
-                AdsManager.Instance.ShowInterWithoutCondition(
-                    where: "forced_button",
-                    currentLevel: _currentLevel,
-                    onSuccess: () => LogStatus("Ã‰p hiá»ƒn thá»‹ Interstitial thÃ nh cÃ´ng!"),
-                    onFail: () => LogStatus("Hiá»ƒn thá»‹ tháº¥t báº¡i (Quáº£ng cÃ¡o chÆ°a ká»‹p táº£i hoáº·c lá»—i network)."),
-                    onRqFail: () => LogStatus("Máº¡ng quáº£ng cÃ¡o bÃ¡o lá»—i há»‡ thá»‘ng.")
+                    onSuccess: () => LogStatus("Interstitial đã xem xong hoặc được đóng thành công!"),
+                    onFail: () =>
+                        LogStatus("Interstitial thất bại (Chưa load xong, hoặc bị chặn bởi Capping Time/Level).")
                 );
             }
 
@@ -109,26 +96,22 @@ namespace GameUp.SDK
             // =================================================================
             // SECTION 4: REWARDED ADS
             // =================================================================
-            GUILayout.Box("4. Quáº£ng cÃ¡o Nháº­n QuÃ  (Rewarded)", GUILayout.ExpandWidth(true));
+            GUILayout.Box("4. Quảng cáo Nhận Quà (Rewarded)", GUILayout.ExpandWidth(true));
 
             if (GUILayout.Button("Show Rewarded Video", GUILayout.Height(35)))
             {
-                LogStatus("Äang má»Ÿ quáº£ng cÃ¡o video nháº­n thÆ°á»Ÿng...");
-                
-                // Máº¹o: Báº¡n nÃªn táº¡m thá»i táº¯t Ã¢m thanh cá»§a game táº¡i Ä‘Ã¢y trÆ°á»›c khi gá»i ad
+                LogStatus("Đang mở quảng cáo video nhận thưởng...");
+
+                // Mẹo: Bạn nên tạm thời tắt âm thanh của game tại đây trước khi gọi ad
                 AdsManager.Instance.ShowRewardedVideo(
                     where: "claim_double_gold",
                     currentLevel: _currentLevel,
-                    onSuccess: () => {
-                        LogStatus("ThÃ nh cÃ´ng! NgÆ°á»i chÆ¡i Ä‘Ã£ xem háº¿t video. Táº·ng quÃ : +100 Gold!");
-                        // Thá»±c hiá»‡n cá»™ng tiá»n vÃ ng/váº­t pháº©m thá»±c táº¿ á»Ÿ Ä‘Ã¢y
+                    onSuccess: () =>
+                    {
+                        LogStatus("Thành công! Người chơi đã xem xong video. Tặng quà: +100 Gold!");
+                        // Thực hiện cộng tiền vàng/vật phẩm thực tế ở đây
                     },
-                    onFail: () => {
-                        LogStatus("Tháº¥t báº¡i! NgÆ°á»i chÆ¡i táº¯t quáº£ng cÃ¡o giá»¯a chá»«ng hoáº·c lá»—i hiá»ƒn thá»‹.");
-                    },
-                    onRqFail: () => {
-                        LogStatus("Video nháº­n quÃ  chÆ°a sáºµn sÃ ng hoáº·c khÃ´ng tÃ¬m tháº¥y video kháº£ dá»¥ng.");
-                    }
+                    onFail: () => { LogStatus("Thất bại! Video chưa sẵn sàng hoặc người chơi tắt giữa chừng."); }
                 );
             }
 
@@ -137,20 +120,53 @@ namespace GameUp.SDK
             // =================================================================
             // SECTION 5: APP OPEN ADS
             // =================================================================
-            GUILayout.Box("5. Quáº£ng cÃ¡o Má»Ÿ App (App Open)", GUILayout.ExpandWidth(true));
+            GUILayout.Box("5. Quảng cáo Mở App (App Open)", GUILayout.ExpandWidth(true));
 
             if (GUILayout.Button("Show App Open Ad", GUILayout.Height(35)))
             {
-                LogStatus("YÃªu cáº§u hiá»ƒn thá»‹ App Open Ad...");
-                
+                LogStatus("Yêu cầu hiển thị App Open Ad...");
+
                 AdsManager.Instance.ShowAppOpenAds(
                     where: "resume_app",
-                    onSuccess: () => LogStatus("ÄÃ£ Ä‘Ã³ng App Open Ad -> Tiáº¿p tá»¥c game."),
-                    onFail: () => LogStatus("Hiá»ƒn thá»‹ App Open Ad lá»—i hoáº·c háº¿t háº¡n (4 tiáº¿ng)."),
-                    onRqFail: () => LogStatus("App Open Ad chÆ°a Ä‘Æ°á»£c táº£i xong.")
+                    onSuccess: () => LogStatus("Đã đóng App Open Ad -> Tiếp tục game."),
+                    onFail: () => LogStatus("App Open Ad chưa sẵn sàng hoặc đã hết hạn (4 tiếng).")
                 );
             }
 
+            GUILayout.Space(10);
+
+            // =================================================================
+            // SECTION 6: NATIVE ADS
+            // =================================================================
+            GUILayout.Box("6. Native Ad", GUILayout.ExpandWidth(true));
+
+            if (GUILayout.Button("Show Native Ad", GUILayout.Height(35)))
+            {
+                LogStatus("Yêu cầu hiển thị Native Ad...");
+
+                // Lưu ý: Đối với NativeAd ta có thể không cần truyền level tuỳ thuộc vào quy định game
+                AdsManager.Instance.ShowNativeAd(
+                    where: "native_menu",
+                    onSuccess: () => LogStatus("Đã hiển thị Native Ad thành công."),
+                    onFail: () => LogStatus("Hiển thị Native Ad lỗi hoặc chưa tải xong.")
+                );
+            }
+
+            if (GUILayout.Button("Hide Native Ad", GUILayout.Height(30)))
+            {
+                LogStatus("Đang ẩn Native Ad...");
+                AdsManager.Instance.HideNativeAd("native_menu");
+            }
+
+            if (GUILayout.Button("Show Native Banner UI", GUILayout.Height(30)))
+            {
+                RuntimeCollapsibleUI.Create(() =>
+                {
+                    GULogger.Log($"Banner change");
+                });
+            }
+            
+            GUILayout.Space(30);
             GUILayout.EndScrollView();
             GUILayout.EndArea();
         }
@@ -158,7 +174,7 @@ namespace GameUp.SDK
         private void LogStatus(string text)
         {
             _statusLog = $"[{DateTime.Now:HH:mm:ss}] {text}";
-            Debug.Log($"[AdsExample] {text}");
+            GULogger.Log($"[AdsExample] {text}");
         }
     }
 }

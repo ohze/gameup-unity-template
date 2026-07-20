@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="gameup_header_height">36dp</dimen>
+    <dimen name="gameup_btn_width">64dp</dimen>
+    <dimen name="gameup_btn_radius">8dp</dimen>
+</resources>

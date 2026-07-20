@@ -3,6 +3,7 @@
     "rootNamespace": "GameUp.SDK.Runtime",
     "references": [
         "GameUp.Core.Runtime",
+        "UnityEngine.UI",
         "Unity.LevelPlay",
         "AppsFlyer",
         "GameAnalyticsSDK",

@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8017563633412382607}
-  - component: {fileID: 64426498629635161}
+  - component: {fileID: -7013073108897777850}
   m_Layer: 0
   m_Name: MaxAds
   m_TagString: Untagged
@@ -32,7 +32,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &64426498629635161
+--- !u!114 &-7013073108897777850
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -41,18 +41,32 @@ MonoBehaviour:
   m_GameObject: {fileID: 6548062604066111936}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f1b71bc5d0a542768aaa1d1622fcebd7, type: 3}
+  m_Script: {fileID: 11500000, guid: fb51f4661d4f4afda330e655b240be44, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   sdkKey: 
-  useMultiAdUnitIds: 0
-  adUnitIdsAndroid: []
-  adUnitIdsIOS: []
-  bannerAdUnitIdAndroid: 
-  bannerAdUnitIdIOS: 
-  interstitialAdUnitIdAndroid: 
-  interstitialAdUnitIdIOS: 
-  rewardedAdUnitIdAndroid: 
-  rewardedAdUnitIdIOS: 
-  appOpenAdUnitIdAndroid: 
-  appOpenAdUnitIdIOS: 
+  showMediationDebugger: 0
+  rewardedConfig:
+    useMultiAdUnitIds: 0
+    defaultIdAndroid: 
+    defaultIdIOS: 
+    multiIdsAndroid: []
+    multiIdsIOS: []
+  interstitialConfig:
+    useMultiAdUnitIds: 0
+    defaultIdAndroid: 
+    defaultIdIOS: 
+    multiIdsAndroid: []
+    multiIdsIOS: []
+  bannerConfig:
+    useMultiAdUnitIds: 0
+    defaultIdAndroid: 
+    defaultIdIOS: 
+    multiIdsAndroid: []
+    multiIdsIOS: []
+  appOpenAdConfig:
+    useMultiAdUnitIds: 0
+    defaultIdAndroid: 
+    defaultIdIOS: 
+    multiIdsAndroid: []
+    multiIdsIOS: []
