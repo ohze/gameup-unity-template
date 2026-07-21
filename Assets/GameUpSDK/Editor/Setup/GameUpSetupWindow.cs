@@ -18,7 +18,7 @@ namespace GameUp.SDK.Editor.Setup
         private string _saveErrors;
         private Vector2 _scrollPosition;
 
-        [MenuItem("GameUp SDK/Setup")]
+        [MenuItem("GameUp/SDK/Setup")]
         public static void ShowWindow()
         {
             if (!Installer.GameUpDependenciesWindow.AreAllRequiredPackagesInstalled())
@@ -86,7 +86,7 @@ namespace GameUp.SDK.Editor.Setup
                 EditorGUILayout.EndScrollView();
                 return;
             }
-            
+
             string[] tabNames = _visibleTabs.Select(t => t.Title).ToArray();
             _activeTabIndex = GUILayout.Toolbar(_activeTabIndex, tabNames);
             EditorGUILayout.Space(8);
@@ -165,7 +165,7 @@ namespace GameUp.SDK.Editor.Setup
 
             var srcDir = GameUpSetupPaths.GetPackagePrefabDirectory().Replace('\\', '/');
             var guids = AssetDatabase.FindAssets("t:Prefab", new[] { srcDir });
-            
+
             // 1. Copy tất cả các file trước
             foreach (var g in guids)
             {
@@ -173,7 +173,7 @@ namespace GameUp.SDK.Editor.Setup
                 var dst = GameUpSetupPaths.WritablePrefabsRoot + "/" + Path.GetFileName(src);
                 if (AssetDatabase.LoadAssetAtPath<GameObject>(dst) == null) AssetDatabase.CopyAsset(src, dst);
             }
-            
+
             AssetDatabase.Refresh();
 
             // 2. Chạy logic vá lỗi liên kết Nested Prefabs
@@ -183,8 +183,8 @@ namespace GameUp.SDK.Editor.Setup
         // =========================================================================
         // LOGIC FIX LỖI NESTED PREFAB TRỌ BẬY SAU KHI CLONE
         // =========================================================================
-        
-        private struct PrefabReplacementPair 
+
+        private struct PrefabReplacementPair
         {
             public GameObject OldChild;
             public GameObject NewPrefab;
@@ -193,7 +193,7 @@ namespace GameUp.SDK.Editor.Setup
         private static void FixNestedPrefabReferences(string sdkPrefabPath)
         {
             if (AssetDatabase.LoadAssetAtPath<GameObject>(sdkPrefabPath) == null) return;
-            
+
             // Mở SDK.prefab lên dưới dạng Memory Instance để chỉnh sửa
             var root = PrefabUtility.LoadPrefabContents(sdkPrefabPath);
             if (root == null) return;
@@ -220,9 +220,10 @@ namespace GameUp.SDK.Editor.Setup
                             var newPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(expectedNewPath);
                             if (newPrefab != null)
                             {
-                                childrenToReplace.Add(new PrefabReplacementPair { 
-                                    OldChild = child.gameObject, 
-                                    NewPrefab = newPrefab 
+                                childrenToReplace.Add(new PrefabReplacementPair
+                                {
+                                    OldChild = child.gameObject,
+                                    NewPrefab = newPrefab
                                 });
                             }
                         }
@@ -253,7 +254,7 @@ namespace GameUp.SDK.Editor.Setup
                 newInstance.transform.localRotation = rot;
                 newInstance.transform.localScale = scale;
                 newInstance.transform.SetSiblingIndex(siblingIndex);
-                
+
                 changed = true;
             }
 
@@ -263,7 +264,7 @@ namespace GameUp.SDK.Editor.Setup
                 PrefabUtility.SaveAsPrefabAsset(root, sdkPrefabPath);
                 Debug.Log("[GameUp.SDK] Đã cập nhật lại link các Prefab con trong SDK.prefab trỏ đúng về thư mục Assets/SDK/Prefabs.");
             }
-            
+
             PrefabUtility.UnloadPrefabContents(root);
         }
 
@@ -279,15 +280,15 @@ namespace GameUp.SDK.Editor.Setup
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             }
         }
-        
+
         // =========================================================================
         // LOGIC TẠO FILE CONSTANTS CHỨA TÊN PLACEMENT (WHERE)
         // =========================================================================
-        
+
         private void GenerateAdPlacementConstants()
         {
             HashSet<string> placements = new HashSet<string>();
-            
+
             // Các placement hệ thống mặc định (nếu muốn)
             placements.Add("default");
             placements.Add("main");
@@ -320,14 +321,14 @@ namespace GameUp.SDK.Editor.Setup
             // Tạo thư mục Scripts nếu chưa có
             string dir = "Assets/SDK/Scripts";
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            
+
             // Ghi file
             string path = dir + "/AdPlacement.cs";
             File.WriteAllText(path, sb.ToString());
-            
+
             AssetDatabase.Refresh();
             Debug.Log($"[GameUp.SDK] Đã tạo thành công file Constants tại: {path}");
-            
+
             // Highlight file cho bạn dễ thấy
             var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
             if (asset != null) EditorGUIUtility.PingObject(asset);
@@ -346,7 +347,7 @@ namespace GameUp.SDK.Editor.Setup
                 {
                     var so = new SerializedObject((MonoBehaviour)network);
                     string[] configs = { "bannerConfig", "interstitialConfig", "rewardedConfig", "appOpenConfig", "nativeConfig" };
-                    
+
                     foreach (var c in configs)
                     {
                         var configProp = so.FindProperty(c);
@@ -371,7 +372,7 @@ namespace GameUp.SDK.Editor.Setup
             {
                 var element = listProp.GetArrayElementAtIndex(i);
                 var nameProp = element.FindPropertyRelative("NameId"); // Đây chính là biến string "Where"
-                
+
                 if (nameProp != null && !string.IsNullOrWhiteSpace(nameProp.stringValue))
                 {
                     placements.Add(nameProp.stringValue.Trim());
@@ -382,14 +383,14 @@ namespace GameUp.SDK.Editor.Setup
         private string SanitizeToVariableName(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return "Unknown";
-            
+
             // 1. Thay thế các ký tự không phải chữ/số thành dấu cách (để dễ viết hoa)
             char[] chars = raw.ToCharArray();
             for (int i = 0; i < chars.Length; i++)
             {
                 if (!char.IsLetterOrDigit(chars[i])) chars[i] = ' ';
             }
-            
+
             // 2. Chuyển thành PascalCase (VD: "main menu" -> "Main Menu")
             string cleaned = new string(chars);
             System.Globalization.TextInfo textInfo = new System.Globalization.CultureInfo("en-US", false).TextInfo;
