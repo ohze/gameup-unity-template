@@ -293,6 +293,10 @@ namespace GameUp.SDK
 
                 banner.OnBannerAdLoaded += () => MainThreadDispatcher.Enqueue(() =>
                 {
+                    // AdMob TỰ hiển thị BannerView ngay khi load xong. Gọi Hide() trước LoadAd() không
+                    // có tác dụng bền → phải ẩn lại NGAY trong callback loaded để banner giữ trạng thái ẩn,
+                    // chỉ hiện khi AdsManager chủ động gọi Show() qua cổng điều kiện (enable_banner...).
+                    banner.Hide();
                     _isLoaded[unitId] = true;
                     HandleLoadSuccess(unitId, where);
                 });
