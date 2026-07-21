@@ -40,6 +40,27 @@ namespace GameUp.SDK
         public bool IsRemoteConfigReady => _remoteConfigReady;
         public Action<bool> OnFetchCompleted;
 
+        private bool _bannerConditionAdded;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            // Đăng ký trước khi Start() chạy để không bỏ lỡ lần fetch đầu tiên.
+            OnFetchCompleted += OnRemoteConfigFetched;
+        }
+
+        private void OnRemoteConfigFetched(bool success)
+        {
+            // Chỉ add condition 1 lần; lambda đọc giá trị enable_banner mới nhất mỗi lần ShowBanner.
+            if (_bannerConditionAdded) return;
+            _bannerConditionAdded = true;
+
+            GULogger.Log("OnRemoteConfigFetched: " + enable_banner);
+            AdsManager.Instance.AddCondition(new HideBannerFromRemote(
+                () => !enable_banner
+            ));
+        }
+
         private static bool IsEditor()
         {
             return Application.platform == RuntimePlatform.OSXEditor ||

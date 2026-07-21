@@ -26,7 +26,7 @@ namespace GameUp.SDK
         /// <summary>728 × 90 – chỉ phù hợp trên iPad / tablet.</summary>
         Leaderboard,
     }
-    
+
     public enum BannerFormatType
     {
         StandardBanner,
@@ -53,11 +53,11 @@ namespace GameUp.SDK
         public static Action<string> OnBannerLoadedEvent = delegate { };
 
         private Action<bool> _onRemoveAllAdsChanged;
-        
+
         public new bool IsInitialized { get; private set; }
-        
+
         public Dictionary<MediationProvider, IAdNetwork> Networks => _networkDict;
-        
+
         protected override void Awake()
         {
             base.Awake();
@@ -112,7 +112,7 @@ namespace GameUp.SDK
         {
             AdsEvent.OnImpressionDataReady -= GameUpAnalytics.LogAdImpression;
             AdsEvent.OnImpressionDataReady += GameUpAnalytics.LogAdImpression;
-            
+
             AdsEvent.OnBannerSwap -= OnBannerSwapped;
             AdsEvent.OnBannerSwap += OnBannerSwapped;
 
@@ -149,7 +149,7 @@ namespace GameUp.SDK
                 _activeBanners.Add(current);
             }
         }
-        
+
         private void OnBannerLoaded(string where)
         {
             GULogger.Log($"OnBannerLoaded: {where}");
@@ -157,10 +157,10 @@ namespace GameUp.SDK
             {
                 HideBanner(where);
             }
-            
+
             OnBannerLoadedEvent.Invoke(where);
         }
-        
+
         private void TemporarilyHideBanners()
         {
             foreach (var provider in mediationPriority)
@@ -176,7 +176,7 @@ namespace GameUp.SDK
                 }
             }
         }
-        
+
         private void RestoreBanners()
         {
             if (IsRemoveAllAdsActive()) return;
@@ -339,7 +339,7 @@ namespace GameUp.SDK
                 return;
             }
 
-            if(AdCappingManager.Instance.IsAnyAdShowing) return;
+            if (AdCappingManager.Instance.IsAnyAdShowing) return;
 
             if (!EvaluateConditions(AdUnitType.Interstitial, where, out var blockReason))
             {
