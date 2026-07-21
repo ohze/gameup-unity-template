@@ -258,7 +258,25 @@ namespace GameUp.SDK
 
         public void AddCondition(IAdCondition condition)
         {
-            if (!_showConditions.Contains(condition)) _showConditions.Add(condition);
+            if (_showConditions.Contains(condition)) return;
+            _showConditions.Add(condition);
+            // Điều kiện mới (vd HideBannerFromRemote) có thể cấm banner đang hiển thị
+            // → ép đánh giá lại ngay, không chờ tới lần load kế tiếp.
+            RefreshBannerVisibility();
+        }
+
+        /// <summary>
+        /// Đánh giá lại toàn bộ banner đang active theo _showConditions hiện tại;
+        /// ẩn placement nào không còn thoả điều kiện. Gọi khi điều kiện/Remote Config thay đổi.
+        /// </summary>
+        public void RefreshBannerVisibility()
+        {
+            if (_activeBanners.Count == 0) return;
+            foreach (var placement in new List<string>(_activeBanners))
+            {
+                if (IsRemoveAllAdsActive() || !EvaluateConditions(AdUnitType.Banner, placement, out _))
+                    HideBanner(placement);
+            }
         }
 
         private bool EvaluateConditions(AdUnitType adType, string where, out string blockReason)

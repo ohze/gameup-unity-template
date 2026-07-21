@@ -45,20 +45,28 @@ namespace GameUp.SDK
         protected override void Awake()
         {
             base.Awake();
-            // Đăng ký trước khi Start() chạy để không bỏ lỡ lần fetch đầu tiên.
+            // Đăng ký điều kiện ẩn banner NGAY từ đầu (trước khi fetch) để mọi ShowBanner đều
+            // được kiểm soát, kể cả khi banner được gọi show trước lúc Remote Config fetch xong.
+            // Lambda đọc enable_banner "live" nên tự cập nhật giá trị sau khi fetch.
+            TryAddBannerCondition();
             OnFetchCompleted += OnRemoteConfigFetched;
+        }
+
+        private void TryAddBannerCondition()
+        {
+            if (_bannerConditionAdded) return;
+            _bannerConditionAdded = true;
+            // AdsManager có [DefaultExecutionOrder(-50)] nên Awake của nó đã chạy trước → Instance sẵn sàng.
+            AdsManager.Instance.AddCondition(new HideBannerFromRemote(
+                () => !enable_banner
+            ));
         }
 
         private void OnRemoteConfigFetched(bool success)
         {
-            // Chỉ add condition 1 lần; lambda đọc giá trị enable_banner mới nhất mỗi lần ShowBanner.
-            if (_bannerConditionAdded) return;
-            _bannerConditionAdded = true;
-
-            GULogger.Log("OnRemoteConfigFetched: " + enable_banner);
-            AdsManager.Instance.AddCondition(new HideBannerFromRemote(
-                () => !enable_banner
-            ));
+            GULogger.Log("OnRemoteConfigFetched: enable_banner=" + enable_banner);
+            // enable_banner có thể vừa chuyển sang false sau fetch → ép ẩn banner đang hiển thị.
+            AdsManager.Instance.RefreshBannerVisibility();
         }
 
         private static bool IsEditor()
