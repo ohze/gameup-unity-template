@@ -108,7 +108,7 @@ namespace GameUp.SDK
             return false;
         }
 
-        protected override void RequestAdInternal(string unitId, string where , EcpmFloor floor)
+        protected override void RequestAdInternal(string unitId, string where, EcpmFloor floor)
         {
 #if ADMOB_DEPENDENCIES_INSTALLED
             if (_ads.TryGetValue(unitId, out var oldAd) && oldAd != null) oldAd.Destroy();
@@ -289,6 +289,7 @@ namespace GameUp.SDK
                 var pos = entry.CollapsiblePlacement == CollapsibleBannerPlacement.Top ? AdPosition.Top : AdPosition.Bottom;
                 var banner = new BannerView(unitId, GetAdMobBannerSize(entry.BannerSize), pos);
                 _banners[unitId] = banner;
+                banner.Hide();
 
                 banner.OnBannerAdLoaded += () => MainThreadDispatcher.Enqueue(() =>
                 {
@@ -424,7 +425,7 @@ namespace GameUp.SDK
             return entry != null && entry.BannerFormat == BannerFormatType.NativeOverlay ? (IBannerAd)_nativeExpandBanner : _standardBanner;
         }
     }
-    
+
     public class AdmobNativeFullscreenAd : BaseAdFormat, INativeFullScreenAd
     {
         // Dictionary để lưu lại ánh xạ unitId -> where khi gọi RequestAd
@@ -470,7 +471,7 @@ namespace GameUp.SDK
                 if (FullScreenNativeAdManager.Instance.IsAdReady(unitId))
                 {
                     FullScreenNativeAdManager.Instance.ShowFullScreenAd(unitId, where);
-                    return; 
+                    return;
                 }
             }
 
@@ -482,7 +483,7 @@ namespace GameUp.SDK
         {
             FullScreenNativeAdManager.Instance.ForceCloseAd();
         }
-        
+
         // =========================================================================
         // CALLBACKS TỪ MANAGER
         // =========================================================================
@@ -495,7 +496,7 @@ namespace GameUp.SDK
         private void OnNativeAdClosed(string unitId, string where)
         {
             NotifyAdClosed(where);
-            Load(where); 
+            Load(where);
         }
 
         private void OnNativeAdLoaded(string unitId)

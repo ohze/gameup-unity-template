@@ -153,10 +153,11 @@ namespace GameUp.SDK
         private void OnBannerLoaded(string where)
         {
             GULogger.Log($"OnBannerLoaded: {where}");
-            if (IsRemoveAllAdsActive() || !EvaluateConditions(AdUnitType.Banner, where, out var blockReason))
-            {
+            // Banner được adapter preload ở trạng thái ẩn. Đây là cổng DUY NHẤT quyết định hiện.
+            if (!IsRemoveAllAdsActive() && EvaluateConditions(AdUnitType.Banner, where, out _))
+                ShowBanner(where);   // đường chuẩn: chọn network available + đánh dấu _activeBanners
+            else
                 HideBanner(where);
-            }
 
             OnBannerLoadedEvent.Invoke(where);
         }

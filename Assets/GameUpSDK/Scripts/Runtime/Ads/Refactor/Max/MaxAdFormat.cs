@@ -231,6 +231,7 @@ namespace GameUp.SDK
                 _isLoaded[unitId] = false;
                 var pos = entry.CollapsiblePlacement == CollapsibleBannerPlacement.Top ? MaxSdkBase.AdViewPosition.TopCenter : MaxSdkBase.AdViewPosition.BottomCenter;
                 MaxSdk.CreateBanner(unitId, new MaxSdkBase.AdViewConfiguration(pos) { IsAdaptive = entry.BannerSize == BannerSize.Adaptive });
+                MaxSdk.HideBanner(unitId);
 
                 Action<string, MaxSdkBase.AdInfo> onLoaded = null;
                 Action<string, MaxSdkBase.ErrorInfo> onFailed = null;
@@ -240,7 +241,7 @@ namespace GameUp.SDK
 
                 MaxSdkCallbacks.Banner.OnAdLoadedEvent += onLoaded;
                 MaxSdkCallbacks.Banner.OnAdLoadFailedEvent += onFailed;
-                MaxSdk.LoadBanner(unitId); 
+                MaxSdk.LoadBanner(unitId);
             });
 #endif
         }
@@ -252,7 +253,7 @@ namespace GameUp.SDK
             {
                 string unitId = _config.ResolveUnitId(_adType, where, EcpmFloor.All);
                 if (string.IsNullOrEmpty(unitId)) return;
-                
+
                 if (_isLoaded.TryGetValue(unitId, out bool loaded) && loaded)
                 {
                     NotifyAdDisplayed(where);
