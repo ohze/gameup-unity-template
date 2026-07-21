@@ -78,7 +78,7 @@ namespace GameUp.SDK.Editor.Setup
             if (RequiresPrefabCloneBeforeSetup())
             {
                 EditorGUILayout.HelpBox("Bạn cần clone prefab từ Package sang Assets để kích hoạt chỉnh sửa.", MessageType.Warning);
-                if (GUILayout.Button("Clone Prefab từ Package → Assets/SDK/Prefabs", GUILayout.Height(30)))
+                if (GUILayout.Button("Clone Prefab từ Package → " + GameUpSetupPaths.WritablePrefabsRoot, GUILayout.Height(30)))
                 {
                     TryClonePackagePrefabsToWritable();
                     LoadAllData();
@@ -160,8 +160,7 @@ namespace GameUp.SDK.Editor.Setup
 
         private static void TryClonePackagePrefabsToWritable()
         {
-            if (!AssetDatabase.IsValidFolder("Assets/SDK")) AssetDatabase.CreateFolder("Assets", "SDK");
-            if (!AssetDatabase.IsValidFolder(GameUpSetupPaths.WritablePrefabsRoot)) AssetDatabase.CreateFolder("Assets/SDK", "Prefabs");
+            EnsureFolderExists(GameUpSetupPaths.WritablePrefabsRoot);
 
             var srcDir = GameUpSetupPaths.GetPackagePrefabDirectory().Replace('\\', '/');
             var guids = AssetDatabase.FindAssets("t:Prefab", new[] { srcDir });
@@ -178,6 +177,22 @@ namespace GameUp.SDK.Editor.Setup
 
             // 2. Chạy logic vá lỗi liên kết Nested Prefabs
             FixNestedPrefabReferences(GameUpSetupPaths.WritablePrefabsRoot + "/SDK.prefab");
+        }
+
+        // Tạo folder đệ quy theo từng cấp (AssetDatabase.CreateFolder chỉ tạo được 1 cấp/lần)
+        private static void EnsureFolderExists(string folderPath)
+        {
+            folderPath = folderPath.Replace('\\', '/').TrimEnd('/');
+            if (AssetDatabase.IsValidFolder(folderPath)) return;
+
+            var parts = folderPath.Split('/');
+            string current = parts[0]; // "Assets"
+            for (int i = 1; i < parts.Length; i++)
+            {
+                string next = current + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(current, parts[i]);
+                current = next;
+            }
         }
 
         // =========================================================================
@@ -247,7 +262,7 @@ namespace GameUp.SDK.Editor.Setup
                 // Phá huỷ prefab gốc (Cái đang trỏ về Package)
                 GameObject.DestroyImmediate(oldChild);
 
-                // Khởi tạo Prefab mới (Cái nằm trong Assets/SDK/Prefabs/) và nhét vào làm con của SDK.prefab
+                // Khởi tạo Prefab mới (Cái nằm trong WritablePrefabsRoot) và nhét vào làm con của SDK.prefab
                 var newInstance = (GameObject)PrefabUtility.InstantiatePrefab(newPrefab, root.transform);
                 newInstance.name = objName;
                 newInstance.transform.localPosition = pos;
@@ -262,7 +277,7 @@ namespace GameUp.SDK.Editor.Setup
             {
                 // Áp dụng lưu và đóng file prefab
                 PrefabUtility.SaveAsPrefabAsset(root, sdkPrefabPath);
-                Debug.Log("[GameUp.SDK] Đã cập nhật lại link các Prefab con trong SDK.prefab trỏ đúng về thư mục Assets/SDK/Prefabs.");
+                Debug.Log("[GameUp.SDK] Đã cập nhật lại link các Prefab con trong SDK.prefab trỏ đúng về thư mục " + GameUpSetupPaths.WritablePrefabsRoot + ".");
             }
 
             PrefabUtility.UnloadPrefabContents(root);
@@ -319,7 +334,7 @@ namespace GameUp.SDK.Editor.Setup
             sb.AppendLine("}");
 
             // Tạo thư mục Scripts nếu chưa có
-            string dir = "Assets/SDK/Scripts";
+            string dir = "Assets/_MainProject/Scripts/SDK";
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
             // Ghi file

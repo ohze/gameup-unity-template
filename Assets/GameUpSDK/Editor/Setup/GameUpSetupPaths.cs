@@ -35,7 +35,7 @@ namespace GameUp.SDK.Editor.Setup
             }
         }
 
-        public const string WritablePrefabsRoot = "Assets/SDK/Prefabs";
+        public const string WritablePrefabsRoot = "Assets/_MainProject/Prefabs/SDK";
 
         public static string GetPackagePrefabDirectory() => (PackageRoot.Replace('\\', '/') + "/Prefab").Replace("//", "/");
 
