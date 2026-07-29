@@ -136,10 +136,6 @@ namespace GameUp.SDK.Editor.Setup
         private int _rcInterStartLevel = 3;
         private bool _rcEnableBanner = true;
 
-        private bool _adsShowBannerAfterInit = true;
-        private string _adsShowBannerPlacementAfterInit = "main";
-        private float _adsShowBannerDelaySeconds = 2f;
-
         public override void Load()
         {
             var go = AssetDatabase.LoadAssetAtPath<GameObject>(GameUpSetupPaths.PathSDK);
@@ -153,15 +149,6 @@ namespace GameUp.SDK.Editor.Setup
                 AssignInt(so, "inter_start_level", ref _rcInterStartLevel);
                 AssignBool(so, "enable_banner", ref _rcEnableBanner);
             }
-
-            var amComp = go.GetComponent<AdsManager>();
-            if (amComp != null)
-            {
-                var so = new SerializedObject(amComp);
-                AssignBool(so, "showBannerAfterInit", ref _adsShowBannerAfterInit);
-                Assign(so, "showBannerPlacementAfterInit", ref _adsShowBannerPlacementAfterInit);
-                AssignFloat(so, "showBannerDelaySeconds", ref _adsShowBannerDelaySeconds);
-            }
         }
 
         public override void Draw()
@@ -171,14 +158,6 @@ namespace GameUp.SDK.Editor.Setup
             _rcInterCappingTime = EditorGUILayout.IntField("inter_capping_time (s)", _rcInterCappingTime);
             _rcInterStartLevel = EditorGUILayout.IntField("inter_start_level", _rcInterStartLevel);
             _rcEnableBanner = EditorGUILayout.Toggle("enable_banner", _rcEnableBanner);
-            EditorGUILayout.EndVertical();
-
-            EditorGUILayout.Space(10);
-            EditorGUILayout.LabelField("Ads Manager Config", EditorStyles.boldLabel);
-            EditorGUILayout.BeginVertical("box");
-            _adsShowBannerAfterInit = EditorGUILayout.Toggle("Show Banner After Init", _adsShowBannerAfterInit);
-            _adsShowBannerPlacementAfterInit = EditorGUILayout.TextField("Placement", _adsShowBannerPlacementAfterInit);
-            _adsShowBannerDelaySeconds = EditorGUILayout.FloatField("Delay Seconds", _adsShowBannerDelaySeconds);
             EditorGUILayout.EndVertical();
         }
 
@@ -193,16 +172,6 @@ namespace GameUp.SDK.Editor.Setup
                     SetInt(so, "inter_capping_time", _rcInterCappingTime);
                     SetInt(so, "inter_start_level", _rcInterStartLevel);
                     SetBool(so, "enable_banner", _rcEnableBanner);
-                    so.ApplyModifiedPropertiesWithoutUndo();
-                }
-
-                var amComp = root.GetComponent<AdsManager>();
-                if (amComp != null)
-                {
-                    var so = new SerializedObject(amComp);
-                    SetBool(so, "showBannerAfterInit", _adsShowBannerAfterInit);
-                    Set(so, "showBannerPlacementAfterInit", _adsShowBannerPlacementAfterInit);
-                    SetFloat(so, "showBannerDelaySeconds", _adsShowBannerDelaySeconds);
                     so.ApplyModifiedPropertiesWithoutUndo();
                 }
             });
