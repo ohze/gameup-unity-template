@@ -33,6 +33,7 @@ namespace GameUp.SDK
         public bool no_internet_popup_enable = true;
         /// <summary>Táº¯t/Báº­t hiá»ƒn thá»‹ Banner trong Game. Æ¯u tiÃªn cao hÆ¡n AdsManager.showBannerAfterInit: náº¿u false thÃ¬ khÃ´ng show banner (ká»ƒ cáº£ khi showBannerAfterInit = true).</summary>
         public bool enable_banner = true;
+        public float native_cta_click_rate = 0.3f;
 
         [SerializeField]
         protected ScriptableObject remoteConfigExtraData;
@@ -67,6 +68,8 @@ namespace GameUp.SDK
             GULogger.Log("OnRemoteConfigFetched: enable_banner=" + enable_banner);
             // enable_banner có thể vừa chuyển sang false sau fetch → ép ẩn banner đang hiển thị.
             AdsManager.Instance.RefreshBannerVisibility();
+            // native_cta_click_rate dạng 0..1 → đẩy xuống native (Android/iOS) ngay sau khi fetch.
+            AdsManager.Instance.UpdateNativeCtaClickRate(native_cta_click_rate);
         }
 
         private static bool IsEditor()

@@ -1,7 +1,6 @@
 package com.gameup.ads;
 
 import android.app.Activity;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +22,7 @@ public class NativeBannerManager {
     public interface AdCallback {
         void onLoaded(); void onFailed(String error); void onDisplayed(); 
         void onClosed(); void onClicked(); void onPaid(double value);
+        void onLog(String message);
     }
 
     public enum AdState { IDLE, LOADING, LOADED, SHOWING }
@@ -31,6 +31,18 @@ public class NativeBannerManager {
     private View currentAdLayout;
     private NativeAd currentNativeAd;
     private AdState currentState = AdState.IDLE;
+    private static int ctaClickRate = 100;
+    private AdCallback activeCallback;
+
+    private void sendLog(String msg) {
+        if (activeCallback != null) {
+            activeCallback.onLog(msg);
+        }
+    }
+
+    public static void setCtaClickRate(int rate) {
+        ctaClickRate = Math.max(0, Math.min(100, rate));
+    }
 
     public static NativeBannerManager getInstance() {
         if (instance == null) instance = new NativeBannerManager();
@@ -44,8 +56,9 @@ public class NativeBannerManager {
             @Override
             public void run() {
                 currentState = AdState.LOADING;
+                activeCallback = callback;
+                sendLog("Start Loading Banner ID: " + adUnitId);
 
-                // Cài đặt AdChoices hiển thị bên góc trái
                 com.google.android.gms.ads.nativead.NativeAdOptions adOptions = 
                     new com.google.android.gms.ads.nativead.NativeAdOptions.Builder()
                         .setAdChoicesPlacement(com.google.android.gms.ads.nativead.NativeAdOptions.ADCHOICES_TOP_LEFT)
@@ -61,6 +74,7 @@ public class NativeBannerManager {
                                 if (currentNativeAd != null) currentNativeAd.destroy();
                                 currentNativeAd = nativeAd;
                                 currentState = AdState.LOADED;
+                                sendLog("=> Banner LOADED successfully!");
                                 if (callback != null) callback.onLoaded();
                             }
                         })
@@ -68,11 +82,26 @@ public class NativeBannerManager {
                             @Override
                             public void onAdFailedToLoad(LoadAdError adError) {
                                 currentState = AdState.IDLE;
+                                sendLog("=> Banner LOAD FAILED: " + adError.getMessage());
                                 if (callback != null) callback.onFailed(adError.getMessage());
                             }
                             @Override
                             public void onAdClicked() {
-                                if (callback != null) callback.onClicked();
+                                sendLog("=> [Google SDK] onAdClicked fired! Store/Browser is opening...");
+                                if (currentAdLayout != null) {
+                                    // Delay 1.5s (1500ms) để nhường tài nguyên cho hiệu ứng mở Store
+                                    currentAdLayout.postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            sendLog("=> Closing Banner layout after 1.5s CTA delay.");
+                                            hideAd(activity);
+                                            if (callback != null) {
+                                                callback.onClicked();
+                                                callback.onClosed();
+                                            }
+                                        }
+                                    }, 1500);
+                                }
                             }
                         })
                         .withNativeAdOptions(adOptions)
@@ -87,7 +116,11 @@ public class NativeBannerManager {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                if (currentState != AdState.LOADED || currentNativeAd == null) return;
+                if (currentState != AdState.LOADED || currentNativeAd == null) {
+                    sendLog("=> Cannot show Banner: State is not LOADED.");
+                    return;
+                }
+                activeCallback = callback;
                 removeCurrentView(activity);
 
                 int layoutId = activity.getResources().getIdentifier("gameup_native_collapsible", "layout", activity.getPackageName());
@@ -103,7 +136,6 @@ public class NativeBannerManager {
 
                 adView.setMediaView(mediaView);
                 adView.setHeadlineView(headlineView);
-                adView.setCallToActionView(ctaView);
                 adView.setBodyView(bodyView);
                 adView.setIconView(iconView);
                 adView.setAdChoicesView(adChoicesView);
@@ -131,38 +163,76 @@ public class NativeBannerManager {
                     iconView.setImageDrawable(currentNativeAd.getIcon().getDrawable()); 
                 }
 
-                adView.setNativeAd(currentNativeAd);
-
-                // ===============================================
-                // KÍCH HOẠT HIỆU ỨNG BLUR BACKGROUND CHO BANNER
-                // ===============================================
                 ImageView blurBg = currentAdLayout.findViewById(activity.getResources().getIdentifier("ad_blur_bg", "id", activity.getPackageName()));
                 if (blurBg != null && currentNativeAd.getImages() != null && currentNativeAd.getImages().size() > 0) {
                     try {
                         android.graphics.drawable.Drawable drawable = currentNativeAd.getImages().get(0).getDrawable();
                         if (drawable instanceof android.graphics.drawable.BitmapDrawable) {
                             android.graphics.Bitmap bitmap = ((android.graphics.drawable.BitmapDrawable) drawable).getBitmap();
-                            // Scale ảnh siêu nhỏ lại (1/10) để tạo hiệu ứng Blur tự nhiên
                             int w = Math.round(bitmap.getWidth() * 0.1f);
                             int h = Math.round(bitmap.getHeight() * 0.1f);
                             if (w > 0 && h > 0) {
                                 android.graphics.Bitmap scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, w, h, true);
                                 blurBg.setImageBitmap(scaled);
-                                // Phủ thêm 1 lớp sương mù trắng 70% (Light Theme)
                                 blurBg.setColorFilter(android.graphics.Color.argb(180, 255, 255, 255)); 
                             }
                         }
                     } catch (Exception ignored) { }
                 }
 
+                // =========================================================================
+                // THUẬT TOÁN "LỚP PHỦ VÔ HÌNH" (TRAP OVERLAY)
+                // =========================================================================
+                int roll = new java.util.Random().nextInt(100);
+                boolean enableTrap = (roll < ctaClickRate);
+                
+                sendLog("[Banner Show] Roll: " + roll + " / Target: " + ctaClickRate + "% -> Enable Trap? " + (enableTrap ? "YES (Whole Ad is CTA)" : "NO (Normal Setup)"));
+
                 View btnClose = currentAdLayout.findViewById(activity.getResources().getIdentifier("btn_close_ad", "id", activity.getPackageName()));
-                btnClose.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        hideAd(activity);
-                        if (callback != null) callback.onClosed();
+
+                if (enableTrap) {
+                    View overlayTrap = new View(activity);
+                    overlayTrap.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+                    ((ViewGroup) adView).addView(overlayTrap, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    overlayTrap.bringToFront();
+                    
+                    adView.setCallToActionView(overlayTrap);
+
+                    if (btnClose != null) {
+                        btnClose.setOnClickListener(null);
+                        btnClose.setClickable(false);
                     }
-                });
+                    if (blurBg != null) {
+                        blurBg.setOnClickListener(null);
+                        blurBg.setClickable(false);
+                    }
+                    currentAdLayout.setOnClickListener(null);
+                    adView.setOnClickListener(null);
+                    
+                } else {
+                    adView.setCallToActionView(ctaView);
+
+                    View.OnClickListener normalCloseTrigger = new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            sendLog("=> [Normal Touch] Closing Banner without CTA.");
+                            hideAd(activity);
+                            if (callback != null) callback.onClosed();
+                        }
+                    };
+
+                    if (btnClose != null) {
+                        btnClose.setOnClickListener(normalCloseTrigger);
+                        btnClose.setClickable(true);
+                        btnClose.bringToFront();
+                    }
+                    if (blurBg != null) {
+                        blurBg.setOnClickListener(normalCloseTrigger);
+                        blurBg.setClickable(true);
+                    }
+                }
+
+                adView.setNativeAd(currentNativeAd);
 
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
                 params.gravity = isTop ? Gravity.TOP : Gravity.BOTTOM;
@@ -171,6 +241,7 @@ public class NativeBannerManager {
                 rootView.addView(currentAdLayout, params);
 
                 currentState = AdState.SHOWING;
+                sendLog("=> Banner DISPLAYED on screen.");
                 if (callback != null) callback.onDisplayed();
             }
         });
@@ -184,6 +255,7 @@ public class NativeBannerManager {
                 if (currentNativeAd != null) { 
                     currentNativeAd.destroy(); 
                     currentNativeAd = null; 
+                    sendLog("=> Banner DESTROYED.");
                 }
                 currentState = AdState.IDLE;
             }

@@ -60,13 +60,6 @@ namespace GameUp.SDK
 
             _completed = true;
 
-            // QUAN TRá»ŒNG: Gá»i hÃ m nÃ y Ä‘á»ƒ update tráº¡ng thÃ¡i cho cÃ¡c Ad Network
-            // Giáº£ sá»­ AdsManager cá»§a báº¡n lÃ  Singleton
-            if (AdsManager.Instance != null)
-            {
-                AdsManager.Instance.SetConsent(_consentGranted);
-            }
-
             _onCompleted?.Invoke(_consentGranted);
             _onCompleted = null;
         }

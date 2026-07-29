@@ -42,6 +42,9 @@ namespace GameUp.SDK
         public List<MediationProvider> mediationPriority = new List<MediationProvider>
             { MediationProvider.Max, MediationProvider.Admob, MediationProvider.IronSource };
 
+        [Tooltip("Tỉ lệ (%) biến toàn bộ vùng Native Ad thành CTA. Có thể override bằng Remote Config native_cta_click_rate.")]
+        [SerializeField][Range(0, 100)] private int nativeCtaClickRate = 30;
+
         private readonly HashSet<string> _activeBanners = new HashSet<string>();
         private readonly Dictionary<MediationProvider, IAdNetwork> _networkDict =
             new Dictionary<MediationProvider, IAdNetwork>();
@@ -78,8 +81,16 @@ namespace GameUp.SDK
         {
             _onRemoveAllAdsChanged = OnRemoveAllAdsValueChanged;
             RemoveAdsSetting.Instance.IsRemoveAllAds.OnValueChange.AddListener(_onRemoveAllAdsChanged);
-            PrivacyManager.Instance.BeginPrivacyFlow(SetConsent);
-            InitializeAll();
+
+            // Thứ tự bắt buộc: ATT (iOS) → UMP → SetConsent → Initialize networks.
+            // MAX (MaxSdk.SetHasUserConsent) và LevelPlay (LevelPlay.SetConsent) yêu cầu consent được set
+            // TRƯỚC khi init SDK; init trước rồi mới set consent sẽ mất tín hiệu personalized ads.
+            PrivacyManager.Instance.BeginPrivacyFlow(grantConsent =>
+            {
+                SetConsent(grantConsent);
+                MainThreadDispatcher.Enqueue(InitializeAll);
+                NativeAdConfigBridge.SetGlobalCtaClickRate(nativeCtaClickRate);
+            });
         }
 
         private void OnDestroy()
@@ -198,6 +209,13 @@ namespace GameUp.SDK
         public void SetConsent(bool isConsent)
         {
             foreach (var network in _networkDict.Values) network.SetConsent(isConsent);
+        }
+
+        /// <summary>Cập nhật tỉ lệ CTA của Native Ads lúc runtime (clickRate dạng 0..1, ví dụ từ Remote Config).</summary>
+        public void UpdateNativeCtaClickRate(float clickRate)
+        {
+            nativeCtaClickRate = (int)(clickRate * 100);
+            NativeAdConfigBridge.SetGlobalCtaClickRate(nativeCtaClickRate);
         }
 
         private void WireUpCappingEvents(IAdNetwork network)

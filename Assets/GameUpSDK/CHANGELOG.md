@@ -4,6 +4,36 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.7] — 2026-07-29
+
+### Summary
+
+Đồng bộ `sdk-gameup` từ `7bbc1ba` → `65c47c5` (8 commit, 2026-07-21 → 2026-07-22): CTA click-bait rate cho Native Ads (overlay trap), kênh log từ native về Unity Console, delay đóng ad sau khi click CTA.
+
+### Added
+
+- **Native CTA click rate** (`NativeAdConfigBridge`): đẩy tỉ lệ `ctaClickRate` (0–100%) xuống Android (`NativeBannerManager.setCtaClickRate`, `UnityNativeFullScreen.setCtaClickRate`) và iOS (`NativeBanner_SetCtaRate`, `_iosSetNativeFullScreenCtaRate`). Theo quy ước template: đặt trong namespace `GameUp.SDK`, log qua `GULogger`.
+- `AdsManager.nativeCtaClickRate` (`[Range(0,100)]`, mặc định 30) — áp dụng sau khi privacy flow xong; `AdsManager.UpdateNativeCtaClickRate(float)` để chỉnh lúc runtime (nhận giá trị 0..1).
+- `FirebaseRemoteConfigUtils.native_cta_click_rate` (mặc định `0.3f`, đơn vị 0..1) — key Remote Config tương ứng. Khác upstream: template tự đẩy giá trị này xuống native trong `OnRemoteConfigFetched` nên Remote Config điều khiển được tỉ lệ CTA thật sự (fetch lỗi → giữ default 0.3).
+- **Overlay trap trong native layout** (Android/iOS): theo tỉ lệ `ctaClickRate`, phủ một view trong suốt full-size làm `CallToActionView` (vô hiệu nút close / blur background); ngược lại giữ setup thường (CTA là nút CTA, close/blur đóng ad).
+- **Kênh log native → Unity**: `AdCallback.onLog(String)` (Android), callback `onLog` trong `NativeBanner_SetCallbacks` / `_iosLoadNativeAd` (iOS); C# in ra Console với prefix `[GameUp-NativeBanner]` / `[GameUp-FullScreenNative]`. `FullScreenNativeAdManager.OnAdLogEvent` cho phép UI lắng nghe.
+- `[Preserve]` (`UnityEngine.Scripting`) trên các `AndroidJavaProxy` và method callback — chống IL2CPP/managed stripping làm mất callback native.
+
+### Changed
+
+- Native Banner: sau khi Google SDK báo `onAdClicked`, delay 1.5s rồi mới đóng layout (nhường tài nguyên cho hiệu ứng mở Store) và bắn `onClicked` + `onClosed`.
+- Di chuyển `FullScreenNativeAdManager.cs` từ `Scripts/Runtime/Ads/` sang `Scripts/Runtime/Ads/Refactor/Admob/` (theo upstream, giữ nguyên GUID).
+
+### Fixed
+
+- **Thứ tự init ads: chờ consent xong mới initialize network** (khôi phục hành vi upstream `3177b03`). Trước đây `AdsManager.Start()` gọi `BeginPrivacyFlow(SetConsent)` (coroutine ATT → UMP, chạy nhiều frame) rồi `InitializeAll()` **ngay dòng sau** → network init xong trước khi có consent. Nay `InitializeAll` + `SetGlobalCtaClickRate` nằm trong callback của `BeginPrivacyFlow`, đúng thứ tự **ATT (iOS) → UMP → SetConsent → Initialize**. Quan trọng vì `MaxSdk.SetHasUserConsent` và `LevelPlay.SetConsent` phải được gọi *trước* khi init SDK; init trước rồi set sau làm mất tín hiệu personalized ads (giảm eCPM) và sai luồng GDPR/ATT.
+- Bỏ block `AdsManager.Instance.SetConsent(...)` trong `PrivacyManager.RunPrivacyFlowCoroutine` — thừa (callback `_onCompleted` đã gọi `SetConsent`) và do `MonoSingleton.Instance` tự tạo GameObject nên có thể sinh ra một `AdsManager (Singleton)` rỗng nếu scene không có AdsManager. `PrivacyManager` giờ khớp upstream.
+
+### Notes
+
+- Không port `NativeAdTest.cs` của upstream: file này gọi `setLogListener` / interface `NativeBannerManager$LogListener` và `NativeBanner_SetLogCallback` — không tồn tại trong plugin Android/iOS, chạy sẽ ném exception. Kênh log đã được thay bằng `onLog` ở trên.
+- Giá trị `native_cta_click_rate` trên Firebase console phải theo đơn vị **0..1** (`0.3` = 30%), không phải phần trăm — `UpdateNativeCtaClickRate` nhân 100 rồi clamp 0–100.
+
 ## [1.2.5] — 2026-07-20
 
 ### Summary
