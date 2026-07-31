@@ -417,7 +417,7 @@ namespace GameUp.IAP
         {
             _isInitializing = false;
             _isInitialized = false;
-            GULogger.Warning(Tag, $"Store disconnected: {failure}");
+            GULogger.Warning(Tag, $"Store disconnected: {failure.Message}");
         }
 
         private void OnProductsFetched(List<Product> fetchedProducts)
@@ -434,7 +434,7 @@ namespace GameUp.IAP
         {
             _isInitializing = false;
             _isInitialized = false;
-            GULogger.Error(Tag, $"Products fetch failed: {failure}");
+            GULogger.Error(Tag, $"Products fetch failed: {failure.FailureReason}");
             LogIapInitialize(false, "products_fetch_failed");
         }
 
@@ -448,7 +448,7 @@ namespace GameUp.IAP
 
         private void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure)
         {
-            GULogger.Warning(Tag, $"Fetch purchases failed: {failure}");
+            GULogger.Warning(Tag, $"Fetch purchases failed: {failure.FailureReason}");
             LogPurchaseFail(string.Empty, "purchases_fetch_failed", null);
         }
 
