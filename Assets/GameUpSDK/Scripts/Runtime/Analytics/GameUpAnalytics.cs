@@ -136,30 +136,89 @@ namespace GameUp.SDK
             LogGameAnalyticsProgression(GaProgressionStatus.Complete, 1, GaWholeLevelWave);
         }
 
-        /// <summary> earn_virtual_currency: virtual_currency_name, value, source </summary>
-        public static void LogEarnVirtualCurrency(string virtualCurrencyName, string value, string source)
+        /// <summary> earn_virtual_currency: virtual_currency_name, value, amount, source </summary>
+        public static void LogEarnVirtualCurrency(string virtualCurrencyName, double value, string source)
         {
-            var p = new Dictionary<string, string>
-            {
-                [AnalyticsEvent.ParamVirtualCurrencyName] = virtualCurrencyName ?? "",
-                [AnalyticsEvent.ParamValue] = value ?? "",
-                [AnalyticsEvent.ParamSource] = source ?? ""
-            };
-            LogFirebaseParams(AnalyticsEvent.EarnVirtualCurrency, p);
-            LogAppMetrica(AnalyticsEvent.EarnVirtualCurrency, p);
+            LogVirtualCurrency(AnalyticsEvent.EarnVirtualCurrency, virtualCurrencyName, value, source, null, true);
         }
 
-        /// <summary> spend_virtual_currency: virtual_currency_name, value, source </summary>
-        public static void LogSpendVirtualCurrency(string virtualCurrencyName, string value, string source)
+        /// <summary> earn_virtual_currency — overload string, <paramref name="value"/> phải parse được thành số (invariant culture). </summary>
+        public static void LogEarnVirtualCurrency(string virtualCurrencyName, string value, string source)
         {
+            LogVirtualCurrency(AnalyticsEvent.EarnVirtualCurrency, virtualCurrencyName,
+                ParseVirtualCurrencyValue(AnalyticsEvent.EarnVirtualCurrency, value), source, null, true);
+        }
+
+        /// <summary>
+        /// spend_virtual_currency: virtual_currency_name, amount, source, item_name.
+        /// Số lượng đi qua <c>amount</c> chứ không phải <c>value</c>: event này đang được đánh dấu key event trong GA4,
+        /// mà key event có <c>value</c> thì bắt buộc phải kèm <c>currency</c> (ISO 4217) — thiếu thì GA4 drop <c>value</c>
+        /// và gắn <c>firebase_error=19</c>. Tiền ảo không phải doanh thu nên không thể đặt <c>currency</c>.
+        /// Nhớ đăng ký <c>amount</c> làm custom metric trong GA4 để dùng được trong report.
+        /// </summary>
+        public static void LogSpendVirtualCurrency(string virtualCurrencyName, double value, string source, string itemName = null)
+        {
+            LogVirtualCurrency(AnalyticsEvent.SpendVirtualCurrency, virtualCurrencyName, value, source, itemName, false);
+        }
+
+        /// <summary> spend_virtual_currency — overload string, <paramref name="value"/> phải parse được thành số (invariant culture). </summary>
+        public static void LogSpendVirtualCurrency(string virtualCurrencyName, string value, string source, string itemName = null)
+        {
+            LogVirtualCurrency(AnalyticsEvent.SpendVirtualCurrency, virtualCurrencyName,
+                ParseVirtualCurrencyValue(AnalyticsEvent.SpendVirtualCurrency, value), source, itemName, false);
+        }
+
+        /// <summary>
+        /// <c>value</c> là reserved param của GA4 và bắt buộc kiểu số — gửi dạng string sẽ bị Firebase drop kèm
+        /// <c>firebase_error</c> / <c>error_value=value</c>, nên Firebase nhận <c>Parameter</c> số thật thay vì đi qua
+        /// <see cref="LogFirebaseParams"/> (vốn ép mọi param về string). <c>amount</c> luôn được gửi để hai event dùng
+        /// chung một metric; <paramref name="sendValueParam"/> quyết định có gửi kèm <c>value</c> chuẩn GA4 hay không.
+        /// </summary>
+        private static void LogVirtualCurrency(string eventName, string virtualCurrencyName, double? value, string source,
+            string itemName, bool sendValueParam)
+        {
+            string currencyName = virtualCurrencyName ?? "";
+            string sourceName = source ?? "";
+
+#if FIREBASE_DEPENDENCIES_INSTALLED
+            var fbParams = new List<Parameter>
+            {
+                new Parameter(AnalyticsEvent.ParamVirtualCurrencyName, currencyName),
+                new Parameter(AnalyticsEvent.ParamSource, sourceName)
+            };
+            if (value.HasValue)
+            {
+                fbParams.Add(new Parameter(AnalyticsEvent.ParamAmount, value.Value));
+                if (sendValueParam) fbParams.Add(new Parameter(AnalyticsEvent.ParamValue, value.Value));
+            }
+            if (!string.IsNullOrEmpty(itemName)) fbParams.Add(new Parameter(AnalyticsEvent.ParamItemName, itemName));
+            FirebaseUtils.LogEvent(eventName, fbParams.ToArray());
+#endif
+
             var p = new Dictionary<string, string>
             {
-                [AnalyticsEvent.ParamVirtualCurrencyName] = virtualCurrencyName ?? "",
-                [AnalyticsEvent.ParamValue] = value ?? "",
-                [AnalyticsEvent.ParamSource] = source ?? ""
+                [AnalyticsEvent.ParamVirtualCurrencyName] = currencyName,
+                [AnalyticsEvent.ParamSource] = sourceName
             };
-            LogFirebaseParams(AnalyticsEvent.SpendVirtualCurrency, p);
-            LogAppMetrica(AnalyticsEvent.SpendVirtualCurrency, p);
+            if (value.HasValue)
+            {
+                string amountText = value.Value.ToString(CultureInfo.InvariantCulture);
+                p[AnalyticsEvent.ParamAmount] = amountText;
+                if (sendValueParam) p[AnalyticsEvent.ParamValue] = amountText;
+            }
+            if (!string.IsNullOrEmpty(itemName)) p[AnalyticsEvent.ParamItemName] = itemName;
+            LogAppMetrica(eventName, p);
+        }
+
+        /// <summary>Bỏ hẳn param <c>value</c> khi không parse được, thay vì gửi chuỗi rác cho Firebase.</summary>
+        private static double? ParseVirtualCurrencyValue(string eventName, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            if (double.TryParse(value, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var parsed))
+                return parsed;
+
+            Debug.LogWarning($"[GameUpAnalytics] {eventName}: value '{value}' không phải số hợp lệ, bỏ qua param 'value'.");
+            return null;
         }
 
         // ---------- Firebase: Loading ----------
@@ -324,7 +383,7 @@ namespace GameUp.SDK
             }
             else
             {
-                GULogger.Log("[GameUpAnalytics] Skip manual af_purchase for iOS because ROI360 Purchase Connector is enabled.");
+                Debug.Log("[GameUpAnalytics] Skip manual af_purchase for iOS because ROI360 Purchase Connector is enabled.");
             }
 
             var firebaseParams = new Dictionary<string, string>
@@ -370,7 +429,7 @@ namespace GameUp.SDK
             }
             else
             {
-                GULogger.Warning("GameUp", $"[GameUpAnalytics] Skip FB.LogPurchase - invalid price '{purchasePrice}' or Facebook SDK not initialized.");
+                Debug.LogWarning($"[GameUpAnalytics] Skip FB.LogPurchase - invalid price '{purchasePrice}' or Facebook SDK not initialized.");
             }
 #endif
         }
@@ -461,7 +520,7 @@ namespace GameUp.SDK
             AppsFlyerUtils.LogAdRevenue(adRevenueData, adRevenueParams.Count > 0 ? adRevenueParams : null);
 #endif
             AppMetricaUtils.LogAdRevenue(data);
-            GULogger.Log($"[GameUpAnalytics] Logged Ad Revenue: {revenue} {currency}, network: {adNetwork}");
+            Debug.Log($"[GameUpAnalytics] Logged Ad Revenue: {revenue} {currency}, network: {adNetwork}");
         }
     }
 }
