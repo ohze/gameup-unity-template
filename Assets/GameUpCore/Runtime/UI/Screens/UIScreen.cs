@@ -182,8 +182,10 @@ namespace GameUp.Core.UI
         }
 
 #if UNITY_EDITOR
-        private void OnValidate()
+        protected override void OnValidate()
         {
+            base.OnValidate();
+
             if (EditorApplication.isPlaying) return;
 
             var type = GetType();

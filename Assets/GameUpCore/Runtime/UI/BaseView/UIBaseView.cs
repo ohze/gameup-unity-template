@@ -1,6 +1,10 @@
 using System;
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace GameUp.Core.UI
 {
     public class UIBaseView : MonoBehaviour, IView, IAnimate
@@ -23,7 +27,13 @@ namespace GameUp.Core.UI
         }
 
 #if UNITY_EDITOR
-        private void OnValidate()
+        private bool _animationSyncScheduled;
+
+        /// <summary>
+        /// Lớp con PHẢI override (không khai báo lại OnValidate) — Unity chỉ gọi bản của class dẫn xuất,
+        /// khai báo trùng tên sẽ che mất bản này và animation không còn được đồng bộ.
+        /// </summary>
+        protected virtual void OnValidate()
         {
             if (animationMode == UIAnimationMode.Default)
             {
@@ -34,7 +44,36 @@ namespace GameUp.Core.UI
                 animationTypeName = typeof(UIFadeAnimation).AssemblyQualifiedName;
             }
 
-            _anim = ResolveAnimation(animationMode, animationTypeName);
+            ScheduleAnimationSync();
+        }
+
+        /// <summary>
+        /// Unity cấm AddComponent/DestroyImmediate ngay trong OnValidate (spam warning, dễ hỏng prefab),
+        /// nên hoãn phần thêm/bớt component animation sang delayCall.
+        /// </summary>
+        private void ScheduleAnimationSync()
+        {
+            if (_animationSyncScheduled) return;
+            _animationSyncScheduled = true;
+
+            EditorApplication.delayCall += () =>
+            {
+                _animationSyncScheduled = false;
+
+                if (this == null) return;
+                if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+                var previousMode = animationMode;
+                var previousType = animationTypeName;
+
+                _anim = ResolveAnimation(animationMode, animationTypeName);
+
+                // ResolveAnimation có thể tự fallback về Default khi type không hợp lệ.
+                if (previousMode != animationMode || previousType != animationTypeName)
+                {
+                    EditorUtility.SetDirty(this);
+                }
+            };
         }
 #endif
 

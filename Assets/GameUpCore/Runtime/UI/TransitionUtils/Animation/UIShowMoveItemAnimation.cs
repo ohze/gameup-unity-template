@@ -29,10 +29,30 @@ namespace GameUp.Core.UI
             RebuildSequences();
         }
 
-        private void OnValidate()
+        protected override void OnValidate()
         {
-            SyncCache();
+            base.OnValidate();
+
+#if UNITY_EDITOR
+            // SyncCache có thể AddComponent<CanvasGroup> — không được phép ngay trong OnValidate.
+            if (_syncScheduled) return;
+            _syncScheduled = true;
+
+            UnityEditor.EditorApplication.delayCall += () =>
+            {
+                _syncScheduled = false;
+
+                if (this == null) return;
+                if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+                SyncCache();
+            };
+#endif
         }
+
+#if UNITY_EDITOR
+        private bool _syncScheduled;
+#endif
 
         public override IAnimation OnStart()
         {

@@ -11,7 +11,8 @@ namespace GameUp.Core.UI
         public RectTransform content;
         [SerializeField] protected CanvasGroup canvasGroup;
 
-        private void OnValidate()
+        /// <summary>Lớp con phải override thay vì khai báo lại OnValidate — nếu không Unity sẽ bỏ qua bản này.</summary>
+        protected virtual void OnValidate()
         {
             canvasGroup = GetComponent<CanvasGroup>();
         }
