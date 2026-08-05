@@ -22,9 +22,13 @@ namespace GameUp.Core.Tests
         /// <summary>Schema "mới": thêm gem, version 2, migrate từ v1 và từ save chưa có version.</summary>
         private class SaveV2 : BaseDataSave<SaveV2>
         {
+            // Sổ ghi chép của test phải là static: mọi field public trên lớp save đều bị serialize
+            // xuống storage, nên nếu để field thường thì lần Create() sau sẽ đọc lại giá trị cũ.
+            public static int LastMigratedFrom = -1;
+            public static int MigrateCallCount;
+
             public int coin;
             public int gem;
-            public int migratedFrom = -1;
 
             protected override string Key => StorageKey;
             protected override int Version => 2;
@@ -33,7 +37,8 @@ namespace GameUp.Core.Tests
 
             protected override void Migrate(int fromVersion)
             {
-                migratedFrom = fromVersion;
+                LastMigratedFrom = fromVersion;
+                MigrateCallCount++;
                 if (fromVersion < 2) gem = 10;
             }
         }
@@ -49,6 +54,8 @@ namespace GameUp.Core.Tests
         public void SetUp()
         {
             PlayerPrefs.DeleteKey(StorageKey);
+            SaveV2.LastMigratedFrom = -1;
+            SaveV2.MigrateCallCount = 0;
         }
 
         [TearDown]
@@ -88,7 +95,7 @@ namespace GameUp.Core.Tests
 
             var upgraded = SaveV2.Create();
 
-            Assert.AreEqual(1, upgraded.migratedFrom, "Migrate phải nhận đúng version cũ");
+            Assert.AreEqual(1, SaveV2.LastMigratedFrom, "Migrate phải nhận đúng version cũ");
             Assert.AreEqual(999, upgraded.coin, "Dữ liệu cũ không được mất khi migrate");
             Assert.AreEqual(10, upgraded.gem, "Field mới phải được migrate gán giá trị");
             Assert.AreEqual(2, upgraded.dataVersion, "Version phải được cập nhật sau migrate");
@@ -101,7 +108,7 @@ namespace GameUp.Core.Tests
 
             var upgraded = SaveV2.Create();
 
-            Assert.AreEqual(0, upgraded.migratedFrom, "Save chưa có version phải được coi là version 0");
+            Assert.AreEqual(0, SaveV2.LastMigratedFrom, "Save chưa có version phải được coi là version 0");
             Assert.AreEqual(2, upgraded.dataVersion);
         }
 
@@ -112,9 +119,9 @@ namespace GameUp.Core.Tests
             old.Save();
 
             SaveV2.Create();
-            var second = SaveV2.Create();
+            SaveV2.Create();
 
-            Assert.AreEqual(-1, second.migratedFrom, "Save đã ở version mới thì không migrate lại");
+            Assert.AreEqual(1, SaveV2.MigrateCallCount, "Save đã ở version mới thì không migrate lại");
         }
     }
 }

@@ -161,6 +161,8 @@ data.Save();
 
 `fromVersion == 0` nghĩa là save được tạo từ bản build trước khi có versioning.
 
+> **Mọi field public đều được ghi xuống storage.** Cờ tạm, biến đếm hay trạng thái runtime nếu để public sẽ bị lưu lại và đọc ngược lên ở lần `Create()` sau. Những thứ đó nên để `private`, hoặc `static` nếu không thuộc về dữ liệu người chơi.
+
 Ngoài ra: `LocalStorageUtils` (PlayerPrefs + AES, an toàn với culture và dữ liệu hỏng) và `FileStorageUtils` (ghi file trong `persistentDataPath`).
 
 > ⚠️ Khoá AES mặc định nằm trong `EncryptUtils` và giống nhau cho mọi dự án dùng package này. Hãy đổi khoá riêng cho từng game trước khi phát hành.
