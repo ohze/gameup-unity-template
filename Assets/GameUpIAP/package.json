@@ -1,7 +1,7 @@
 {
   "name": "com.ohze.gameup.iap",
   "displayName": "GameUp IAP",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "unity": "2022.3",
   "description": "GameUp IAP - Unity IAP Manager. \n\nDuyLV 2026",
   "keywords": [
