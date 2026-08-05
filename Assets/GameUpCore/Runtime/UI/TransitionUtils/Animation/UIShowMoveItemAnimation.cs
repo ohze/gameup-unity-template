@@ -63,8 +63,7 @@ namespace GameUp.Core.UI
                 if (group != null) group.alpha = 1f;
             }
 
-            OnStartCompleteCallback?.Invoke();
-            OnStartCompleteCallback = null;
+            InvokeStartComplete();
 #endif
             return this;
         }
@@ -97,8 +96,7 @@ namespace GameUp.Core.UI
                 if (group != null) group.alpha = 0f;
             }
 
-            OnReverseCompleteCallback?.Invoke();
-            OnReverseCompleteCallback = null;
+            InvokeReverseComplete();
 #endif
             return this;
         }
@@ -218,14 +216,12 @@ namespace GameUp.Core.UI
 
             _startSequence.OnComplete(() =>
             {
-                OnStartCompleteCallback?.Invoke();
-                OnStartCompleteCallback = null;
+                InvokeStartComplete();
             });
 
             _reverseSequence.OnComplete(() =>
             {
-                OnReverseCompleteCallback?.Invoke();
-                OnReverseCompleteCallback = null;
+                InvokeReverseComplete();
             });
 #endif
         }

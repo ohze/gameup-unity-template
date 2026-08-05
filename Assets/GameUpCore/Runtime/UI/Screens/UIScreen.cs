@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.SceneManagement;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -12,7 +13,9 @@ namespace GameUp.Core.UI
     public class UIScreen : UIBaseView
     {
         private const string ScreenDataResourcePath = "Data/ScreenData";
-        private static readonly Func<bool> AlwaysTruePredicate = () => true;
+
+        /// <summary>Giới hạn ngăn xếp Back để không phình vô hạn trong phiên chơi dài.</summary>
+        private const int MaxHistoryDepth = 32;
 
         private static ScreenData _screenData;
         private static Transform _screenHolder;
@@ -59,6 +62,94 @@ namespace GameUp.Core.UI
             }
         }
 
+        #region Static lifecycle
+
+        private static readonly List<Type> StaleKeyBuffer = new();
+        private static readonly List<UIScreen> HistoryBuffer = new();
+
+        /// <summary>
+        /// Static không tự reset khi tắt Domain Reload, và instance trong cache sẽ bị hủy theo scene.
+        /// Reset ở đầu mỗi phiên Play rồi dọn theo từng lần unload scene.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            Screens.Clear();
+            HistoryView.Clear();
+            StaleKeyBuffer.Clear();
+            HistoryBuffer.Clear();
+
+            _currentScreen = null;
+            _screenHolder = null;
+            _screenData = null;
+            OnCurrentScreenChanged = null;
+
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+        }
+
+        private static void OnSceneUnloaded(Scene scene)
+        {
+            PurgeDestroyed();
+        }
+
+        /// <summary>
+        /// Loại bỏ mọi screen đã bị Destroy khỏi cache/history. Gọi tự động sau mỗi lần unload scene;
+        /// có thể gọi thủ công nếu tự hủy screen bằng tay.
+        /// </summary>
+        public static void PurgeDestroyed()
+        {
+            StaleKeyBuffer.Clear();
+            foreach (var pair in Screens)
+            {
+                if (!pair.Value) StaleKeyBuffer.Add(pair.Key);
+            }
+
+            for (var i = 0; i < StaleKeyBuffer.Count; i++)
+            {
+                Screens.Remove(StaleKeyBuffer[i]);
+            }
+
+            StaleKeyBuffer.Clear();
+
+            if (!_currentScreen) _currentScreen = null;
+            RebuildHistory(MaxHistoryDepth);
+        }
+
+        /// <summary>Đẩy screen vào history, bỏ qua entry đã hủy và cắt bớt phần cũ nhất khi vượt <see cref="MaxHistoryDepth"/>.</summary>
+        private static void PushHistory(UIScreen screen)
+        {
+            if (!screen) return;
+
+            HistoryView.Push(screen);
+            if (HistoryView.Count > MaxHistoryDepth) RebuildHistory(MaxHistoryDepth);
+        }
+
+        /// <summary>Dựng lại stack, giữ thứ tự và chỉ giữ tối đa <paramref name="maxDepth"/> mục còn sống gần nhất.</summary>
+        private static void RebuildHistory(int maxDepth)
+        {
+            if (HistoryView.Count == 0) return;
+
+            HistoryBuffer.Clear();
+            while (HistoryView.Count > 0)
+            {
+                var screen = HistoryView.Pop();
+                if (!screen) continue;
+                if (HistoryBuffer.Count >= maxDepth) continue;
+
+                HistoryBuffer.Add(screen);
+            }
+
+            for (var i = HistoryBuffer.Count - 1; i >= 0; i--)
+            {
+                HistoryView.Push(HistoryBuffer[i]);
+            }
+
+            HistoryBuffer.Clear();
+        }
+
+        #endregion
+
         public override void OnOpen()
         {
             gameObject.Show();
@@ -84,9 +175,9 @@ namespace GameUp.Core.UI
 
         public void ShowLast(bool isUseTransition = false)
         {
-            if (HistoryView.Count != 0)
+            if (TryPopHistory(out var previous))
             {
-                OpenView(HistoryView.Pop(), false, isUseTransition);
+                OpenView(previous, false, isUseTransition);
             }
         }
 
@@ -144,28 +235,44 @@ namespace GameUp.Core.UI
 
         public static void OpenPrevious()
         {
-            if (HistoryView.Count != 0)
+            if (TryPopHistory(out var previous))
             {
-                OpenView(HistoryView.Pop());
+                OpenView(previous);
             }
+        }
+
+        /// <summary>Lấy screen còn sống gần nhất trong history, bỏ qua các entry đã bị hủy theo scene.</summary>
+        private static bool TryPopHistory(out UIScreen screen)
+        {
+            while (HistoryView.Count > 0)
+            {
+                screen = HistoryView.Pop();
+                if (screen) return true;
+            }
+
+            screen = null;
+            return false;
         }
 
         private static void OpenView(UIScreen view, bool remember = false, bool isUseTransition = false)
         {
+            if (!view)
+            {
+                GULogger.Error("UIScreen", "OpenView called with a destroyed or null screen");
+                return;
+            }
+
             if (currentScreen)
             {
                 if (remember)
                 {
-                    HistoryView.Push(currentScreen);
+                    PushHistory(currentScreen);
                 }
 
                 currentScreen.Close();
-                view.Open();
             }
-            else
-            {
-                view.Open();
-            }
+
+            view.Open();
             currentScreen = view;
         }
 
@@ -173,7 +280,10 @@ namespace GameUp.Core.UI
         {
             if (Screens.TryGetValue(type, out var screen))
             {
-                return screen;
+                if (screen) return screen;
+
+                // Instance đã bị hủy cùng scene trước — bỏ entry rác rồi tạo lại.
+                Screens.Remove(type);
             }
 
             if (prefab == null)
@@ -194,25 +304,26 @@ namespace GameUp.Core.UI
 
         protected static void OpenScreenWithInstance(Type type, UIScreen ins, bool remember = true)
         {
-            if (currentScreen != null && currentScreen.GetType() == type)
+            if (!ins)
             {
+                GULogger.Error("UIScreen", $"Screen instance is null or destroyed for type {type?.Name}");
                 return;
             }
-            else
-            {
-                if (currentScreen)
-                {
-                    if (remember)
-                    {
-                        HistoryView.Push(currentScreen);
-                    }
 
-                    if (currentScreen != null) currentScreen.OnClose();
+            if (currentScreen && currentScreen.GetType() == type) return;
+
+            if (currentScreen)
+            {
+                if (remember)
+                {
+                    PushHistory(currentScreen);
                 }
 
-                ins.Open();
-                currentScreen = ins;
+                currentScreen.OnClose();
             }
+
+            ins.Open();
+            currentScreen = ins;
         }
 
         public static void OpenScreenByTypeAsync(Type type, bool remember = true)
@@ -254,7 +365,7 @@ namespace GameUp.Core.UI
                 return;
             }
 
-            if (Screens.TryGetValue(type, out var cachedScreen))
+            if (Screens.TryGetValue(type, out var cachedScreen) && cachedScreen)
             {
                 onComplete?.Invoke(cachedScreen);
                 return;
@@ -309,7 +420,6 @@ namespace GameUp.Core.UI
     {
         private static bool _isRequestingLoad;
         private static Action<T> _pendingOnComplete;
-        private static readonly Func<bool> IsLoaded = () => currentScreen is T;
 
         public static void OpenViewAsync(Action<T> onComplete = null, bool remember = true, bool isUseTransition = true)
         {
@@ -325,7 +435,7 @@ namespace GameUp.Core.UI
 
         public static void CloseView()
         {
-            if (Screens.TryGetValue(typeof(T), out var screen))
+            if (Screens.TryGetValue(typeof(T), out var screen) && screen)
             {
                 screen.Close();
             }
@@ -333,7 +443,7 @@ namespace GameUp.Core.UI
 
         public static T GetView()
         {
-            if (Screens.TryGetValue(typeof(T), out var screen))
+            if (Screens.TryGetValue(typeof(T), out var screen) && screen)
             {
                 return screen as T;
             }
@@ -350,7 +460,7 @@ namespace GameUp.Core.UI
         {
             var type = typeof(T);
 
-            if (Screens.TryGetValue(type, out var cachedScreen))
+            if (Screens.TryGetValue(type, out var cachedScreen) && cachedScreen)
             {
                 onComplete?.Invoke(cachedScreen as T);
                 return;

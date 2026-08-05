@@ -15,18 +15,32 @@ namespace GameUp.Core.UI
         public Action OnReverseCompleteCallback { get; set; }
         public Action OnStartCompleteCallback { get; set; }
 
+        /// <summary>
+        /// Xóa callback trước khi gọi: nếu trong callback lại đăng ký callback mới
+        /// (ví dụ Close ngay khi Open xong) thì callback mới không bị ghi đè thành null.
+        /// </summary>
+        protected void InvokeStartComplete()
+        {
+            var callback = OnStartCompleteCallback;
+            OnStartCompleteCallback = null;
+            callback?.Invoke();
+        }
+
+        /// <inheritdoc cref="InvokeStartComplete"/>
+        protected void InvokeReverseComplete()
+        {
+            var callback = OnReverseCompleteCallback;
+            OnReverseCompleteCallback = null;
+            callback?.Invoke();
+        }
+
         public virtual IAnimation OnStart()
         {
 #if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
-            mainSequence = DOTween.Sequence().OnComplete(() =>
-            {
-                OnStartCompleteCallback?.Invoke();
-                OnStartCompleteCallback = null;
-            });
+            mainSequence = DOTween.Sequence().OnComplete(InvokeStartComplete);
 #else
-            OnStartCompleteCallback?.Invoke();
-            OnStartCompleteCallback = null;
+            InvokeStartComplete();
 #endif
             return this;
         }
@@ -35,14 +49,9 @@ namespace GameUp.Core.UI
         {
 #if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
-            mainSequence = DOTween.Sequence().OnComplete(() =>
-            {
-                OnReverseCompleteCallback?.Invoke();
-                OnReverseCompleteCallback = null;
-            });
+            mainSequence = DOTween.Sequence().OnComplete(InvokeReverseComplete);
 #else
-            OnReverseCompleteCallback?.Invoke();
-            OnReverseCompleteCallback = null;
+            InvokeReverseComplete();
 #endif
             return this;
         }

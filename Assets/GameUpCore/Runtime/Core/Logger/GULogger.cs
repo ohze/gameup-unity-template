@@ -14,13 +14,20 @@ namespace GameUp.Core
         None = 99
     }
 
+    /// <summary>
+    /// Log có phân cấp.
+    /// Verbose/Log/Warning bị strip khỏi build release (chỉ biên dịch khi có UNITY_EDITOR hoặc ENABLE_LOG)
+    /// nên chuỗi truyền vào cũng không bị dựng — không tốn GC trên máy thật.
+    /// Error/Exception LUÔN được biên dịch để crash reporter (Crashlytics...) còn thấy sự cố trên device;
+    /// muốn tắt hẳn thì set <see cref="MinLevel"/> = <see cref="LogLevel.None"/>.
+    /// </summary>
     public static class GULogger
     {
         // Tự động set level mặc định dựa trên môi trường ngay khi compile
 #if UNITY_EDITOR
         public static LogLevel MinLevel { get; set; } = LogLevel.Verbose;
 #else
-        public static LogLevel MinLevel { get; set; } = LogLevel.Warning; 
+        public static LogLevel MinLevel { get; set; } = LogLevel.Warning;
 #endif
 
         // Cho phép các project đổi Log Level bằng code (ví dụ từ một tool Debug in-game)
@@ -62,17 +69,19 @@ namespace GameUp.Core
             Debug.LogWarning(FormatMessage(tag, message));
         }
 
-        [Conditional("ENABLE_LOG"), Conditional("UNITY_EDITOR")]
+        /// <summary>Không strip trong build: lỗi trên device phải nhìn thấy được.</summary>
         public static void Error(string tag, string message)
         {
             if (!IsLoggable(LogLevel.Error)) return;
             Debug.LogError(FormatMessage(tag, message));
         }
 
-        [Conditional("ENABLE_LOG"), Conditional("UNITY_EDITOR")]
+        /// <inheritdoc cref="Error"/>
         public static void Exception(Exception exception, string tag = "Exception")
         {
+            if (exception == null) return;
             if (!IsLoggable(LogLevel.Error)) return;
+
             Debug.LogError(FormatMessage(tag, exception.Message));
             Debug.LogException(exception);
         }

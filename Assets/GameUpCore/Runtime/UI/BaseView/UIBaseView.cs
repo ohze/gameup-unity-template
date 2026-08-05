@@ -172,11 +172,13 @@ namespace GameUp.Core.UI
         public virtual void OnClose(Action onComplete = null)
         {
             _anim.OnStop();
-            _anim.OnReverse().SetReverseCompleteCallback(() =>
+
+            // Phải set callback TRƯỚC khi OnReverse: khi không có DOTween, OnReverse gọi callback ngay lập tức.
+            _anim.SetReverseCompleteCallback(() =>
             {
-                gameObject.Hide();
+                if (gameObject.activeSelf) gameObject.Hide();
                 onComplete?.Invoke();
-            });
+            }).OnReverse();
         }
 
         #endregion

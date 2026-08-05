@@ -22,16 +22,14 @@ namespace GameUp.Core.UI
                 .Append(content.DOScale(endSize, secondTime))
                 .OnComplete(() =>
                 {
-                    OnStartCompleteCallback?.Invoke();
-                    OnStartCompleteCallback = null;
+                    InvokeStartComplete();
                 });
             ;
             mainSequence.Restart();
 #else
             content.localScale = Vector3.one * endSize;
             canvasGroup.alpha = 1f;
-            OnStartCompleteCallback?.Invoke();
-            OnStartCompleteCallback = null;
+            InvokeStartComplete();
 #endif
             return this;
         }
@@ -48,15 +46,13 @@ namespace GameUp.Core.UI
                 .Join(canvasGroup.DOFade(0, firstTime))
                 .OnComplete(() =>
                 {
-                    OnReverseCompleteCallback?.Invoke();
-                    OnReverseCompleteCallback = null;
+                    InvokeReverseComplete();
                 });
             ;
 #else
             content.localScale = Vector3.one * startSize;
             canvasGroup.alpha = 0f;
-            OnReverseCompleteCallback?.Invoke();
-            OnReverseCompleteCallback = null;
+            InvokeReverseComplete();
 #endif
             return this;
         }

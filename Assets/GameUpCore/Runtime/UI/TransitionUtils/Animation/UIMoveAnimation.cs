@@ -24,8 +24,7 @@ namespace GameUp.Core.UI
                     .Append(content.DOAnchorPosX(endPos, secondTime))
                     .OnComplete(() =>
                     {
-                        OnStartCompleteCallback?.Invoke();
-                        OnStartCompleteCallback = null;
+                        InvokeStartComplete();
                     });
                 ;
                 mainSequence.Restart();
@@ -39,8 +38,7 @@ namespace GameUp.Core.UI
                     .Append(content.DOAnchorPosY(endPos, secondTime))
                     .OnComplete(() =>
                     {
-                        OnStartCompleteCallback?.Invoke();
-                        OnStartCompleteCallback = null;
+                        InvokeStartComplete();
                     });
                 mainSequence.Restart();
             }
@@ -51,8 +49,7 @@ namespace GameUp.Core.UI
                 content.ChangeAnchorX(endPos);
             else
                 content.ChangeAnchorY(endPos);
-            OnStartCompleteCallback?.Invoke();
-            OnStartCompleteCallback = null;
+            InvokeStartComplete();
 #endif
             return this;
         }
@@ -70,8 +67,7 @@ namespace GameUp.Core.UI
                     .Join(content.DOAnchorPosX(startPos, firstTime))
                     .OnComplete(() =>
                     {
-                        OnReverseCompleteCallback?.Invoke();
-                        OnReverseCompleteCallback = null;
+                        InvokeReverseComplete();
                     });
                 mainSequence.Restart();
             }
@@ -83,8 +79,7 @@ namespace GameUp.Core.UI
                     .Join(content.DOAnchorPosY(startPos, firstTime))
                     .OnComplete(() =>
                     {
-                        OnReverseCompleteCallback?.Invoke();
-                        OnReverseCompleteCallback = null;
+                        InvokeReverseComplete();
                     });
                 ;
                 mainSequence.Restart();
@@ -96,8 +91,7 @@ namespace GameUp.Core.UI
                 content.ChangeAnchorX(startPos);
             else
                 content.ChangeAnchorY(startPos);
-            OnReverseCompleteCallback?.Invoke();
-            OnReverseCompleteCallback = null;
+            InvokeReverseComplete();
 #endif
             return this;
         }

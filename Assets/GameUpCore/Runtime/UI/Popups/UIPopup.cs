@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -16,6 +17,61 @@ namespace GameUp.Core.UI
         private static readonly List<UIPopup> ActivePopups = new List<UIPopup>();
 
         public static bool IsPopupOn => ActivePopups.Count > 0;
+
+        #region Static lifecycle
+
+        private static readonly List<Type> StaleKeyBuffer = new();
+        private static readonly List<UIPopup> CloseBuffer = new();
+
+        /// <summary>
+        /// Static không tự reset khi tắt Domain Reload, và instance trong cache sẽ bị hủy theo scene.
+        /// Reset ở đầu mỗi phiên Play rồi dọn theo từng lần unload scene.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStaticState()
+        {
+            Popups.Clear();
+            ActivePopups.Clear();
+            StaleKeyBuffer.Clear();
+            CloseBuffer.Clear();
+
+            _popupData = null;
+
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
+        }
+
+        private static void OnSceneUnloaded(Scene scene)
+        {
+            PurgeDestroyed();
+        }
+
+        /// <summary>
+        /// Loại bỏ mọi popup đã bị Destroy khỏi cache và danh sách đang mở.
+        /// Gọi tự động sau mỗi lần unload scene; có thể gọi thủ công nếu tự hủy popup bằng tay.
+        /// </summary>
+        public static void PurgeDestroyed()
+        {
+            StaleKeyBuffer.Clear();
+            foreach (var pair in Popups)
+            {
+                if (!pair.Value) StaleKeyBuffer.Add(pair.Key);
+            }
+
+            for (var i = 0; i < StaleKeyBuffer.Count; i++)
+            {
+                Popups.Remove(StaleKeyBuffer[i]);
+            }
+
+            StaleKeyBuffer.Clear();
+
+            for (var i = ActivePopups.Count - 1; i >= 0; i--)
+            {
+                if (!ActivePopups[i]) ActivePopups.RemoveAt(i);
+            }
+        }
+
+        #endregion
 
         protected static PopupData PopupData
         {
@@ -52,16 +108,31 @@ namespace GameUp.Core.UI
             ActivePopups.Remove(this);
         }
 
+        /// <summary>Chỉ đóng những popup đang thực sự mở — duyệt bản sao vì <see cref="ActionClose"/> sẽ sửa danh sách.</summary>
         public static void CloseAllPopup()
         {
-            foreach (var popup in Popups) popup.Value.Close();
+            if (ActivePopups.Count == 0) return;
+
+            CloseBuffer.Clear();
+            CloseBuffer.AddRange(ActivePopups);
+
+            for (var i = 0; i < CloseBuffer.Count; i++)
+            {
+                var popup = CloseBuffer[i];
+                if (popup) popup.Close();
+            }
+
+            CloseBuffer.Clear();
         }
 
         protected static UIPopup GetOrCreatePopup(Type type, UIPopup prefab)
         {
             if (Popups.TryGetValue(type, out var popup))
             {
-                return popup;
+                if (popup) return popup;
+
+                // Instance đã bị hủy cùng scene trước — bỏ entry rác rồi tạo lại.
+                Popups.Remove(type);
             }
 
             if (prefab == null)
@@ -95,7 +166,7 @@ namespace GameUp.Core.UI
                 return;
             }
 
-            if (Popups.TryGetValue(type, out var cachedPopup))
+            if (Popups.TryGetValue(type, out var cachedPopup) && cachedPopup)
             {
                 onComplete?.Invoke(cachedPopup);
                 return;
@@ -203,7 +274,7 @@ namespace GameUp.Core.UI
 
         public static void OpenViewAsync(Action<T> onComplete = null)
         {
-            if (Popups.TryGetValue(typeof(T), out var cachedPopup))
+            if (Popups.TryGetValue(typeof(T), out var cachedPopup) && cachedPopup)
             {
                 OpenPopupWithInstance(cachedPopup);
                 onComplete?.Invoke(cachedPopup.Cast<T>());
@@ -262,6 +333,12 @@ namespace GameUp.Core.UI
 
         private static void OpenPopupWithInstance(UIPopup ins)
         {
+            if (!ins)
+            {
+                GULogger.Error("UIPopup", $"Popup instance is null or destroyed for type {typeof(T).Name}");
+                return;
+            }
+
             ins.Open();
         }
 
@@ -282,7 +359,7 @@ namespace GameUp.Core.UI
 
         public static void PreloadViewAsync(Action<T> onComplete = null)
         {
-            if (Popups.TryGetValue(typeof(T), out var cachedPopup))
+            if (Popups.TryGetValue(typeof(T), out var cachedPopup) && cachedPopup)
             {
                 onComplete?.Invoke(cachedPopup.Cast<T>());
                 return;

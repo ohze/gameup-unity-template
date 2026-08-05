@@ -20,15 +20,13 @@ namespace GameUp.Core.UI
                 .Append(canvasGroup.DOFade(1, fadeTime))
                 .OnComplete(() =>
                 {
-                    OnStartCompleteCallback?.Invoke();
-                    OnStartCompleteCallback = null;
+                    InvokeStartComplete();
                 });
             mainSequence.Restart();
 #else
             canvasGroup.blocksRaycasts = true;
             canvasGroup.alpha = 1f;
-            OnStartCompleteCallback?.Invoke();
-            OnStartCompleteCallback = null;
+            InvokeStartComplete();
 #endif
             return this;
         }
@@ -42,15 +40,13 @@ namespace GameUp.Core.UI
             mainSequence = DOTween.Sequence()
                 .Append(canvasGroup.DOFade(0, fadeTime)).OnComplete(() =>
                 {
-                    OnReverseCompleteCallback?.Invoke();
-                    OnReverseCompleteCallback = null;
+                    InvokeReverseComplete();
                 });
             mainSequence.Restart();
 #else
             canvasGroup.blocksRaycasts = false;
             canvasGroup.alpha = 0f;
-            OnReverseCompleteCallback?.Invoke();
-            OnReverseCompleteCallback = null;
+            InvokeReverseComplete();
 #endif
             return this;
         }

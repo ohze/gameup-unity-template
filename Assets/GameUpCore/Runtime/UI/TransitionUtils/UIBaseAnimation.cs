@@ -18,18 +18,12 @@ namespace GameUp.Core.UI
 
         public override IAnimation OnStart()
         {
+            canvasGroup.blocksRaycasts = true;
 #if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
-            canvasGroup.blocksRaycasts = true;
-            mainSequence = DOTween.Sequence().OnComplete(() =>
-            {
-                OnReverseCompleteCallback?.Invoke();
-                OnStartCompleteCallback = null;
-            });
+            mainSequence = DOTween.Sequence().OnComplete(InvokeStartComplete);
 #else
-            canvasGroup.blocksRaycasts = true;
-            OnStartCompleteCallback?.Invoke();
-            OnStartCompleteCallback = null;
+            InvokeStartComplete();
 #endif
             return this;
         }
@@ -39,14 +33,9 @@ namespace GameUp.Core.UI
             canvasGroup.blocksRaycasts = false;
 #if DOTween__DEPENDENCIES_INSTALLED
             mainSequence?.Kill();
-            mainSequence = DOTween.Sequence().OnComplete(() =>
-            {
-                OnReverseCompleteCallback?.Invoke();
-                OnReverseCompleteCallback = null;
-            });
+            mainSequence = DOTween.Sequence().OnComplete(InvokeReverseComplete);
 #else
-            OnReverseCompleteCallback?.Invoke();
-            OnReverseCompleteCallback = null;
+            InvokeReverseComplete();
 #endif
             return this;
         }
