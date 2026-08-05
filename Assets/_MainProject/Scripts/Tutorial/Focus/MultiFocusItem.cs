@@ -4,7 +4,7 @@ using System;
 
 namespace GameUp.Core.Tutorial
 {
-    public class MultiFocusItem : MonoBehaviour
+    public class MultiFocusItem : MonoBehaviour, ICanvasRaycastFilter
     {
         [SerializeField] private RectTransform holderTrs;
         [SerializeField] private RectTransform holeRect, holeRect1;
@@ -15,11 +15,37 @@ namespace GameUp.Core.Tutorial
         [SerializeField] private Ease showEase = Ease.OutCubic;
         [SerializeField] private Camera worldCamera;
 
+        [Tooltip("Bật: lớp phủ nuốt mọi thao tác, chỉ vùng trong holeRect/holeRect1 mới bấm/kéo được. " +
+                 "Chỉ có tác dụng khi ảnh nền (DarkPanel) bật Raycast Target.")]
+        [SerializeField] private bool blockRaycastOutsideHoles = true;
+
         private Tween _showTween;
         private readonly Vector3[] _uiWorldCorners = new Vector3[4];
         private readonly Vector3[] _worldBoundsCorners = new Vector3[8];
 
         private Action _onComplete;
+
+        /// <summary>
+        /// Lọc raycast cho mọi Graphic nằm dưới object này (uGUI duyệt ngược lên cha để tìm
+        /// <see cref="ICanvasRaycastFilter"/>): trong lỗ focus trả false để pointer xuyên xuống item/nút
+        /// bên dưới, ngoài lỗ trả true để lớp phủ chặn thao tác. Nhờ vậy chỉ cần bật Raycast Target của
+        /// ảnh nền là khoá được toàn màn hình mà vẫn kéo thả được đúng hai vùng đang hướng dẫn.
+        /// </summary>
+        public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
+        {
+            if (!blockRaycastOutsideHoles)
+                return false;
+
+            return !IsInsideHole(holeRect, screenPoint, eventCamera)
+                && !IsInsideHole(holeRect1, screenPoint, eventCamera);
+        }
+
+        private static bool IsInsideHole(RectTransform hole, Vector2 screenPoint, Camera eventCamera)
+        {
+            return hole != null
+                && hole.gameObject.activeInHierarchy
+                && RectTransformUtility.RectangleContainsScreenPoint(hole, screenPoint, eventCamera);
+        }
 
         public void SetOnComplete(Action onComplete)
         {

@@ -159,6 +159,7 @@ MonoBehaviour:
   startPadding: 80
   showEase: 9
   worldCamera: {fileID: 0}
+  blockRaycastOutsideHoles: 1
 --- !u!1 &5898007540213821218
 GameObject:
   m_ObjectHideFlags: 0
@@ -317,7 +318,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 2100000, guid: 67a7c4cda15994e4fbbec265a458c4b2, type: 2}
   m_Color: {r: 0, g: 0, b: 0, a: 1}
-  m_RaycastTarget: 0
+  m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:

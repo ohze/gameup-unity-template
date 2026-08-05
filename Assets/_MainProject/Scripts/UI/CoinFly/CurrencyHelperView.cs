@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using AssetKits.ParticleImage;
 using TMPro;
 using GameUp.Core;
@@ -26,15 +27,18 @@ namespace GameUp.Core.UI.CoinFly
         [SerializeField] private Color subtractDeltaColor = new Color(1f, 0.24f, 0.24f, 1f);
         [SerializeField] private Vector2 deltaTextRiseOffset = new Vector2(0f, 45f);
         [SerializeField] private float deltaTextDuration = 0.45f;
+        [SerializeField] private float deltaTextSpawnJitterX = 20f;
 
-        private float _currentCurrency;
-        private float _addStartCurrency;
-        private float _addTargetCurrency;
-        private int _totalAddCallbacks;
-        private int _currentAddCallbackIndex;
+        /// <summary>Giá trị đang hiển thị trên text — chỉ là trạng thái trung gian của animation.</summary>
+        private float _displayCurrency;
+        /// <summary>Giá trị đích thật sự. Mọi Add/Subtract cộng dồn vào đây nên luôn khớp với data gốc.</summary>
+        private float _targetCurrency;
+        private int[] _addStepAmounts;
+        private int _currentAddStepIndex;
         private bool _isAddAnimating;
-        private Action<float> _onAddStepCallback;
-        private Action<float> _onAddCompletedCallback;
+        private readonly List<Action<float>> _addStepCallbacks = new List<Action<float>>();
+        private readonly List<Action<float>> _addCompletedCallbacks = new List<Action<float>>();
+        private readonly List<Action<float>> _callbackInvokeBuffer = new List<Action<float>>();
 
         private void Awake()
         {
@@ -57,21 +61,22 @@ namespace GameUp.Core.UI.CoinFly
 
         private void OnDisable()
         {
-            if (!particleImage)
+            if (particleImage)
             {
-                return;
+                particleImage.onAnyParticleFinished.RemoveListener(OnAnyParticleFinished);
+                particleImage.onLastParticleFinished.RemoveListener(OnLastParticleFinished);
             }
 
-            particleImage.onAnyParticleFinished.RemoveListener(OnAnyParticleFinished);
-            particleImage.onLastParticleFinished.RemoveListener(OnLastParticleFinished);
+            CompleteAddAnimation();
         }
 
         #region Currency
         [Button]
         public void SetCurrency(float currency)
         {
-            _currentCurrency = currency;
-            RefreshCurrencyText();
+            StopAddParticle();
+            _targetCurrency = currency;
+            CompleteAddAnimation();
         }
 
         public void SetCurrencyIcon(Sprite iconSprite)
@@ -92,14 +97,13 @@ namespace GameUp.Core.UI.CoinFly
 
         public float GetCurrentCurrency()
         {
-            return _currentCurrency;
+            return _targetCurrency;
         }
 
         public void SetEffectCount(int count)
         {
             effectCount = Mathf.Max(1, count);
         }
-
 
         [Button]
         public void AddCurrency(
@@ -110,39 +114,51 @@ namespace GameUp.Core.UI.CoinFly
         {
             if (amount <= 0f)
             {
-                onCompleted?.Invoke(_currentCurrency);
+                onCompleted?.Invoke(_targetCurrency);
+                return;
+            }
+
+            _targetCurrency += amount;
+
+            if (onStepUpdated != null)
+            {
+                _addStepCallbacks.Add(onStepUpdated);
+            }
+
+            if (onCompleted != null)
+            {
+                _addCompletedCallbacks.Add(onCompleted);
+            }
+
+            var pending = _targetCurrency - _displayCurrency;
+            if (pending <= 0f)
+            {
+                CompleteAddAnimation();
                 return;
             }
 
             InitEffect();
             ConfigureEmitterSource(fromTransform);
 
-            if (particleImage)
+            if (!particleImage || !isActiveAndEnabled)
             {
-                _isAddAnimating = false;
-                particleImage.Stop(true);
+                SpawnDeltaText($"+{pending.FormatMoney()}", addDeltaColor);
+                CompleteAddAnimation();
+                return;
             }
 
+            StopAddParticle();
+
+            var steps = CalculateAddStepCount(pending);
+            _addStepAmounts = ComputeStepAmounts(pending, steps);
+            _currentAddStepIndex = 0;
             _isAddAnimating = true;
-            _addStartCurrency = _currentCurrency;
-            _addTargetCurrency = _currentCurrency + amount;
-            _totalAddCallbacks = Mathf.Max(1, effectCount);
-            _currentAddCallbackIndex = 0;
-            _onAddStepCallback = onStepUpdated;
-            _onAddCompletedCallback = onCompleted;
 
-            if (particleImage)
-            {
-                particleImage.rateOverTime = _totalAddCallbacks;
-                particleImage.loop = false;
-                particleImage.duration = 1f;
-                particleImage.startDelay = 0f;
-                particleImage.Play();
-            }
-            else
-            {
-                CompleteAddAnimationWithoutParticle();
-            }
+            particleImage.rateOverTime = steps;
+            particleImage.loop = false;
+            particleImage.duration = 1f;
+            particleImage.startDelay = 0f;
+            particleImage.Play();
         }
 
         [Button]
@@ -153,8 +169,8 @@ namespace GameUp.Core.UI.CoinFly
                 return;
             }
 
-            _isAddAnimating = false;
-            _currentCurrency -= amount;
+            _targetCurrency -= amount;
+            _displayCurrency -= amount;
             RefreshCurrencyText();
 
             SpawnDeltaText($"-{amount.FormatMoney()}", subtractDeltaColor);
@@ -229,7 +245,7 @@ namespace GameUp.Core.UI.CoinFly
                 return;
             }
 
-            currencyText.text = $"{_currentCurrency.FormatMoney()}";
+            currencyText.text = $"{_displayCurrency.FormatMoney()}";
         }
 
         private void ApplyParticleStartSizeFromIcon()
@@ -246,24 +262,22 @@ namespace GameUp.Core.UI.CoinFly
 
         private void OnAnyParticleFinished()
         {
-            if (!_isAddAnimating)
+            if (!_isAddAnimating || _addStepAmounts == null || _currentAddStepIndex >= _addStepAmounts.Length)
             {
                 return;
             }
 
-            _currentAddCallbackIndex++;
-            var progress = Mathf.Clamp01(_currentAddCallbackIndex / (float)_totalAddCallbacks);
-            var nextCurrency = Mathf.Lerp(_addStartCurrency, _addTargetCurrency, progress);
-            var delta = Mathf.Max(0f, nextCurrency - _currentCurrency);
-            _currentCurrency = nextCurrency;
+            var delta = _addStepAmounts[_currentAddStepIndex];
+            _currentAddStepIndex++;
+            _displayCurrency = Mathf.Min(_displayCurrency + delta, _targetCurrency);
             RefreshCurrencyText();
 
-            if (delta > 0f)
+            if (delta > 0)
             {
-                SpawnDeltaText($"+{delta.FormatMoney()}", addDeltaColor);
+                SpawnDeltaText($"+{((float)delta).FormatMoney()}", addDeltaColor);
             }
 
-            _onAddStepCallback?.Invoke(_currentCurrency);
+            InvokeCallbacks(_addStepCallbacks, false);
         }
 
         private void OnLastParticleFinished()
@@ -273,36 +287,80 @@ namespace GameUp.Core.UI.CoinFly
                 return;
             }
 
-            _currentCurrency = _addTargetCurrency;
-            RefreshCurrencyText();
-            _onAddCompletedCallback?.Invoke(_currentCurrency);
-            ResetAddState();
+            CompleteAddAnimation();
         }
 
-        private void CompleteAddAnimationWithoutParticle()
+        private int CalculateAddStepCount(float amount)
         {
-            _currentCurrency = _addTargetCurrency;
-            RefreshCurrencyText();
-            SpawnDeltaText($"+{(_addTargetCurrency - _addStartCurrency).FormatMoney()}", addDeltaColor);
-            _onAddStepCallback?.Invoke(_currentCurrency);
-            _onAddCompletedCallback?.Invoke(_currentCurrency);
-            ResetAddState();
+            var wholeUnits = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(amount)));
+            return Mathf.Clamp(wholeUnits, 1, Mathf.Max(1, effectCount));
         }
 
-        private void ResetAddState()
+        private int[] ComputeStepAmounts(float amount, int steps)
+        {
+            var total = Mathf.Max(1, Mathf.RoundToInt(amount));
+            steps = Mathf.Max(1, steps);
+            var perStep = Mathf.CeilToInt(total / (float)steps);
+            var stepAmounts = new int[steps];
+            var allocated = 0;
+
+            for (var i = 0; i < steps - 1; i++)
+            {
+                stepAmounts[i] = perStep;
+                allocated += perStep;
+            }
+
+            stepAmounts[steps - 1] = Mathf.Max(0, total - allocated);
+            return stepAmounts;
+        }
+
+        private void StopAddParticle()
         {
             _isAddAnimating = false;
-            _addStartCurrency = 0f;
-            _addTargetCurrency = 0f;
-            _totalAddCallbacks = 0;
-            _currentAddCallbackIndex = 0;
-            _onAddStepCallback = null;
-            _onAddCompletedCallback = null;
+            if (particleImage)
+            {
+                particleImage.Stop(true);
+            }
+        }
+
+        private void CompleteAddAnimation()
+        {
+            _isAddAnimating = false;
+            _addStepAmounts = null;
+            _currentAddStepIndex = 0;
+            _displayCurrency = _targetCurrency;
+            RefreshCurrencyText();
+
+            _addStepCallbacks.Clear();
+            InvokeCallbacks(_addCompletedCallbacks, true);
+        }
+
+        private void InvokeCallbacks(List<Action<float>> callbacks, bool clearAfterCopy)
+        {
+            if (callbacks.Count == 0)
+            {
+                return;
+            }
+
+            _callbackInvokeBuffer.Clear();
+            _callbackInvokeBuffer.AddRange(callbacks);
+            if (clearAfterCopy)
+            {
+                callbacks.Clear();
+            }
+
+            var value = _displayCurrency;
+            for (var i = 0; i < _callbackInvokeBuffer.Count; i++)
+            {
+                _callbackInvokeBuffer[i]?.Invoke(value);
+            }
+
+            _callbackInvokeBuffer.Clear();
         }
 
         private void SpawnDeltaText(string content, Color color)
         {
-            if (!currencyDeltaTextPrefab || !GUPoolers.Instance || !currencyText)
+            if (!currencyDeltaTextPrefab || !GUPoolers.Instance || !currencyText || !isActiveAndEnabled)
             {
                 return;
             }
@@ -319,6 +377,7 @@ namespace GameUp.Core.UI.CoinFly
 
             var spawnedRect = textFx.rectTransform;
             spawnedRect.position = currencyText.rectTransform.position;
+            spawnedRect.anchoredPosition += new Vector2(UnityEngine.Random.Range(-deltaTextSpawnJitterX, deltaTextSpawnJitterX), 0f);
             StartCoroutine(AnimateAndRecycleDeltaText(textFx));
         }
 
