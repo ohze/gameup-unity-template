@@ -1,7 +1,9 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Threading;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace GameUp.Core.Tests
 {
@@ -76,8 +78,16 @@ namespace GameUp.Core.Tests
             // Ghi thẳng dữ liệu rác, bỏ qua lớp mã hoá.
             PlayerPrefs.SetString(Key, "not-a-valid-payload");
 
+            // Mỗi getter phải cảnh báo đúng một lần rồi lui về giá trị mặc định.
+            var decryptWarning = new Regex("Decrypt failed for key");
+
+            LogAssert.Expect(LogType.Warning, decryptWarning);
             Assert.AreEqual(7, LocalStorageUtils.GetInt(Key, 7));
+
+            LogAssert.Expect(LogType.Warning, decryptWarning);
             Assert.AreEqual(1.5f, LocalStorageUtils.GetFloat(Key, 1.5f), 0.0001f);
+
+            LogAssert.Expect(LogType.Warning, decryptWarning);
             Assert.AreEqual("fallback", LocalStorageUtils.GetString(Key, "fallback"));
         }
 

@@ -35,7 +35,10 @@ namespace GameUp.Core
             }
             catch (Exception e)
             {
-                GULogger.Error("LocalStorage", $"Decrypt failed for key '{key}': {e.Message}");
+                // Warning chứ không phải Error: dữ liệu cũ/hỏng là tình huống lường trước và đã có
+                // đường lui (trả về default). Error để dành cho lỗi thật sự, vì Error không bị strip
+                // khỏi build nên sẽ đổ thẳng vào crash reporter.
+                GULogger.Warning("LocalStorage", $"Decrypt failed for key '{key}', dùng giá trị mặc định: {e.Message}");
                 return string.Empty;
             }
         }
@@ -168,7 +171,8 @@ namespace GameUp.Core
             }
             catch (Exception e)
             {
-                GULogger.Error("LocalStorage", $"GetObject failed for key '{key}': {e.Message}");
+                // Cùng lý do như ReadRaw: đọc hỏng thì có default để lui, không phải lỗi cần báo động.
+                GULogger.Warning("LocalStorage", $"GetObject failed for key '{key}', dùng giá trị mặc định: {e.Message}");
                 return defaultValue;
             }
         }

@@ -19,6 +19,7 @@
 - Object pool dùng stack các object rảnh: Spawn/DeSpawn còn O(1) thay vì quét toàn bộ danh sách clone mỗi lần.
 - Mọi API Open/Preload của screen và popup đi chung một đường `ResolveScreenAsync` / `ResolvePopupAsync`.
 - `package.json`: khai báo thiếu `com.unity.textmeshpro`, chuyển hướng dẫn cài đặt sang README.
+- `LocalStorageUtils`: lỗi khi ĐỌC dữ liệu (giải mã/deserialize hỏng) hạ từ `Error` xuống `Warning` — đây là tình huống lường trước và đã có giá trị mặc định để lui. Lỗi khi GHI vẫn là `Error` vì có nguy cơ mất dữ liệu.
 
 ### Fixed
 - `MonoSingleton` chết vĩnh viễn sau khi đổi scene do cờ "đang thoát app" bị bật trong `OnDestroy`.
