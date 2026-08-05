@@ -149,23 +149,45 @@ namespace GameUp.Core
 
             for (int i = 0; i < refs.Count; i++)
             {
-                var idRef = refs[i];
-                if (idRef == null || !idRef.RuntimeKeyIsValid())
-                    continue;
-
-                if (_identityHandles.TryGetValue(idRef, out var existing) && existing.IsValid())
-                    continue;
-
-                var op = idRef.LoadAssetAsync<AudioIdentity>();
-                _identityHandles[idRef] = op;
-                op.Completed += h =>
-                {
-                    if (h.Result)
-                    {
-                        _identityByName[h.Result.name] = h.Result;
-                    }
-                };
+                LoadIdentity(refs[i], null);
             }
+        }
+
+        /// <summary>Load (và cache) AudioClip theo reference — mọi chỗ phát âm thanh đều đi qua đây.</summary>
+        private void LoadClip(AudioClipReference clipRef, Action<AudioClip> onLoaded, Action onFailed = null)
+        {
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid())
+            {
+                onFailed?.Invoke();
+                return;
+            }
+
+            var cacheKey = clipRef.RuntimeKey;
+            if (!_clipHandles.TryGetValue(cacheKey, out var handle) || !handle.IsValid())
+            {
+                handle = clipRef.LoadAssetAsync<AudioClip>();
+                _clipHandles[cacheKey] = handle;
+            }
+
+            AddressableLoad.WhenReady(handle, onLoaded, "AudioManager", cacheKey?.ToString(), onFailed);
+        }
+
+        /// <summary>Load (và cache) AudioIdentity theo reference, đồng thời đăng ký vào bảng tra theo tên.</summary>
+        private void LoadIdentity(AudioIdentityReference identityReference, Action<AudioIdentity> onLoaded)
+        {
+            if (identityReference == null || !identityReference.RuntimeKeyIsValid()) return;
+
+            if (!_identityHandles.TryGetValue(identityReference, out var handle) || !handle.IsValid())
+            {
+                handle = identityReference.LoadAssetAsync<AudioIdentity>();
+                _identityHandles[identityReference] = handle;
+            }
+
+            AddressableLoad.WhenReady(handle, identity =>
+            {
+                _identityByName[identity.name] = identity;
+                onLoaded?.Invoke(identity);
+            }, "AudioManager", identityReference.RuntimeKey?.ToString());
         }
 
         public static bool TryGetIdentity(string identityName, out AudioIdentity identity)
@@ -195,72 +217,22 @@ namespace GameUp.Core
             if (clipRef == null || !clipRef.RuntimeKeyIsValid())
                 return;
 
-            var cacheKey = clipRef.RuntimeKey;
             GULogger.Log("AudioManager", "PlayAudio: " + identity.name + " - " + source.name);
             MarkBusy(source);
 
-            void DoPlay(AudioClip clip)
+            LoadClip(clipRef, clip =>
             {
-                if (!clip)
-                {
-                    ReleaseBusy(source);
-                    return;
-                }
-
                 source.clip = clip;
                 source.volume = identity.volume;
                 source.loop = identity.isLoop;
                 source.Play();
-                Instance.StartCoroutine(ReleaseBusyNextFrame(source));
-            }
-
-            if (_clipHandles.TryGetValue(cacheKey, out var handle) && handle.IsValid())
-            {
-                if (handle.IsDone)
-                {
-                    DoPlay(handle.Result);
-                }
-                else
-                {
-                    handle.Completed += h => DoPlay(h.Result);
-                }
-            }
-            else
-            {
-                var op = clipRef.LoadAssetAsync<AudioClip>();
-                _clipHandles[cacheKey] = op;
-                op.Completed += h => DoPlay(h.Result);
-            }
+                StartCoroutine(ReleaseBusyNextFrame(source));
+            }, () => ReleaseBusy(source));
         }
 
         public void Play(AudioIdentityReference identityReference)
         {
-            if (identityReference == null || !identityReference.RuntimeKeyIsValid()) return;
-
-            if (_identityHandles.TryGetValue(identityReference, out var handle) && handle.IsValid())
-            {
-                if (handle.IsDone)
-                {
-                    Play(handle.Result);
-                }
-                else
-                {
-                    handle.Completed += h => Play(h.Result);
-                }
-
-                return;
-            }
-
-            var op = identityReference.LoadAssetAsync<AudioIdentity>();
-            _identityHandles[identityReference] = op;
-            op.Completed += h =>
-            {
-                if (h.Result)
-                {
-                    _identityByName[h.Result.name] = h.Result;
-                    Play(h.Result);
-                }
-            };
+            LoadIdentity(identityReference, identity => Play(identity));
         }
 
         /// <summary> API static tiện dụng để gọi từ bất kỳ đâu. isRandomClip = true thì chọn clip ngẫu nhiên từ list. </summary>
@@ -286,42 +258,23 @@ namespace GameUp.Core
         public static void PlayMusic(AudioIdentity identity)
         {
             if (!identity) return;
-            if (!Instance.musicSource) return;
+
+            var instance = Instance;
+            if (!instance || !instance.musicSource) return;
             if (identity.clipRefs == null || identity.clipRefs.Count == 0) return;
 
-            var clipRef = identity.clipRefs[0];
-            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return;
-
-            var cacheKey = clipRef.RuntimeKey;
-
-            void DoPlay(AudioClip clip)
+            instance.LoadClip(identity.clipRefs[0], clip =>
             {
-                if (!clip) return;
-                Instance.musicSource.clip = clip;
-                Instance.musicSource.volume = identity.volume;
-                Instance.musicSource.loop = true;
-                Instance.musicSource.Play();
+                var source = instance.musicSource;
+                if (!source) return;
+
+                source.clip = clip;
+                source.volume = identity.volume;
+                source.loop = true;
+                source.Play();
                 // ⚠️ Music phải theo IsMusicOn, không theo IsSoundOn
-                Instance.musicSource.mute = !AudioSetting.Instance.IsMusicOn.Value;
-            }
-
-            if (Instance._clipHandles.TryGetValue(cacheKey, out var handle) && handle.IsValid())
-            {
-                if (handle.IsDone)
-                {
-                    DoPlay(handle.Result);
-                }
-                else
-                {
-                    handle.Completed += h => DoPlay(h.Result);
-                }
-            }
-            else
-            {
-                var op = clipRef.LoadAssetAsync<AudioClip>();
-                Instance._clipHandles[cacheKey] = op;
-                op.Completed += h => DoPlay(h.Result);
-            }
+                source.mute = !AudioSetting.Instance.IsMusicOn.Value;
+            });
         }
 
         public static void StopMusic()
@@ -349,35 +302,21 @@ namespace GameUp.Core
         public void PlayClip(AudioSource source)
         {
             if (!source) return;
-            _lastSource = source;
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return;
 
+            _lastSource = source;
             AudioManager.MarkBusy(source);
 
-            void DoPlay(AudioClip clip)
+            if (!_cacheOperation.IsValid()) _cacheOperation = clipRef.LoadAssetAsync<AudioClip>();
+
+            AddressableLoad.WhenReady(_cacheOperation, clip =>
             {
                 source.clip = clip;
                 source.volume = volume;
                 source.loop = isLoop;
                 source.Play();
                 AudioManager.Instance.StartCoroutine(AudioManager.ReleaseBusyNextFrame(source));
-            }
-
-            if (_cacheOperation.IsValid())
-            {
-                if (_cacheOperation.IsDone)
-                {
-                    DoPlay(_cacheOperation.Result);
-                }
-                else
-                {
-                    _cacheOperation.Completed += h => DoPlay(h.Result);
-                }
-            }
-            else
-            {
-                _cacheOperation = clipRef.LoadAssetAsync<AudioClip>();
-                _cacheOperation.Completed += h => DoPlay(h.Result);
-            }
+            }, "AudioManager", "BaseAudio clip", () => AudioManager.ReleaseBusy(source));
         }
 
         public void StopAudio()

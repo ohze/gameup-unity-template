@@ -60,18 +60,17 @@ namespace GameUp.Core
                 _pendingLoads++;
                 var typeName = info.typeName;
                 var load = info.dataRef.LoadAssetAsync();
-                load.Completed += handle =>
-                {
-                    _pendingLoads = Mathf.Max(0, _pendingLoads - 1);
 
-                    if (handle.Status != AsyncOperationStatus.Succeeded || handle.Result == null)
+                // onFailed bắt buộc phải giảm _pendingLoads, nếu không IEWaitInitialize sẽ chờ mãi.
+                AddressableLoad.WhenReady(load,
+                    _ =>
                     {
-                        GULogger.Warning("AddressableDataHolder", $"Load failed for '{typeName}'. Status={handle.Status}");
-                        return;
-                    }
-
-                    _cacheHandlers[typeName] = handle;
-                };
+                        _pendingLoads = Mathf.Max(0, _pendingLoads - 1);
+                        _cacheHandlers[typeName] = load;
+                    },
+                    "AddressableDataHolder",
+                    typeName,
+                    () => _pendingLoads = Mathf.Max(0, _pendingLoads - 1));
             }
         }
 
