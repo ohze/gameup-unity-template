@@ -10,8 +10,11 @@ namespace GameUp.Core
         /// </summary>
         public static Coroutine RunCoroutineWithReturn(IEnumerator ie)
         {
-            if (!IsInitialized || ie == null) return null;
-            return Instance.StartCoroutine(ie);
+            if (ie == null) return null;
+
+            // Instance tự tạo runner nếu chưa có, và trả null khi App đang thoát.
+            var runner = Instance;
+            return runner ? runner.StartCoroutine(ie) : null;
         }
 
         /// <summary>
@@ -19,8 +22,7 @@ namespace GameUp.Core
         /// </summary>
         public static void RunCoroutineWithoutReturn(IEnumerator ie)
         {
-            if (!IsInitialized || ie == null) return;
-            Instance.StartCoroutine(ie);
+            RunCoroutineWithReturn(ie);
         }
 
         /// <summary>
