@@ -1,17 +1,40 @@
 using UnityEngine;
 using System.Collections.Generic;
-
+using UnityEngine.SceneManagement;
 
 namespace GameUp.Core
 {
+    /// <summary>
+    /// Object pool: lấy/trả object trong O(1) nhờ stack các clone đang rảnh.
+    /// Mọi clone được quản lý trong <see cref="CloneInfo"/> nên không còn dictionary rác khi đổi scene.
+    /// </summary>
     public class GUPoolers : MonoSingleton<GUPoolers>
     {
         private const string SUFFIX = "_Pool";
-        private readonly Dictionary<GameObject, List<GameObject>> _gameObjectPools = new();
-        private readonly Dictionary<GameObject, Transform> _parentPools = new();
-        /// <summary> Clone -> prefab key, dùng để GetKeyFromClone O(1) thay vì duyệt toàn bộ pool. </summary>
-        private readonly Dictionary<GameObject, GameObject> _cloneToPrefabKey = new();
-        private readonly Dictionary<GameObject, Vector3> _cloneDefaultLocalScale = new();
+
+        /// <summary>Thông tin gắn với từng clone: pool gốc, scale ban đầu, đang rảnh hay không.</summary>
+        private class CloneInfo
+        {
+            public GameObject PrefabKey;
+            public Vector3 DefaultLocalScale;
+            public bool IsFree;
+            public IPoolable[] Poolables;
+        }
+
+        private class Pool
+        {
+            public Transform Holder;
+
+            /// <summary>Toàn bộ clone thuộc pool (kể cả đang dùng).</summary>
+            public readonly List<GameObject> Members = new();
+
+            /// <summary>Clone đang rảnh — lấy ra O(1), không cần quét danh sách.</summary>
+            public readonly Stack<GameObject> Free = new();
+        }
+
+        private readonly Dictionary<GameObject, Pool> _pools = new();
+        private readonly Dictionary<GameObject, CloneInfo> _clones = new();
+        private readonly List<GameObject> _iterationBuffer = new();
 
         private Transform _cacheTrs;
 
@@ -19,34 +42,333 @@ namespace GameUp.Core
         {
             base.Awake();
             _cacheTrs = transform;
+
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+            SceneManager.sceneUnloaded += OnSceneUnloaded;
         }
 
-        private void CleanNullEntries(GameObject currentKey)
+        private void OnDestroy()
         {
-            if (!currentKey) return;
-            if (!_gameObjectPools.TryGetValue(currentKey, out var list)) return;
-            list.RemoveAll(item => !item);
-            if (list.Count == 0)
+            SceneManager.sceneUnloaded -= OnSceneUnloaded;
+        }
+
+        private void OnSceneUnloaded(Scene scene)
+        {
+            Prune();
+        }
+
+        #region Public API
+
+        /// <summary>
+        /// Tạo sẵn <paramref name="count"/> instance để lần Spawn đầu không bị khựng.
+        /// Gọi ở màn Loading cho các prefab bắn ra nhiều (đạn, hiệu ứng, item list...).
+        /// </summary>
+        public void Prewarm(GameObject prefab, int count)
+        {
+            if (!prefab)
             {
-                _gameObjectPools.Remove(currentKey);
-                if (_parentPools.TryGetValue(currentKey, out var holder))
-                {
-                    _parentPools.Remove(currentKey);
-                    if (holder) Destroy(holder.gameObject);
-                }
+                GULogger.Error("GUPool", "Prewarm called with a null prefab.");
+                return;
+            }
+
+            if (count <= 0) return;
+
+            var key = GetPoolKey(prefab);
+            var pool = GetOrCreatePool(key);
+
+            for (var i = 0; i < count; i++)
+            {
+                var clone = Instantiate(key, pool.Holder);
+                Register(pool, clone, key);
+                clone.Hide();
+
+                var info = _clones[clone];
+                info.IsFree = true;
+                pool.Free.Push(clone);
             }
         }
 
-        private void RegisterClone(GameObject clone, GameObject prefabKey)
+        public T Spawn<T>(T go, Transform parent = null, bool worldPositionStays = false) where T : Component
         {
-            _cloneToPrefabKey[clone] = prefabKey;
-            _cloneDefaultLocalScale[clone] = clone.transform.localScale;
+            if (!go) return null;
+            var clone = Acquire(go.gameObject, parent, worldPositionStays, false, default, default);
+            return clone ? clone.GetComponent<T>() : null;
         }
 
-        private void UnregisterClone(GameObject clone)
+        public T Spawn<T>(T go, Vector3 position, Quaternion rotation, Transform parent = null) where T : Component
         {
-            _cloneToPrefabKey.Remove(clone);
-            _cloneDefaultLocalScale.Remove(clone);
+            if (!go) return null;
+            var clone = Acquire(go.gameObject, parent, true, true, position, rotation);
+            return clone ? clone.GetComponent<T>() : null;
+        }
+
+        public GameObject Spawn(GameObject go, Transform parent = null, bool worldPositionStays = false)
+        {
+            return Acquire(go, parent, worldPositionStays, false, default, default);
+        }
+
+        public GameObject Spawn(GameObject go, Vector3 position, Quaternion rotation, Transform parent = null)
+        {
+            return Acquire(go, parent, true, true, position, rotation);
+        }
+
+        public void DeSpawn<T>(T go) where T : Component
+        {
+            if (go) DeSpawn(go.gameObject);
+        }
+
+        public void DeSpawn(GameObject go)
+        {
+            if (!go) return;
+
+            if (!_clones.TryGetValue(go, out var info))
+            {
+                // Không thuộc pool nào — giữ hành vi cũ: chỉ tắt object.
+                go.Hide();
+                return;
+            }
+
+            if (info.IsFree) return;
+
+            NotifyDespawn(info);
+            go.Hide();
+
+            if (_pools.TryGetValue(info.PrefabKey, out var pool))
+            {
+                if (pool.Holder) SetParentByContext(go.transform, pool.Holder, true);
+                pool.Free.Push(go);
+            }
+
+            info.IsFree = true;
+        }
+
+        public void DeSpawn<T>(T go, float timeDelay) where T : Component
+        {
+            if (!go) return;
+            if (timeDelay > 0) this.Delay(timeDelay, () => DeSpawn(go));
+            else DeSpawn(go);
+        }
+
+        public void DeSpawn(GameObject go, float timeDelay)
+        {
+            if (!go) return;
+            if (timeDelay > 0) this.Delay(timeDelay, () => DeSpawn(go));
+            else DeSpawn(go);
+        }
+
+        public void DeSpawnAll<T>(T go) where T : Component
+        {
+            if (go) DeSpawnAll(go.gameObject);
+        }
+
+        public void DeSpawnAll(GameObject go)
+        {
+            if (!go) return;
+
+            var key = GetPoolKey(go);
+            if (!key || !_pools.TryGetValue(key, out var pool)) return;
+
+            // Duyệt ngược để an toàn nếu callback IPoolable gọi DestroyObject làm ngắn danh sách.
+            for (var i = pool.Members.Count - 1; i >= 0; i--)
+            {
+                if (i >= pool.Members.Count) continue;
+                DeSpawn(pool.Members[i]);
+            }
+        }
+
+        /// <summary>Hủy hẳn một clone khỏi pool (không tái sử dụng nữa).</summary>
+        public void DestroyObject(GameObject go)
+        {
+            if (!go) return;
+            if (!_clones.TryGetValue(go, out var info)) return;
+
+            Unregister(go, info);
+            Destroy(go);
+        }
+
+        public void DestroyObject<T>(T go) where T : Component
+        {
+            if (go) DestroyObject(go.gameObject);
+        }
+
+        /// <summary>
+        /// Dọn các clone đã bị Destroy ngoài tầm kiểm soát của pool (đổi scene, Destroy thủ công).
+        /// Tự chạy sau mỗi lần unload scene.
+        /// </summary>
+        public void Prune()
+        {
+            _iterationBuffer.Clear();
+            foreach (var pair in _clones)
+            {
+                if (!pair.Key) _iterationBuffer.Add(pair.Key);
+            }
+
+            for (var i = 0; i < _iterationBuffer.Count; i++)
+            {
+                _clones.Remove(_iterationBuffer[i]);
+            }
+
+            _iterationBuffer.Clear();
+
+            var staleKeys = new List<GameObject>();
+            foreach (var pair in _pools)
+            {
+                var pool = pair.Value;
+                pool.Members.RemoveAll(member => !member);
+                RebuildFreeStack(pool);
+
+                if (!pair.Key || (pool.Members.Count == 0 && !pool.Holder)) staleKeys.Add(pair.Key);
+            }
+
+            for (var i = 0; i < staleKeys.Count; i++)
+            {
+                _pools.Remove(staleKeys[i]);
+            }
+        }
+
+        #endregion
+
+        #region Internal
+
+        private GameObject Acquire(GameObject prefabOrClone, Transform parent, bool worldPositionStays,
+            bool hasPose, Vector3 position, Quaternion rotation)
+        {
+            if (!prefabOrClone)
+            {
+                GULogger.Error("GUPool", "Attempting to spawn a null prefab.");
+                return null;
+            }
+
+            var key = GetPoolKey(prefabOrClone);
+            var pool = GetOrCreatePool(key);
+            var target = parent ? parent : pool.Holder;
+
+            var clone = PopFree(pool);
+            if (clone)
+            {
+                SetParentByContext(clone.transform, target, hasPose || worldPositionStays);
+                RestoreDefaultScale(clone);
+
+                if (hasPose) clone.transform.SetPositionAndRotation(position, rotation);
+                else ResetSpawnedTransform(clone.transform, parent);
+
+                clone.Show();
+            }
+            else
+            {
+                clone = hasPose
+                    ? Instantiate(key, position, rotation, target)
+                    : Instantiate(key, target, worldPositionStays);
+
+                Register(pool, clone, key);
+                if (!hasPose) ResetSpawnedTransform(clone.transform, parent);
+                if (!clone.activeSelf) clone.Show();
+            }
+
+            _clones[clone].IsFree = false;
+            NotifySpawn(_clones[clone]);
+            return clone;
+        }
+
+        /// <summary>Lấy clone rảnh, bỏ qua những entry đã bị Destroy còn sót trong stack.</summary>
+        private GameObject PopFree(Pool pool)
+        {
+            while (pool.Free.Count > 0)
+            {
+                var clone = pool.Free.Pop();
+                if (clone) return clone;
+            }
+
+            return null;
+        }
+
+        private Pool GetOrCreatePool(GameObject prefabKey)
+        {
+            if (_pools.TryGetValue(prefabKey, out var pool) && pool.Holder) return pool;
+
+            if (pool == null)
+            {
+                pool = new Pool();
+                _pools[prefabKey] = pool;
+            }
+
+            var holder = new GameObject($"{prefabKey.name}{SUFFIX}").transform;
+            holder.SetParent(_cacheTrs ? _cacheTrs : transform);
+            pool.Holder = holder;
+            return pool;
+        }
+
+        private void Register(Pool pool, GameObject clone, GameObject prefabKey)
+        {
+            pool.Members.Add(clone);
+            _clones[clone] = new CloneInfo
+            {
+                PrefabKey = prefabKey,
+                DefaultLocalScale = clone.transform.localScale,
+                IsFree = false,
+                Poolables = clone.GetComponentsInChildren<IPoolable>(true)
+            };
+        }
+
+        private void Unregister(GameObject clone, CloneInfo info)
+        {
+            _clones.Remove(clone);
+
+            if (!_pools.TryGetValue(info.PrefabKey, out var pool)) return;
+
+            pool.Members.Remove(clone);
+            if (info.IsFree) RebuildFreeStack(pool);
+        }
+
+        /// <summary>Dựng lại stack rảnh từ Members — chỉ chạy khi có object bị hủy ngoài luồng.</summary>
+        private void RebuildFreeStack(Pool pool)
+        {
+            pool.Free.Clear();
+            for (var i = 0; i < pool.Members.Count; i++)
+            {
+                var member = pool.Members[i];
+                if (!member) continue;
+                if (_clones.TryGetValue(member, out var info) && info.IsFree) pool.Free.Push(member);
+            }
+        }
+
+        private static void NotifySpawn(CloneInfo info)
+        {
+            var poolables = info.Poolables;
+            if (poolables == null) return;
+
+            for (var i = 0; i < poolables.Length; i++)
+            {
+                poolables[i]?.OnSpawn();
+            }
+        }
+
+        private static void NotifyDespawn(CloneInfo info)
+        {
+            var poolables = info.Poolables;
+            if (poolables == null) return;
+
+            for (var i = 0; i < poolables.Length; i++)
+            {
+                poolables[i]?.OnDespawn();
+            }
+        }
+
+        /// <summary>
+        /// Nếu truyền clone (vd objA1) thì trả về prefab gốc (objA) để mọi instance dùng chung một pool.
+        /// </summary>
+        private GameObject GetPoolKey(GameObject prefabOrClone)
+        {
+            if (!prefabOrClone) return null;
+            return _clones.TryGetValue(prefabOrClone, out var info) && info.PrefabKey
+                ? info.PrefabKey
+                : prefabOrClone;
+        }
+
+        private void RestoreDefaultScale(GameObject clone)
+        {
+            if (!clone) return;
+            if (_clones.TryGetValue(clone, out var info)) clone.transform.localScale = info.DefaultLocalScale;
         }
 
         private static bool IsUiTransform(Transform target)
@@ -58,21 +380,13 @@ namespace GameUp.Core
         {
             if (!child || !parent) return;
             var shouldUseLocalSpace = IsUiTransform(child) || IsUiTransform(parent);
-            child.SetParent(parent, shouldUseLocalSpace ? false : worldPositionStays);
-        }
-
-        private void RestoreDefaultScale(GameObject clone)
-        {
-            if (!clone) return;
-            if (_cloneDefaultLocalScale.TryGetValue(clone, out var defaultScale))
-            {
-                clone.transform.localScale = defaultScale;
-            }
+            child.SetParent(parent, !shouldUseLocalSpace && worldPositionStays);
         }
 
         private static void ResetSpawnedTransform(Transform spawnedTransform, bool hasParent)
         {
             if (!spawnedTransform || !hasParent) return;
+
             if (spawnedTransform is RectTransform rectTransform)
             {
                 rectTransform.anchoredPosition3D = Vector3.zero;
@@ -84,230 +398,6 @@ namespace GameUp.Core
             spawnedTransform.localRotation = Quaternion.identity;
         }
 
-        /// <summary>
-        /// Nếu truyền clone (vd objA1) thì trả về prefab gốc (objA) để mọi instance cùng một pool.
-        /// Spawn(objA) và Spawn(objA1) đều dùng chung pool(objA).
-        /// </summary>
-        private GameObject GetPoolKey(GameObject prefabOrClone)
-        {
-            if (!prefabOrClone) return null;
-            var key = GetKeyFromClone(prefabOrClone);
-            return key ? key : prefabOrClone;
-        }
-
-        /// <summary>
-        /// Lấy pool và parent đã có, hoặc tạo mới một lần — tránh tạo List/Transform thừa.
-        /// </summary>
-        private (List<GameObject> list, Transform poolParent) GetOrCreatePool(GameObject prefabKey)
-        {
-            if (_gameObjectPools.TryGetValue(prefabKey, out var list) && _parentPools.TryGetValue(prefabKey, out var poolParent))
-                return (list, poolParent);
-
-            var holder = new GameObject($"{prefabKey.name}{SUFFIX}").transform;
-            holder.SetParent(_cacheTrs);
-            var newList = new List<GameObject>();
-            _parentPools.Add(prefabKey, holder);
-            _gameObjectPools.Add(prefabKey, newList);
-            return (newList, holder);
-        }
-
-        /// <summary>
-        /// Tìm object đang inactive trong pool để tái sử dụng — đúng bản chất pooling.
-        /// </summary>
-        private static GameObject TryGetFirstInactive(List<GameObject> list)
-        {
-            for (var i = 0; i < list.Count; i++)
-            {
-                var o = list[i];
-                if (o && !o.activeSelf) return o;
-            }
-            return null;
-        }
-
-        public T Spawn<T>(T go, Transform parent = null, bool worldPositionStays = false) where T : Component
-        {
-            var poolKey = GetPoolKey(go.gameObject);
-            if (!poolKey) return null;
-            CleanNullEntries(poolKey);
-            var (list, poolParent) = GetOrCreatePool(poolKey);
-            var inactive = TryGetFirstInactive(list);
-            if (inactive)
-            {
-                var targetParent = parent ? parent : poolParent;
-                SetParentByContext(inactive.transform, targetParent, worldPositionStays);
-                RestoreDefaultScale(inactive);
-                inactive.Show();
-                ResetSpawnedTransform(inactive.transform, parent);
-                return inactive.GetComponent<T>();
-            }
-            var item = Instantiate(go, parent ?? poolParent, worldPositionStays);
-            RestoreDefaultScale(item.gameObject);
-            ResetSpawnedTransform(item.transform, parent);
-            list.Add(item.gameObject);
-            RegisterClone(item.gameObject, poolKey);
-            return item;
-        }
-
-        public T Spawn<T>(T go, Vector3 position, Quaternion rotation, Transform parent = null)
-            where T : Component
-        {
-            var poolKey = GetPoolKey(go.gameObject);
-            if (!poolKey) return null;
-            CleanNullEntries(poolKey);
-            var (list, poolParent) = GetOrCreatePool(poolKey);
-            var inactive = TryGetFirstInactive(list);
-            if (inactive)
-            {
-                var targetParent = parent ? parent : poolParent;
-                SetParentByContext(inactive.transform, targetParent, true);
-                RestoreDefaultScale(inactive);
-                inactive.transform.position = position;
-                inactive.transform.rotation = rotation;
-                inactive.Show();
-                return inactive.GetComponent<T>();
-            }
-            var item = Instantiate(go, position, rotation, parent ?? poolParent);
-            RestoreDefaultScale(item.gameObject);
-            list.Add(item.gameObject);
-            RegisterClone(item.gameObject, poolKey);
-            return item;
-        }
-
-        public GameObject Spawn(GameObject go, Transform parent = null, bool worldPositionStays = false)
-        {
-            var poolKey = GetPoolKey(go);
-            if (!poolKey) return null;
-            CleanNullEntries(poolKey);
-            var (list, poolParent) = GetOrCreatePool(poolKey);
-            var inactive = TryGetFirstInactive(list);
-            if (inactive)
-            {
-                var targetParent = parent ? parent : poolParent;
-                SetParentByContext(inactive.transform, targetParent, worldPositionStays);
-                RestoreDefaultScale(inactive);
-                ResetSpawnedTransform(inactive.transform, parent);
-                inactive.Show();
-                return inactive;
-            }
-            var item = Instantiate(go, parent ?? poolParent, worldPositionStays);
-            RestoreDefaultScale(item);
-            ResetSpawnedTransform(item.transform, parent);
-            list.Add(item);
-            RegisterClone(item, poolKey);
-            return item;
-        }
-
-        public GameObject Spawn(GameObject go, Vector3 position, Quaternion rotation, Transform parent = null)
-        {
-            var poolKey = GetPoolKey(go);
-            if (!poolKey) return null;
-            CleanNullEntries(poolKey);
-            var (list, poolParent) = GetOrCreatePool(poolKey);
-            var inactive = TryGetFirstInactive(list);
-            if (inactive)
-            {
-                var targetParent = parent ? parent : poolParent;
-                SetParentByContext(inactive.transform, targetParent, true);
-                RestoreDefaultScale(inactive);
-                inactive.transform.position = position;
-                inactive.transform.rotation = rotation;
-                inactive.Show();
-                return inactive;
-            }
-            var item = Instantiate(go, position, rotation, parent ?? poolParent);
-            RestoreDefaultScale(item);
-            list.Add(item);
-            RegisterClone(item, poolKey);
-            return item;
-        }
-
-        public void DeSpawn<T>(T go) where T : Component
-        {
-            var key = GetKeyFromClone(go.gameObject);
-            if (key)
-            {
-                go.Hide();
-                SetParentByContext(go.transform, _parentPools[key], true);
-            }
-            else
-            {
-                go.Hide();
-            }
-        }
-
-        public void DeSpawn(GameObject go)
-        {
-            var key = GetKeyFromClone(go);
-            if (key)
-            {
-                SetParentByContext(go.transform, _parentPools[key], true);
-                go.Hide();
-            }
-            else
-            {
-                go.Hide();
-            }
-        }
-
-        public void DeSpawn<T>(T go, float timeDelay) where T : Component
-        {
-            this.Delay(timeDelay,() => { DeSpawn(go); });
-        }
-
-        public void DeSpawn(GameObject go, float timeDelay)
-        {
-            if (timeDelay > 0)
-                this.Delay(timeDelay,() => { DeSpawn(go); });
-            else
-                DeSpawn(go);
-        }
-
-        public void DeSpawnAll<T>(T go) where T : Component
-        {
-            var poolKey = GetPoolKey(go.gameObject);
-            if (!poolKey || !_gameObjectPools.TryGetValue(poolKey, out var pool)) return;
-            foreach (var component in pool)
-            {
-                if (component) component.Hide();
-                if (component) SetParentByContext(component.transform, _parentPools[poolKey], true);
-            }
-        }
-
-        public void DeSpawnAll(GameObject go)
-        {
-            var poolKey = GetPoolKey(go);
-            if (!poolKey || !_gameObjectPools.TryGetValue(poolKey, out var pool)) return;
-            for (var index = 0; index < pool.Count; index++)
-            {
-                var item = pool[index];
-                if (item) item.Hide();
-                if (item) SetParentByContext(item.transform, _parentPools[poolKey], true);
-            }
-        }
-
-        public void DestroyObject(GameObject go)
-        {
-            var key = GetKeyFromClone(go);
-            if (!key) return;
-            _gameObjectPools[key].Remove(go);
-            UnregisterClone(go);
-            Destroy(go);
-        }
-
-        public void DestroyObject<T>(T go) where T : Component
-        {
-            var key = GetKeyFromClone(go.gameObject);
-            if (!key) return;
-            _gameObjectPools[key].Remove(go.gameObject);
-            UnregisterClone(go.gameObject);
-            Destroy(go);
-        }
-
-        /// <summary> O(1) tra prefab key từ clone nhờ map clone -> prefab, không duyệt toàn bộ pool. </summary>
-        private GameObject GetKeyFromClone(GameObject clone)
-        {
-            if (!clone) return null;
-            return _cloneToPrefabKey.TryGetValue(clone, out var key) ? key : null;
-        }
+        #endregion
     }
 }

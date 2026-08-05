@@ -4,6 +4,21 @@ namespace GameUp.Core
 {
     public static class GUPool
     {
+        /// <summary>
+        /// Tạo sẵn instance để lần Spawn đầu không khựng. Nên gọi ở màn Loading
+        /// cho các prefab sinh ra nhiều (đạn, hiệu ứng, item danh sách...).
+        /// </summary>
+        public static void Prewarm(GameObject prefab, int count)
+        {
+            if (prefab) GUPoolers.Instance.Prewarm(prefab, count);
+        }
+
+        /// <inheritdoc cref="Prewarm(GameObject,int)"/>
+        public static void Prewarm<T>(T prefab, int count) where T : Component
+        {
+            if (prefab) GUPoolers.Instance.Prewarm(prefab.gameObject, count);
+        }
+
         public static T Spawn<T>(T prefab, Transform parent = null, bool worldPositionStays = false)
             where T : Component
         {
