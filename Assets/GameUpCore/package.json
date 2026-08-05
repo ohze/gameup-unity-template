@@ -1,11 +1,12 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.1.11",
+  "version": "0.2.0",
   "displayName": "GameUp Core",
-  "description": "Core framework for Unity game development including Singleton, EventBus, FSM, Object Pool, UI Manager, Audio, Save/Load, and more. Git UPM flow: install DOTween first (Assets/Plugins/Demigiant + DOTween.Modules.asmdef), then enable define DOTween__DEPENDENCIES_INSTALLED from GameUp/Project/GameUpCore Installer. Cursor: menu GameUp/Project/Install Cursor IDE rules adds com.boxqkrtm.ide.cursor via PackageManager Client.Add (Git URL), copies .mdc rules, .cursorrules, .cursorignore from Documentation~; first editor load still auto-copies .mdc only if missing. Optional manifest line for IDE: \"com.boxqkrtm.ide.cursor\": \"https://github.com/boxqkrtm/com.unity.ide.cursor.git\". Repo: https://github.com/ohze/gameup-unity-template \n\nDuyLV 2026",
+  "description": "Bộ khung nền cho dự án game Unity: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nDuyLV 2026",
   "unity": "2022.3",
   "dependencies": {
-    "com.unity.addressables": "1.22.3"
+    "com.unity.addressables": "1.22.3",
+    "com.unity.textmeshpro": "3.0.6"
   },
   "repository": {
     "type": "git",
@@ -16,12 +17,21 @@
     "name": "GameUp",
     "url": "https://github.com/ohze/gameup-unity-template"
   },
+  "samples": [
+    {
+      "displayName": "QuickStart",
+      "description": "Luồng khởi động mẫu: GUBootstrap chạy các bước init rồi GUSceneLoader chuyển sang scene chính.",
+      "path": "Samples~/QuickStart"
+    }
+  ],
   "keywords": [
     "framework",
     "core",
     "ui",
     "singleton",
-    "eventbus",
-    "pool"
+    "signal",
+    "pool",
+    "audio",
+    "addressables"
   ]
 }
