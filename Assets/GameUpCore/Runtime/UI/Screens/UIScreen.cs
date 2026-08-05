@@ -330,22 +330,7 @@ namespace GameUp.Core.UI
 
         public static void OpenScreenByTypeAsync(Type type, bool remember = true)
         {
-            var loadAsync = ScreenData.GetScreenAsync(type);
-            if (!loadAsync.IsValid()) return;
-
-            if (loadAsync.IsDone)
-            {
-                var ins = GetOrCreateScreen(type, loadAsync.Result);
-                OpenScreenWithInstance(type, ins, remember);
-            }
-            else
-            {
-                loadAsync.Completed += handle =>
-                {
-                    var ins = GetOrCreateScreen(type, handle.Result);
-                    OpenScreenWithInstance(type, ins, remember);
-                };
-            }
+            ResolveScreenAsync(type, screen => OpenScreenWithInstance(type, screen, remember));
         }
 
         public static void PreloadAsyncView(Type type)
@@ -355,9 +340,18 @@ namespace GameUp.Core.UI
 
         public static void PreloadViewByTypeAsync(Type type, Action<UIScreen> onComplete = null)
         {
+            ResolveScreenAsync(type, onComplete);
+        }
+
+        /// <summary>
+        /// Đường duy nhất để lấy instance của một screen: trả cache nếu có, nếu chưa thì load Addressable rồi tạo.
+        /// Mọi API Open/Preload đều đi qua đây nên hành vi luôn giống nhau.
+        /// </summary>
+        protected static void ResolveScreenAsync(Type type, Action<UIScreen> onResolved)
+        {
             if (type == null)
             {
-                GULogger.Error("UIScreen", "PreloadViewByTypeAsync called with null type");
+                GULogger.Error("UIScreen", "ResolveScreenAsync called with null type");
                 return;
             }
 
@@ -369,34 +363,21 @@ namespace GameUp.Core.UI
 
             if (Screens.TryGetValue(type, out var cachedScreen) && cachedScreen)
             {
-                onComplete?.Invoke(cachedScreen);
+                onResolved?.Invoke(cachedScreen);
                 return;
             }
 
-            var loadAsync = ScreenData.GetScreenAsync(type);
-            if (!loadAsync.IsValid())
+            if (!ScreenData)
             {
+                GULogger.Error("UIScreen", $"ScreenData asset not found at Resources/{ScreenDataResourcePath}");
                 return;
             }
 
-            if (loadAsync.IsDone)
+            AddressableLoad.WhenReady(ScreenData.GetScreenAsync(type), prefab =>
             {
-                var screen = GetOrCreateScreen(type, loadAsync.Result);
-                onComplete?.Invoke(screen);
-                return;
-            }
-
-            loadAsync.Completed += handle =>
-            {
-                if (!handle.IsValid() || handle.Result == null)
-                {
-                    GULogger.Error("UIScreen", $"Failed to preload screen {type.Name}");
-                    return;
-                }
-
-                var screen = GetOrCreateScreen(type, handle.Result);
-                onComplete?.Invoke(screen);
-            };
+                var screen = GetOrCreateScreen(type, prefab);
+                if (screen) onResolved?.Invoke(screen);
+            }, "UIScreen", type.Name);
         }
 
         public static void PreloadViewByTypesAsync(params Type[] types)
@@ -420,19 +401,17 @@ namespace GameUp.Core.UI
 
     public class UIScreen<T> : UIScreen where T : UIScreen
     {
-        private static bool _isRequestingLoad;
-        private static Action<T> _pendingOnComplete;
-
+        /// <param name="isUseTransition">
+        /// Hiện chưa có hiệu ứng chuyển màn riêng — tham số giữ lại cho tương thích và cho bản transition sau này.
+        /// </param>
         public static void OpenViewAsync(Action<T> onComplete = null, bool remember = true, bool isUseTransition = true)
         {
-            if (isUseTransition)
+            var type = typeof(T);
+            ResolveScreenAsync(type, screen =>
             {
-                OpenWithTransitionAsync(onComplete, remember);
-            }
-            else
-            {
-                OpenViewInternalAsync(onComplete, remember);
-            }
+                OpenScreenWithInstance(type, screen, remember);
+                onComplete?.Invoke(screen as T);
+            });
         }
 
         public static void CloseView()
@@ -460,75 +439,7 @@ namespace GameUp.Core.UI
 
         public static void PreloadViewAsync(Action<T> onComplete = null)
         {
-            var type = typeof(T);
-
-            if (Screens.TryGetValue(type, out var cachedScreen) && cachedScreen)
-            {
-                onComplete?.Invoke(cachedScreen as T);
-                return;
-            }
-
-            var loadAsync = ScreenData.GetScreenAsync<T>();
-            if (!loadAsync.IsValid()) return;
-
-            if (loadAsync.IsDone)
-            {
-                var ins = GetOrCreateScreen(type, loadAsync.Result);
-                onComplete?.Invoke(ins as T);
-                return;
-            }
-
-            loadAsync.Completed += handle =>
-            {
-                if (!handle.IsValid() || handle.Result == null)
-                {
-                    GULogger.Error("UIScreen", $"Failed to preload screen {type.Name}");
-                    return;
-                }
-
-                var ins = GetOrCreateScreen(type, handle.Result);
-                onComplete?.Invoke(ins as T);
-            };
-        }
-
-        private static void OpenWithTransitionAsync(Action<T> onComplete = null, bool remember = true)
-        {
-            OpenViewInternalAsync(onComplete, remember);
-        }
-
-        private static void OpenViewInternalAsync(Action<T> onComplete = null, bool remember = true)
-        {
-            var type = typeof(T);
-            var loadAsync = ScreenData.GetScreenAsync<T>();
-            if (!loadAsync.IsValid()) return;
-
-            if (loadAsync.IsDone)
-            {
-                var ins = GetOrCreateScreen(type, loadAsync.Result);
-                OpenScreenWithInstance(type, ins, remember);
-                onComplete?.Invoke(ins as T);
-            }
-            else
-            {
-                if (onComplete != null)
-                {
-                    _pendingOnComplete += onComplete;
-                }
-
-                if (_isRequestingLoad) return;
-
-                _isRequestingLoad = true;
-                loadAsync.Completed += handle =>
-                {
-                    _isRequestingLoad = false;
-                    var ins = GetOrCreateScreen(type, handle.Result);
-                    OpenScreenWithInstance(type, ins, remember);
-
-                    var callbacks = _pendingOnComplete;
-                    _pendingOnComplete = null;
-                    callbacks?.Invoke(ins as T);
-                };
-            }
+            ResolveScreenAsync(typeof(T), screen => onComplete?.Invoke(screen as T));
         }
     }
 }

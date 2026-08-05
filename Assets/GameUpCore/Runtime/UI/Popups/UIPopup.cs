@@ -11,6 +11,8 @@ namespace GameUp.Core.UI
 {
     public class UIPopup : UIBaseView
     {
+        private const string PopupDataResourcePath = "Data/PopupData";
+
         private static PopupData _popupData;
 
         protected static readonly Dictionary<Type, UIPopup> Popups = new();
@@ -77,7 +79,7 @@ namespace GameUp.Core.UI
         {
             get
             {
-                if (!_popupData) _popupData = Resources.Load<PopupData>("Data/PopupData");
+                if (!_popupData) _popupData = Resources.Load<PopupData>(PopupDataResourcePath);
                 return _popupData;
             }
         }
@@ -154,9 +156,18 @@ namespace GameUp.Core.UI
 
         public static void PreloadPopupByTypeAsync(Type type, Action<UIPopup> onComplete = null)
         {
+            ResolvePopupAsync(type, onComplete);
+        }
+
+        /// <summary>
+        /// Đường duy nhất để lấy instance của một popup: trả cache nếu có, nếu chưa thì load Addressable rồi tạo.
+        /// Mọi API Open/Preload đều đi qua đây nên hành vi luôn giống nhau.
+        /// </summary>
+        protected static void ResolvePopupAsync(Type type, Action<UIPopup> onResolved)
+        {
             if (type == null)
             {
-                GULogger.Error("UIPopup", "PreloadPopupByTypeAsync called with null type");
+                GULogger.Error("UIPopup", "ResolvePopupAsync called with null type");
                 return;
             }
 
@@ -168,35 +179,21 @@ namespace GameUp.Core.UI
 
             if (Popups.TryGetValue(type, out var cachedPopup) && cachedPopup)
             {
-                onComplete?.Invoke(cachedPopup);
+                onResolved?.Invoke(cachedPopup);
                 return;
             }
 
-            var loadAsync = PopupData.GetPopupAsync(type);
-            if (!loadAsync.IsValid())
+            if (!PopupData)
             {
-                GULogger.Error("UIPopup", $"Popup handle is invalid for type {type.Name}");
+                GULogger.Error("UIPopup", $"PopupData asset not found at Resources/{PopupDataResourcePath}");
                 return;
             }
 
-            if (loadAsync.IsDone)
+            AddressableLoad.WhenReady(PopupData.GetPopupAsync(type), prefab =>
             {
-                var popup = GetOrCreatePopup(type, loadAsync.Result);
-                onComplete?.Invoke(popup);
-                return;
-            }
-
-            loadAsync.Completed += handle =>
-            {
-                if (!handle.IsValid() || handle.Result == null)
-                {
-                    GULogger.Error("UIPopup", $"Failed to preload popup {type.Name}");
-                    return;
-                }
-
-                var popup = GetOrCreatePopup(type, handle.Result);
-                onComplete?.Invoke(popup);
-            };
+                var popup = GetOrCreatePopup(type, prefab);
+                if (popup) onResolved?.Invoke(popup);
+            }, "UIPopup", type.Name);
         }
 
         public static void PreloadPopupByTypesAsync(params Type[] types)
@@ -269,79 +266,13 @@ namespace GameUp.Core.UI
 
     public class UIPopup<T> : UIPopup where T : UIPopup
     {
-        private static bool _isLoadingPopup;
-        private static bool _isPreloadingPopup;
-        private static event Action<T> OnPopupLoaded;
-        private static event Action<T> OnPopupPreloaded;
-
         public static void OpenViewAsync(Action<T> onComplete = null)
         {
-            if (Popups.TryGetValue(typeof(T), out var cachedPopup) && cachedPopup)
+            ResolvePopupAsync(typeof(T), popup =>
             {
-                OpenPopupWithInstance(cachedPopup);
-                onComplete?.Invoke(cachedPopup.Cast<T>());
-                return;
-            }
-
-            var loadAsync = PopupData.GetPopupAsync<T>();
-            if (!loadAsync.IsValid())
-            {
-                GULogger.Error("UIPopup", $"Popup handle is invalid for type {typeof(T).Name}");
-                return;
-            }
-
-            if (loadAsync.IsDone)
-            {
-                var ins = CreateAndCacheInstance(loadAsync.Result);
-                if (!ins)
-                    return;
-
-                OpenPopupWithInstance(ins);
-                onComplete?.Invoke(ins.Cast<T>());
-            }
-            else
-            {
-                if (onComplete != null) OnPopupLoaded += onComplete;
-                if (_isLoadingPopup) return;
-                _isLoadingPopup = true;
-
-                loadAsync.Completed += handle =>
-                {
-                    _isLoadingPopup = false;
-
-                    var callbacks = OnPopupLoaded;
-                    OnPopupLoaded = null;
-
-                    if (!handle.IsValid() || handle.Result == null)
-                    {
-                        GULogger.Error("UIPopup", $"Failed to load popup {typeof(T).Name}");
-                        return;
-                    }
-
-                    var ins = CreateAndCacheInstance(handle.Result);
-                    if (!ins)
-                        return;
-
-                    OpenPopupWithInstance(ins);
-                    callbacks?.Invoke(ins.Cast<T>());
-                };
-            }
-        }
-
-        private static UIPopup CreateAndCacheInstance(UIPopup prefab)
-        {
-            return GetOrCreatePopup(typeof(T), prefab);
-        }
-
-        private static void OpenPopupWithInstance(UIPopup ins)
-        {
-            if (!ins)
-            {
-                GULogger.Error("UIPopup", $"Popup instance is null or destroyed for type {typeof(T).Name}");
-                return;
-            }
-
-            ins.Open();
+                popup.Open();
+                onComplete?.Invoke(popup.Cast<T>());
+            });
         }
 
         public static void CloseView()
@@ -361,50 +292,7 @@ namespace GameUp.Core.UI
 
         public static void PreloadViewAsync(Action<T> onComplete = null)
         {
-            if (Popups.TryGetValue(typeof(T), out var cachedPopup) && cachedPopup)
-            {
-                onComplete?.Invoke(cachedPopup.Cast<T>());
-                return;
-            }
-
-            var loadAsync = PopupData.GetPopupAsync<T>();
-            if (!loadAsync.IsValid())
-            {
-                GULogger.Error("UIPopup", $"Popup handle is invalid for type {typeof(T).Name}");
-                return;
-            }
-
-            if (loadAsync.IsDone)
-            {
-                var ins = CreateAndCacheInstance(loadAsync.Result);
-                onComplete?.Invoke(ins.Cast<T>());
-                return;
-            }
-
-            if (onComplete != null)
-            {
-                OnPopupPreloaded += onComplete;
-            }
-
-            if (_isPreloadingPopup) return;
-            _isPreloadingPopup = true;
-
-            loadAsync.Completed += handle =>
-            {
-                _isPreloadingPopup = false;
-
-                var callbacks = OnPopupPreloaded;
-                OnPopupPreloaded = null;
-
-                if (!handle.IsValid() || handle.Result == null)
-                {
-                    GULogger.Error("UIPopup", $"Failed to preload popup {typeof(T).Name}");
-                    return;
-                }
-
-                var ins = CreateAndCacheInstance(handle.Result);
-                callbacks?.Invoke(ins.Cast<T>());
-            };
+            ResolvePopupAsync(typeof(T), popup => onComplete?.Invoke(popup.Cast<T>()));
         }
     }
 }
