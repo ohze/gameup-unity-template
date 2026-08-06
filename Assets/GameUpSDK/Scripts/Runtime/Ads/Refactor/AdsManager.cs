@@ -402,7 +402,12 @@ namespace GameUp.SDK
                 return;
             }
 
-            if (AdCappingManager.Instance.IsAnyAdShowing) return;
+            if (AdCappingManager.Instance.IsAnyAdShowing)
+            {
+                GULogger.Log("GameUp", "Interstitial blocked: đang có ad khác hiển thị.");
+                onFail?.Invoke();
+                return;
+            }
 
             if (!EvaluateConditions(AdUnitType.Interstitial, where, out var blockReason))
             {
@@ -537,7 +542,7 @@ namespace GameUp.SDK
         {
             foreach (var network in _networkDict)
             {
-                network.Value.NativeFullScreenAd.Hide();
+                network.Value.NativeFullScreenAd?.Hide();
             }
         }
 

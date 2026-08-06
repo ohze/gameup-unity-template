@@ -6,7 +6,20 @@ namespace GameUp.SDK
 {
     public class MaxInterstitialAd : BaseAdFormat, IInterstitialAd
     {
-        public MaxInterstitialAd(AdUnitConfig config) : base(config, AdUnitType.Interstitial, "MAX") { }
+        public MaxInterstitialAd(AdUnitConfig config) : base(config, AdUnitType.Interstitial, "MAX")
+        {
+#if MAXSDK_DEPENDENCIES_INSTALLED
+            // Đăng ký MỘT lần cho cả vòng đời. Trước đây handler revenue được += trong mỗi lần
+            // RequestAdInternal nhưng không bao giờ -=, nên sau N lần load, một impression bắn
+            // N sự kiện revenue → doanh thu trên Firebase/AppsFlyer bị nhân lên.
+            MaxSdkCallbacks.Interstitial.OnAdRevenuePaidEvent += OnRevenuePaid;
+#endif
+        }
+
+#if MAXSDK_DEPENDENCIES_INSTALLED
+        private void OnRevenuePaid(string id, MaxSdkBase.AdInfo info) =>
+            TrackRevenue(id, info.NetworkPlacement, $"Interstitial_{FloorOf(id)}", info.Revenue);
+#endif
 
         public override bool IsAvailable(string where = null)
         {
@@ -25,17 +38,14 @@ namespace GameUp.SDK
 #if MAXSDK_DEPENDENCIES_INSTALLED
             Action<string, MaxSdkBase.AdInfo> onLoaded = null;
             Action<string, MaxSdkBase.ErrorInfo> onFailed = null;
-            Action<string, MaxSdkBase.AdInfo> onRevenue = null;
 
             onLoaded = (id, info) => { if (id == unitId) { Unsubscribe(); HandleLoadSuccess(unitId, where); } };
             onFailed = (id, err) => { if (id == unitId) { Unsubscribe(); HandleLoadFailed(unitId, where, floor, err.Message); } };
-            onRevenue = (id, info) => { if (id == unitId) TrackRevenue(id, info.NetworkPlacement, $"Interstitial_{floor}", info.Revenue); };
 
             void Unsubscribe() { MaxSdkCallbacks.Interstitial.OnAdLoadedEvent -= onLoaded; MaxSdkCallbacks.Interstitial.OnAdLoadFailedEvent -= onFailed; }
 
             MaxSdkCallbacks.Interstitial.OnAdLoadedEvent += onLoaded;
             MaxSdkCallbacks.Interstitial.OnAdLoadFailedEvent += onFailed;
-            MaxSdkCallbacks.Interstitial.OnAdRevenuePaidEvent += onRevenue;
             MaxSdk.LoadInterstitial(unitId);
 #endif
         }
@@ -73,7 +83,18 @@ namespace GameUp.SDK
 
     public class MaxRewardedAd : BaseAdFormat, IRewardedAd
     {
-        public MaxRewardedAd(AdUnitConfig config) : base(config, AdUnitType.RewardedVideo, "MAX") { }
+        public MaxRewardedAd(AdUnitConfig config) : base(config, AdUnitType.RewardedVideo, "MAX")
+        {
+#if MAXSDK_DEPENDENCIES_INSTALLED
+            // Xem ghi chú ở MaxInterstitialAd: đăng ký một lần để không nhân bản sự kiện revenue.
+            MaxSdkCallbacks.Rewarded.OnAdRevenuePaidEvent += OnRevenuePaid;
+#endif
+        }
+
+#if MAXSDK_DEPENDENCIES_INSTALLED
+        private void OnRevenuePaid(string id, MaxSdkBase.AdInfo info) =>
+            TrackRevenue(id, info.NetworkPlacement, $"Rewarded_{FloorOf(id)}", info.Revenue);
+#endif
 
         public override bool IsAvailable(string where = null)
         {
@@ -92,17 +113,14 @@ namespace GameUp.SDK
 #if MAXSDK_DEPENDENCIES_INSTALLED
             Action<string, MaxSdkBase.AdInfo> onLoaded = null;
             Action<string, MaxSdkBase.ErrorInfo> onFailed = null;
-            Action<string, MaxSdkBase.AdInfo> onRevenue = null;
 
             onLoaded = (id, info) => { if (id == unitId) { Unsubscribe(); HandleLoadSuccess(unitId, where); } };
             onFailed = (id, err) => { if (id == unitId) { Unsubscribe(); HandleLoadFailed(unitId, where, floor, err.Message); } };
-            onRevenue = (id, info) => { if (id == unitId) TrackRevenue(id, info.NetworkPlacement, $"Rewarded_{floor}", info.Revenue); };
 
             void Unsubscribe() { MaxSdkCallbacks.Rewarded.OnAdLoadedEvent -= onLoaded; MaxSdkCallbacks.Rewarded.OnAdLoadFailedEvent -= onFailed; }
 
             MaxSdkCallbacks.Rewarded.OnAdLoadedEvent += onLoaded;
             MaxSdkCallbacks.Rewarded.OnAdLoadFailedEvent += onFailed;
-            MaxSdkCallbacks.Rewarded.OnAdRevenuePaidEvent += onRevenue;
             MaxSdk.LoadRewardedAd(unitId);
 #endif
         }

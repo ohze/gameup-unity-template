@@ -23,6 +23,7 @@ namespace GameUp.SDK
         
         private readonly Dictionary<string, bool> _isLoadingByUnitId = new Dictionary<string, bool>();
         private readonly Dictionary<string, int> _retryAttemptsByUnitId = new Dictionary<string, int>();
+        private readonly Dictionary<string, EcpmFloor> _floorByUnitId = new Dictionary<string, EcpmFloor>();
 
         protected const int LoadRetryExponentCap = 6;
 
@@ -54,6 +55,7 @@ namespace GameUp.SDK
             }
 
             _isLoadingByUnitId[unitId] = true;
+            _floorByUnitId[unitId] = floor;
             LogTrace($"request_{floor}", unitId, where);
             
             RequestAdInternal(unitId, where, floor);
@@ -82,7 +84,7 @@ namespace GameUp.SDK
             _retryAttemptsByUnitId[unitId] = currentRetry;
 
             float retryDelay = (float)Math.Pow(2, Math.Min(LoadRetryExponentCap, currentRetry));
-            OnAdLoadFailed?.Invoke(unitId, where);
+            OnAdLoadFailed?.Invoke(where, error);
             
             LogTrace($"load_failed_retry_{floor}", unitId, where, $"delay={retryDelay}s, error={error}");
             MainThreadDispatcher.Enqueue(() =>
@@ -120,5 +122,10 @@ namespace GameUp.SDK
         }
 
         protected string WhereByKey(string key) => _config.WhereByKey(_adType, key);
+
+        /// <summary>Tầng eCPM đã dùng khi request unit này. Cho phép handler đăng ký một lần
+        /// (không cần closure theo từng lần load) mà vẫn gắn đúng nhãn floor cho revenue.</summary>
+        protected EcpmFloor FloorOf(string unitId) =>
+            unitId != null && _floorByUnitId.TryGetValue(unitId, out var floor) ? floor : EcpmFloor.All;
     }
 }

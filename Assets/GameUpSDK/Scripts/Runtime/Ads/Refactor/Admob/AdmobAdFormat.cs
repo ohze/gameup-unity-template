@@ -262,6 +262,12 @@ namespace GameUp.SDK
 #endif
         private readonly Dictionary<string, bool> _isLoaded = new Dictionary<string, bool>();
 
+        /// <summary>
+        /// Ad unit đã có lệnh Show nhưng chưa có banner sẵn — dùng để phát ĐÚNG một request.
+        /// AdsManager.OnBannerLoaded sẽ gọi lại Show() khi load xong, lúc đó banner đã có và được hiện.
+        /// </summary>
+        private readonly HashSet<string> _pendingShow = new HashSet<string>();
+
         public AdmobBannerAd(AdUnitConfig config) : base(config, AdUnitType.Banner, "Admob") { }
 
         // OVERRIDE Tắt Waterfall: Banner chỉ Load duy nhất tầng All
@@ -303,6 +309,9 @@ namespace GameUp.SDK
                 banner.OnBannerAdLoadFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                 {
                     _isLoaded[unitId] = false;
+                    // Mở lại cổng để lệnh Show kế tiếp được phép phát request mới
+                    // (retry tự động của BaseAdFormat vẫn chạy song song).
+                    _pendingShow.Remove(unitId);
                     banner.Destroy();
                     _banners.Remove(unitId);
                     HandleLoadFailed(unitId, where, floor, err?.GetMessage());
@@ -326,21 +335,23 @@ namespace GameUp.SDK
             MainThreadDispatcher.Enqueue(() =>
             {
                 string unitId = _config.ResolveUnitId(_adType, where, EcpmFloor.All);
-                var entry = _config.GetEntry(_adType, where, EcpmFloor.All);
+                if (string.IsNullOrEmpty(unitId)) return;
 
-                if (entry.CollapsiblePlacement != CollapsibleBannerPlacement.None)
+                // Đã có banner sẵn (kể cả collapsible) thì hiện luôn. TUYỆT ĐỐI không load lại ở đây:
+                // Show() được gọi từ AdsManager.OnBannerLoaded, nên load lại sẽ tạo vòng lặp
+                // load → loaded → Show → load … khiến banner không bao giờ hiện được.
+                if (_isLoaded.TryGetValue(unitId, out bool loaded) && loaded
+                    && _banners.TryGetValue(unitId, out var banner) && banner != null)
                 {
-                    Load(where); // Collapsible luôn load mới
+                    _pendingShow.Remove(unitId);
+                    NotifyAdDisplayed(where);
+                    banner.Show();
+                    return;
                 }
-                else
-                {
-                    if (_isLoaded.TryGetValue(unitId, out bool loaded) && loaded)
-                    {
-                        NotifyAdDisplayed(where);
-                        _banners[unitId].Show();
-                    }
-                    else Load(where);
-                }
+
+                // Chưa có banner: phát đúng một request. Khi load xong, AdsManager.OnBannerLoaded
+                // gọi lại Show() và nhánh trên sẽ hiện banner.
+                if (_pendingShow.Add(unitId)) Load(where);
             });
 #endif
         }
