@@ -8,6 +8,8 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Fixed
 
+- **Gỡ dependencies không còn để sót Scripting Define Symbols.** Auto-sync define dựa vào `IsAssemblyLoaded`, nhưng assembly của SDK vừa gỡ vẫn còn trong AppDomain tới lần domain reload kế tiếp — nên `compilationFinished` ngay sau khi xóa file lại set đúng những define vừa clear, kéo theo `GameUp.SDK.Runtime` compile code trong `#if` của SDK đã mất (lỗi compile khiến installer không load được để tự sửa). Nay trạng thái dependency đọc theo asset trên disk (+ asmdef còn trong project), auto-sync bị chặn trong lúc installer đang gỡ, và `ProjectSettings.asset` được lưu ngay sau khi clear define.
+- **Gỡ lẻ một package cũng clear define trước khi xóa file** (trước đây chỉ nút "Gỡ toàn bộ" làm việc này), kèm dọn define do chính SDK third-party ghi: `gameanalytics_*` (GameAnalytics), `APPMETRICA_FEATURES_*` (AppMetrica).
 - **Gỡ toàn bộ dependencies không còn xóa `Assets/Plugins/Android`.** Danh sách residual từng liệt kê nguyên thư mục này, tức là xóa cả `mainTemplate.gradle`, `settingsTemplate.gradle`, `gradleTemplate.properties` và mọi `.aar` của plugin khác trong project. Nay chỉ xóa đúng file thuộc SDK; thêm chốt chặn `s_neverDeleteExactPaths` cấm xóa các thư mục dùng chung (`Assets/Plugins`, `Assets/Resources`, `Assets/Editor`, …) kể cả khi có entry sai trong danh sách. Cũng bỏ `Assets/SDK` khỏi danh sách vì tên quá chung.
 - **"Cài tất cả" không còn chết giữa chừng khi Unity reload domain.** Scope được lưu vào `SessionState`, sau mỗi lần compile/reload phần còn thiếu tự chạy tiếp (tối đa 3 lượt), có nút hủy và log rõ khi dừng.
 - **Tự xóa `Assets/FacebookSDK/Examples` giờ mới thực sự chạy.** Trước đây cleanup gọi ngay sau `AssetDatabase.ImportPackage` (bất đồng bộ) nên thư mục chưa tồn tại; nay chạy trong `importPackageCompleted`, và chạy bù sau domain reload nếu callback bị cắt ngang.
@@ -18,6 +20,7 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Changed
 
+- Mục **Công cụ & xử lý sự cố** có thêm "Define symbols của SDK đã gỡ": liệt kê define còn sót của SDK không còn trong project (vd sau khi xóa folder bằng tay) và nút dọn.
 - Gỡ lẻ từng package dọn đủ hơn: Firebase kèm `Editor Default Resources/Firebase`, `GeneratedLocalRepo/Firebase`, `Plugins/iOS|tvOS/Firebase`; AdMob kèm `GoogleMobileAdsPlugin.androidlib`, `googlemobileads-unity.aar`, `GADUAdNetworkExtras.h`; GameAnalytics kèm `Resources/GameAnalytics`. EDM4U (dùng chung) vẫn chỉ dọn khi gỡ toàn bộ.
 - Mô tả package khớp với cờ `Required` (chỉ Facebook là bắt buộc; Firebase là "khuyến nghị mạnh", AdMob "cần khi Primary Mediation = AdMob").
 - Cửa sổ **Setup Dependencies** vẽ lại: toolbar chuyển tab + tiến độ, cột trái là 2 bước có đánh số (chọn mediation → cài), cột phải là danh sách package với vạch trạng thái và bộ lọc "chỉ hiện mục chưa cài", footer cố định dẫn sang cửa sổ cấu hình. Tự chuyển 1 cột khi cửa sổ hẹp.

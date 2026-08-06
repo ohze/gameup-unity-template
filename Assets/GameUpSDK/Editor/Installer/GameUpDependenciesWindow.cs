@@ -661,6 +661,10 @@ namespace GameUp.SDK.Installer
         private const string GameAnalyticsDepsDefine = GUDefinetion.GameAnalyticsDepsInstalled;
         private const string FacebookDepsDefine = GUDefinetion.FacebookDepsInstalled;
         private const string AppmetricaDepsDefine = GUDefinetion.AppMetricaDepsInstalled;
+
+        // Define do editor script của chính SDK third-party ghi vào Player Settings.
+        private const string GameAnalyticsThirdPartyDefinePrefix = "gameanalytics_";
+        private const string AppmetricaThirdPartyDefinePrefix = "APPMETRICA_FEATURES_";
         private const string AdMobReleaseApiUrl = "https://api.github.com/repos/googleads/googleads-mobile-unity/releases/latest";
         private const string AdMobUnityPackagePrefix = "GoogleMobileAds-v";
         private const string AdMobUnityPackageSuffix = ".unitypackage";
@@ -1095,30 +1099,64 @@ namespace GameUp.SDK.Installer
 
         private static void SetDefine(string define, bool enabled)
         {
+            if (string.IsNullOrEmpty(define))
+                return;
+
             foreach (var group in s_buildTargetGroups)
             {
                 try
                 {
                     string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
-                    var list = new List<string>(
-                        current.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
+                    var list = current
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim())
+                        .Where(s => s.Length > 0)
+                        .ToList();
 
-                    bool changed = false;
-
-                    if (enabled && !list.Contains(define))
+                    bool changed;
+                    if (enabled)
                     {
-                        list.Add(define);
-                        changed = true;
+                        changed = !list.Contains(define);
+                        if (changed)
+                            list.Add(define);
                     }
-                    else if (!enabled && list.Remove(define))
+                    else
                     {
-                        changed = true;
+                        // RemoveAll (không phải Remove): symbols có thể chứa define trùng lặp do nhiều tool cùng ghi.
+                        changed = list.RemoveAll(s => s.Equals(define, StringComparison.Ordinal)) > 0;
                     }
 
                     if (changed)
                     {
                         PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", list));
                     }
+                }
+                catch { }
+            }
+        }
+
+        /// <summary>
+        /// Xóa mọi define khớp <paramref name="shouldRemove"/> khỏi các build target group SDK quan tâm.
+        /// Dùng cho define do SDK third-party tự set (installer không biết trước tên đầy đủ).
+        /// </summary>
+        private static void RemoveDefinesWhere(Func<string, bool> shouldRemove)
+        {
+            if (shouldRemove == null)
+                return;
+
+            foreach (var group in s_buildTargetGroups)
+            {
+                try
+                {
+                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                    var list = current
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim())
+                        .Where(s => s.Length > 0)
+                        .ToList();
+
+                    if (list.RemoveAll(s => shouldRemove(s)) > 0)
+                        PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", list));
                 }
                 catch { }
             }
@@ -1268,6 +1306,10 @@ namespace GameUp.SDK.Installer
                 EditorGUILayout.Space(6);
                 DrawSeparatorLine(SeparatorColor, 1f);
                 EditorGUILayout.Space(6);
+                DrawStaleDefineCleanupSection();
+                EditorGUILayout.Space(6);
+                DrawSeparatorLine(SeparatorColor, 1f);
+                EditorGUILayout.Space(6);
                 DrawFacebookExamplesCleanupSection();
             }
 
@@ -1285,6 +1327,101 @@ namespace GameUp.SDK.Installer
 
             if (GUILayout.Button("Xóa Package Cache + ScriptAssemblies", GUILayout.Height(24)))
                 RepairUnityPackageCacheWithConfirmation();
+        }
+
+        /// <summary>Cache của <see cref="GetStaleSdkDefines"/> — tính trong RefreshStatus, không tính lại mỗi lần vẽ.</summary>
+        private List<string> _staleSdkDefines = new List<string>();
+
+        private void DrawStaleDefineCleanupSection()
+        {
+            GUILayout.Label("Define symbols của SDK đã gỡ", EditorStyles.boldLabel);
+
+            var staleDefines = _staleSdkDefines ?? new List<string>();
+            GUILayout.Label(
+                staleDefines.Count == 0
+                    ? "Scripting Define Symbols đang khớp với các SDK có trong project."
+                    : $"Còn sót {staleDefines.Count} define của SDK không còn trong project: {string.Join(", ", staleDefines)}",
+                _descStyle);
+
+            EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy() || staleDefines.Count == 0);
+            if (GUILayout.Button("Dọn define symbols còn sót", GUILayout.Height(24)))
+                CleanStaleSdkDefines();
+            EditorGUI.EndDisabledGroup();
+        }
+
+        /// <summary>
+        /// Define của SDK không còn trong project — gặp khi gỡ pack bằng tay (xóa folder trực tiếp)
+        /// hoặc khi một lượt gỡ trước đó dừng giữa chừng.
+        /// </summary>
+        private static List<string> GetStaleSdkDefines()
+        {
+            var stale = new List<string>();
+            var symbols = GetDefinedSymbols();
+
+            foreach (var pkg in s_packages)
+            {
+                if (pkg.IsAdMobMediationAdapter || IsDependencyInstalledByAssembly(pkg.AssemblyName))
+                    continue;
+
+                string depsDefine = GetDepsDefineForPackage(pkg);
+                if (!string.IsNullOrEmpty(depsDefine) && symbols.Contains(depsDefine) && !stale.Contains(depsDefine))
+                    stale.Add(depsDefine);
+
+                string thirdPartyPrefix = GetThirdPartyDefinePrefixForPackage(pkg);
+                if (string.IsNullOrEmpty(thirdPartyPrefix))
+                    continue;
+
+                foreach (string symbol in symbols)
+                {
+                    if (symbol.StartsWith(thirdPartyPrefix, StringComparison.OrdinalIgnoreCase) && !stale.Contains(symbol))
+                        stale.Add(symbol);
+                }
+            }
+
+            return stale;
+        }
+
+        private static List<string> GetDefinedSymbols()
+        {
+            var symbols = new List<string>();
+            foreach (var group in s_buildTargetGroups)
+            {
+                try
+                {
+                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                    foreach (string symbol in current.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string trimmed = symbol.Trim();
+                        if (trimmed.Length > 0 && !symbols.Contains(trimmed))
+                            symbols.Add(trimmed);
+                    }
+                }
+                catch { }
+            }
+
+            return symbols;
+        }
+
+        private void CleanStaleSdkDefines()
+        {
+            var staleDefines = GetStaleSdkDefines();
+            if (staleDefines.Count == 0)
+                return;
+
+            if (!EditorUtility.DisplayDialog(
+                    "GameUp SDK — Dọn define symbols",
+                    $"Sẽ xóa {staleDefines.Count} define của SDK không còn trong project:\n• " +
+                    string.Join("\n• ", staleDefines),
+                    "Dọn define",
+                    "Hủy"))
+                return;
+
+            foreach (string define in staleDefines)
+                SetDefine(define, false);
+
+            PersistPlayerSettings();
+            RefreshStatus(syncDefines: true);
+            Debug.Log($"[GameUpSDK] Đã dọn define symbols còn sót: {string.Join(", ", staleDefines)}");
         }
 
         private const string FacebookExamplesAssetPath = "Assets/FacebookSDK/Examples";
@@ -2847,33 +2984,7 @@ namespace GameUp.SDK.Installer
         /// </summary>
         internal static void SetDepsReadyDefine(bool enabled)
         {
-            foreach (var group in s_buildTargetGroups)
-            {
-                try
-                {
-                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
-                    var list = new List<string>(
-                        current.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
-
-                    bool changed = false;
-                    if (enabled && !list.Contains(GUDefinetion.DepsReadyDefine))
-                    {
-                        list.Add(GUDefinetion.DepsReadyDefine);
-                        changed = true;
-                    }
-                    else if (!enabled && list.Remove(GUDefinetion.DepsReadyDefine))
-                    {
-                        changed = true;
-                    }
-
-                    if (changed)
-                        PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", list));
-                }
-                catch
-                {
-                    /* group không tồn tại trong project này, bỏ qua */
-                }
-            }
+            SetDefine(GUDefinetion.DepsReadyDefine, enabled);
         }
 
         internal static bool IsDepsReadyDefined() => HasDefine(GUDefinetion.DepsReadyDefine);
@@ -2882,6 +2993,10 @@ namespace GameUp.SDK.Installer
 
         private void RefreshStatus(bool syncDefines = true)
         {
+            // Trong lúc gỡ dependency, define đang được clear có chủ đích — không sync lại giữa luồng.
+            if (syncDefines && IsDependencyRemovalInProgress)
+                syncDefines = false;
+
             if (syncDefines)
                 EnsurePrimaryMediationDefines();
 
@@ -2901,6 +3016,7 @@ namespace GameUp.SDK.Installer
 
             if (!syncDefines)
             {
+                _staleSdkDefines = GetStaleSdkDefines();
                 Repaint();
                 return;
             }
@@ -2968,6 +3084,7 @@ namespace GameUp.SDK.Installer
             else if (!sdkEnabled && IsDepsReadyDefined())
                 SetDepsReadyDefine(false);
 
+            _staleSdkDefines = GetStaleSdkDefines();
             Repaint();
         }
 
@@ -2988,6 +3105,83 @@ namespace GameUp.SDK.Installer
             {
                 if (string.Equals(asm.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase))
                     return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Trạng thái cài của dependency theo asset trên disk (không chỉ theo AppDomain).
+        /// Auto-sync define dùng hàm này: sau khi gỡ, assembly cũ còn trong AppDomain tới lần domain reload,
+        /// nên chỉ dựa vào <see cref="IsAssemblyLoaded"/> sẽ hiểu sai là "vẫn còn cài".
+        /// </summary>
+        internal static bool IsDependencyInstalledByAssembly(string assemblyName)
+        {
+            var pkg = FindPackageByAssembly(assemblyName);
+            if (pkg == null)
+                return IsAssemblyLoaded(assemblyName);
+
+            // Asmdef/DLL còn trên disk = SDK vẫn còn, kể cả khi dev import vào path khác mặc định.
+            return IsPackageInstalled(pkg) ||
+                   AssemblyDefinitionAssetExists(assemblyName) ||
+                   IsAssemblyLoadedFromExistingProjectFile(assemblyName);
+        }
+
+        /// <summary>
+        /// Assembly precompiled (DLL nằm trong <c>Assets</c>/<c>Packages</c>, vd Firebase) và file DLL vẫn còn trên disk.
+        /// Kiểm tra file để không nhận nhầm assembly stale: sau khi xóa DLL, AppDomain vẫn giữ nó tới lần domain reload.
+        /// </summary>
+        private static bool IsAssemblyLoadedFromExistingProjectFile(string assemblyName)
+        {
+            if (string.IsNullOrEmpty(assemblyName))
+                return false;
+
+            string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..")).Replace('\\', '/');
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (!string.Equals(asm.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string location;
+                try
+                {
+                    location = asm.Location;
+                }
+                catch
+                {
+                    continue; // Assembly động không có Location.
+                }
+
+                if (string.IsNullOrEmpty(location))
+                    continue;
+
+                location = Path.GetFullPath(location).Replace('\\', '/');
+                bool insideProjectSources =
+                    location.StartsWith(projectRoot + "/Assets/", StringComparison.OrdinalIgnoreCase) ||
+                    location.StartsWith(projectRoot + "/Packages/", StringComparison.OrdinalIgnoreCase);
+
+                if (insideProjectSources && File.Exists(location))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool AssemblyDefinitionAssetExists(string assemblyName)
+        {
+            if (string.IsNullOrEmpty(assemblyName))
+                return false;
+
+            foreach (string guid in AssetDatabase.FindAssets($"{assemblyName} t:AssemblyDefinitionAsset"))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.Equals(
+                        Path.GetFileNameWithoutExtension(path),
+                        assemblyName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
 
             return false;
@@ -3126,7 +3320,7 @@ namespace GameUp.SDK.Installer
             if (!EditorUtility.DisplayDialog(
                     "GameUp SDK — Gỡ package",
                     $"Bạn có chắc muốn gỡ \"{pkg.DisplayName}\"?\n\n" +
-                    $"Sẽ xóa các path:\n• {preview}\n\n" +
+                    $"Sẽ clear define symbols của package trước, rồi xóa các path:\n• {preview}\n\n" +
                     "Lưu ý: thao tác này không tự thêm lại package vào project.",
                     "Gỡ package",
                     "Hủy"))
@@ -3134,12 +3328,26 @@ namespace GameUp.SDK.Installer
 
             ClearPendingBatch();
 
-            if (!TryDeleteAssets(existingPaths, out string error))
+            bool deleted;
+            string error;
+            BeginDependencyRemoval();
+            try
+            {
+                ClearDefinesForPackage(pkg);
+                deleted = TryDeleteAssets(existingPaths, out error);
+            }
+            finally
+            {
+                EndDependencyRemoval();
+            }
+
+            if (!deleted)
             {
                 EditorUtility.DisplayDialog(
                     "GameUp SDK — Gỡ package thất bại",
                     error,
                     "OK");
+                RefreshStatus(syncDefines: true);
                 return;
             }
 
@@ -3218,7 +3426,7 @@ namespace GameUp.SDK.Installer
                     "Bạn có chắc muốn gỡ toàn bộ SDK dependencies trong tab SetupDependencies?\n\n" +
                     $"Sẽ xóa {existingPaths.Count} path:\n• {preview}\n\n" +
                     "GameUp Core và DOTween không bị gỡ.\n" +
-                    "Sẽ clear define symbols SDK trước khi gỡ pack.",
+                    "Sẽ clear define symbols SDK (kể cả define do SDK third-party tự set) trước khi xóa file.",
                     "Gỡ SDK dependencies",
                     "Hủy"))
                 return;
@@ -3226,10 +3434,19 @@ namespace GameUp.SDK.Installer
             // Hủy batch đang chờ (nếu có) — nếu không, luồng resume sau reload sẽ cài lại thứ vừa gỡ.
             ClearPendingBatch();
 
-            // Clear define trước để tránh conditionals/compile lệch trạng thái trong lúc gỡ.
-            ClearDependencyDefinesAfterBulkRemove();
-
-            TryDeleteAssets(existingPaths, out string error, out List<string> failedPaths);
+            string error;
+            List<string> failedPaths;
+            BeginDependencyRemoval();
+            try
+            {
+                // Clear define trước để tránh conditionals/compile lệch trạng thái trong lúc gỡ.
+                ClearAllDependencyDefines();
+                TryDeleteAssets(existingPaths, out error, out failedPaths);
+            }
+            finally
+            {
+                EndDependencyRemoval();
+            }
 
             AssetDatabase.Refresh();
             RefreshStatus(syncDefines: true);
@@ -3253,7 +3470,7 @@ namespace GameUp.SDK.Installer
                 "[GameUpSDK] Gỡ SDK dependencies một phần. Còn sót: " + string.Join(", ", failedPaths));
         }
 
-        private static void ClearDependencyDefinesAfterBulkRemove()
+        private static void ClearAllDependencyDefines()
         {
             SetDefine(LevelPlayDepsDefine, false);
             SetDefine(AdMobDepsDefine, false);
@@ -3265,10 +3482,126 @@ namespace GameUp.SDK.Installer
             SetDefine(FacebookDepsDefine, false);
             SetDepsReadyDefine(false);
 
+            // Define do chính SDK third-party set (installer không set) — không dọn thì còn lại vĩnh viễn.
+            RemoveDefinesWhere(IsThirdPartyDependencyDefine);
+
             // Reset mediation về mặc định an toàn sau khi gỡ toàn bộ dependencies.
             SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
             SetDefine(GUDefinetion.PrimaryMediationMax, false);
             SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
+
+            PersistPlayerSettings();
+        }
+
+        /// <summary>Clear define của riêng một package, gọi trước khi xóa asset của package đó.</summary>
+        private static void ClearDefinesForPackage(PackageDef pkg)
+        {
+            string depsDefine = GetDepsDefineForPackage(pkg);
+            if (!string.IsNullOrEmpty(depsDefine))
+                SetDefine(depsDefine, false);
+
+            string thirdPartyPrefix = GetThirdPartyDefinePrefixForPackage(pkg);
+            if (!string.IsNullOrEmpty(thirdPartyPrefix))
+            {
+                RemoveDefinesWhere(symbol =>
+                    symbol.StartsWith(thirdPartyPrefix, StringComparison.OrdinalIgnoreCase));
+            }
+
+            PersistPlayerSettings();
+        }
+
+        /// <summary>Define <c>*_DEPENDENCIES_INSTALLED</c> mà installer quản lý cho package này.</summary>
+        private static string GetDepsDefineForPackage(PackageDef pkg)
+        {
+            if (pkg == null || pkg.IsAdMobMediationAdapter || string.IsNullOrEmpty(pkg.AssemblyName))
+                return null;
+
+            switch (pkg.AssemblyName)
+            {
+                case "Facebook.Unity.Editor": return FacebookDepsDefine;
+                case "Firebase.App": return FirebaseDepsDefine;
+                case "GoogleMobileAds": return AdMobDepsDefine;
+                case "Unity.LevelPlay": return LevelPlayDepsDefine;
+                case "MaxSdk.Scripts": return MaxSdkDepsDefine;
+                case "AppsFlyer": return AppsFlyerDepsDefine;
+                case "GameAnalyticsSDK": return GameAnalyticsDepsDefine;
+                case "AppMetrica": return AppmetricaDepsDefine;
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// Tiền tố define do SDK third-party tự ghi vào Player Settings (editor script của chúng),
+        /// vd GameAnalytics ghi <c>gameanalytics_admob_enabled</c>. Xóa folder không dọn các define này.
+        /// </summary>
+        private static string GetThirdPartyDefinePrefixForPackage(PackageDef pkg)
+        {
+            if (pkg == null || string.IsNullOrEmpty(pkg.AssemblyName))
+                return null;
+
+            switch (pkg.AssemblyName)
+            {
+                case "GameAnalyticsSDK": return GameAnalyticsThirdPartyDefinePrefix;
+                case "AppMetrica": return AppmetricaThirdPartyDefinePrefix;
+                default: return null;
+            }
+        }
+
+        private static bool IsThirdPartyDependencyDefine(string symbol)
+        {
+            if (string.IsNullOrEmpty(symbol))
+                return false;
+
+            return symbol.StartsWith(GameAnalyticsThirdPartyDefinePrefix, StringComparison.OrdinalIgnoreCase) ||
+                   symbol.StartsWith(AppmetricaThirdPartyDefinePrefix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Ghi ProjectSettings.asset ngay: nếu Unity domain reload / crash trước khi save,
+        /// define vừa clear sẽ quay lại và SDK compile với SDK third-party đã bị xóa.
+        /// </summary>
+        private static void PersistPlayerSettings()
+        {
+            try
+            {
+                AssetDatabase.SaveAssets();
+            }
+            catch
+            {
+                /* Không chặn luồng gỡ nếu Unity từ chối save ở thời điểm này. */
+            }
+        }
+
+        // ─── Removal guard ────────────────────────────────────────────────────────
+
+        private const string SessionKeyRemovalInProgress = "GameUp.Installer.RemovalInProgress";
+
+        /// <summary>
+        /// True trong lúc installer đang gỡ dependency. Auto-sync define phải đứng ngoài giai đoạn này:
+        /// assembly của SDK vẫn còn trong AppDomain tới khi domain reload, nên sync giữa luồng sẽ
+        /// set lại đúng những define vừa clear (và code trong <c>#if</c> sẽ compile lỗi vì file đã bị xóa).
+        /// </summary>
+        internal static bool IsDependencyRemovalInProgress =>
+            SessionState.GetBool(SessionKeyRemovalInProgress, false);
+
+        private static void BeginDependencyRemoval()
+        {
+            SessionState.SetBool(SessionKeyRemovalInProgress, true);
+        }
+
+        private static void EndDependencyRemoval()
+        {
+            SessionState.SetBool(SessionKeyRemovalInProgress, false);
+        }
+
+        /// <summary>
+        /// Nếu domain reload cắt ngang luồng gỡ (khối finally không kịp chạy), SessionState sẽ giữ guard
+        /// bật tới hết session và auto-sync define ngừng hoạt động. Reload xong thì luôn mở lại.
+        /// </summary>
+        [InitializeOnLoadMethod]
+        private static void ReleaseDependencyRemovalGuardOnLoad()
+        {
+            EndDependencyRemoval();
         }
 
         /// <summary>
@@ -3481,13 +3814,6 @@ namespace GameUp.SDK.Installer
 
             error = "AssetDatabase.DeleteAsset trả về false: " + assetPath;
             return false;
-        }
-
-        /// <summary>UPM có .asmdef GameAnalyticsSDK; .unitypackage chuẩn GA nằm trong Assembly-CSharp.</summary>
-        internal static bool IsGameAnalyticsSdkPresent()
-        {
-            var pkg = FindPackageByAssembly("GameAnalyticsSDK");
-            return pkg != null && IsPackageInstalled(pkg);
         }
 
         private static bool IsTypeInAnyLoadedAssembly(string fullTypeName)

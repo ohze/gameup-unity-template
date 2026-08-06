@@ -132,17 +132,23 @@ namespace GameUp.SDK.Installer
 
         private static void SyncDefines()
         {
+            // Installer đang gỡ pack: define đã được clear có chủ đích, sync lúc này sẽ set lại chúng.
+            if (GameUpDependenciesWindow.IsDependencyRemovalInProgress)
+                return;
+
             TryEnsureGameAnalyticsRuntimeAsmdef(out _, out _);
             EnsurePrimaryMediationDefines();
 
-            bool levelPlayInstalled = IsAssemblyLoaded("Unity.LevelPlay");
-            bool admobInstalled = IsAssemblyLoaded("GoogleMobileAds");
-            bool maxInstalled = IsAssemblyLoaded("MaxSdk.Scripts");
-            bool firebaseInstalled = IsAssemblyLoaded("Firebase.App");
-            bool appsFlyerInstalled = IsAssemblyLoaded("AppsFlyer");
-            bool gameAnalyticsInstalled = GameUpDependenciesWindow.IsGameAnalyticsSdkPresent();
-            bool facebookInstalled = IsAssemblyLoaded("Facebook.Unity.Editor");
-            bool appMetricaInstalled = IsAssemblyLoaded("AppMetrica");
+            // Dựa vào asset trên disk, không dựa vào AppDomain: assembly của SDK vừa gỡ vẫn còn load
+            // cho tới lần domain reload kế tiếp, nên IsAssemblyLoaded sẽ bật lại define vừa clear.
+            bool levelPlayInstalled = IsDependencyInstalled("Unity.LevelPlay");
+            bool admobInstalled = IsDependencyInstalled("GoogleMobileAds");
+            bool maxInstalled = IsDependencyInstalled("MaxSdk.Scripts");
+            bool firebaseInstalled = IsDependencyInstalled("Firebase.App");
+            bool appsFlyerInstalled = IsDependencyInstalled("AppsFlyer");
+            bool gameAnalyticsInstalled = IsDependencyInstalled("GameAnalyticsSDK");
+            bool facebookInstalled = IsDependencyInstalled("Facebook.Unity.Editor");
+            bool appMetricaInstalled = IsDependencyInstalled("AppMetrica");
 
             SetDefine(LevelPlayDepsDefine, levelPlayInstalled);
             SetDefine(AdMobDepsDefine, admobInstalled);
@@ -230,21 +236,25 @@ namespace GameUp.SDK.Installer
             }
         }
 
-        private static bool IsAssemblyLoaded(string assemblyName)
+        private static bool IsDependencyInstalled(string assemblyName)
         {
-            if (string.IsNullOrEmpty(assemblyName)) return false;
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if (string.Equals(asm.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-            return false;
+            return GameUpDependenciesWindow.IsDependencyInstalledByAssembly(assemblyName);
         }
 
         private static bool HasDefine(string define)
         {
+            if (string.IsNullOrEmpty(define))
+                return false;
+
             string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Android);
-            return !string.IsNullOrEmpty(symbols) && symbols.Contains(define);
+            // So khớp từng symbol thay vì Contains: tránh khớp nhầm khi define là chuỗi con của define khác.
+            foreach (string symbol in symbols.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (symbol.Trim().Equals(define, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
         private static void SetDefine(string define, bool enabled)
@@ -257,15 +267,16 @@ namespace GameUp.SDK.Installer
                     var list = new List<string>(
                         current.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
 
-                    bool changed = false;
-                    if (enabled && !list.Contains(define))
+                    bool changed;
+                    if (enabled)
                     {
-                        list.Add(define);
-                        changed = true;
+                        changed = !list.Contains(define);
+                        if (changed)
+                            list.Add(define);
                     }
-                    else if (!enabled && list.Remove(define))
+                    else
                     {
-                        changed = true;
+                        changed = list.RemoveAll(s => s.Trim().Equals(define, StringComparison.Ordinal)) > 0;
                     }
 
                     if (!changed)
