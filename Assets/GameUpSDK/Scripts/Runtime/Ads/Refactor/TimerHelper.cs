@@ -14,7 +14,9 @@ namespace GameUp.SDK
 
         private IEnumerator IESchedule(float time, Action callback)
         {
-            yield return new WaitForSeconds(time);
+            // Realtime, KHÔNG theo Time.timeScale: retry load ads phải chạy cả khi game đang
+            // pause (timeScale = 0), nếu không thì ad sẽ không bao giờ được nạp lại.
+            yield return new WaitForSecondsRealtime(time);
             callback?.Invoke();
         }
     }

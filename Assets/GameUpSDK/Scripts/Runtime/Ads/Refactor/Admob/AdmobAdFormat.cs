@@ -62,15 +62,27 @@ namespace GameUp.SDK
                     NotifyAdDisplayed(where);
                     _ads.Remove(unitId);
 
+                    // Ad đã bị gỡ khỏi _ads nên Destroy() ở RequestAdInternal không còn với tới nó
+                    // → phải tự giải phóng, nếu không mỗi impression rò một native object.
+                    bool released = false;
+                    void Release()
+                    {
+                        if (released) return;
+                        released = true;
+                        ad.Destroy();
+                    }
+
                     ad.OnAdFullScreenContentClosed += () => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdClosed(where);
+                        Release();
                         onSuccess?.Invoke();
                         LoadByFloor(where, currentFloor);
                     });
                     ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdDisplayFailed(where, err.GetMessage());
+                        Release();
                         onFail?.Invoke();
                         LoadByFloor(where, currentFloor);
                     });
@@ -141,15 +153,26 @@ namespace GameUp.SDK
                     _ads.Remove(unitId);
                     bool earned = false;
 
+                    // Xem ghi chú ở AdmobInterstitialAd.Show: ad đã rời _ads nên phải tự Destroy().
+                    bool released = false;
+                    void Release()
+                    {
+                        if (released) return;
+                        released = true;
+                        ad.Destroy();
+                    }
+
                     ad.OnAdFullScreenContentClosed += () => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdClosed(where);
+                        Release();
                         if (!earned) onFail?.Invoke();
                         LoadByFloor(where, currentFloor);
                     });
                     ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdDisplayFailed(where, err.GetMessage());
+                        Release();
                         onFail?.Invoke();
                         LoadByFloor(where, currentFloor);
                     });
@@ -229,15 +252,26 @@ namespace GameUp.SDK
                     _ads.Remove(unitId);
                     _expireTimes.Remove(unitId);
 
+                    // Xem ghi chú ở AdmobInterstitialAd.Show: ad đã rời _ads nên phải tự Destroy().
+                    bool released = false;
+                    void Release()
+                    {
+                        if (released) return;
+                        released = true;
+                        ad.Destroy();
+                    }
+
                     ad.OnAdFullScreenContentClosed += () => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdClosed(where);
+                        Release();
                         onSuccess?.Invoke();
                         LoadByFloor(where, currentFloor);
                     });
                     ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdDisplayFailed(where, err.GetMessage());
+                        Release();
                         onFail?.Invoke();
                         LoadByFloor(where, currentFloor);
                     });

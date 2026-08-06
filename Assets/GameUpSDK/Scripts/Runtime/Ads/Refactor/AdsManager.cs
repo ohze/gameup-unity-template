@@ -69,6 +69,7 @@ namespace GameUp.SDK
             base.Awake();
             DontDestroyOnLoad(gameObject);
             ApplyConfig();
+            SanitizeMediationPriority();
             _tracker = gameObject.AddComponent<AdsTracker>();
             IAdNetwork[] foundNetworks = GetComponentsInChildren<IAdNetwork>(true);
             foreach (var provider in mediationPriority)
@@ -76,9 +77,37 @@ namespace GameUp.SDK
                 var network = foundNetworks.FirstOrDefault(s => s.MediationProvider == provider);
                 if (network != null)
                 {
-                    _networkDict.Add(provider, network);
+                    _networkDict.TryAdd(provider, network);
                 }
             }
+        }
+
+        /// <summary>
+        /// Bỏ entry None và entry trùng. mediationPriority do người dùng sửa tay trong Inspector,
+        /// mà một dòng trùng đủ để _networkDict ném ArgumentException ngay Awake — chết cả SDK.
+        /// </summary>
+        private void SanitizeMediationPriority()
+        {
+            if (mediationPriority == null)
+            {
+                mediationPriority = new List<MediationProvider>();
+                return;
+            }
+
+            var seen = new HashSet<MediationProvider>();
+            var cleaned = new List<MediationProvider>(mediationPriority.Count);
+            foreach (var provider in mediationPriority)
+            {
+                if (provider == MediationProvider.None) continue;
+                if (seen.Add(provider)) cleaned.Add(provider);
+            }
+
+            if (cleaned.Count != mediationPriority.Count)
+            {
+                GULogger.Warning("GameUp",
+                    $"mediationPriority có entry None/trùng — đã dọn còn: {string.Join(", ", cleaned)}");
+            }
+            mediationPriority = cleaned;
         }
 
 #if UNITY_EDITOR

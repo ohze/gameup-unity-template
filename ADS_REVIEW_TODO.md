@@ -3,8 +3,9 @@
 > Kết quả review `Assets/GameUpSDK/` ngày **2026-08-06**, tập trung vào AdMob + Unity.
 > File tạm để theo dõi tiến độ xử lý. Tick `[x]` khi xong, ghi chú commit vào cột cuối.
 
-**Tiến độ:** 5/25 · P0: 5/8 · P1: 0/11 · P2: 0/6
-**Đã sửa (chưa test device):** #1, #2, #4, #5, #6 — kèm theo #14 được giải quyết gián tiếp bởi #1.
+**Tiến độ:** 9/25 · P0: **8/8 xong** · P1: 1/11 · P2: 0/6
+**Đã sửa (chưa compile Unity, chưa test device):** toàn bộ P0 #1–#8, kèm #14 được giải quyết gián tiếp bởi #1.
+**Tiếp theo:** Đợt 2 — P1 #9, #10, #17 (rủi ro tuân thủ / store).
 
 ---
 
@@ -91,7 +92,9 @@ network.InterstitialAd.OnAdLoadFailed += (where, error) => LogAdsEvent(AdsEvent.
 
 ---
 
-## [ ] 3. Ad fullscreen không bao giờ `Destroy()` — rò native object mỗi impression
+## [x] 3. Ad fullscreen không bao giờ `Destroy()` — rò native object mỗi impression
+
+> **ĐÃ SỬA.** Cả 3 format (Interstitial / Rewarded / AppOpen) thêm local function `Release()` có cờ `released` chống double-destroy, gọi trong cả `OnAdFullScreenContentClosed` lẫn `OnAdFullScreenContentFailed`. Destroy chạy trong `MainThreadDispatcher` nên không nằm trong stack của native callback.
 
 **Vị trí:** `AdmobAdFormat.cs:63` (Interstitial), `:141` (Rewarded), `:229` (AppOpen)
 
@@ -147,7 +150,9 @@ Game gọi `ShowInterstitial(..., onFail: ContinueLevel)` sẽ treo vĩnh viễn
 
 ---
 
-## [ ] 7. Retry đóng băng khi `Time.timeScale = 0`
+## [x] 7. Retry đóng băng khi `Time.timeScale = 0`
+
+> **ĐÃ SỬA.** `TimerHelper.IESchedule` dùng `WaitForSecondsRealtime`.
 
 **Vị trí:** `Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/TimerHelper.cs:17`
 
@@ -161,7 +166,9 @@ Hầu hết game set `timeScale = 0` khi pause hoặc khi ads đang hiển thị
 
 ---
 
-## [ ] 8. `mediationPriority` trùng lặp → ArgumentException lúc Awake, chết cả SDK
+## [x] 8. `mediationPriority` trùng lặp → ArgumentException lúc Awake, chết cả SDK
+
+> **ĐÃ SỬA.** Thêm `SanitizeMediationPriority()` chạy ngay sau `ApplyConfig()`: loại entry `None` và entry trùng, log warning khi có dọn. `_networkDict.Add` đổi sang `TryAdd` làm lớp chặn thứ hai. Lợi ích kèm theo: các vòng lặp khác trên `mediationPriority` (`GetAvailableProvider`, `TemporarilyHideBanners`, `RestoreBanners`, `InitializeAll`) không còn xử lý lặp cùng một network.
 
 **Vị trí:** `AdsManager.cs:79`
 
