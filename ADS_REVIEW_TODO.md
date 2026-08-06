@@ -3,9 +3,17 @@
 > Kết quả review `Assets/GameUpSDK/` ngày **2026-08-06**, tập trung vào AdMob + Unity.
 > File tạm để theo dõi tiến độ xử lý. Tick `[x]` khi xong, ghi chú commit vào cột cuối.
 
-**Tiến độ:** 13/25 · P0: **8/8 xong** · P1: 5/11 · P2: 0/6
-**Đã sửa (chưa compile Unity, chưa test device):** toàn bộ P0 #1–#8; P1 #9, #10, #14, #16, #17.
-**Tiếp theo:** Đợt 3 — P1 #12, #13, #18 (match rate / eCPM). Còn lại ở P1: #11, #15, #19.
+**Tiến độ:** 18/25 · P0: **8/8 xong** · P1: **10/11** · P2: 0/6
+**Đã sửa (chưa compile Unity, chưa test device):** toàn bộ P0 #1–#8; P1 #9, #10, #12, #13, #14, #16, #17, #18, #19.
+**Còn lại:** P1 #11 (`RaiseAdEventsOnUnityMainThread`), #15 (RequestConfiguration compliance), toàn bộ P2.
+
+### Lỗi phát hiện thêm trong lúc sửa (không có trong bản review gốc)
+
+- **`_pauseRequests` kẹt vĩnh viễn khi display lỗi** — `NotifyAdDisplayed` gọi trước khi show nên `PauseAllCapping` đã chạy, mà display lỗi thì `OnAdClosed` không bao giờ bắn nên không ai `Resume`. `IsAnyAdShowing` kẹt true → mọi Interstitial/AppOpen bị chặn hết phiên. Sửa cùng #12.
+- **MAX thiếu hẳn `OnAdDisplayFailedEvent`** ở cả 3 format fullscreen → game treo ở màn chờ khi MAX không present được, ad không load lại, handler `onHidden` rò mãi. Sửa cùng #12.
+- **`MaxBannerAd.IsAvailable` luôn trả true** (chỉ kiểm tra có unit id hay không) → MAX che mất AdMob trong `GetAvailableProvider`, banner không bao giờ lên ở project dùng nhiều mạng. Sửa cùng #12.
+- **`AdmobNativeFullscreenAd` báo lỗi load với floor hardcoded `All`** → khi bật waterfall, native ad không bao giờ rơi xuống Medium/All. Sửa cùng #13.
+- **`PrivacyManager` gộp 3 tín hiệu vào một bool** và bỏ qua form GDPR cho user EEA từ chối ATT. Xem #9.
 
 ---
 
@@ -246,7 +254,14 @@ Plugin Google Mobile Ads có cờ này để mọi callback được raise trên
 
 ---
 
-## [ ] 12. `NotifyAdDisplayed` gọi trước `ad.Show()` → impression & capping sai
+## [x] 12. `NotifyAdDisplayed` gọi trước `ad.Show()` → impression & capping sai
+
+> **ĐÃ SỬA — hậu quả nặng hơn mô tả gốc.** Không chỉ sai số liệu: `PauseAllCapping` chạy rồi không ai nhả khi display lỗi, `IsAnyAdShowing` kẹt true và chặn mọi Interstitial/AppOpen còn lại của phiên.
+>
+> - **AdMob:** chuyển sang `OnAdFullScreenContentOpened`.
+> - **MAX:** giữ gọi trước khi show, vì `MaxSdkCallbacks` ghi rõ `OnAdDisplayedEvent` "may not be received by Unity until the ad closes" — dùng nó thì không kịp ẩn banner. Bù lại bằng việc bổ sung `OnAdDisplayFailedEvent` (trước đây không có).
+> - **LevelPlay:** chuyển sang `ad.OnAdDisplayed`.
+> - **AdsManager:** `OnAdDisplayFailed` của cả 4 format nay Resume capping + Restore banner.
 
 **Vị trí:** `AdmobAdFormat.cs:62` (Inter), `:140` (Rewarded), `:228` (AppOpen)
 
@@ -261,7 +276,18 @@ ad.OnAdImpressionRecorded      += () => /* impression thật */;
 
 ---
 
-## [ ] 13. Waterfall 3 tầng load **song song** — hại match rate / eCPM
+## [x] 13. Waterfall 3 tầng load **song song** — hại match rate / eCPM
+
+> **ĐÃ SỬA phần floor. Phần `LoadAll()` cố ý GIỮ NGUYÊN.**
+>
+> `Load()` giờ chỉ request tầng cao nhất **có ID hợp lệ**; `HandleLoadFailed` rơi xuống tầng kế tiếp ngay (bỏ qua tầng trống hoặc trùng ID), hết tầng mới backoff rồi chạy lại waterfall. Backoff đếm theo placement (`_waterfallAttemptsByWhere`) chứ không theo unitId. Sau mỗi impression, reload gọi `Load(where)` để bắt đầu lại từ tầng cao nhất thay vì nạp lại đúng tầng vừa show.
+>
+> Ba chốt chặn hồi quy đã thêm sau khi rà:
+> - Restart sau backoff gọi `Load()` (virtual) chứ không phải `floors[0]` — banner/native banner override `Load` để khoá riêng tầng All, dùng `floors[0]` sẽ kéo chúng lên tầng High không có ID.
+> - `Load()` bỏ qua tầng chưa điền ID; nếu không, `LoadByFloor` return sớm mà không có callback fail nào và waterfall đứng im vĩnh viễn.
+> - `Load()` no-op khi placement đang có tầng bay dở, nếu không gọi `Load` lúc waterfall ở tầng giữa sẽ mở thêm request song song ở tầng cao — đúng thứ vừa bỏ đi.
+>
+> **`LoadAll()` vẫn preload mọi placement.** Chuyển sang lazy sẽ làm lần show đầu ở mỗi placement luôn thất bại rồi mới load — hồi quy UX rõ rệt để đổi lấy chút tiết kiệm request. Số request lúc khởi động đã giảm ~3x nhờ bỏ load song song theo tầng; nếu vẫn muốn giảm nữa thì nên bàn riêng.
 
 **Vị trí:** `BaseAdFormat.cs:38-44`, `AdmobNetwork.cs:78-83`
 
@@ -344,7 +370,9 @@ Chuỗi này đi thẳng vào `Info.plist` và **hiện trong hộp thoại ATT 
 
 ---
 
-## [ ] 18. Logic chặn AppOpen nằm ở code mẫu, không nằm trong SDK
+## [x] 18. Logic chặn AppOpen nằm ở code mẫu, không nằm trong SDK
+
+> **ĐÃ SỬA.** `ShowAppOpenAds` thêm guard `IsAnyAdShowing` (đồng bộ với `ShowInterstitial`) và chặn AOA ở cold start. Cold start mở lại được bằng `GameUpAdsConfig.appOpenOnColdStart` — Google có cho phép AOA lúc cold start, nên đây là lựa chọn của từng game chứ SDK không tự quyết. `AdsManager` tự theo dõi `OnApplicationPause` để biết app đã từng xuống nền hay chưa.
 
 **Vị trí:** `Assets/GameUpSDK/Scripts/Runtime/Ads/Example.cs:43-53` vs `AdsManager.cs:434`
 
@@ -354,7 +382,11 @@ Chuỗi này đi thẳng vào `Info.plist` và **hiện trong hộp thoại ATT 
 
 ---
 
-## [ ] 19. Nhóm sửa nhỏ (gom chung 1 commit)
+## [x] 19. Nhóm sửa nhỏ (gom chung 1 commit)
+
+> **ĐÃ SỬA 5/6.** `DateTime.Now` → `UtcNow`; hạ `GULogger.Error` xuống `Log` ở init AdmobNetwork và ở `IsCappingReady`; cảnh báo khi bật collapsible trên MREC/Leaderboard; `PushAdmobAppIdsToGoogleSettings` gọi `AssetDatabase.SaveAssets()`.
+>
+> **Cố ý KHÔNG giới hạn số lần retry.** Dừng retry sau N lần nghĩa là mạng phục hồi cũng không còn ads cho tới hết phiên — với ads thì thà retry mãi. Delay đã kẹp trần 64s, và sau #13 mỗi lượt retry là một waterfall chứ không phải 3 request song song, nên tải thực tế đã thấp hơn trước.
 
 | Vấn đề | Vị trí |
 |---|---|

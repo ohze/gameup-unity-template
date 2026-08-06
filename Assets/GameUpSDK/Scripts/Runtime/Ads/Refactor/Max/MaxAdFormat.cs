@@ -79,7 +79,7 @@ namespace GameUp.SDK
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); Load(where); });
                     };
                     // Thiếu nhánh này thì khi MAX không present được: onSuccess/onFail không bao giờ
                     // chạy (game treo ở màn chờ), ad không được load lại, và handler onHidden rò mãi.
@@ -88,7 +88,7 @@ namespace GameUp.SDK
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.Message);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
                     };
 
                     MaxSdkCallbacks.Interstitial.OnAdHiddenEvent += onHidden;
@@ -179,14 +179,14 @@ namespace GameUp.SDK
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); Load(where); });
                     };
                     onDisplayFailed = (id, err, info) =>
                     {
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.Message);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
                     };
 
                     MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += onReward;
@@ -259,14 +259,14 @@ namespace GameUp.SDK
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); Load(where); });
                     };
                     onDisplayFailed = (id, err, info) =>
                     {
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.Message);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
                     };
 
                     MaxSdkCallbacks.AppOpen.OnAdHiddenEvent += onHidden;

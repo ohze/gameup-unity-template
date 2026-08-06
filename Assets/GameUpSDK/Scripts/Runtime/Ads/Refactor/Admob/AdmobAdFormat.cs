@@ -79,14 +79,14 @@ namespace GameUp.SDK
                         NotifyAdClosed(where);
                         Release();
                         onSuccess?.Invoke();
-                        LoadByFloor(where, currentFloor);
+                        Load(where);
                     });
                     ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdDisplayFailed(where, err.GetMessage());
                         Release();
                         onFail?.Invoke();
-                        LoadByFloor(where, currentFloor);
+                        Load(where);
                     });
                     ad.Show();
                     return;
@@ -169,14 +169,14 @@ namespace GameUp.SDK
                         NotifyAdClosed(where);
                         Release();
                         if (!earned) onFail?.Invoke();
-                        LoadByFloor(where, currentFloor);
+                        Load(where);
                     });
                     ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdDisplayFailed(where, err.GetMessage());
                         Release();
                         onFail?.Invoke();
-                        LoadByFloor(where, currentFloor);
+                        Load(where);
                     });
                     ad.Show((reward) =>
                     {
@@ -268,14 +268,14 @@ namespace GameUp.SDK
                         NotifyAdClosed(where);
                         Release();
                         onSuccess?.Invoke();
-                        LoadByFloor(where, currentFloor);
+                        Load(where);
                     });
                     ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdDisplayFailed(where, err.GetMessage());
                         Release();
                         onFail?.Invoke();
-                        LoadByFloor(where, currentFloor);
+                        Load(where);
                     });
                     ad.Show();
                     return;
@@ -570,7 +570,9 @@ namespace GameUp.SDK
         {
             // Lấy lại vị trí "where" từ Dictionary đã lưu
             _unitIdToWhere.TryGetValue(unitId, out string where);
-            HandleLoadFailed(unitId, where ?? "default", EcpmFloor.All, error);
+            // Phải trả về ĐÚNG tầng đã request (FloorOf tra theo unitId). Hardcode EcpmFloor.All như
+            // trước sẽ khiến waterfall tưởng đã ở tầng cuối và không bao giờ rơi xuống Medium/All.
+            HandleLoadFailed(unitId, where ?? "default", FloorOf(unitId), error);
         }
 
         private void OnNativeAdDisplayed(string unitId, string where)

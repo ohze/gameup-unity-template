@@ -22,8 +22,11 @@ namespace GameUp.SDK
         protected void NotifyAdClosed(string where) => OnAdClosed?.Invoke(where);
         
         private readonly Dictionary<string, bool> _isLoadingByUnitId = new Dictionary<string, bool>();
-        private readonly Dictionary<string, int> _retryAttemptsByUnitId = new Dictionary<string, int>();
         private readonly Dictionary<string, EcpmFloor> _floorByUnitId = new Dictionary<string, EcpmFloor>();
+
+        /// <summary>Số lượt waterfall thất bại LIÊN TIẾP của mỗi placement. Đếm theo placement chứ không
+        /// theo unitId vì backoff chỉ áp dụng khi đã rơi hết mọi tầng.</summary>
+        private readonly Dictionary<string, int> _waterfallAttemptsByWhere = new Dictionary<string, int>();
 
         protected const int LoadRetryExponentCap = 6;
 
@@ -36,11 +39,34 @@ namespace GameUp.SDK
             _networkName = networkName;
         }
 
+        /// <summary>
+        /// Bắt đầu waterfall: chỉ request tầng CAO NHẤT có ID hợp lệ. No-fill mới rơi xuống tầng dưới
+        /// (xem <see cref="HandleLoadFailed"/>).
+        ///
+        /// Trước đây hàm này bắn cả 3 tầng cùng lúc: 3 request cho 1 impression, 2 ad thừa nằm chờ hết
+        /// hạn. AdMob theo dõi match rate và show rate nên tỉ lệ thấp kéo eCPM và ưu tiên phân phối xuống.
+        /// </summary>
         public virtual void Load(string where = null)
         {
-            foreach (EcpmFloor floor in _config.GetActiveFloors())
+            var floors = _config.GetActiveFloors();
+
+            // Placement này đang có tầng nào bay dở thì để yên. Không có chốt này, gọi Load() lúc
+            // waterfall đang ở tầng giữa (vd Show không sẵn ad nên gọi Load) sẽ mở thêm một request
+            // ở tầng cao chạy song song — đúng thứ vừa bỏ đi.
+            for (int i = 0; i < floors.Length; i++)
             {
-                LoadByFloor(where, floor);
+                string id = _config.ResolveUnitId(_adType, where, floors[i]);
+                if (!string.IsNullOrEmpty(id) && _isLoadingByUnitId.TryGetValue(id, out bool loading) && loading) return;
+            }
+
+            for (int i = 0; i < floors.Length; i++)
+            {
+                // Bỏ qua tầng chưa điền ID: nếu cứ gọi LoadByFloor thì nó return sớm, không có callback
+                // fail nào bắn ra và waterfall đứng im vĩnh viễn.
+                if (string.IsNullOrEmpty(_config.ResolveUnitId(_adType, where, floors[i]))) continue;
+
+                LoadByFloor(where, floors[i]);
+                return;
             }
         }
 
@@ -78,28 +104,50 @@ namespace GameUp.SDK
         protected void HandleLoadFailed(string unitId, string where, EcpmFloor floor, string error)
         {
             _isLoadingByUnitId[unitId] = false;
-
-            int currentRetry = _retryAttemptsByUnitId.TryGetValue(unitId, out int attempts) ? attempts : 0;
-            currentRetry++;
-            _retryAttemptsByUnitId[unitId] = currentRetry;
-
-            float retryDelay = (float)Math.Pow(2, Math.Min(LoadRetryExponentCap, currentRetry));
             OnAdLoadFailed?.Invoke(where, error);
-            
-            LogTrace($"load_failed_retry_{floor}", unitId, where, $"delay={retryDelay}s, error={error}");
+
+            // Bước RƠI TẦNG của waterfall: còn tầng thấp hơn thì thử ngay, không chờ backoff.
+            var floors = _config.GetActiveFloors();
+            int index = Array.IndexOf(floors, floor);
+            if (index >= 0)
+            {
+                for (int i = index + 1; i < floors.Length; i++)
+                {
+                    string nextUnitId = _config.ResolveUnitId(_adType, where, floors[i]);
+                    // Bỏ qua tầng trống hoặc trùng ID với tầng vừa lỗi: cả hai đều làm LoadByFloor
+                    // return sớm (ID rỗng, hoặc dính cờ đang-load) và waterfall đứng im.
+                    if (string.IsNullOrEmpty(nextUnitId) || nextUnitId == unitId) continue;
+
+                    LogTrace($"load_failed_fallthrough_{floor}", unitId, where, $"next={floors[i]}, error={error}");
+                    LoadByFloor(where, floors[i]);
+                    return;
+                }
+            }
+
+            // Đã rơi hết tầng → backoff rồi chạy lại waterfall từ đầu.
+            string key = WaterfallKey(where);
+            int attempts = (_waterfallAttemptsByWhere.TryGetValue(key, out int a) ? a : 0) + 1;
+            _waterfallAttemptsByWhere[key] = attempts;
+
+            float retryDelay = (float)Math.Pow(2, Math.Min(LoadRetryExponentCap, attempts));
+            LogTrace($"load_failed_retry_{floor}", unitId, where, $"delay={retryDelay}s, attempt={attempts}, error={error}");
             MainThreadDispatcher.Enqueue(() =>
             {
-                TimerHelper.Schedule(retryDelay, () => LoadByFloor(where, floor)); 
+                // Gọi Load() (virtual) chứ không phải floors[0]: banner và native banner override Load
+                // để khoá riêng tầng All, restart bằng floors[0] sẽ kéo chúng lên tầng High không có ID.
+                TimerHelper.Schedule(retryDelay, () => Load(where));
             });
         }
 
         protected void HandleLoadSuccess(string unitId, string where)
         {
             _isLoadingByUnitId[unitId] = false;
-            _retryAttemptsByUnitId[unitId] = 0;
+            _waterfallAttemptsByWhere[WaterfallKey(where)] = 0;
             OnAdLoaded?.Invoke(where);
             LogTrace("load_success", unitId, where);
         }
+
+        private static string WaterfallKey(string where) => string.IsNullOrEmpty(where) ? "default" : where;
         
         protected void LogTrace(string phase, string unitId, string where, string extra = null)
         {

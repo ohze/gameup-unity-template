@@ -68,13 +68,13 @@ namespace GameUp.SDK
                     {
                         Unsubscribe();
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); Load(where); });
                     };
                     onFailed = (_, err) =>
                     {
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.ErrorMessage);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
                     };
 
                     ad.OnAdDisplayed += onDisplayed;
@@ -155,14 +155,14 @@ namespace GameUp.SDK
                     {
                         Unsubscribe();
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); Load(where); });
                     };
                     onReward = (_, reward) => { earned = true; };
                     onFailed = (_, err) =>
                     {
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.ErrorMessage);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
                     };
 
                     ad.OnAdDisplayed += onDisplayed;
