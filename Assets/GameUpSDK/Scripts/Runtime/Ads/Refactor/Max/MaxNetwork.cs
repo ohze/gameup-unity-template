@@ -86,7 +86,11 @@ namespace GameUp.SDK
         {
 #if MAXSDK_DEPENDENCIES_INSTALLED
             MaxSdk.SetHasUserConsent(isConsent);
-            MaxSdk.SetDoNotSell(!isConsent);
+
+            // KHÔNG suy SetDoNotSell từ consent GDPR. Đó là tín hiệu CCPA (California) và chỉ được
+            // set khi app có UI opt-out riêng. Trước đây SetDoNotSell(!isConsent) khiến mọi user Mỹ
+            // từ chối ATT bị gắn cờ "do not sell" vô cớ → tụt eCPM mà không có lý do pháp lý nào.
+            // Nếu về sau làm màn hình CCPA, gọi MaxSdk.SetDoNotSell() từ đúng chỗ đó.
 #endif
         }
 

@@ -63,6 +63,13 @@ namespace GameUp.SDK
         [Tooltip("Mở Ad Inspector ngay sau khi init (chỉ dùng khi debug).")]
         public bool showMediationInspector;
 
+        [Header("UMP — chỉ có tác dụng ở development build")]
+        [Tooltip("Ép UMP coi thiết bị đang ở EEA để test consent form. Bị bỏ qua ở bản release.")]
+        public bool umpDebugForceEea;
+
+        [Tooltip("Hashed device ID cho UMP (UMP in ra trong log lần chạy đầu). KHÁC với testDevices ở trên — cái đó dùng cho ad request.")]
+        public List<string> umpTestDeviceHashedIds = new List<string>();
+
         public AdUnitConfigSet units = new AdUnitConfigSet();
     }
 

@@ -3,9 +3,9 @@
 > Kết quả review `Assets/GameUpSDK/` ngày **2026-08-06**, tập trung vào AdMob + Unity.
 > File tạm để theo dõi tiến độ xử lý. Tick `[x]` khi xong, ghi chú commit vào cột cuối.
 
-**Tiến độ:** 9/25 · P0: **8/8 xong** · P1: 1/11 · P2: 0/6
-**Đã sửa (chưa compile Unity, chưa test device):** toàn bộ P0 #1–#8, kèm #14 được giải quyết gián tiếp bởi #1.
-**Tiếp theo:** Đợt 2 — P1 #9, #10, #17 (rủi ro tuân thủ / store).
+**Tiến độ:** 13/25 · P0: **8/8 xong** · P1: 5/11 · P2: 0/6
+**Đã sửa (chưa compile Unity, chưa test device):** toàn bộ P0 #1–#8; P1 #9, #10, #14, #16, #17.
+**Tiếp theo:** Đợt 3 — P1 #12, #13, #18 (match rate / eCPM). Còn lại ở P1: #11, #15, #19.
 
 ---
 
@@ -184,7 +184,19 @@ _networkDict.Add(provider, network);   // ném nếu provider trùng
 
 # P1 — Thiết lập ad request & tuân thủ chính sách
 
-## [ ] 9. Consent bị từ chối nhưng vẫn request ads (rủi ro GDPR)
+## [x] 9. Consent bị từ chối nhưng vẫn request ads (rủi ro GDPR)
+
+> **ĐÃ SỬA — nhưng mô tả ban đầu bên dưới là SAI, đọc phần này trước.**
+>
+> `_consentGranted` cũ gộp **ba** tín hiệu khác bản chất vào một bool: (a) ATT bị từ chối trên iOS, (b) `ConsentInformation.Update` lỗi mạng, (c) `CanRequestAds()` thật. Chỉ (c) là lý do chính đáng để chặn request. Nếu cứ thế thêm cổng chặn theo cờ này thì **user mất mạng vài giây lúc cold start sẽ mất ads cả phiên**, và **60–75% user iOS từ chối ATT cũng mất sạch ads** — hoàn toàn không cần thiết về pháp lý.
+>
+> Cũng phát hiện thêm 2 lỗi ở cùng chỗ:
+> - **Lỗ hổng GDPR trên iOS:** nhánh ATT-denied `yield break` trước khi UMP kịp chạy → user EEA dùng iOS mà từ chối ATT **không bao giờ thấy form consent GDPR**. ATT và GDPR độc lập nhau.
+> - **`MaxSdk.SetDoNotSell(!isConsent)`** suy tín hiệu CCPA từ consent GDPR → user Mỹ từ chối ATT bị gắn cờ "do not sell" vô cớ, tụt eCPM không lý do.
+>
+> **Đã làm:** tách thành 2 tín hiệu độc lập trong `PrivacyResult` — `CanRequestAds` (cổng chặn request) và `TrackingAllowed` (personalized ads / attribution). UMP luôn chạy kể cả khi ATT bị từ chối. `Update` lỗi thì vẫn hỏi `CanRequestAds()` thay vì gán cứng false. Chỉ chặn init khi `CanRequestAds()` thật sự false — và khi đó chặn **tất cả** network, vì chuỗi TCF do UMP ghi ra ràng buộc cả MAX/LevelPlay (chúng đọc cùng bộ khoá `IABTCF_*`), đẩy sang mạng khác không làm request hợp lệ hơn. Bỏ `SetDoNotSell` dẫn xuất. Thêm `AdsManager.RetryInitializeAfterConsent()` để init lại sau khi user cấp thêm consent.
+>
+> `PrivacyManager.ConsentGranted` giữ lại dạng `[Obsolete]` trỏ về `TrackingAllowed` để không phá code game đang dùng.
 
 **Vị trí:** `AdsManager.cs:114-119` + `AdmobNetwork.cs:100`
 
@@ -206,7 +218,9 @@ PrivacyManager.Instance.BeginPrivacyFlow(grantConsent =>
 
 ---
 
-## [ ] 10. Thiếu privacy options entry point (bắt buộc cho EEA)
+## [x] 10. Thiếu privacy options entry point (bắt buộc cho EEA)
+
+> **ĐÃ SỬA.** `PrivacyManager.PrivacyOptionsRequired` (để quyết định hiện/ẩn nút trong Settings) và `ShowPrivacyOptionsForm(Action<string> onError)`. Sau khi form đóng, `_canRequestAds` được cập nhật lại. **Việc còn lại thuộc về game:** gắn nút "Quản lý tuỳ chọn quyền riêng tư" vào màn Settings, hiện khi `PrivacyOptionsRequired == true`, bấm thì gọi `ShowPrivacyOptionsForm()` rồi `AdsManager.Instance.RetryInitializeAfterConsent()`.
 
 **Vị trí:** `Assets/GameUpSDK/Scripts/Runtime/Ads/PrivacyManager.cs`
 
@@ -294,7 +308,9 @@ Thiếu:
 
 ---
 
-## [ ] 16. UMP không có `ConsentDebugSettings` → không test được consent form
+## [x] 16. UMP không có `ConsentDebugSettings` → không test được consent form
+
+> **ĐÃ SỬA.** Thêm `admob.umpDebugForceEea` + `admob.umpTestDeviceHashedIds` vào `GameUpAdsConfig`. Chỉ áp dụng khi `Debug.isDebugBuild` — bật nhầm ở bản release thì bị bỏ qua kèm log cảnh báo. Thêm `PrivacyManager.ResetConsent()` để QA test lại form nhiều lần. Hashed device ID lấy từ log của UMP lần chạy đầu (KHÁC với `testDevices` dùng cho ad request).
 
 **Vị trí:** `PrivacyManager.cs:109` — `new ConsentRequestParameters()` trần, không giả lập được geography EEA.
 
@@ -312,7 +328,9 @@ var request = new ConsentRequestParameters
 
 ---
 
-## [ ] 17. Chuỗi `NSUserTrackingUsageDescription` hỏng encoding — rủi ro bị Apple từ chối
+## [x] 17. Chuỗi `NSUserTrackingUsageDescription` hỏng encoding — rủi ro bị Apple từ chối
+
+> **ĐÃ SỬA.** Gõ lại chuỗi bằng UTF-8 sạch (đã kiểm hex: không còn `ef bf bd`), và quét toàn bộ `Assets/GameUpSDK/` xác nhận không còn ký tự U+FFFD ở file nào khác. Thêm `GameUpSdkConfig.trackingUsageDescription` để mỗi project tự đặt câu riêng; để trống thì dùng câu mặc định của SDK.
 
 **Vị trí:** `Assets/GameUpSDK/Editor/GameUpPostProcess.cs:14`
 

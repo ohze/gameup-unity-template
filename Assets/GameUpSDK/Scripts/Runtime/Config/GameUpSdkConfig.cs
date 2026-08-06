@@ -63,6 +63,12 @@ namespace GameUp.SDK
         public const string AssetName = "GameUpSdkConfig";
         public const string ResourcePath = GameUpAdsConfig.ResourceFolder + "/" + AssetName;
 
+        [Header("iOS — App Tracking Transparency")]
+        [Tooltip("Nội dung NSUserTrackingUsageDescription trong Info.plist — đây là câu user ĐỌC THẤY " +
+                 "trong hộp thoại ATT, và Apple review nó. Để trống = dùng câu mặc định của SDK.")]
+        [TextArea(2, 4)]
+        public string trackingUsageDescription;
+
         [Header("AppsFlyer")] public AppsFlyerSettings appsFlyer = new AppsFlyerSettings();
         [Header("AppMetrica")] public AppMetricaSettings appMetrica = new AppMetricaSettings();
         [Header("Firebase Remote Config — giá trị mặc định")] public RemoteConfigDefaults remoteConfig = new RemoteConfigDefaults();

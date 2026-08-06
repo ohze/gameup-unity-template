@@ -140,12 +140,46 @@ namespace GameUp.SDK
             // Thứ tự bắt buộc: ATT (iOS) → UMP → SetConsent → Initialize networks.
             // MAX (MaxSdk.SetHasUserConsent) và LevelPlay (LevelPlay.SetConsent) yêu cầu consent được set
             // TRƯỚC khi init SDK; init trước rồi mới set consent sẽ mất tín hiệu personalized ads.
-            PrivacyManager.Instance.BeginPrivacyFlow(grantConsent =>
+            PrivacyManager.Instance.BeginPrivacyFlow(OnPrivacyFlowCompleted);
+        }
+
+        private void OnPrivacyFlowCompleted(PrivacyResult privacy)
+        {
+            // TrackingAllowed chỉ ảnh hưởng CHẤT LƯỢNG ad (personalized hay không) — luôn truyền xuống,
+            // kể cả khi bên dưới quyết định không init, để lần init sau đã có sẵn tín hiệu đúng.
+            SetConsent(privacy.TrackingAllowed);
+
+            if (!privacy.CanRequestAds)
             {
-                SetConsent(grantConsent);
-                MainThreadDispatcher.Enqueue(InitializeAll);
-                NativeAdConfigBridge.SetGlobalCtaClickRate(nativeCtaClickRate);
-            });
+                // Đây là trường hợp HIẾM: user từ chối cả mức consent tối thiểu. Chuỗi TCF do UMP ghi ra
+                // ràng buộc cả MAX/LevelPlay nên không mạng nào được miễn — chặn toàn bộ, không init.
+                GULogger.Warning("GameUp",
+                    "UMP: CanRequestAds=false — không init mạng quảng cáo nào. " +
+                    "Cho user đổi lựa chọn qua PrivacyManager.Instance.ShowPrivacyOptionsForm(), " +
+                    "rồi gọi AdsManager.Instance.RetryInitializeAfterConsent().");
+                return;
+            }
+
+            MainThreadDispatcher.Enqueue(InitializeAll);
+            NativeAdConfigBridge.SetGlobalCtaClickRate(nativeCtaClickRate);
+        }
+
+        /// <summary>
+        /// Init lại sau khi user cấp thêm consent ở privacy options form.
+        /// Không làm gì nếu UMP vẫn chưa cho phép request.
+        /// </summary>
+        public void RetryInitializeAfterConsent()
+        {
+            var privacy = PrivacyManager.Instance.Result;
+            if (!privacy.CanRequestAds)
+            {
+                GULogger.Log("GameUp", "RetryInitializeAfterConsent: UMP vẫn trả CanRequestAds=false, bỏ qua.");
+                return;
+            }
+
+            SetConsent(privacy.TrackingAllowed);
+            MainThreadDispatcher.Enqueue(InitializeAll);
+            NativeAdConfigBridge.SetGlobalCtaClickRate(nativeCtaClickRate);
         }
 
         private void OnDestroy()
