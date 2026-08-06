@@ -483,3 +483,33 @@ Sau mỗi đợt, test trên **device thật** (không phải Editor — phần 
 - [ ] Test collapsible banner riêng — đây là đường dễ hỏng nhất
 - [ ] Test luồng UMP với `DebugGeography.EEA` sau khi làm #16
 - [ ] Kiểm tra `Info.plist` sau build iOS: `NSUserTrackingUsageDescription` phải đọc được tiếng Việt
+
+---
+
+# Bổ sung ngoài danh sách review
+
+## [x] Cảnh báo lúc setup: object chưa lấy được `GameUpAdsConfig`
+
+**File:** `Assets/GameUpSDK/Editor/Setup/GameUpConfigValidator.cs` (mới)
+
+Trường hợp hỏng mà Editor hoàn toàn im lặng: component để trống `configOverride` và project chưa có asset chung → lúc chạy chỉ có một dòng log "thiếu GameUpAdsConfig, bỏ qua init" rồi mất sạch quảng cáo.
+
+Validator quét scene đang mở + toàn bộ prefab trong `Assets/` (bỏ qua prefab gốc read-only của package), tìm mọi component thuộc namespace `GameUp.SDK` có field `configOverride`, rồi phân loại:
+
+| Mức | Tình huống |
+|---|---|
+| **Lỗi** | Ô trống và project **không có** asset nào → runtime null |
+| **Lỗi** | Ô trống, asset **có** nhưng nằm ngoài đường dẫn `Resources.Load` đọc được → **Editor chạy ngon, build ra null** |
+| Cảnh báo | Trỏ tới asset riêng khác asset chung (có thể cố ý) |
+| Cảnh báo | Project có nhiều hơn một asset cùng loại |
+
+**Điểm dễ làm sai đã tránh:** `configOverride` là tham chiếu **trực tiếp** nên không cần nằm trong `Resources` — Unity đóng gói asset được tham chiếu trực tiếp vào build. Chỉ asset **chung** (nạp qua `Resources.Load`) mới bắt buộc đúng chỗ. Nếu cảnh báo cả trường hợp có override thì mỗi project cấu hình đúng đều bị la, và dev sẽ học cách phớt lờ cảnh báo.
+
+Cũng **không** cảnh báo khi ô trống mà asset chung hợp lệ — đó là cách dùng mặc định theo thiết kế.
+
+**Chỗ hiện cảnh báo:**
+- Cửa sổ Setup: dải đỏ ở **mọi tab** khi có lỗi + panel chi tiết ở tab Tổng quan, mỗi mục có nút "Chọn object". Tự quét lúc mở cửa sổ và sau mỗi lần Lưu.
+- Menu `GameUp → SDK → Kiểm tra tham chiếu Config` để chạy tay, in ra Console kèm object để bấm vào.
+- Inspector của 3 network: báo riêng ca "asset ngoài Resources" — Inspector cũ chỉ bắt được ca "không có asset nào".
+
+Component được tìm bằng `SerializedProperty.type` (`PPtr<$GameUpAdsConfig>`) chứ không liệt kê cứng tên class, nên thêm component tiêu thụ config mới thì validator tự nhận.

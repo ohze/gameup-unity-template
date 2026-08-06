@@ -42,6 +42,8 @@ namespace GameUp.SDK.Editor.Setup
                 return;
             }
 
+            GameUpConfigValidator.DrawInspectorConfigWarning(config, overrideProp?.objectReferenceValue != null);
+
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Nguồn cấu hình", AssetDatabase.GetAssetPath(config));
             if (GUILayout.Button("Chọn asset", GUILayout.Width(90)))

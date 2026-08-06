@@ -37,6 +37,9 @@ namespace GameUp.SDK.Editor.Setup
         private bool _hasPendingLegacyAdsData;
         private bool _hasPendingLegacySdkData;
         private bool _showAdvanced;
+        private List<ConfigIssue> _configIssues = new List<ConfigIssue>();
+        private bool _showConfigIssueDetails = true;
+        private Vector2 _issuesScroll;
 
         private GUIStyle _sidebarItemStyle;
         private GUIStyle _sidebarItemSelectedStyle;
@@ -96,6 +99,25 @@ namespace GameUp.SDK.Editor.Setup
             {
                 if (tab.RequiresWritablePrefab && !prefabsReady) continue;
                 tab.Load();
+            }
+
+            RefreshConfigIssues();
+        }
+
+        /// <summary>
+        /// Soát scene đang mở + prefab của project xem có object nào lúc chạy sẽ không lấy được config.
+        /// Chạy lúc mở cửa sổ và sau mỗi lần lưu — đây là những mốc dev thực sự đang "setup".
+        /// </summary>
+        private void RefreshConfigIssues()
+        {
+            try
+            {
+                _configIssues = GameUpConfigValidator.Validate();
+            }
+            catch (System.Exception e)
+            {
+                _configIssues = new List<ConfigIssue>();
+                Debug.LogError($"[GameUp.SDK] Kiểm tra tham chiếu Config lỗi: {e}");
             }
         }
 
@@ -297,11 +319,34 @@ namespace GameUp.SDK.Editor.Setup
                 if (Event.current.type == EventType.Repaint) _saveErrors = null;
             }
 
+            DrawConfigIssueBanner();
+
             if (!_hasPendingLegacyAdsData && !_hasPendingLegacySdkData) return;
 
             EditorGUILayout.HelpBox("Phát hiện dữ liệu còn nằm trong prefab (bản cũ). Chuyển sang ScriptableObject để dùng.", MessageType.Warning);
             if (GUILayout.Button("Migrate dữ liệu từ Prefab → ScriptableObject")) MigrateLegacyData(logReport: true);
             GUILayout.Space(6);
+        }
+
+        /// <summary>Dải cảnh báo gọn, hiện ở MỌI tab để lỗi cấu hình không bị bỏ sót khi dev đang ở tab khác.</summary>
+        private void DrawConfigIssueBanner()
+        {
+            int errors = CountIssues(ConfigIssueSeverity.Error);
+            if (errors == 0) return;
+
+            EditorGUILayout.HelpBox(
+                $"{errors} object trong scene/prefab sẽ KHÔNG lấy được config lúc chạy. " +
+                "Xem chi tiết ở mục Tổng quan.",
+                MessageType.Error);
+            GUILayout.Space(6);
+        }
+
+        private int CountIssues(ConfigIssueSeverity severity)
+        {
+            int n = 0;
+            foreach (var issue in _configIssues)
+                if (issue.Severity == severity) n++;
+            return n;
         }
 
         private void DrawOverviewPage()
@@ -311,6 +356,9 @@ namespace GameUp.SDK.Editor.Setup
             DrawConfigRow("Ads Config", _adsConfig);
             DrawConfigRow("SDK Config", _sdkConfig);
             EditorGUILayout.EndVertical();
+
+            GUILayout.Space(10);
+            DrawConfigIssuesPanel();
 
             GUILayout.Space(10);
             EditorGUILayout.LabelField("Bắt đầu nhanh", EditorStyles.boldLabel);
@@ -344,6 +392,58 @@ namespace GameUp.SDK.Editor.Setup
             GUI.backgroundColor = Color.white;
 
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawConfigIssuesPanel()
+        {
+            int errors = CountIssues(ConfigIssueSeverity.Error);
+            int warnings = CountIssues(ConfigIssueSeverity.Warning);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Kiểm tra tham chiếu Config (scene + prefab)", EditorStyles.boldLabel);
+            if (GUILayout.Button("Quét lại", GUILayout.Width(80))) RefreshConfigIssues();
+            EditorGUILayout.EndHorizontal();
+
+            if (errors == 0 && warnings == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "Mọi component của SDK trong scene đang mở và trong prefab của project đều lấy được config lúc chạy.",
+                    MessageType.Info);
+                return;
+            }
+
+            string summary = errors > 0
+                ? $"{errors} lỗi" + (warnings > 0 ? $", {warnings} cảnh báo" : "")
+                : $"{warnings} cảnh báo";
+            _showConfigIssueDetails = EditorGUILayout.Foldout(_showConfigIssueDetails, summary + " — bấm để xem", true);
+            if (!_showConfigIssueDetails) return;
+
+            // Giới hạn chiều cao để danh sách dài không đẩy mất phần còn lại của trang.
+            _issuesScroll = EditorGUILayout.BeginScrollView(_issuesScroll, GUILayout.MaxHeight(260));
+            foreach (var issue in _configIssues)
+            {
+                var type = issue.Severity == ConfigIssueSeverity.Error ? MessageType.Error
+                    : issue.Severity == ConfigIssueSeverity.Warning ? MessageType.Warning
+                    : MessageType.Info;
+
+                EditorGUILayout.BeginVertical("box");
+                EditorGUILayout.LabelField(issue.Title, EditorStyles.miniBoldLabel);
+                EditorGUILayout.HelpBox(issue.Message + "\n\n→ " + issue.Fix, type);
+
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                using (new EditorGUI.DisabledScope(issue.Target == null))
+                {
+                    if (GUILayout.Button("Chọn object", GUILayout.Width(110)))
+                    {
+                        Selection.activeObject = issue.Target;
+                        EditorGUIUtility.PingObject(issue.Target);
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+            }
+            EditorGUILayout.EndScrollView();
         }
 
         private void DrawConfigRow(string label, ScriptableObject asset)
@@ -468,6 +568,7 @@ namespace GameUp.SDK.Editor.Setup
             AssetDatabase.SaveAssets();
             GameUpAdsConfig.ClearCache();
             GameUpSdkConfig.ClearCache();
+            RefreshConfigIssues();
             Debug.Log("[GameUp.SDK] Đã lưu cấu hình thành công!");
         }
 
