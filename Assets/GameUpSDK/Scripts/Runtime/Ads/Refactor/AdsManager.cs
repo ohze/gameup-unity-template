@@ -66,7 +66,28 @@ namespace GameUp.SDK
 
         private bool _appOpenOnColdStart;
 
+        /// <summary>
+        /// CÓ ÍT NHẤT MỘT mạng đã sẵn sàng — không phải "tất cả đã xong".
+        /// Dùng <see cref="AreAllNetworksInitialized"/> nếu cần điều kiện chặt hơn.
+        /// </summary>
         public new bool IsInitialized { get; private set; }
+
+        /// <summary>Mọi mạng trong mediationPriority đều đã init xong.</summary>
+        public bool AreAllNetworksInitialized
+        {
+            get
+            {
+                foreach (var network in _networkDict.Values)
+                    if (!network.IsInitialized) return false;
+                return _networkDict.Count > 0;
+            }
+        }
+
+        /// <summary>Bắn một lần khi mạng ĐẦU TIÊN sẵn sàng. Dùng để gate UI phụ thuộc ads.</summary>
+        public event Action OnAdsInitialized;
+
+        private readonly HashSet<IAdNetwork> _wiredNetworks = new HashSet<IAdNetwork>();
+        private readonly HashSet<string> _pendingBannerShows = new HashSet<string>();
 
         public Dictionary<MediationProvider, IAdNetwork> Networks => _networkDict;
 
@@ -200,6 +221,11 @@ namespace GameUp.SDK
                 RemoveAdsSetting.Instance.IsRemoveAllAds.OnValueChange.RemoveListener(_onRemoveAllAdsChanged);
             AdsEvent.OnImpressionDataReady -= GameUpAnalytics.LogAdImpression;
             AdsEvent.OnBannerSwap -= OnBannerSwapped;
+
+            // Các format object sống theo network chứ không theo AdsManager, nên handler còn bám lại
+            // sẽ trỏ vào instance đã Destroy ở lần Play kế tiếp (khi tắt Domain Reload).
+            foreach (var network in _wiredNetworks) UnwireCappingEvents(network);
+            _wiredNetworks.Clear();
         }
 
         /// <summary>Remove Ads (IAP) của template: chặn toàn bộ ads trừ Rewarded.</summary>
@@ -235,6 +261,9 @@ namespace GameUp.SDK
                 {
                     if (!network.IsInitialized)
                     {
+                        // -= trước +=: InitializeAll có thể chạy lại (RetryInitializeAfterConsent)
+                        // trong lúc network chưa init xong.
+                        network.OnInitialized -= OnInitializedNetwork;
                         network.OnInitialized += OnInitializedNetwork;
                         network.Initialize();
                     }
@@ -244,13 +273,42 @@ namespace GameUp.SDK
 
         private void OnInitializedNetwork(IAdNetwork network)
         {
+            if (!_wiredNetworks.Add(network)) return;
+
             _tracker.SubscribeToNetwork(network);
             WireUpCappingEvents(network);
             if (network.BannerAd != null)
             {
                 network.BannerAd.OnAdLoaded += OnBannerLoaded;
             }
+
+            bool first = !IsInitialized;
             IsInitialized = true;
+
+            if (first)
+            {
+                FlushPendingBannerShows();
+                OnAdsInitialized?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Phát lại các lệnh ShowBanner được gọi trước khi có mạng nào sẵn sàng.
+        /// CHỈ áp dụng cho banner: banner là UI thường trực nên hiện muộn vài giây vẫn đúng ý,
+        /// còn interstitial/AppOpen phát lại sẽ bật lên lạc ngữ cảnh — với chúng, onFail ngay
+        /// lúc gọi mới là hành vi đúng.
+        /// </summary>
+        private void FlushPendingBannerShows()
+        {
+            if (_pendingBannerShows.Count == 0) return;
+
+            var pending = new List<string>(_pendingBannerShows);
+            _pendingBannerShows.Clear();
+            foreach (var where in pending)
+            {
+                GULogger.Log("GameUp", $"Phát lại ShowBanner đã xếp hàng trước khi init: {where}");
+                ShowBanner(where);
+            }
         }
 
         private void OnBannerSwapped(string last, string current)
@@ -319,75 +377,101 @@ namespace GameUp.SDK
             NativeAdConfigBridge.SetGlobalCtaClickRate(nativeCtaClickRate);
         }
 
+        // Toàn bộ handler dưới đây là METHOD GROUP chứ không phải lambda inline: lambda không có
+        // tham chiếu ổn định nên không bao giờ gỡ được, và khi tắt Domain Reload (Enter Play Mode
+        // Options) chúng chồng lên nhau qua từng lần Play — một lần đóng ad chạy N lần ResumeAllCapping.
+        private void OnFullscreenDisplayed(string where)
+        {
+            AdCappingManager.Instance.PauseAllCapping();
+            TemporarilyHideBanners();
+        }
+
+        // Display lỗi = ad KHÔNG lên màn hình, nên phải nhả pause y như lúc ad đóng.
+        // Trước đây chỉ OnAdClosed mới Resume, mà display lỗi thì OnAdClosed không bao giờ bắn
+        // → _pauseRequests kẹt > 0 vĩnh viễn, IsAnyAdShowing luôn true và mọi Interstitial/AppOpen
+        // sau đó bị chặn hết phiên. ResumeAllCapping đã kẹp sàn 0 nên gọi thừa vẫn an toàn.
+        private void OnFullscreenDisplayFailed(string where, string error)
+        {
+            AdCappingManager.Instance.ResumeAllCapping();
+            RestoreBanners();
+        }
+
+        private void HandleFullscreenClosed(AdUnitType adType)
+        {
+            AdCappingManager.Instance.ResumeAllCapping();
+            AdCappingManager.Instance.ResetCapping(adType);
+            RestoreBanners();
+            AdHistoryTracker.MarkAdClosed(adType);
+        }
+
+        private void OnInterstitialClosed(string where) => HandleFullscreenClosed(AdUnitType.Interstitial);
+        private void OnRewardedClosed(string where) => HandleFullscreenClosed(AdUnitType.RewardedVideo);
+        private void OnAppOpenClosed(string where) => HandleFullscreenClosed(AdUnitType.AppOpen);
+        private void OnNativeFullscreenClosed(string where) => HandleFullscreenClosed(AdUnitType.NativeAd);
+
         private void WireUpCappingEvents(IAdNetwork network)
         {
-            Action<string> pauseAct = (where) =>
-            {
-                AdCappingManager.Instance.PauseAllCapping();
-                TemporarilyHideBanners();
-            };
-
-            // Display lỗi = ad KHÔNG lên màn hình, nên phải nhả pause y như lúc ad đóng.
-            // Trước đây chỉ OnAdClosed mới Resume, mà display lỗi thì OnAdClosed không bao giờ bắn
-            // → _pauseRequests kẹt > 0 vĩnh viễn, IsAnyAdShowing luôn true và mọi Interstitial/AppOpen
-            // sau đó bị chặn hết phiên. ResumeAllCapping đã kẹp sàn 0 nên gọi thừa vẫn an toàn.
-            Action<string, string> resumeOnDisplayFailAct = (where, error) =>
-            {
-                AdCappingManager.Instance.ResumeAllCapping();
-                RestoreBanners();
-            };
-
             if (network.InterstitialAd != null)
             {
-                network.InterstitialAd.OnAdDisplayed += pauseAct;
-                network.InterstitialAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
-                network.InterstitialAd.OnAdClosed += (where) =>
-                {
-                    AdCappingManager.Instance.ResumeAllCapping();
-                    AdCappingManager.Instance.ResetCapping(AdUnitType.Interstitial);
-                    RestoreBanners();
-                    AdHistoryTracker.MarkAdClosed(AdUnitType.Interstitial);
-                };
+                network.InterstitialAd.OnAdDisplayed += OnFullscreenDisplayed;
+                network.InterstitialAd.OnAdDisplayFailed += OnFullscreenDisplayFailed;
+                network.InterstitialAd.OnAdClosed += OnInterstitialClosed;
             }
 
             if (network.RewardedAd != null)
             {
-                network.RewardedAd.OnAdDisplayed += pauseAct;
-                network.RewardedAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
-                network.RewardedAd.OnAdClosed += (where) =>
-                {
-                    AdCappingManager.Instance.ResumeAllCapping();
-                    AdCappingManager.Instance.ResetCapping(AdUnitType.RewardedVideo);
-                    RestoreBanners();
-                    AdHistoryTracker.MarkAdClosed(AdUnitType.RewardedVideo);
-                };
+                network.RewardedAd.OnAdDisplayed += OnFullscreenDisplayed;
+                network.RewardedAd.OnAdDisplayFailed += OnFullscreenDisplayFailed;
+                network.RewardedAd.OnAdClosed += OnRewardedClosed;
             }
 
             if (network.AppOpenAd != null)
             {
-                network.AppOpenAd.OnAdDisplayed += pauseAct;
-                network.AppOpenAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
-                network.AppOpenAd.OnAdClosed += (where) =>
-                {
-                    AdCappingManager.Instance.ResumeAllCapping();
-                    AdCappingManager.Instance.ResetCapping(AdUnitType.AppOpen);
-                    RestoreBanners();
-                    AdHistoryTracker.MarkAdClosed(AdUnitType.AppOpen);
-                };
+                network.AppOpenAd.OnAdDisplayed += OnFullscreenDisplayed;
+                network.AppOpenAd.OnAdDisplayFailed += OnFullscreenDisplayFailed;
+                network.AppOpenAd.OnAdClosed += OnAppOpenClosed;
             }
 
             if (network.NativeFullScreenAd != null)
             {
-                network.NativeFullScreenAd.OnAdDisplayed += pauseAct;
-                network.NativeFullScreenAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
-                network.NativeFullScreenAd.OnAdClosed += (where) =>
-                {
-                    AdCappingManager.Instance.ResumeAllCapping();
-                    AdCappingManager.Instance.ResetCapping(AdUnitType.NativeAd);
-                    RestoreBanners();
-                    AdHistoryTracker.MarkAdClosed(AdUnitType.NativeAd);
-                };
+                network.NativeFullScreenAd.OnAdDisplayed += OnFullscreenDisplayed;
+                network.NativeFullScreenAd.OnAdDisplayFailed += OnFullscreenDisplayFailed;
+                network.NativeFullScreenAd.OnAdClosed += OnNativeFullscreenClosed;
             }
+        }
+
+        private void UnwireCappingEvents(IAdNetwork network)
+        {
+            if (network.InterstitialAd != null)
+            {
+                network.InterstitialAd.OnAdDisplayed -= OnFullscreenDisplayed;
+                network.InterstitialAd.OnAdDisplayFailed -= OnFullscreenDisplayFailed;
+                network.InterstitialAd.OnAdClosed -= OnInterstitialClosed;
+            }
+
+            if (network.RewardedAd != null)
+            {
+                network.RewardedAd.OnAdDisplayed -= OnFullscreenDisplayed;
+                network.RewardedAd.OnAdDisplayFailed -= OnFullscreenDisplayFailed;
+                network.RewardedAd.OnAdClosed -= OnRewardedClosed;
+            }
+
+            if (network.AppOpenAd != null)
+            {
+                network.AppOpenAd.OnAdDisplayed -= OnFullscreenDisplayed;
+                network.AppOpenAd.OnAdDisplayFailed -= OnFullscreenDisplayFailed;
+                network.AppOpenAd.OnAdClosed -= OnAppOpenClosed;
+            }
+
+            if (network.NativeFullScreenAd != null)
+            {
+                network.NativeFullScreenAd.OnAdDisplayed -= OnFullscreenDisplayed;
+                network.NativeFullScreenAd.OnAdDisplayFailed -= OnFullscreenDisplayFailed;
+                network.NativeFullScreenAd.OnAdClosed -= OnNativeFullscreenClosed;
+            }
+
+            if (network.BannerAd != null) network.BannerAd.OnAdLoaded -= OnBannerLoaded;
+            network.OnInitialized -= OnInitializedNetwork;
         }
 
         public void AddCondition(IAdCondition condition)
@@ -583,6 +667,15 @@ namespace GameUp.SDK
                 return;
             }
 
+            // Gọi trước khi mạng nào kịp init thì format object còn null, lệnh sẽ rơi vào hư không.
+            // Xếp hàng để phát lại ngay khi mạng đầu tiên sẵn sàng (xem FlushPendingBannerShows).
+            if (!IsInitialized)
+            {
+                _pendingBannerShows.Add(where);
+                GULogger.Log("GameUp", $"ShowBanner('{where}') gọi trước khi init — đã xếp hàng.");
+                return;
+            }
+
             if (!EvaluateConditions(AdUnitType.Banner, where, out var blockReason))
             {
                 GULogger.Log($"[GameUp.SDK] Banner block rules: {blockReason}");
@@ -607,6 +700,8 @@ namespace GameUp.SDK
         public void HideBanner(string where)
         {
             _activeBanners.Remove(where);
+            // Huỷ luôn lệnh đang xếp hàng, nếu không banner vừa bị ẩn lại tự hiện khi init xong.
+            _pendingBannerShows.Remove(where);
             foreach (var network in _networkDict.Values) network.BannerAd?.Hide(where);
         }
 

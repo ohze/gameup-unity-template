@@ -47,8 +47,12 @@ namespace GameUp.SDK
 
             var timeInit = Time.realtimeSinceStartup;
             GULogger.Log("GameUp", $"Initializing Admob Network: {Time.realtimeSinceStartup}");
-            GoogleMobileAds.Api.RequestConfiguration config = new GoogleMobileAds.Api.RequestConfiguration { TestDeviceIds = settings.testDevices };
-            GoogleMobileAds.Api.MobileAds.SetRequestConfiguration(config);
+
+            // Phải đặt TRƯỚC Initialize: buộc plugin raise mọi callback trên Unity main thread,
+            // nếu không callback về từ thread native và mọi thao tác UnityEngine trong handler đều rủi ro.
+            GoogleMobileAds.Api.MobileAds.RaiseAdEventsOnUnityMainThread = true;
+
+            GoogleMobileAds.Api.MobileAds.SetRequestConfiguration(BuildRequestConfiguration(settings));
 
             GoogleMobileAds.Api.MobileAds.Initialize(initStatus =>
             {
@@ -96,6 +100,51 @@ namespace GameUp.SDK
             });
 #endif
         }
+
+#if ADMOB_DEPENDENCIES_INSTALLED
+        /// <summary>
+        /// Ngoài test devices, RequestConfiguration còn mang các cờ tuân thủ: COPPA
+        /// (TagForChildDirectedTreatment), GDPR (TagForUnderAgeOfConsent) và mức nội dung tối đa.
+        /// Unspecified = không khai báo, giữ nguyên mặc định của AdMob.
+        /// </summary>
+        private static GoogleMobileAds.Api.RequestConfiguration BuildRequestConfiguration(AdmobAdsSettings settings)
+        {
+            var config = new GoogleMobileAds.Api.RequestConfiguration
+            {
+                TestDeviceIds = settings.testDevices
+            };
+
+            switch (settings.tagForChildDirectedTreatment)
+            {
+                case ChildDirectedTreatment.True:
+                    config.TagForChildDirectedTreatment = GoogleMobileAds.Api.TagForChildDirectedTreatment.True;
+                    break;
+                case ChildDirectedTreatment.False:
+                    config.TagForChildDirectedTreatment = GoogleMobileAds.Api.TagForChildDirectedTreatment.False;
+                    break;
+            }
+
+            switch (settings.tagForUnderAgeOfConsent)
+            {
+                case UnderAgeOfConsent.True:
+                    config.TagForUnderAgeOfConsent = GoogleMobileAds.Api.TagForUnderAgeOfConsent.True;
+                    break;
+                case UnderAgeOfConsent.False:
+                    config.TagForUnderAgeOfConsent = GoogleMobileAds.Api.TagForUnderAgeOfConsent.False;
+                    break;
+            }
+
+            switch (settings.maxAdContentRating)
+            {
+                case AdContentRating.G: config.MaxAdContentRating = GoogleMobileAds.Api.MaxAdContentRating.G; break;
+                case AdContentRating.PG: config.MaxAdContentRating = GoogleMobileAds.Api.MaxAdContentRating.PG; break;
+                case AdContentRating.T: config.MaxAdContentRating = GoogleMobileAds.Api.MaxAdContentRating.T; break;
+                case AdContentRating.MA: config.MaxAdContentRating = GoogleMobileAds.Api.MaxAdContentRating.MA; break;
+            }
+
+            return config;
+        }
+#endif
 
         public void SetConsent(bool isConsent) { }
 

@@ -38,7 +38,16 @@ namespace GameUp.SDK
                 GULogger.Error("GameUp", "IronSourceNetwork: thiếu GameUpAdsConfig, bỏ qua init.");
                 return;
             }
-            if (string.IsNullOrEmpty(settings.appKey)) return;
+            if (string.IsNullOrEmpty(settings.appKey))
+            {
+                GULogger.Error("GameUp", "IronSourceNetwork: chưa điền appKey, bỏ qua init.");
+                return;
+            }
+
+            // Trước đây chỉ đăng ký OnInitSuccess: init hỏng thì im lặng hoàn toàn — không log,
+            // không retry, và OnInitialized không bao giờ bắn nên AdsManager cứ tưởng đang chờ.
+            Unity.Services.LevelPlay.LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
+            Unity.Services.LevelPlay.LevelPlay.OnInitFailed += OnLevelPlayInitFailed;
 
             Unity.Services.LevelPlay.LevelPlay.OnInitSuccess += (config) =>
             {
@@ -69,6 +78,19 @@ namespace GameUp.SDK
             Unity.Services.LevelPlay.LevelPlay.Init(settings.appKey);
 #endif
         }
+
+#if LEVELPLAY_DEPENDENCIES_INSTALLED
+        private void OnLevelPlayInitFailed(Unity.Services.LevelPlay.LevelPlayInitError error)
+        {
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                Unity.Services.LevelPlay.LevelPlay.OnInitFailed -= OnLevelPlayInitFailed;
+                GULogger.Error("GameUp",
+                    $"IronSourceNetwork init THẤT BẠI: {error} — mạng này sẽ không phục vụ ad nào " +
+                    "trong phiên. AdsManager tự rơi xuống mạng kế tiếp trong mediationPriority.");
+            });
+        }
+#endif
 
         public void SetConsent(bool isConsent)
         {

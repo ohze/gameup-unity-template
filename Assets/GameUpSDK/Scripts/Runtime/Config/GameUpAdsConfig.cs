@@ -48,6 +48,15 @@ namespace GameUp.SDK
         }
     }
 
+    /// <summary>Bản sao của enum GoogleMobileAds để config vẫn compile khi chưa cài AdMob.</summary>
+    public enum ChildDirectedTreatment { Unspecified, False, True }
+
+    /// <summary>Bản sao của enum GoogleMobileAds để config vẫn compile khi chưa cài AdMob.</summary>
+    public enum UnderAgeOfConsent { Unspecified, False, True }
+
+    /// <summary>Bản sao của MaxAdContentRating để config vẫn compile khi chưa cài AdMob.</summary>
+    public enum AdContentRating { Unspecified, G, PG, T, MA }
+
     [Serializable]
     public class AdmobAdsSettings
     {
@@ -62,6 +71,16 @@ namespace GameUp.SDK
 
         [Tooltip("Mở Ad Inspector ngay sau khi init (chỉ dùng khi debug).")]
         public bool showMediationInspector;
+
+        [Header("Tuân thủ — ghi vào RequestConfiguration lúc init")]
+        [Tooltip("COPPA: đặt True nếu app hướng tới trẻ em. Unspecified = không khai báo.")]
+        public ChildDirectedTreatment tagForChildDirectedTreatment = ChildDirectedTreatment.Unspecified;
+
+        [Tooltip("GDPR: đặt True nếu user dưới tuổi đồng ý theo luật sở tại. Unspecified = không khai báo.")]
+        public UnderAgeOfConsent tagForUnderAgeOfConsent = UnderAgeOfConsent.Unspecified;
+
+        [Tooltip("Mức nội dung tối đa của creative (G/PG/T/MA). Nhiều nhà mạng dùng để lọc quảng cáo.")]
+        public AdContentRating maxAdContentRating = AdContentRating.Unspecified;
 
         [Header("UMP — chỉ có tác dụng ở development build")]
         [Tooltip("Ép UMP coi thiết bị đang ở EEA để test consent form. Bị bỏ qua ở bản release.")]

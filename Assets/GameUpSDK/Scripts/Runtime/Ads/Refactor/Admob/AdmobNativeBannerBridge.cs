@@ -23,8 +23,14 @@ namespace GameUp.SDK
         [DllImport("__Internal")] private static extern void NativeBanner_ShowAd(bool isTop);
         [DllImport("__Internal")] private static extern void NativeBanner_HideAd();
         [DllImport("__Internal")] private static extern void NativeBanner_SetCallbacks(
-            Action_Void onLoaded, Action_String onFailed, Action_Void onDisplayed, Action_Void onClosed, Action_Void onClicked, Action_Double onPaid, Action_String onLog);
-        delegate void Action_Void(); delegate void Action_String(string error); delegate void Action_Double(double value);
+            Action_Unit onLoaded, Action_UnitString onFailed, Action_Unit onDisplayed, Action_Unit onClosed, Action_Unit onClicked, Action_UnitDouble onPaid, Action_String onLog);
+
+        // Mọi callback mang theo adUnitId (khớp typedef trong NativeBannerManager.mm) để không phải
+        // đoán bằng biến static "unit đang xử lý" nữa.
+        delegate void Action_Unit(string adUnitId);
+        delegate void Action_UnitString(string adUnitId, string error);
+        delegate void Action_UnitDouble(string adUnitId, double value);
+        delegate void Action_String(string message);
 #endif
 
         private Dictionary<string, bool> _isLoaded = new Dictionary<string, bool>();
@@ -33,8 +39,14 @@ namespace GameUp.SDK
         private Dictionary<string, NativeAdCallbackProxy> _proxies = new Dictionary<string, NativeAdCallbackProxy>();
 #endif 
         private static AdmobNativeBannerBridge _instance;
-        private string _currentActiveWhere;
-        private string _currentActiveUnitId; // Lưu lại ID đang xử lý cho iOS callback
+
+        /// <summary>unitId → placement. Thay cho cặp biến "_currentActiveUnitId/_currentActiveWhere"
+        /// cũ: chúng chỉ đúng khi mỗi lúc có một unit đang xử lý, hai placement chạy song song là
+        /// ghi đè state của nhau và callback bị quy nhầm ad.</summary>
+        private readonly Dictionary<string, string> _whereByUnitId = new Dictionary<string, string>();
+
+        private string WhereOf(string unitId) =>
+            unitId != null && _whereByUnitId.TryGetValue(unitId, out var w) ? w : "default";
 
         public AdmobNativeBannerBridge(AdUnitConfig config) : base(config, AdUnitType.Banner, "Admob_NativeBridge")
         {
@@ -65,8 +77,7 @@ namespace GameUp.SDK
 
             _isLoading[unitId] = true;
             _isLoaded[unitId] = false;
-            _currentActiveWhere = where;
-            _currentActiveUnitId = unitId;
+            _whereByUnitId[unitId] = where ?? "default";
 
 #if UNITY_ANDROID && !UNITY_EDITOR && ADMOB_DEPENDENCIES_INSTALLED
             var proxy = new NativeAdCallbackProxy(
@@ -90,8 +101,7 @@ namespace GameUp.SDK
             string unitId = _config.ResolveUnitId(_adType, where, EcpmFloor.All);
             var entry = _config.GetEntry(_adType, where, EcpmFloor.All);
             bool isTop = entry.CollapsiblePlacement == CollapsibleBannerPlacement.Top;
-            _currentActiveWhere = where;
-            _currentActiveUnitId = unitId;
+            _whereByUnitId[unitId] = where ?? "default";
 
             if (IsAvailable(where))
             {
@@ -158,45 +168,43 @@ namespace GameUp.SDK
 #endif
 
 #if UNITY_IOS && !UNITY_EDITOR && ADMOB_DEPENDENCIES_INSTALLED
-        [AOT.MonoPInvokeCallback(typeof(Action_Void))]
-        private static void OnLoaded_iOS() => MainThreadDispatcher.Enqueue(() => { 
-            if (_instance != null) {
-                _instance._isLoading[_instance._currentActiveUnitId] = false;
-                _instance._isLoaded[_instance._currentActiveUnitId] = true;
-                _instance.HandleLoadSuccess(_instance._currentActiveUnitId, _instance._currentActiveWhere);
-            }
+        [AOT.MonoPInvokeCallback(typeof(Action_Unit))]
+        private static void OnLoaded_iOS(string unitId) => MainThreadDispatcher.Enqueue(() => {
+            if (_instance == null) return;
+            _instance._isLoading[unitId] = false;
+            _instance._isLoaded[unitId] = true;
+            _instance.HandleLoadSuccess(unitId, _instance.WhereOf(unitId));
         });
 
-        [AOT.MonoPInvokeCallback(typeof(Action_String))]
-        private static void OnFailed_iOS(string error) => MainThreadDispatcher.Enqueue(() => {
-            if (_instance != null) {
-                _instance._isLoading[_instance._currentActiveUnitId] = false;
-                _instance._isLoaded[_instance._currentActiveUnitId] = false;
-                _instance.HandleLoadFailed(_instance._currentActiveUnitId, _instance._currentActiveWhere, EcpmFloor.All, error);
-            }
+        [AOT.MonoPInvokeCallback(typeof(Action_UnitString))]
+        private static void OnFailed_iOS(string unitId, string error) => MainThreadDispatcher.Enqueue(() => {
+            if (_instance == null) return;
+            _instance._isLoading[unitId] = false;
+            _instance._isLoaded[unitId] = false;
+            _instance.HandleLoadFailed(unitId, _instance.WhereOf(unitId), EcpmFloor.All, error);
         });
 
-        [AOT.MonoPInvokeCallback(typeof(Action_Void))]
-        private static void OnDisplayed_iOS() => MainThreadDispatcher.Enqueue(() => {
-            if (_instance != null) _instance.NotifyAdDisplayed(_instance._currentActiveWhere);
+        [AOT.MonoPInvokeCallback(typeof(Action_Unit))]
+        private static void OnDisplayed_iOS(string unitId) => MainThreadDispatcher.Enqueue(() => {
+            if (_instance != null) _instance.NotifyAdDisplayed(_instance.WhereOf(unitId));
         });
 
-        [AOT.MonoPInvokeCallback(typeof(Action_Void))]
-        private static void OnClosed_iOS() => MainThreadDispatcher.Enqueue(() => {
-            if (_instance != null) {
-                _instance._isLoaded[_instance._currentActiveUnitId] = false;
-                _instance.NotifyAdClosed(_instance._currentActiveWhere);
-                _instance.OnCollapsedNativeBanner?.Invoke(_instance._currentActiveWhere);
-                _instance.Load(_instance._currentActiveWhere);
-            }
+        [AOT.MonoPInvokeCallback(typeof(Action_Unit))]
+        private static void OnClosed_iOS(string unitId) => MainThreadDispatcher.Enqueue(() => {
+            if (_instance == null) return;
+            string where = _instance.WhereOf(unitId);
+            _instance._isLoaded[unitId] = false;
+            _instance.NotifyAdClosed(where);
+            _instance.OnCollapsedNativeBanner?.Invoke(where);
+            _instance.Load(where);
         });
 
-        [AOT.MonoPInvokeCallback(typeof(Action_Void))]
-        private static void OnClicked_iOS() => MainThreadDispatcher.Enqueue(() => { });
+        [AOT.MonoPInvokeCallback(typeof(Action_Unit))]
+        private static void OnClicked_iOS(string unitId) => MainThreadDispatcher.Enqueue(() => { });
 
-        [AOT.MonoPInvokeCallback(typeof(Action_Double))]
-        private static void OnPaid_iOS(double value) => MainThreadDispatcher.Enqueue(() => {
-            if (_instance != null) _instance.TrackRevenue(_instance._currentActiveUnitId, _instance._currentActiveWhere, "NativeBanner_iOS", value);
+        [AOT.MonoPInvokeCallback(typeof(Action_UnitDouble))]
+        private static void OnPaid_iOS(string unitId, double value) => MainThreadDispatcher.Enqueue(() => {
+            if (_instance != null) _instance.TrackRevenue(unitId, _instance.WhereOf(unitId), "NativeBanner_iOS", value);
         });
 
         [AOT.MonoPInvokeCallback(typeof(Action_String))]

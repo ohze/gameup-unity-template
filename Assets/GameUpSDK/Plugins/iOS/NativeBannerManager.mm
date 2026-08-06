@@ -4,9 +4,12 @@
 
 extern UIViewController* UnityGetGLViewController();
 
-typedef void (*Action_Void)();
-typedef void (*Action_String)(const char* error);
-typedef void (*Action_Double)(double value);
+// Mọi callback mang theo adUnitId để phía C# quy đúng ad — trước đây C# phải đoán bằng một
+// biến static "unit đang xử lý", nên hai placement chồng nhau là gán nhầm trạng thái.
+typedef void (*Action_Unit)(const char* adUnitId);
+typedef void (*Action_UnitString)(const char* adUnitId, const char* error);
+typedef void (*Action_UnitDouble)(const char* adUnitId, double value);
+typedef void (*Action_String)(const char* message);
 
 typedef NS_ENUM(NSInteger, AdState) {
     AdStateIdle, AdStateLoading, AdStateLoaded, AdStateShowing
@@ -30,12 +33,13 @@ static void SendUnityLog(NSString *format, ...) {
 @property (nonatomic, strong) UIView *currentAdLayout;
 @property (nonatomic, assign) AdState currentState;
 
-@property (nonatomic, assign) Action_Void onLoaded;
-@property (nonatomic, assign) Action_String onFailed;
-@property (nonatomic, assign) Action_Void onDisplayed;
-@property (nonatomic, assign) Action_Void onClosed;
-@property (nonatomic, assign) Action_Void onClicked;
-@property (nonatomic, assign) Action_Double onPaid;
+@property (nonatomic, strong) NSString *currentAdUnitId;
+@property (nonatomic, assign) Action_Unit onLoaded;
+@property (nonatomic, assign) Action_UnitString onFailed;
+@property (nonatomic, assign) Action_Unit onDisplayed;
+@property (nonatomic, assign) Action_Unit onClosed;
+@property (nonatomic, assign) Action_Unit onClicked;
+@property (nonatomic, assign) Action_UnitDouble onPaid;
 
 + (instancetype)sharedInstance;
 - (void)loadAd:(NSString *)adUnitId;
@@ -56,7 +60,14 @@ static void SendUnityLog(NSString *format, ...) {
 }
 
 - (void)loadAd:(NSString *)adUnitId {
-    if (self.currentState == AdStateLoading) return;
+    // Manager chỉ giữ được MỘT ad. Trước đây yêu cầu thứ hai bị return im lặng: phía C# đã bật cờ
+    // "đang load" cho unit đó nhưng không callback nào về nên nó kẹt mãi. Nay báo lỗi tử tế.
+    if (self.currentState == AdStateLoading) {
+        SendUnityLog(@"Bận load %@, từ chối yêu cầu %@", self.currentAdUnitId, adUnitId);
+        if (self.onFailed) self.onFailed([adUnitId UTF8String], "busy_loading_another_unit");
+        return;
+    }
+    self.currentAdUnitId = adUnitId;
     self.currentState = AdStateLoading;
     SendUnityLog(@"Start Loading iOS Banner ID: %@", adUnitId);
 
@@ -171,7 +182,7 @@ static void SendUnityLog(NSString *format, ...) {
     [rootView addSubview:self.currentAdLayout];
     self.currentState = AdStateShowing;
     SendUnityLog(@"=> iOS Banner DISPLAYED on screen.");
-    if (self.onDisplayed) self.onDisplayed();
+    if (self.onDisplayed) self.onDisplayed([self.currentAdUnitId UTF8String]);
 }
 
 - (void)hideAd {
@@ -186,8 +197,9 @@ static void SendUnityLog(NSString *format, ...) {
 
 - (void)closeTapped {
     SendUnityLog(@"=> Close button tapped (Non-CTA). Hiding ad.");
+    NSString *unitId = self.currentAdUnitId;
     [self hideAd];
-    if (self.onClosed) self.onClosed();
+    if (self.onClosed) self.onClosed([unitId UTF8String]);
 }
 
 - (void)adLoader:(GADAdLoader *)adLoader didReceiveNativeAd:(GADNativeAd *)nativeAd {
@@ -199,15 +211,15 @@ static void SendUnityLog(NSString *format, ...) {
     
     __weak typeof(self) weakSelf = self;
     nativeAd.paidEventHandler = ^(GADAdValue * _Nonnull value) {
-        if (weakSelf.onPaid) weakSelf.onPaid([value.value doubleValue] * 0.000001);
+        if (weakSelf.onPaid) weakSelf.onPaid([weakSelf.currentAdUnitId UTF8String], [value.value doubleValue] * 0.000001);
     };
-    if (self.onLoaded) self.onLoaded();
+    if (self.onLoaded) self.onLoaded([self.currentAdUnitId UTF8String]);
 }
 
 - (void)adLoader:(GADAdLoader *)adLoader didFailToReceiveAdWithError:(NSError *)error {
     self.currentState = AdStateIdle;
     SendUnityLog(@"=> iOS Banner LOAD FAILED: %@", error.localizedDescription);
-    if (self.onFailed) self.onFailed([error.localizedDescription UTF8String]);
+    if (self.onFailed) self.onFailed([self.currentAdUnitId UTF8String], [error.localizedDescription UTF8String]);
 }
 
 - (void)nativeAdDidRecordClick:(GADNativeAd *)nativeAd {
@@ -215,9 +227,10 @@ static void SendUnityLog(NSString *format, ...) {
     // Delay 1.5s (1.5 * NSEC_PER_SEC) để nhường tài nguyên cho luồng mở StoreKit/Browser
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         SendUnityLog(@"=> Closing iOS ad view after 1.5s CTA delay.");
+        NSString *unitId = self.currentAdUnitId;
         [self hideAd];
-        if (self.onClicked) self.onClicked();
-        if (self.onClosed) self.onClosed();
+        if (self.onClicked) self.onClicked([unitId UTF8String]);
+        if (self.onClosed) self.onClosed([unitId UTF8String]);
     });
 }
 @end
@@ -227,7 +240,7 @@ extern "C" {
         g_ctaClickRate = MAX(0, MIN(100, rate));
         SendUnityLog(@"=> [RemoteConfig] Set iOS Banner CTA Rate: %d%%", g_ctaClickRate);
     }
-    void NativeBanner_SetCallbacks(Action_Void onLoaded, Action_String onFailed, Action_Void onDisplayed, Action_Void onClosed, Action_Void onClicked, Action_Double onPaid, Action_String onLog) {
+    void NativeBanner_SetCallbacks(Action_Unit onLoaded, Action_UnitString onFailed, Action_Unit onDisplayed, Action_Unit onClosed, Action_Unit onClicked, Action_UnitDouble onPaid, Action_String onLog) {
         NativeBannerManager *mgr = [NativeBannerManager sharedInstance];
         mgr.onLoaded = onLoaded; mgr.onFailed = onFailed; mgr.onDisplayed = onDisplayed;
         mgr.onClosed = onClosed; mgr.onClicked = onClicked; mgr.onPaid = onPaid;

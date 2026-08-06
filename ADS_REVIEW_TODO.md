@@ -3,9 +3,10 @@
 > Kết quả review `Assets/GameUpSDK/` ngày **2026-08-06**, tập trung vào AdMob + Unity.
 > File tạm để theo dõi tiến độ xử lý. Tick `[x]` khi xong, ghi chú commit vào cột cuối.
 
-**Tiến độ:** 18/25 · P0: **8/8 xong** · P1: **10/11** · P2: 0/6
-**Đã sửa (chưa compile Unity, chưa test device):** toàn bộ P0 #1–#8; P1 #9, #10, #12, #13, #14, #16, #17, #18, #19.
-**Còn lại:** P1 #11 (`RaiseAdEventsOnUnityMainThread`), #15 (RequestConfiguration compliance), toàn bộ P2.
+**Tiến độ:** **25/25 — hết mục** · P0 8/8 · P1 11/11 · P2 6/6
+**Trạng thái:** đã sửa hết, **chưa compile bằng Unity, chưa test trên device**. Đây là điều kiện chặn trước khi merge.
+
+Mọi API GoogleMobileAds/UMP dùng trong các commit đã được đối chiếu với metadata của DLL thật trong project (`Assets/GoogleMobileAds`, v10.7.0) — 41/41 ký hiệu tồn tại. Chữ ký hàm native iOS (`NativeBannerManager.mm`) cũng đã đối chiếu 1-1 với khai báo `DllImport` phía C#.
 
 ### Lỗi phát hiện thêm trong lúc sửa (không có trong bản review gốc)
 
@@ -244,7 +245,13 @@ public void ShowPrivacyOptionsForm(Action<string> onError) =>
 
 ---
 
-## [ ] 11. Thiếu `MobileAds.RaiseAdEventsOnUnityMainThread = true`
+## [x] 11. Thiếu `MobileAds.RaiseAdEventsOnUnityMainThread = true`
+
+> **ĐÃ SỬA phần cờ. Cố ý GIỮ `MainThreadDispatcher`.**
+>
+> Đặt `MobileAds.RaiseAdEventsOnUnityMainThread = true` ngay trước `MobileAds.Initialize`. Không gỡ ~20 chỗ bọc `MainThreadDispatcher.Enqueue` — gỡ hàng loạt mà không có compiler để kiểm chính là cách chắc chắn nhất để tạo hồi quy; hơn nữa MAX và LevelPlay vẫn cần dispatcher, nên nó không biến mất được.
+>
+> Đổi lại, **sửa đúng cái nguy hiểm thật của dispatcher** (xem #25): hàng đợi trước đây chỉ được rút trong `AdsManager.Update`, nên `AdsManager` bị disable hay chưa kịp tồn tại là mọi callback ads kẹt lại vĩnh viễn.
 
 **Vị trí:** `AdmobNetwork.cs:36-97`; `Assets/GameUpSDK/Scripts/Runtime/MainThreadDispatcher.cs`
 
@@ -321,7 +328,11 @@ Mỗi interstitial/rewarded đóng lại sinh một request collapsible banner m
 
 ---
 
-## [ ] 15. `RequestConfiguration` thiếu field compliance
+## [x] 15. `RequestConfiguration` thiếu field compliance
+
+> **ĐÃ SỬA.** Thêm `tagForChildDirectedTreatment` (COPPA), `tagForUnderAgeOfConsent` (GDPR), `maxAdContentRating` vào `GameUpAdsConfig.admob`, map sang `RequestConfiguration` trong `AdmobNetwork.BuildRequestConfiguration`. Mặc định `Unspecified` = không khai báo, giữ nguyên hành vi cũ.
+>
+> Config khai enum riêng (`ChildDirectedTreatment`/`UnderAgeOfConsent`/`AdContentRating`) thay vì dùng thẳng enum của GoogleMobileAds, để `GameUpAdsConfig` vẫn compile khi project chưa cài AdMob.
 
 **Vị trí:** `AdmobNetwork.cs:50-51` — chỉ set `TestDeviceIds`.
 
@@ -401,7 +412,17 @@ Chuỗi này đi thẳng vào `Info.plist` và **hiện trong hộp thoại ATT 
 
 # P2 — Thiết kế
 
-## [ ] 20. Format object chỉ tồn tại sau khi init xong → mất lệnh gọi ở vài giây đầu
+## [x] 20. Format object chỉ tồn tại sau khi init xong → mất lệnh gọi ở vài giây đầu
+
+> **ĐÃ SỬA phần có giá trị. KHÔNG dựng format object sớm — nói rõ lý do.**
+>
+> Rà lại thì tác động thực tế nhỏ hơn mô tả gốc: `GetAvailableProvider` đã null-check nên không crash, và banner tự khỏi nhờ cổng `OnBannerLoaded` sau khi `LoadAll()` chạy. Cái thật sự rơi là lệnh `ShowBanner` cho placement mà `LoadAll` không đụng tới.
+>
+> **Đã làm:** `AdsManager` xếp hàng `ShowBanner` gọi trước khi init và phát lại khi mạng đầu tiên sẵn sàng (`FlushPendingBannerShows`); `HideBanner` huỷ luôn lệnh đang xếp hàng để banner vừa ẩn không tự hiện lại. Thêm sự kiện `OnAdsInitialized` để game gate UI.
+>
+> **CHỈ áp dụng cho banner.** Banner là UI thường trực nên hiện muộn vài giây vẫn đúng ý; phát lại interstitial/AppOpen sẽ bật lên lạc ngữ cảnh — với chúng, `onFail` ngay lúc gọi mới là hành vi đúng.
+>
+> **Không dựng format object trong `Awake`:** constructor của `AdmobNativeBannerBridge` gọi `AndroidJavaClass`, của `AdmobNativeFullscreenAd` tạo `FullScreenNativeAdManager`, của `Max*` đăng ký `MaxSdkCallbacks` — chạy chúng trước khi SDK init là đổi thứ tự khởi tạo native. Kèm theo đó phải chặn `LoadByFloor` cho tới khi init xong (AdMob cấm load trước `MobileAds.Initialize`). Refactor này cần compile + test device để làm an toàn, không nên làm mù.
 
 **Vị trí:** `AdmobNetwork.cs:71-76` (và tương tự ở `MaxNetwork`, `IronsourceNetwork`)
 
@@ -409,17 +430,25 @@ Chuỗi này đi thẳng vào `Info.plist` và **hiện trong hộp thoại ATT 
 
 **Sửa:** tạo format object ngay trong `Awake` (chúng chỉ giữ config, chưa gọi SDK), cho `Load` xếp hàng tới khi init xong.
 
-## [ ] 21. `AdsManager.IsInitialized` = true khi **một** network bất kỳ init xong
+## [x] 21. `AdsManager.IsInitialized` = true khi **một** network bất kỳ init xong
+
+> **ĐÃ SỬA.** Giữ nguyên `IsInitialized` (đang là API công khai) nhưng ghi rõ trong doc là "có ít nhất một mạng sẵn sàng", và thêm `AreAllNetworksInitialized` cho trường hợp cần điều kiện chặt.
 
 **Vị trí:** `AdsManager.cs:178` — tên gây hiểu nhầm là "toàn bộ đã sẵn sàng".
 
-## [ ] 22. Không gỡ event → nhân bản handler khi tắt domain reload
+## [x] 22. Không gỡ event → nhân bản handler khi tắt domain reload
+
+> **ĐÃ SỬA.** `WireUpCappingEvents` chuyển toàn bộ từ lambda inline sang method group (`OnFullscreenDisplayed`, `OnFullscreenDisplayFailed`, `OnInterstitialClosed`, …) — lambda không có tham chiếu ổn định nên không bao giờ gỡ được. Thêm `UnwireCappingEvents` đối xứng, `_wiredNetworks` để biết đã nối những mạng nào, và `OnDestroy` gỡ hết. `OnInitializedNetwork` nay idempotent, `InitializeAll` `-=` trước `+=`.
 
 **Vị trí:** `AdmobAdFormat.cs:441-445` (5 event của `FullScreenNativeAdManager`, không bao giờ gỡ); `AdsManager.OnDestroy` cũng không gỡ handler đã gắn vào network.
 
 Với Enter Play Mode Options (tắt domain reload) hoặc scene reload, các handler này tích lũy.
 
-## [ ] 23. `AdmobNativeBannerBridge` dùng static state cho callback iOS
+## [x] 23. `AdmobNativeBannerBridge` dùng static state cho callback iOS
+
+> **ĐÃ SỬA cả hai phía.** `NativeBannerManager.mm` đổi typedef callback thành `Action_Unit`/`Action_UnitString`/`Action_UnitDouble` mang theo `adUnitId`, lưu `currentAdUnitId` và truyền vào mọi callback. Phía C# bỏ `_currentActiveUnitId`/`_currentActiveWhere`, thay bằng `_whereByUnitId` + `WhereOf(unitId)`.
+>
+> **Lỗi thứ hai phát hiện khi đọc `.mm`:** manager iOS chỉ giữ được một ad, và yêu cầu load thứ hai bị `return` **im lặng** khi đang bận. Phía C# đã bật cờ "đang load" cho unit đó nhưng không callback nào về → kẹt vĩnh viễn. Nay native gọi `onFailed(adUnitId, "busy_loading_another_unit")`.
 
 **Vị trí:** `Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Admob/AdmobNativeBannerBridge.cs:160-200`
 
@@ -427,13 +456,19 @@ Với Enter Play Mode Options (tắt domain reload) hoặc scene reload, các ha
 
 **Sửa:** truyền `adUnitId` qua bridge iOS như phía Android đã làm.
 
-## [ ] 24. `IronSourceNetwork` không xử lý init thất bại
+## [x] 24. `IronSourceNetwork` không xử lý init thất bại
+
+> **ĐÃ SỬA.** Đăng ký `LevelPlay.OnInitFailed` với log rõ ràng; `appKey` rỗng cũng log thay vì `return` câm.
 
 **Vị trí:** `Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Ironsource/IronsourceNetwork.cs:43`
 
 Chỉ đăng ký `LevelPlay.OnInitSuccess`; không có `OnInitFailed` → init hỏng thì im lặng, không retry, không log.
 
-## [ ] 25. `MainThreadDispatcher.ProcessQueue` cấp phát `List` mới mỗi frame có việc
+## [x] 25. `MainThreadDispatcher.ProcessQueue` cấp phát `List` mới mỗi frame có việc
+
+> **ĐÃ SỬA, và kèm một lỗi nặng hơn nhiều.** Double-buffer swap thay cho `new List` (giữ tham chiếu vào biến cục bộ để lần gọi lồng nhau không làm vòng lặp nhảy sang list khác giữa chừng).
+>
+> Quan trọng hơn: hàng đợi trước đây **chỉ** được rút trong `AdsManager.Update`, nên `AdsManager` bị disable hoặc chưa kịp tồn tại là mọi callback ads kẹt lại vĩnh viễn. Nay có runner riêng `[RuntimeInitializeOnLoadMethod]` sống độc lập với `AdsManager`, và dọn hàng đợi cũ lúc khởi động để static còn sót khi tắt Domain Reload không rò sang phiên Play sau.
 
 **Vị trí:** `MainThreadDispatcher.cs:27-35` — dùng double-buffer swap thay vì `new List<Action>(Pending)`. Sẽ tự hết nếu làm #11.
 
