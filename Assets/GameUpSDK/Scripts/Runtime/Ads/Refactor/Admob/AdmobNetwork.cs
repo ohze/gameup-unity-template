@@ -46,13 +46,13 @@ namespace GameUp.SDK
             }
 
             var timeInit = Time.realtimeSinceStartup;
-            GULogger.Error("GameUp", $"Initializing Admob Network: {Time.realtimeSinceStartup}");
+            GULogger.Log("GameUp", $"Initializing Admob Network: {Time.realtimeSinceStartup}");
             GoogleMobileAds.Api.RequestConfiguration config = new GoogleMobileAds.Api.RequestConfiguration { TestDeviceIds = settings.testDevices };
             GoogleMobileAds.Api.MobileAds.SetRequestConfiguration(config);
 
             GoogleMobileAds.Api.MobileAds.Initialize(initStatus =>
             {
-                GULogger.Error("GameUp", $"Initialized Admob Network: {Time.realtimeSinceStartup} - Total time initialized: {Time.realtimeSinceStartup - timeInit}");
+                GULogger.Log("GameUp", $"Initialized Admob Network: {Time.realtimeSinceStartup} - Total time initialized: {Time.realtimeSinceStartup - timeInit}");
                 var adapterStatusMap = initStatus.getAdapterStatusMap();
                 foreach (var adapter in adapterStatusMap)
                 {

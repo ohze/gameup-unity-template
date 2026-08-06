@@ -42,7 +42,7 @@ namespace GameUp.SDK
         {
             float limit = _cappingLimits.GetValueOrDefault(groupId, defaultCappingTime);
             float current = _currentTimers.GetValueOrDefault(groupId, 0f);
-            GULogger.Error("GameUp", $"AdUnit: {groupId} current: {current} - limit: {limit}");
+            GULogger.Log("GameUp", $"AdUnit: {groupId} current: {current} - limit: {limit}");
             return current >= limit;
         }
 

@@ -59,7 +59,6 @@ namespace GameUp.SDK
 
                 if (_ads.TryGetValue(unitId, out var ad) && ad != null && ad.CanShowAd())
                 {
-                    NotifyAdDisplayed(where);
                     _ads.Remove(unitId);
 
                     // Ad đã bị gỡ khỏi _ads nên Destroy() ở RequestAdInternal không còn với tới nó
@@ -72,6 +71,9 @@ namespace GameUp.SDK
                         ad.Destroy();
                     }
 
+                    // Chỉ báo "đã hiển thị" khi ad THỰC SỰ lên màn hình. Gọi trước ad.Show() thì
+                    // khi present lỗi sẽ vừa log impression giả vừa PauseAllCapping mà không ai nhả.
+                    ad.OnAdFullScreenContentOpened += () => MainThreadDispatcher.Enqueue(() => NotifyAdDisplayed(where));
                     ad.OnAdFullScreenContentClosed += () => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdClosed(where);
@@ -149,7 +151,6 @@ namespace GameUp.SDK
 
                 if (_ads.TryGetValue(unitId, out var ad) && ad != null && ad.CanShowAd())
                 {
-                    NotifyAdDisplayed(where);
                     _ads.Remove(unitId);
                     bool earned = false;
 
@@ -162,6 +163,7 @@ namespace GameUp.SDK
                         ad.Destroy();
                     }
 
+                    ad.OnAdFullScreenContentOpened += () => MainThreadDispatcher.Enqueue(() => NotifyAdDisplayed(where));
                     ad.OnAdFullScreenContentClosed += () => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdClosed(where);
@@ -210,7 +212,7 @@ namespace GameUp.SDK
             {
                 string unitId = _config.ResolveUnitId(_adType, where, floor);
                 if (!string.IsNullOrEmpty(unitId) && _ads.TryGetValue(unitId, out var ad) && ad != null && ad.CanShowAd() &&
-                    _expireTimes.TryGetValue(unitId, out var exp) && DateTime.Now < exp)
+                    _expireTimes.TryGetValue(unitId, out var exp) && DateTime.UtcNow < exp)
                     return true;
             }
 #endif
@@ -231,7 +233,7 @@ namespace GameUp.SDK
                 }
                 ad.OnAdPaid += (adValue) => { if (adValue != null) TrackRevenue(unitId, where, $"AppOpen_{floor}", adValue.Value * 0.000001f); };
                 _ads[unitId] = ad;
-                _expireTimes[unitId] = DateTime.Now.AddHours(4);
+                _expireTimes[unitId] = DateTime.UtcNow.AddHours(4);
                 HandleLoadSuccess(unitId, where);
             });
 #endif
@@ -246,9 +248,8 @@ namespace GameUp.SDK
                 if (string.IsNullOrEmpty(unitId)) continue;
 
                 if (_ads.TryGetValue(unitId, out var ad) && ad != null && ad.CanShowAd() &&
-                    _expireTimes.TryGetValue(unitId, out var exp) && DateTime.Now < exp)
+                    _expireTimes.TryGetValue(unitId, out var exp) && DateTime.UtcNow < exp)
                 {
-                    NotifyAdDisplayed(where);
                     _ads.Remove(unitId);
                     _expireTimes.Remove(unitId);
 
@@ -261,6 +262,7 @@ namespace GameUp.SDK
                         ad.Destroy();
                     }
 
+                    ad.OnAdFullScreenContentOpened += () => MainThreadDispatcher.Enqueue(() => NotifyAdDisplayed(where));
                     ad.OnAdFullScreenContentClosed += () => MainThreadDispatcher.Enqueue(() =>
                     {
                         NotifyAdClosed(where);
@@ -355,6 +357,15 @@ namespace GameUp.SDK
                 var request = new AdRequest();
                 if (entry.CollapsiblePlacement != CollapsibleBannerPlacement.None)
                 {
+                    // AdMob chỉ phục vụ collapsible banner cho anchored adaptive banner. Cấu hình
+                    // MREC/Leaderboard sẽ im lặng trả về banner thường — cảnh báo để không mất công dò.
+                    if (entry.BannerSize == BannerSize.MediumRectangle || entry.BannerSize == BannerSize.Leaderboard)
+                    {
+                        GameUp.Core.GULogger.Warning("GameUp",
+                            $"Banner '{where}': collapsible chỉ hợp lệ với anchored adaptive banner, " +
+                            $"nhưng bannerSize đang là {entry.BannerSize} — AdMob sẽ bỏ qua collapsible.");
+                    }
+
                     request.Extras.Add("collapsible", entry.CollapsiblePlacement == CollapsibleBannerPlacement.Top ? "top" : "bottom");
                     request.Extras.Add("collapsible_request_id", System.Guid.NewGuid().ToString());
                 }

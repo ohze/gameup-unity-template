@@ -60,16 +60,39 @@ namespace GameUp.SDK
 
                 if (MaxSdk.IsInterstitialReady(unitId))
                 {
+                    // MAX ghi rõ trong MaxSdkCallbacks: OnAdDisplayedEvent "may not be received by Unity
+                    // until the interstitial ad closes" → không dùng được để ẩn banner/pause capping đúng
+                    // lúc. Vẫn báo displayed ngay trước khi show, và bù bằng nhánh display-failed bên dưới.
                     NotifyAdDisplayed(where);
+
                     Action<string, MaxSdkBase.AdInfo> onHidden = null;
+                    Action<string, MaxSdkBase.ErrorInfo, MaxSdkBase.AdInfo> onDisplayFailed = null;
+
+                    void Unsubscribe()
+                    {
+                        MaxSdkCallbacks.Interstitial.OnAdHiddenEvent -= onHidden;
+                        MaxSdkCallbacks.Interstitial.OnAdDisplayFailedEvent -= onDisplayFailed;
+                    }
+
                     onHidden = (id, info) =>
                     {
                         if (id != unitId) return;
-                        MaxSdkCallbacks.Interstitial.OnAdHiddenEvent -= onHidden;
+                        Unsubscribe();
                         NotifyAdClosed(where);
                         MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); LoadByFloor(where, currentFloor); });
                     };
+                    // Thiếu nhánh này thì khi MAX không present được: onSuccess/onFail không bao giờ
+                    // chạy (game treo ở màn chờ), ad không được load lại, và handler onHidden rò mãi.
+                    onDisplayFailed = (id, err, info) =>
+                    {
+                        if (id != unitId) return;
+                        Unsubscribe();
+                        NotifyAdDisplayFailed(where, err.Message);
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                    };
+
                     MaxSdkCallbacks.Interstitial.OnAdHiddenEvent += onHidden;
+                    MaxSdkCallbacks.Interstitial.OnAdDisplayFailedEvent += onDisplayFailed;
                     MaxSdk.ShowInterstitial(unitId, where);
                     return;
                 }
@@ -135,22 +158,40 @@ namespace GameUp.SDK
 
                 if (MaxSdk.IsRewardedAdReady(unitId))
                 {
+                    // Xem ghi chú ở MaxInterstitialAd.Show về thời điểm OnAdDisplayedEvent.
                     NotifyAdDisplayed(where);
+
                     bool earned = false;
                     Action<string, MaxSdkBase.Reward, MaxSdkBase.AdInfo> onReward = null;
                     Action<string, MaxSdkBase.AdInfo> onHidden = null;
+                    Action<string, MaxSdkBase.ErrorInfo, MaxSdkBase.AdInfo> onDisplayFailed = null;
+
+                    void Unsubscribe()
+                    {
+                        MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent -= onReward;
+                        MaxSdkCallbacks.Rewarded.OnAdHiddenEvent -= onHidden;
+                        MaxSdkCallbacks.Rewarded.OnAdDisplayFailedEvent -= onDisplayFailed;
+                    }
 
                     onReward = (id, reward, info) => { if (id == unitId) earned = true; };
                     onHidden = (id, info) =>
                     {
                         if (id != unitId) return;
-                        MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent -= onReward;
-                        MaxSdkCallbacks.Rewarded.OnAdHiddenEvent -= onHidden;
+                        Unsubscribe();
                         NotifyAdClosed(where);
                         MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); LoadByFloor(where, currentFloor); });
                     };
+                    onDisplayFailed = (id, err, info) =>
+                    {
+                        if (id != unitId) return;
+                        Unsubscribe();
+                        NotifyAdDisplayFailed(where, err.Message);
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                    };
+
                     MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += onReward;
                     MaxSdkCallbacks.Rewarded.OnAdHiddenEvent += onHidden;
+                    MaxSdkCallbacks.Rewarded.OnAdDisplayFailedEvent += onDisplayFailed;
                     MaxSdk.ShowRewardedAd(unitId, where);
                     return;
                 }
@@ -201,18 +242,35 @@ namespace GameUp.SDK
 
                 if (MaxSdk.IsAppOpenAdReady(unitId))
                 {
+                    // Xem ghi chú ở MaxInterstitialAd.Show về thời điểm OnAdDisplayedEvent.
                     NotifyAdDisplayed(where);
+
                     Action<string, MaxSdkBase.AdInfo> onHidden = null;
+                    Action<string, MaxSdkBase.ErrorInfo, MaxSdkBase.AdInfo> onDisplayFailed = null;
+
+                    void Unsubscribe()
+                    {
+                        MaxSdkCallbacks.AppOpen.OnAdHiddenEvent -= onHidden;
+                        MaxSdkCallbacks.AppOpen.OnAdDisplayFailedEvent -= onDisplayFailed;
+                    }
+
                     onHidden = (id, info) =>
                     {
-                        if (id == unitId)
-                        {
-                            MaxSdkCallbacks.AppOpen.OnAdHiddenEvent -= onHidden;
-                            NotifyAdClosed(where);
-                            MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); LoadByFloor(where, currentFloor); });
-                        }
+                        if (id != unitId) return;
+                        Unsubscribe();
+                        NotifyAdClosed(where);
+                        MainThreadDispatcher.Enqueue(() => { onSuccess?.Invoke(); LoadByFloor(where, currentFloor); });
                     };
+                    onDisplayFailed = (id, err, info) =>
+                    {
+                        if (id != unitId) return;
+                        Unsubscribe();
+                        NotifyAdDisplayFailed(where, err.Message);
+                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); LoadByFloor(where, currentFloor); });
+                    };
+
                     MaxSdkCallbacks.AppOpen.OnAdHiddenEvent += onHidden;
+                    MaxSdkCallbacks.AppOpen.OnAdDisplayFailedEvent += onDisplayFailed;
                     MaxSdk.ShowAppOpenAd(unitId, where);
                     return;
                 }
@@ -235,8 +293,11 @@ namespace GameUp.SDK
 
         public override bool IsAvailable(string where = null)
         {
+            // Trước đây chỉ kiểm tra "có cấu hình unit id hay không" → LUÔN trả true khi MAX được
+            // cấu hình, kể cả lúc chưa có banner nào load xong. AdsManager.GetAvailableProvider dùng
+            // hàm này để chọn mạng, nên MAX che mất AdMob và banner không bao giờ lên.
             string unitId = _config.ResolveUnitId(_adType, where, EcpmFloor.All);
-            return !string.IsNullOrEmpty(unitId);
+            return !string.IsNullOrEmpty(unitId) && _isLoaded.TryGetValue(unitId, out var loaded) && loaded;
         }
 
         protected override void RequestAdInternal(string unitId, string where, EcpmFloor floor)

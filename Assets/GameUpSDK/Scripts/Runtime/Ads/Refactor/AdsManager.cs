@@ -60,6 +60,12 @@ namespace GameUp.SDK
 
         private Action<bool> _onRemoveAllAdsChanged;
 
+        /// <summary>App đã từng bị đưa xuống nền ít nhất một lần — tức là lần foreground kế tiếp
+        /// là "quay lại app" thật, không phải cold start.</summary>
+        private bool _hasBeenBackgrounded;
+
+        private bool _appOpenOnColdStart;
+
         public new bool IsInitialized { get; private set; }
 
         public Dictionary<MediationProvider, IAdNetwork> Networks => _networkDict;
@@ -130,6 +136,12 @@ namespace GameUp.SDK
                 mediationPriority = new List<MediationProvider>(config.mediationPriority);
 
             nativeCtaClickRate = config.nativeCtaClickRate;
+            _appOpenOnColdStart = config.appOpenOnColdStart;
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused) _hasBeenBackgrounded = true;
         }
 
         private void Start()
@@ -315,9 +327,20 @@ namespace GameUp.SDK
                 TemporarilyHideBanners();
             };
 
+            // Display lỗi = ad KHÔNG lên màn hình, nên phải nhả pause y như lúc ad đóng.
+            // Trước đây chỉ OnAdClosed mới Resume, mà display lỗi thì OnAdClosed không bao giờ bắn
+            // → _pauseRequests kẹt > 0 vĩnh viễn, IsAnyAdShowing luôn true và mọi Interstitial/AppOpen
+            // sau đó bị chặn hết phiên. ResumeAllCapping đã kẹp sàn 0 nên gọi thừa vẫn an toàn.
+            Action<string, string> resumeOnDisplayFailAct = (where, error) =>
+            {
+                AdCappingManager.Instance.ResumeAllCapping();
+                RestoreBanners();
+            };
+
             if (network.InterstitialAd != null)
             {
                 network.InterstitialAd.OnAdDisplayed += pauseAct;
+                network.InterstitialAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
                 network.InterstitialAd.OnAdClosed += (where) =>
                 {
                     AdCappingManager.Instance.ResumeAllCapping();
@@ -330,6 +353,7 @@ namespace GameUp.SDK
             if (network.RewardedAd != null)
             {
                 network.RewardedAd.OnAdDisplayed += pauseAct;
+                network.RewardedAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
                 network.RewardedAd.OnAdClosed += (where) =>
                 {
                     AdCappingManager.Instance.ResumeAllCapping();
@@ -342,6 +366,7 @@ namespace GameUp.SDK
             if (network.AppOpenAd != null)
             {
                 network.AppOpenAd.OnAdDisplayed += pauseAct;
+                network.AppOpenAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
                 network.AppOpenAd.OnAdClosed += (where) =>
                 {
                     AdCappingManager.Instance.ResumeAllCapping();
@@ -354,6 +379,7 @@ namespace GameUp.SDK
             if (network.NativeFullScreenAd != null)
             {
                 network.NativeFullScreenAd.OnAdDisplayed += pauseAct;
+                network.NativeFullScreenAd.OnAdDisplayFailed += resumeOnDisplayFailAct;
                 network.NativeFullScreenAd.OnAdClosed += (where) =>
                 {
                     AdCappingManager.Instance.ResumeAllCapping();
@@ -505,6 +531,23 @@ namespace GameUp.SDK
             {
                 GULogger.Log("GameUp", "AppOpenAd blocked: remove-ads is active.");
                 onSuccess?.Invoke();
+                return;
+            }
+
+            // Guard này trước đây chỉ nằm ở code mẫu (Example.OnApplicationPause), nên project nào tự
+            // viết hook lifecycle là hở: AOA chồng lên interstitial khi user quay lại từ một cú click ad
+            // — vi phạm chính sách AdMob. Đưa vào SDK cho đồng bộ với ShowInterstitial.
+            if (AdCappingManager.Instance.IsAnyAdShowing)
+            {
+                GULogger.Log("GameUp", "AppOpenAd blocked: đang có ad khác hiển thị.");
+                onFail?.Invoke();
+                return;
+            }
+
+            if (!_hasBeenBackgrounded && !_appOpenOnColdStart)
+            {
+                GULogger.Log("GameUp", "AppOpenAd blocked: cold start (bật GameUpAdsConfig.appOpenOnColdStart nếu muốn).");
+                onFail?.Invoke();
                 return;
             }
 

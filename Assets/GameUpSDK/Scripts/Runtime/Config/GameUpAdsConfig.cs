@@ -116,6 +116,10 @@ namespace GameUp.SDK
         [Tooltip("Tỉ lệ (%) biến toàn bộ vùng Native Ad thành CTA. Remote Config native_cta_click_rate ghi đè giá trị này.")]
         [Range(0, 100)] public int nativeCtaClickRate = 30;
 
+        [Tooltip("Cho phép App Open Ad hiện ở lần mở app đầu tiên (cold start). Tắt = AOA chỉ hiện khi " +
+                 "user quay lại app sau khi đã đưa xuống nền — an toàn hơn về chính sách AdMob.")]
+        public bool appOpenOnColdStart;
+
         [Header("AdMob")] public AdmobAdsSettings admob = new AdmobAdsSettings();
         [Header("AppLovin MAX")] public MaxAdsSettings max = new MaxAdsSettings();
         [Header("IronSource LevelPlay")] public IronSourceAdsSettings ironSource = new IronSourceAdsSettings();

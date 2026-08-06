@@ -181,6 +181,9 @@ namespace GameUp.SDK.Editor.Setup
             if (ios != null) ios.stringValue = source.admob.appIdIOS ?? "";
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(googleAsset);
+            // Thiếu SaveAssets thì App ID chỉ nằm trong bộ nhớ: đóng Unity không qua save,
+            // hoặc build ngay sau khi bấm Save, sẽ dùng App ID cũ trong GoogleMobileAdsSettings.asset.
+            AssetDatabase.SaveAssets();
         }
 
         // --- helpers ---
