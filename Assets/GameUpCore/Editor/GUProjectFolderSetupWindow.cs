@@ -110,9 +110,16 @@ namespace GameUp.Core.Editor
         private readonly List<string> _customFolders = new List<string>();
         private Vector2 _scrollPosition;
         private GUIStyle _treeLabelStyle;
+        private bool _showOnlyMissing;
 
         [MenuItem(MenuPath)]
         private static void OpenWindow()
+        {
+            OpenWindowFromInstaller();
+        }
+
+        /// <summary>Mở cửa sổ không qua menu validate (installer gọi khi bước 1 đã xong).</summary>
+        public static void OpenWindowFromInstaller()
         {
             var window = GetWindow<GUProjectFolderSetupWindow>();
             window.titleContent = new GUIContent(WindowTitle);
@@ -126,57 +133,94 @@ namespace GameUp.Core.Editor
             return GUDotweenDependencyUtility.CanUseCoreTools();
         }
 
-        public static bool IsSetupCompleted()
+        /// <summary>Số thư mục / ScriptableObject bắt buộc đã có, dùng cho thanh tiến độ.</summary>
+        public static (int folders, int totalFolders, int assets, int totalAssets) GetSetupProgress()
         {
-            if (!EditorPrefs.GetBool(SetupCompletedKey, false))
-            {
-                return false;
-            }
-
+            int folders = 0;
             for (int index = 0; index < RequiredFolders.Length; index++)
             {
-                if (!AssetDatabase.IsValidFolder(RequiredFolders[index]))
-                {
-                    return false;
-                }
+                if (AssetDatabase.IsValidFolder(RequiredFolders[index])) folders++;
             }
 
+            int assets = 0;
             for (int index = 0; index < RequiredScriptableObjects.Length; index++)
             {
                 var config = RequiredScriptableObjects[index];
-                if (AssetDatabase.LoadAssetAtPath(config.AssetPath, config.AssetType) == null)
-                {
-                    return false;
-                }
+                if (AssetDatabase.LoadAssetAtPath(config.AssetPath, config.AssetType) != null) assets++;
             }
 
-            return true;
+            return (folders, RequiredFolders.Length, assets, RequiredScriptableObjects.Length);
+        }
+
+        /// <summary>
+        /// Setup coi là xong khi project THỰC SỰ có đủ thư mục + asset bắt buộc.
+        /// Trước đây phải có thêm cờ EditorPrefs, nên project clone sẵn (hoặc đổi máy/đổi user)
+        /// dù đủ file vẫn bị khoá hết menu — nay cờ chỉ được đồng bộ lại theo trạng thái thật.
+        /// </summary>
+        public static bool IsSetupCompleted()
+        {
+            var (folders, totalFolders, assets, totalAssets) = GetSetupProgress();
+            bool completed = folders == totalFolders && assets == totalAssets;
+
+            if (EditorPrefs.GetBool(SetupCompletedKey, false) != completed)
+            {
+                EditorPrefs.SetBool(SetupCompletedKey, completed);
+            }
+
+            return completed;
         }
 
         private void OnEnable()
         {
             LoadCustomFolders();
             BuildRequiredTree();
+            EditorApplication.projectChanged += Repaint;
         }
+
+        private void OnDisable()
+        {
+            EditorApplication.projectChanged -= Repaint;
+        }
+
+        private void OnFocus() => Repaint();
 
         private void OnGUI()
         {
             EnsureGuiStyles();
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Project Folder Setup", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "Danh sach bat buoc (bao gom Resources) se luon duoc tao. " +
-                "Ban co the them/sua/xoa thu muc tuy chinh ben duoi.",
-                MessageType.Info);
+            GUInstallerUI.EnsureStyles();
+
+            DrawHeader();
 
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
             DrawRequiredFolders();
-            EditorGUILayout.Space(8f);
+            DrawRequiredScriptableObjects();
             DrawCustomFolders();
             EditorGUILayout.EndScrollView();
 
-            EditorGUILayout.Space(10f);
+            EditorGUILayout.Space(8f);
             DrawActions();
+        }
+
+        private void DrawHeader()
+        {
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.LabelField("Project Folder Setup", EditorStyles.largeLabel);
+            GUInstallerUI.Hint("Thư mục bắt buộc luôn được tạo lại khi bấm \"Tạo tất cả\". Thư mục tùy chỉnh nằm ở cuối danh sách.");
+
+            var (folders, totalFolders, assets, totalAssets) = GetSetupProgress();
+            EditorGUILayout.Space(4f);
+            GUInstallerUI.ProgressBar("Đã có", folders + assets, totalFolders + totalAssets);
+
+            EditorGUILayout.BeginHorizontal();
+            _showOnlyMissing = GUILayout.Toggle(_showOnlyMissing, "Chỉ hiện mục còn thiếu", EditorStyles.miniButton, GUILayout.Width(170f));
+            GUILayout.FlexibleSpace();
+            if (GUInstallerUI.MiniButton("Kiểm tra lại", true, 100f))
+            {
+                AssetDatabase.Refresh();
+                BuildRequiredTree();
+            }
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space(2f);
         }
 
         private void EnsureGuiStyles()
@@ -189,55 +233,71 @@ namespace GameUp.Core.Editor
 
         private void DrawRequiredFolders()
         {
-            EditorGUILayout.LabelField("Required Folders (Locked)", EditorStyles.boldLabel);
-            DrawRequiredTree();
-            DrawRequiredSummary();
-            EditorGUILayout.Space(6f);
-            DrawRequiredScriptableObjects();
-        }
+            var (folders, totalFolders, _, _) = GetSetupProgress();
 
-        private void DrawRequiredTree()
-        {
-            List<FolderNode> rootChildren = _requiredTreeRoot.Children.Values
-                .OrderBy(node => node.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            for (int index = 0; index < rootChildren.Count; index++)
+            using (GUInstallerUI.BeginCard())
             {
-                bool isLast = index == rootChildren.Count - 1;
-                DrawTreeNode(rootChildren[index], 0, isLast);
-            }
-        }
+                GUInstallerUI.CardHeader(
+                    $"{folders}/{totalFolders}",
+                    "Thư mục bắt buộc",
+                    folders == totalFolders ? GUSetupState.Done : GUSetupState.Missing);
 
-        private void DrawRequiredSummary()
-        {
-            int existingCount = 0;
-            for (int index = 0; index < RequiredFolders.Length; index++)
-            {
-                if (AssetDatabase.IsValidFolder(RequiredFolders[index]))
+                if (_showOnlyMissing && folders == totalFolders)
                 {
-                    existingCount++;
+                    GUInstallerUI.Hint("Không còn thư mục nào thiếu.");
+                    return;
+                }
+
+                List<FolderNode> rootChildren = _requiredTreeRoot.Children.Values
+                    .OrderBy(node => node.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                for (int index = 0; index < rootChildren.Count; index++)
+                {
+                    bool isLast = index == rootChildren.Count - 1;
+                    DrawTreeNode(rootChildren[index], 0, isLast);
                 }
             }
+        }
 
-            int missingCount = RequiredFolders.Length - existingCount;
-            EditorGUILayout.HelpBox(
-                $"Required folders: Exists {existingCount}/{RequiredFolders.Length} - Missing {missingCount}",
-                missingCount == 0 ? MessageType.Info : MessageType.Warning);
+        /// <summary>Node hoặc bất kỳ con nào của node còn thiếu — dùng cho bộ lọc "chỉ hiện mục thiếu".</summary>
+        private static bool HasMissingInSubtree(FolderNode node)
+        {
+            if (!AssetDatabase.IsValidFolder(node.FullPath)) return true;
+            foreach (var child in node.Children.Values)
+            {
+                if (HasMissingInSubtree(child)) return true;
+            }
+
+            return false;
         }
 
         private void DrawTreeNode(FolderNode node, int depth, bool isLast)
         {
+            if (_showOnlyMissing && !HasMissingInSubtree(node)) return;
+
+            bool exists = AssetDatabase.IsValidFolder(node.FullPath);
+
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(depth * IndentWidth);
 
             string branch = isLast ? "└──" : "├──";
-            bool exists = AssetDatabase.IsValidFolder(node.FullPath);
-            string statusColor = ColorUtility.ToHtmlStringRGB(exists ? ExistsColor : MissingColor);
-            string nameColor = ColorUtility.ToHtmlStringRGB(exists ? ExistsColor : GUI.contentColor);
-            string status = exists ? "EXISTS" : "MISSING";
-            string display = $"{branch} <color=#{nameColor}>{node.Name}</color>  <color=#{statusColor}>[{status}]</color>";
-            EditorGUILayout.LabelField(display, _treeLabelStyle);
+            string nameColor = ColorUtility.ToHtmlStringRGB(exists ? ExistsColor : MissingColor);
+            string mark = exists ? "✔" : "✚";
+            EditorGUILayout.LabelField($"{branch} <color=#{nameColor}>{mark} {node.Name}</color>", _treeLabelStyle);
+
+            if (!exists)
+            {
+                if (GUILayout.Button("Tạo", EditorStyles.miniButton, GUILayout.Width(50f)))
+                {
+                    TryEnsureFolder(node.FullPath);
+                    AssetDatabase.Refresh();
+                }
+            }
+            else if (GUILayout.Button("Mở", EditorStyles.miniButton, GUILayout.Width(50f)))
+            {
+                GUInstallerUI.PingPath(node.FullPath);
+            }
 
             EditorGUILayout.EndHorizontal();
 
@@ -254,84 +314,119 @@ namespace GameUp.Core.Editor
 
         private void DrawCustomFolders()
         {
-            EditorGUILayout.LabelField("Custom Folders", EditorStyles.boldLabel);
-
-            int removeIndex = -1;
-            for (int index = 0; index < _customFolders.Count; index++)
+            using (GUInstallerUI.BeginCard())
             {
-                EditorGUILayout.BeginHorizontal();
-                _customFolders[index] = EditorGUILayout.TextField($"Custom {index + 1}", _customFolders[index]);
-                bool exists = AssetDatabase.IsValidFolder(NormalizePath(_customFolders[index]));
-                GUIStyle statusStyle = new GUIStyle(EditorStyles.miniLabel);
-                statusStyle.normal.textColor = exists ? ExistsColor : MissingColor;
-                GUILayout.Label(exists ? "EXISTS" : "MISSING", statusStyle, GUILayout.Width(56f));
-                if (GUILayout.Button("X", GUILayout.Width(28f)))
+                GUInstallerUI.CardHeader($"{_customFolders.Count}", "Thư mục tùy chỉnh", GUSetupState.Optional);
+
+                if (_customFolders.Count == 0)
                 {
-                    removeIndex = index;
+                    GUInstallerUI.Hint("Chưa có thư mục tùy chỉnh nào. Danh sách này được lưu theo máy (EditorPrefs).");
                 }
 
+                int removeIndex = -1;
+                for (int index = 0; index < _customFolders.Count; index++)
+                {
+                    bool exists = AssetDatabase.IsValidFolder(NormalizePath(_customFolders[index]));
+
+                    EditorGUILayout.BeginHorizontal();
+                    GUInstallerUI.DrawBadge(exists ? "ĐÃ CÓ" : "CHƯA CÓ", exists ? GUInstallerUI.OkColor : GUInstallerUI.MissingColor, 76f);
+                    GUILayout.Space(4f);
+                    _customFolders[index] = EditorGUILayout.TextField(_customFolders[index]);
+                    if (GUILayout.Button("X", GUILayout.Width(24f)))
+                    {
+                        removeIndex = index;
+                    }
+
+                    EditorGUILayout.EndHorizontal();
+                }
+
+                if (removeIndex >= 0)
+                {
+                    _customFolders.RemoveAt(removeIndex);
+                    SaveCustomFolders();
+                }
+
+                EditorGUILayout.Space(2f);
+                EditorGUILayout.BeginHorizontal();
+                if (GUInstallerUI.MiniButton("+ Thêm thư mục", true, 130f))
+                {
+                    _customFolders.Add("Assets/NewFolder");
+                    SaveCustomFolders();
+                }
+
+                if (GUInstallerUI.MiniButton("Lưu danh sách", true, 120f))
+                {
+                    SaveCustomFolders();
+                    ShowNotification(new GUIContent("Đã lưu danh sách thư mục tùy chỉnh."));
+                }
                 EditorGUILayout.EndHorizontal();
             }
-
-            if (removeIndex >= 0)
-            {
-                _customFolders.RemoveAt(removeIndex);
-                SaveCustomFolders();
-            }
-
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Add Folder", GUILayout.Width(110f)))
-            {
-                _customFolders.Add("Assets/NewFolder");
-                SaveCustomFolders();
-            }
-
-            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawRequiredScriptableObjects()
         {
-            EditorGUILayout.LabelField("Required ScriptableObjects (Default)", EditorStyles.boldLabel);
+            var (_, _, assets, totalAssets) = GetSetupProgress();
 
-            int existingCount = 0;
-            for (int index = 0; index < RequiredScriptableObjects.Length; index++)
+            using (GUInstallerUI.BeginCard())
             {
-                var config = RequiredScriptableObjects[index];
-                bool exists = AssetDatabase.LoadAssetAtPath(config.AssetPath, config.AssetType) != null;
-                if (exists)
+                GUInstallerUI.CardHeader(
+                    $"{assets}/{totalAssets}",
+                    "ScriptableObject mặc định",
+                    assets == totalAssets ? GUSetupState.Done : GUSetupState.Missing);
+
+                for (int index = 0; index < RequiredScriptableObjects.Length; index++)
                 {
-                    existingCount++;
+                    var config = RequiredScriptableObjects[index];
+                    bool exists = AssetDatabase.LoadAssetAtPath(config.AssetPath, config.AssetType) != null;
+                    if (_showOnlyMissing && exists) continue;
+
+                    if (GUInstallerUI.StatusRow(
+                            Path.GetFileName(config.AssetPath),
+                            exists ? GUSetupState.Done : GUSetupState.Missing,
+                            Path.GetDirectoryName(config.AssetPath)?.Replace("\\", "/"),
+                            exists ? "Mở" : "Tạo",
+                            true,
+                            60f))
+                    {
+                        if (exists)
+                        {
+                            GUInstallerUI.PingPath(config.AssetPath);
+                        }
+                        else
+                        {
+                            EnsureScriptableObjectAsset(config.AssetPath, config.AssetType);
+                            AssetDatabase.SaveAssets();
+                            AssetDatabase.Refresh();
+                        }
+                    }
                 }
-
-                string statusColor = ColorUtility.ToHtmlStringRGB(exists ? ExistsColor : MissingColor);
-                string pathColor = ColorUtility.ToHtmlStringRGB(exists ? ExistsColor : GUI.contentColor);
-                string status = exists ? "EXISTS" : "MISSING";
-                string display = $"• <color=#{pathColor}>{config.AssetPath}</color>  <color=#{statusColor}>[{status}]</color>";
-                EditorGUILayout.LabelField(display, _treeLabelStyle);
             }
-
-            int missingCount = RequiredScriptableObjects.Length - existingCount;
-            EditorGUILayout.HelpBox(
-                $"Required ScriptableObjects: Exists {existingCount}/{RequiredScriptableObjects.Length} - Missing {missingCount}",
-                missingCount == 0 ? MessageType.Info : MessageType.Warning);
         }
 
         private void DrawActions()
         {
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Save Custom List", GUILayout.Height(32f)))
-            {
-                SaveCustomFolders();
-                ShowNotification(new GUIContent("Saved custom folder list."));
-            }
+            bool completed = IsSetupCompleted();
 
-            if (GUILayout.Button("Create All Folders", GUILayout.Height(32f)))
+            using (GUInstallerUI.BeginCard(0f))
             {
-                CreateAllFolders();
-            }
+                if (completed)
+                {
+                    EditorGUILayout.HelpBox("Đủ thư mục và asset bắt buộc — các menu GameUp khác đã được mở khoá.", MessageType.Info);
+                }
 
-            EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                if (GUInstallerUI.PrimaryButton(completed ? "Tạo lại / kiểm tra tất cả" : "Tạo tất cả thư mục & asset", true, 32f))
+                {
+                    CreateAllFolders();
+                    BuildRequiredTree();
+                }
+
+                if (GUInstallerUI.PrimaryButton("Mở Core Installer", true, 32f))
+                {
+                    EditorApplication.ExecuteMenuItem("GameUp/Project/GameUpCore Installer");
+                }
+                EditorGUILayout.EndHorizontal();
+            }
         }
 
         private void CreateAllFolders()

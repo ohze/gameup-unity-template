@@ -25,6 +25,34 @@ namespace GameUp.Core.Editor
         private static readonly string ManagerPrefabProjectPath = $"{MainProjectCorePrefabsPath}/{ManagerPrefabFileName}";
         private static readonly string UiRootPrefabProjectPath = $"{MainProjectCorePrefabsPath}/{UiRootPrefabFileName}";
 
+        public static readonly string ManagerRootName = Path.GetFileNameWithoutExtension(ManagerPrefabFileName);
+        public static readonly string UiRootName = Path.GetFileNameWithoutExtension(UiRootPrefabFileName);
+
+        /// <summary>Scene đang mở đã có cả root Manager lẫn root UI hay chưa (dùng cho UI trạng thái của installer).</summary>
+        public static bool HasCoreObjectsInScene()
+        {
+            return HasRootNamedInScene(ManagerRootName) && HasRootNamedInScene(UiRootName);
+        }
+
+        /// <summary>
+        /// So khớp theo TÊN root vì Core setup unpack prefab instance ngay sau khi tạo —
+        /// sau unpack thì liên kết prefab không còn, không thể nhận diện bằng prefab source.
+        /// </summary>
+        private static bool HasRootNamedInScene(string rootName)
+        {
+            var scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid()) return false;
+
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                if (roots[i] && roots[i].name.StartsWith(rootName, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
         [MenuItem(MenuPath)]
         public static void RunFromMenu()
         {
@@ -304,12 +332,20 @@ namespace GameUp.Core.Editor
             if (!scene.IsValid())
                 return false;
 
+            // Instance được unpack ngay sau khi tạo nên đa số trường hợp chỉ còn nhận ra được bằng tên;
+            // vẫn kiểm tra prefab source để bắt trường hợp instance chưa unpack.
+            var expectedName = Path.GetFileNameWithoutExtension(prefabAssetPath);
+
             var roots = scene.GetRootGameObjects();
             for (var i = 0; i < roots.Length; i++)
             {
                 var root = roots[i];
                 if (!root)
                     continue;
+
+                if (!string.IsNullOrEmpty(expectedName) && root.name.StartsWith(expectedName, StringComparison.Ordinal))
+                    return true;
+
                 if (PrefabUtility.GetCorrespondingObjectFromSource(root) != prefabAsset)
                     continue;
                 var path = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root);

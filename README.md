@@ -42,6 +42,8 @@
 
 ## A1. Tổng quan luồng cài đặt
 
+**Đường ngắn nhất:** thêm GameUpCore qua Git UPM → mở **`GameUp → Project → GameUpCore Installer`** → làm lần lượt 3 bước trong cửa sổ đó. Cửa sổ này gom cả DOTween, Folder Setup, Core setup, Logger, Helper packages và cài GameUpSDK/GameUpIAP vào một chỗ, mỗi mục tự kiểm tra trạng thái thật trong project (không dựa vào cờ "đã bấm").
+
 Thứ tự **bắt buộc** cho dự án trống hoặc dự án mới chỉ thêm package:
 
 1. Cài **DOTween Pro** và chạy **DOTween Setup** để có assembly **`DOTween.Modules`** (GameUp UI reference assembly này trong `GameUp.UI.Runtime.asmdef`).
@@ -50,6 +52,8 @@ Thứ tự **bắt buộc** cho dự án trống hoặc dự án mới chỉ th�
 4. **`GameUp → Logger → Enable Logs (Debug)`** (menu chỉ bật sau khi Folder Setup đã hoàn tất).
 5. **`GameUp → Project → Core setup`** (copy prefab Manager/UI, đặt vào scene hiện tại).
 6. (Tuỳ chọn) **`GameUp → Audio → Setup AudioManager`** nếu dùng Audio của framework.
+
+Bước 1, 3, 5 làm được trực tiếp trong **GameUpCore Installer**; bước 4 và 6 nằm ở mục **Tùy chọn** cuối cửa sổ.
 
 ---
 

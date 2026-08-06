@@ -2,6 +2,24 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), phiên bản theo [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`GUInstallerUI`** — bộ widget dùng chung cho các cửa sổ setup (card, badge trạng thái, dòng trạng thái có nút, thanh tiến độ), cùng ngôn ngữ thiết kế với cửa sổ Setup Dependencies của GameUpSDK.
+- **GameUpCore Installer trở thành cửa sổ duy nhất cần mở**: 3 bước có đánh số (DOTween → Folder Setup → Core setup) kèm badge trạng thái, thanh tiến độ tổng, phần Tùy chọn gom GameUpSDK / GameUpIAP (hiện version đã cài, nút copy Git URL), Helper packages, Logger và Audio setup.
+- **Helper Package Installer nhận biết gói đã cài**: chọn nhiều gói bằng checkbox, cài theo hàng đợi có tiến độ "n/m", nút cài riêng từng gói. Trạng thái dựa trên marker path đã biết + so ảnh chụp thư mục `Assets` trước/sau khi import (ghi nhận lại để lần sau vẫn đúng, và tự trở về "chưa cài" nếu thư mục bị xoá).
+- **Folder Setup**: thanh tiến độ, bộ lọc "chỉ hiện mục còn thiếu", nút **Tạo** cho từng thư mục thiếu và nút **Tạo** cho từng ScriptableObject thiếu, nút **Mở** để ping asset.
+- **Audio Setup**: hiển thị rõ 2 giai đoạn với badge, số AudioClip trong Audio Folder, số AudioIdentity đã sinh, trạng thái `AudioID.cs`; nút Scan bị khoá kèm lý do khi chưa đủ điều kiện.
+- `GUCoreProjectSetup.HasCoreObjectsInScene()` để installer biết scene đã có root Manager + UI hay chưa.
+
+### Fixed
+- **Trạng thái GameUpSDK / GameUpIAP luôn báo "chưa cài" khi cài qua Git UPM.** Package Git nằm trong `Library/PackageCache` chứ không phải `Packages/<tên>`, mà code chỉ kiểm tra thư mục vật lý. Nay hỏi AssetDatabase theo path ảo `Packages/<tên>` (Unity map mọi package vào đó) và đọc thêm version qua `PackageInfo`.
+- **Folder Setup bị coi là "chưa xong" dù project đã đủ thư mục**, vì điều kiện phụ thuộc cờ `EditorPrefs` (mất khi clone project / đổi máy / đổi user) — kéo theo Core setup, Logger, Audio bị khoá menu vô lý. Nay trạng thái tính từ file thật trong project, cờ chỉ được đồng bộ lại theo đó.
+- **Core setup chạy lần 2 tạo trùng `====Manager====` / `=====UI=====` trong scene**: prefab instance bị unpack ngay sau khi tạo nên không còn liên kết prefab để nhận diện; nay đối chiếu thêm theo tên root.
+- Các cửa sổ setup tự vẽ lại khi project thay đổi hoặc khi lấy lại focus, thay vì giữ trạng thái cũ đến khi người dùng rê chuột vào.
+- Thông báo cài DOTween / GameUpSDK / GameUpIAP không còn biến mất sau khi Unity reload domain (lưu qua `SessionState`).
+- Trạng thái define `DOTween__DEPENDENCIES_INSTALLED` liệt kê đúng platform còn thiếu thay vì chỉ báo có/không.
+
 ## [0.2.0] - 2026-08-05
 
 ### Added

@@ -48,12 +48,48 @@ namespace GameUp.Core.Editor
                    && GUProjectFolderSetupWindow.IsSetupCompleted();
         }
 
+        private int _clipCount;
+        private int _identityCount;
+
         private void OnEnable()
         {
             audioFolderPath = DefaultAudioFolderPath;
             audioIdentityFolderPath = DefaultAudioIdentityFolderPath;
             audioIdOutputPath = DefaultAudioIdOutputPath;
             audioDatabaseFolderPath = DefaultAudioDatabaseFolderPath;
+
+            RefreshStats();
+            EditorApplication.projectChanged += OnProjectChanged;
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.projectChanged -= OnProjectChanged;
+        }
+
+        private void OnProjectChanged()
+        {
+            RefreshStats();
+            Repaint();
+        }
+
+        private void OnFocus()
+        {
+            RefreshStats();
+            Repaint();
+        }
+
+        /// <summary>Đếm clip/identity một lần khi project đổi thay vì quét lại mỗi lần vẽ GUI.</summary>
+        private void RefreshStats()
+        {
+            _clipCount = CountAssets("t:AudioClip", audioFolderPath);
+            _identityCount = CountAssets("t:AudioIdentity", audioIdentityFolderPath);
+        }
+
+        private static int CountAssets(string filter, string folder)
+        {
+            if (string.IsNullOrWhiteSpace(folder) || !AssetDatabase.IsValidFolder(folder)) return 0;
+            return AssetDatabase.FindAssets(filter, new[] { folder }).Length;
         }
 
         /// <summary> Lấy thư mục tương đối của clip so với searchFolder (vd: "hero" từ "Assets/.../Sounds/hero/attack.wav"). </summary>
@@ -69,123 +105,165 @@ namespace GameUp.Core.Editor
             return string.IsNullOrEmpty(dir) ? "" : dir;
         }
 
-        private static void DrawFixedPathField(string label, string path)
-        {
-            using (new EditorGUI.DisabledScope(true))
-            {
-                EditorGUILayout.TextField(label, path);
-            }
-        }
 
         private void OnGUI()
         {
-            EditorGUILayout.LabelField(WindowTitle, EditorStyles.boldLabel);
-            EditorGUILayout.Space();
+            GUInstallerUI.EnsureStyles();
 
             var manager = FindObjectOfType<AudioManager>();
-            var hasDatabase = manager != null && HasDatabaseAssigned(manager);
+            var database = manager != null ? GetDatabase(manager) : null;
+            var stage1Done = manager != null && database != null;
 
-            if (!hasDatabase)
-            {
-                DrawInitialSetup(manager);
-                return;
-            }
-
-            DrawGenerationSettings(manager);
+            DrawHeader(stage1Done);
+            DrawStage1(manager, database, stage1Done);
+            DrawStage2(manager, database, stage1Done);
         }
 
-        private void DrawInitialSetup(AudioManager manager)
+        private void DrawHeader(bool stage1Done)
         {
-            EditorGUILayout.HelpBox(
-                "GIAI ĐOẠN 1/2 — Initial Setup\n" +
-                "Bước này chỉ tạo/tìm AudioManager và khởi tạo AudioDatabase.asset rồi gán vào AudioManager trong Scene.",
-                MessageType.Info);
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField(WindowTitle, EditorStyles.largeLabel);
+            GUInstallerUI.Hint("Giai đoạn 1 chạy một lần cho mỗi project. Giai đoạn 2 chạy lại mỗi khi thêm/xoá file audio.");
 
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("AudioManager", EditorStyles.boldLabel);
+            EditorGUILayout.Space(4);
+            GUInstallerUI.ProgressBar("Giai đoạn", stage1Done ? 1 : 0, 2);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Core setup / Find AudioManager", GUILayout.Height(26)))
+            GUILayout.FlexibleSpace();
+            if (GUInstallerUI.MiniButton("Kiểm tra lại", true, 100f))
             {
-                manager = FindOrCreateAudioManagerInScene();
-            }
-
-            using (new EditorGUI.DisabledScope(manager == null))
-            {
-                if (GUILayout.Button("Select", GUILayout.Height(26), GUILayout.Width(80)))
-                {
-                    Selection.activeGameObject = manager.gameObject;
-                    EditorGUIUtility.PingObject(manager.gameObject);
-                }
+                AssetDatabase.Refresh();
+                RefreshStats();
             }
             EditorGUILayout.EndHorizontal();
+        }
 
-            if (manager == null)
+        private void DrawStage1(AudioManager manager, GameUp.Core.AudioDatabase database, bool stage1Done)
+        {
+            using (GUInstallerUI.BeginCard())
             {
-                EditorGUILayout.HelpBox(
-                    "Chưa có AudioManager trong Scene. Bấm \"Core setup / Find AudioManager\" để chạy GameUp/Project/Core setup (copy prefab sang _MainProject và đặt ====Manager==== lên scene), sau đó thử lại.",
-                    MessageType.Warning);
-            }
-            else
-            {
-                EditorGUILayout.HelpBox($"Đã tìm thấy AudioManager trên \"{manager.gameObject.name}\".", MessageType.None);
-            }
+                GUInstallerUI.CardHeader("GIAI ĐOẠN 1", "AudioManager + AudioDatabase",
+                    stage1Done ? GUSetupState.Done : GUSetupState.Missing);
+                GUILayout.Label(
+                    "Tìm/tạo AudioManager trong scene, tạo AudioDatabase.asset và gán vào AudioManager.",
+                    GUInstallerUI.Desc);
 
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Audio Database", EditorStyles.boldLabel);
-            DrawFixedPathField("Database Folder", audioDatabaseFolderPath);
+                EditorGUILayout.Space(4);
 
-            EditorGUILayout.HelpBox("Du lieu database se luu co dinh tai path tren.", MessageType.None);
-            using (new EditorGUI.DisabledScope(manager == null))
-            {
-                if (GUILayout.Button("Initialize Audio Database", GUILayout.Height(30)))
+                if (GUInstallerUI.StatusRow(
+                        "AudioManager trong scene",
+                        manager != null ? GUSetupState.Done : GUSetupState.Missing,
+                        manager != null ? manager.gameObject.name : "chưa có",
+                        manager != null ? "Chọn" : "Core setup",
+                        true,
+                        manager != null ? 70f : 100f))
                 {
-                    InitializeDatabase(manager, audioDatabaseFolderPath);
+                    if (manager != null)
+                    {
+                        Selection.activeGameObject = manager.gameObject;
+                        EditorGUIUtility.PingObject(manager.gameObject);
+                    }
+                    else
+                    {
+                        FindOrCreateAudioManagerInScene();
+                        GUIUtility.ExitGUI();
+                    }
+                }
+
+                var databasePath = database != null ? AssetDatabase.GetAssetPath(database) : null;
+                if (GUInstallerUI.StatusRow(
+                        "AudioDatabase.asset",
+                        database != null ? GUSetupState.Done : manager != null ? GUSetupState.Missing : GUSetupState.Blocked,
+                        database != null ? databasePath : audioDatabaseFolderPath,
+                        database != null ? "Mở" : "Tạo & gán",
+                        manager != null,
+                        database != null ? 70f : 100f))
+                {
+                    if (database != null)
+                    {
+                        GUInstallerUI.PingPath(databasePath);
+                    }
+                    else
+                    {
+                        InitializeDatabase(manager, audioDatabaseFolderPath);
+                        GUIUtility.ExitGUI();
+                    }
+                }
+
+                if (manager == null)
+                {
+                    GUInstallerUI.Hint("Chưa có AudioManager: bấm \"Core setup\" để copy prefab ====Manager==== vào scene rồi thử lại.");
                 }
             }
         }
 
-        private void DrawGenerationSettings(AudioManager manager)
+        private void DrawStage2(AudioManager manager, GameUp.Core.AudioDatabase database, bool stage1Done)
         {
-            var database = GetDatabase(manager);
-            if (!database)
-                return;
+            var audioIdExists = File.Exists(audioIdOutputPath);
 
-            EditorGUILayout.HelpBox(
-                "GIAI ĐOẠN 2/2 — Generation Settings\n" +
-                "Bước này chỉ cập nhật AudioIdentity assets + AudioDatabase.asset + AudioID.cs.\n" +
-                "Lưu ý: Stage 2 KHÔNG chỉnh sửa AudioManager trong Scene để tránh dirty Scene/Prefab không cần thiết.",
-                MessageType.Info);
-
-            EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Generation Settings", EditorStyles.boldLabel);
-
-            if (string.IsNullOrEmpty(audioFolderPath))
+            using (GUInstallerUI.BeginCard())
             {
-                // keep UI consistent; validation happens on button click
-            }
+                GUInstallerUI.CardHeader("GIAI ĐOẠN 2", "Scan & Update (Identity + Database + AudioID.cs)",
+                    !stage1Done ? GUSetupState.Blocked : _identityCount > 0 ? GUSetupState.Done : GUSetupState.Missing);
 
-            if (string.IsNullOrEmpty(audioIdentityFolderPath))
-            {
-                // keep UI consistent; validation happens on button click
-            }
+                GUILayout.Label(
+                    "Quét Audio Folder → tạo/cập nhật AudioIdentity, cập nhật AudioDatabase, sinh lại AudioID.cs " +
+                    "và đưa identity/clip vào Addressables. Không chỉnh sửa scene.",
+                    GUInstallerUI.Desc);
 
-            DrawFixedPathField("Audio Folder", audioFolderPath);
-            DrawFixedPathField("Identity Folder", audioIdentityFolderPath);
-            DrawFixedPathField("AudioID Output Path", audioIdOutputPath);
+                EditorGUILayout.Space(4);
 
-            EditorGUILayout.Space();
-            EditorGUILayout.HelpBox(
-                "Scan & Update sẽ:\n" +
-                "- Quét Audio Folder và tạo/cập nhật AudioIdentity assets\n" +
-                "- Cập nhật danh sách vào AudioDatabase.asset (dirty asset, KHÔNG dirty Scene)\n" +
-                "- Sinh lại AudioID.cs\n" +
-                "- Tự động thêm AudioIdentity + AudioClip vào Addressables (group/label \"Audio\") nếu Addressables đã được setup.",
-                MessageType.None);
+                var audioFolderOk = AssetDatabase.IsValidFolder(audioFolderPath);
+                if (GUInstallerUI.StatusRow(
+                        "Audio Folder",
+                        audioFolderOk ? (_clipCount > 0 ? GUSetupState.Done : GUSetupState.Missing) : GUSetupState.Missing,
+                        audioFolderOk ? $"{_clipCount} clip · {audioFolderPath}" : $"thiếu · {audioFolderPath}",
+                        audioFolderOk ? "Mở" : null,
+                        true,
+                        60f))
+                {
+                    GUInstallerUI.PingPath(audioFolderPath);
+                }
 
-            if (GUILayout.Button("Scan & Update", GUILayout.Height(32)))
-            {
-                UpdateAudioData(manager, database);
+                var identityFolderOk = AssetDatabase.IsValidFolder(audioIdentityFolderPath);
+                if (GUInstallerUI.StatusRow(
+                        "Identity Folder",
+                        identityFolderOk ? GUSetupState.Done : GUSetupState.Missing,
+                        identityFolderOk ? $"{_identityCount} identity · {audioIdentityFolderPath}" : $"thiếu · {audioIdentityFolderPath}",
+                        identityFolderOk ? "Mở" : null,
+                        true,
+                        60f))
+                {
+                    GUInstallerUI.PingPath(audioIdentityFolderPath);
+                }
+
+                if (GUInstallerUI.StatusRow(
+                        "AudioID.cs",
+                        audioIdExists ? GUSetupState.Done : GUSetupState.Missing,
+                        audioIdOutputPath,
+                        audioIdExists ? "Mở" : null,
+                        true,
+                        60f))
+                {
+                    GUInstallerUI.PingPath(audioIdOutputPath);
+                }
+
+                EditorGUILayout.Space(4);
+
+                if (!stage1Done)
+                {
+                    GUInstallerUI.Hint("Hoàn tất giai đoạn 1 trước khi scan.");
+                }
+                else if (_clipCount == 0)
+                {
+                    GUInstallerUI.Hint($"Chưa có AudioClip nào trong {audioFolderPath} — thêm file audio rồi bấm Scan.");
+                }
+
+                if (GUInstallerUI.PrimaryButton("Scan & Update", stage1Done && _clipCount > 0, 32f))
+                {
+                    UpdateAudioData(manager, database);
+                    RefreshStats();
+                }
             }
         }
 
@@ -748,13 +826,6 @@ namespace GameUp.Core.Editor
             GULogger.Log("AudioManager", $"Đã sinh lại file AudioID.cs với {ordered.Count} entries tại: {outputPath}");
         }
 
-        private static bool HasDatabaseAssigned(AudioManager manager)
-        {
-            if (!manager) return false;
-            var so = new SerializedObject(manager);
-            var dbProp = so.FindProperty("database");
-            return dbProp != null && dbProp.objectReferenceValue != null;
-        }
 
         private static GameUp.Core.AudioDatabase GetDatabase(AudioManager manager)
         {
