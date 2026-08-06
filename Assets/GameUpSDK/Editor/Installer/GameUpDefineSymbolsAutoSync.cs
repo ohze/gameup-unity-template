@@ -204,6 +204,7 @@ namespace GameUp.SDK.Installer
             return true;
         }
 
+        /// <summary>Đảm bảo có đúng một define mediation (mặc định AdMob nếu chưa có).</summary>
         private static void EnsurePrimaryMediationDefines()
         {
             bool lp = HasDefine(GUDefinetion.PrimaryMediationLevelPlay);
@@ -212,7 +213,7 @@ namespace GameUp.SDK.Installer
             int active = (lp ? 1 : 0) + (admob ? 1 : 0) + (max ? 1 : 0);
             if (active == 0)
             {
-                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
+                SetDefine(GUDefinetion.PrimaryMediationAdMob, true);
                 return;
             }
 

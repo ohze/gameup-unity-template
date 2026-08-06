@@ -1184,11 +1184,11 @@ namespace GameUp.SDK.Installer
             var pm = GetPrimaryMediationFromDefines();
             string planDesc = pm switch
             {
-                MediationProvider.Admob =>
-                    "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads + 2 adapter bắt buộc (Unity Ads, IronSource).",
+                MediationProvider.IronSource =>
+                    "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.",
                 MediationProvider.Max =>
                     "Facebook, Firebase, AppsFlyer, GameAnalytics, AppLovin MAX.",
-                _ => "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.",
+                _ => "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads + 2 adapter bắt buộc (Unity Ads, IronSource).",
             };
 
             EditorGUILayout.Space(4);
@@ -1509,11 +1509,9 @@ namespace GameUp.SDK.Installer
             AddByAssembly("AppsFlyer");
             AddByAssembly("GameAnalyticsSDK");
 
-            if (mediation == MediationProvider.Admob)
+            if (mediation == MediationProvider.IronSource)
             {
-                AddByAssembly("GoogleMobileAds");
-                foreach (var adapter in GetRequiredAdMobRuntimeAdapters())
-                    AddPackage(adapter);
+                AddByAssembly("Unity.LevelPlay");
             }
             else if (mediation == MediationProvider.Max)
             {
@@ -1521,7 +1519,10 @@ namespace GameUp.SDK.Installer
             }
             else
             {
-                AddByAssembly("Unity.LevelPlay");
+                // Mặc định (kể cả khi chưa chọn) là AdMob: core + 2 adapter bắt buộc.
+                AddByAssembly("GoogleMobileAds");
+                foreach (var adapter in GetRequiredAdMobRuntimeAdapters())
+                    AddPackage(adapter);
             }
 
             return OrderedInstallSequence(list).ToList();
@@ -1531,7 +1532,10 @@ namespace GameUp.SDK.Installer
         {
             if (HasDefine(GUDefinetion.PrimaryMediationAdMob)) return MediationProvider.Admob;
             if (HasDefine(GUDefinetion.PrimaryMediationMax)) return MediationProvider.Max;
-            return MediationProvider.IronSource;
+            if (HasDefine(GUDefinetion.PrimaryMediationLevelPlay)) return MediationProvider.IronSource;
+
+            // Chưa có define nào (project mới) → mặc định AdMob.
+            return MediationProvider.Admob;
         }
 
         private static void SetPrimaryMediationDefines(MediationProvider mediation)
@@ -1541,7 +1545,7 @@ namespace GameUp.SDK.Installer
             SetDefine(GUDefinetion.PrimaryMediationMax, mediation == MediationProvider.Max);
         }
 
-        /// <summary>Đảm bảo có đúng một define mediation (mặc định LevelPlay nếu chưa có).</summary>
+        /// <summary>Đảm bảo có đúng một define mediation (mặc định AdMob nếu chưa có).</summary>
         private static void EnsurePrimaryMediationDefines()
         {
             bool lp = HasDefine(GUDefinetion.PrimaryMediationLevelPlay);
@@ -1550,7 +1554,7 @@ namespace GameUp.SDK.Installer
             int active = (lp ? 1 : 0) + (admob ? 1 : 0) + (max ? 1 : 0);
             if (active == 0)
             {
-                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
+                SetDefine(GUDefinetion.PrimaryMediationAdMob, true);
                 return;
             }
 
@@ -3485,10 +3489,10 @@ namespace GameUp.SDK.Installer
             // Define do chính SDK third-party set (installer không set) — không dọn thì còn lại vĩnh viễn.
             RemoveDefinesWhere(IsThirdPartyDependencyDefine);
 
-            // Reset mediation về mặc định an toàn sau khi gỡ toàn bộ dependencies.
-            SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
+            // Reset mediation về mặc định (AdMob) sau khi gỡ toàn bộ dependencies.
+            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
             SetDefine(GUDefinetion.PrimaryMediationMax, false);
-            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, true);
+            SetDefine(GUDefinetion.PrimaryMediationAdMob, true);
 
             PersistPlayerSettings();
         }

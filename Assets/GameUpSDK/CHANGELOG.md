@@ -20,6 +20,7 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Changed
 
+- **Primary Mediation mặc định là AdMob** (trước là IronSource LevelPlay): project chưa có define mediation nào sẽ được set `GAMEUP_PRIMARY_MEDIATION_ADMOB`, bộ pack "Cài tất cả" mặc định gồm Google Mobile Ads + 2 adapter bắt buộc, và "Gỡ toàn bộ dependencies" cũng reset về AdMob. Mặc định `mediationPriority` đổi thành `Admob → Max → IronSource` (asset/prefab đã lưu giữ nguyên giá trị cũ).
 - Mục **Công cụ & xử lý sự cố** có thêm "Define symbols của SDK đã gỡ": liệt kê define còn sót của SDK không còn trong project (vd sau khi xóa folder bằng tay) và nút dọn.
 - Gỡ lẻ từng package dọn đủ hơn: Firebase kèm `Editor Default Resources/Firebase`, `GeneratedLocalRepo/Firebase`, `Plugins/iOS|tvOS/Firebase`; AdMob kèm `GoogleMobileAdsPlugin.androidlib`, `googlemobileads-unity.aar`, `GADUAdNetworkExtras.h`; GameAnalytics kèm `Resources/GameAnalytics`. EDM4U (dùng chung) vẫn chỉ dọn khi gỡ toàn bộ.
 - Mô tả package khớp với cờ `Required` (chỉ Facebook là bắt buộc; Firebase là "khuyến nghị mạnh", AdMob "cần khi Primary Mediation = AdMob").

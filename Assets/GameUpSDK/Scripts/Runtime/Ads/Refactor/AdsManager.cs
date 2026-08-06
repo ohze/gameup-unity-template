@@ -44,7 +44,7 @@ namespace GameUp.SDK
         /// giá trị serialize ở đây chỉ là fallback khi chưa có asset config.
         /// </summary>
         [HideInInspector] public List<MediationProvider> mediationPriority = new List<MediationProvider>
-            { MediationProvider.Max, MediationProvider.Admob, MediationProvider.IronSource };
+            { MediationProvider.Admob, MediationProvider.Max, MediationProvider.IronSource };
 
         [HideInInspector] [SerializeField] [Range(0, 100)] private int nativeCtaClickRate = 30;
 

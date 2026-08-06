@@ -15,7 +15,7 @@ namespace GameUp.SDK
         public const string MaxDepsInstalled = "MAXSDK_DEPENDENCIES_INSTALLED";
         public const string AppMetricaDepsInstalled = "APPMETRICA_DEPENDENCIES_INSTALLED";
 
-        /// <summary>Chỉ một mediation primary được bật; do GameUpDependenciesWindow set.</summary>
+        /// <summary>Chỉ một mediation primary được bật; do GameUpDependenciesWindow set. Mặc định là AdMob.</summary>
         public const string PrimaryMediationLevelPlay = "GAMEUP_PRIMARY_MEDIATION_LEVELPLAY";
         public const string PrimaryMediationAdMob = "GAMEUP_PRIMARY_MEDIATION_ADMOB";
         public const string PrimaryMediationMax = "GAMEUP_PRIMARY_MEDIATION_MAX";

@@ -104,7 +104,7 @@ namespace GameUp.SDK
         [Header("Waterfall")]
         [Tooltip("Thứ tự ưu tiên mạng quảng cáo. Index 0 là mạng chính, lỗi thì rớt xuống mạng kế tiếp.")]
         public List<MediationProvider> mediationPriority = new List<MediationProvider>
-            { MediationProvider.Max, MediationProvider.Admob, MediationProvider.IronSource };
+            { MediationProvider.Admob, MediationProvider.Max, MediationProvider.IronSource };
 
         [Tooltip("Tỉ lệ (%) biến toàn bộ vùng Native Ad thành CTA. Remote Config native_cta_click_rate ghi đè giá trị này.")]
         [Range(0, 100)] public int nativeCtaClickRate = 30;
