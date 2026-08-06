@@ -710,10 +710,63 @@ Sau khi thêm lần đầu, Unity thường mở cửa sổ **Setup Dependencies
 - **AppsFlyer:** Dev Key, App ID iOS, SDK Key, Dev Mode (tắt khi release).
 - **IronSource / LevelPlay:** App Key, Ad Unit ID (Banner / Interstitial / Rewarded; để trống có thể dùng default theo dashboard).
 - **AdMob (App Open):** App Open ID, App ID Android/iOS — Banner/Inter/Rewarded mediation vẫn qua LevelPlay theo thiết kế SDK.
+- **MAX Mediation:** SDK Key + ID theo từng format (tab chỉ hiện khi đã cài AppLovin MAX).
 - **Game Analytics:** Game Key / Secret / Build trên `Settings.asset` (khi GA đã import).
 - **Firebase Remote Config:** giá trị mặc định fallback (xem [B10.9](#b109-remote-config-keys-reference)).
 
 Sau chỉnh sửa: **Save Configuration**; **Tạo SDK trong Scene hiện tại** nếu cần instance mới.
+
+**Không tab nào ghi vào prefab nữa** — tất cả đều ghi vào ScriptableObject (hoặc settings asset của SDK bên thứ ba với Facebook / GameAnalytics), nên cài package qua UPM là dùng được ngay, không cần clone prefab. Nút clone prefab chuyển xuống mục **Nâng cao**, chỉ cần khi muốn sửa cấu trúc prefab.
+
+### B10.5b. Cấu hình bằng ScriptableObject (`GameUpAdsConfig` + `GameUpSdkConfig`)
+
+Từ **1.3.0**, **toàn bộ dữ liệu** trước kia nằm trong prefab của package chuyển thành hai asset của project:
+
+```
+Assets/_MainProject/Resources/GameUpSDK/GameUpAdsConfig.asset   ← ID & thông số quảng cáo
+Assets/_MainProject/Resources/GameUpSDK/GameUpSdkConfig.asset   ← AppsFlyer, AppMetrica, Remote Config defaults
+```
+
+Asset **phải nằm trong thư mục `Resources`** (runtime load bằng `Resources.Load(...)`). Cửa sổ Setup tự tạo folder + asset khi mở lần đầu.
+
+**`GameUpSdkConfig` gồm:**
+
+| Nhánh | Nội dung | Component đọc |
+|-------|----------|---------------|
+| `appsFlyer` | `devKey`, `appIdIOS`, `isDebug`, `getConversionData` | `AppsFlyerUtils` đẩy sang `AppsFlyerObjectScript` lúc Awake |
+| `appMetrica` | `apiKey`, `enableLogs`, `enableEventLogging` | `AppMetricaActivator` |
+| `remoteConfig` | 7 key mặc định + `extraData` | `FirebaseRemoteConfigUtils` copy vào field cùng tên lúc Awake |
+
+Riêng AppsFlyer: `AppsFlyerObjectScript` là component của SDK bên thứ ba và tự init trong `Start()`. `AppsFlyerUtils.Awake()` ghi devKey/appID/isDebug vào nó trước — mọi `Awake` đều chạy trước mọi `Start` — nên không phải sửa prefab hay đụng vào code của AppsFlyer. Chuỗi rỗng trong asset không ghi đè giá trị đang có trên prefab.
+
+Remote Config vẫn bind theo **tên field** trên `FirebaseRemoteConfigUtils` như cũ; asset chỉ giữ **giá trị mặc định** và không bị ghi đè lúc runtime.
+
+Waterfall mediation (`mediationPriority`) và `nativeCtaClickRate` của `AdsManager` nằm trong `GameUpAdsConfig`.
+
+**Vì sao không để trong prefab như bản cũ:** package cài qua Git UPM là **read-only**, prefab trong package không sửa được và cũng không thể tham chiếu asset nằm trong `Assets/`. Để ID ở ScriptableObject trong project ⇒ prefab giữ nguyên trong package, không cần clone, không còn xung đột prefab override, và merge git dễ hơn nhiều.
+
+**Cấu trúc asset:**
+
+| Nhánh | Nội dung |
+|-------|----------|
+| `admob` | `appIdAndroid` / `appIdIOS` (đồng bộ sang `GoogleMobileAdsSettings.asset` khi Save), `testDevices`, `showMediationInspector`, `units` |
+| `max` | `sdkKey`, `showMediationDebugger`, `units` |
+| `ironSource` | `appKey`, `units` |
+| `units` | 5 `AdUnitConfig`: `banner`, `interstitial`, `rewarded`, `appOpen`, `nativeAd` |
+
+Mỗi `AdUnitConfig` gồm: `enableWaterfallFloor` (3 tầng High/Medium/All), `useMultiAdUnitIds`, bộ ID mặc định theo platform, và danh sách `placementsAndroid` / `placementsIOS`. **Một placement = một dòng** chứa cả 3 tầng floor (`idHigh`, `idMedium`, `idAll`) + thiết lập banner — không còn list phẳng mỗi floor một dòng như v1.
+
+**Sửa ở đâu cũng được** (cùng một nguồn dữ liệu):
+
+1. **GameUp → SDK → Setup** → tab AdMob / MAX / IronSource.
+2. Inspector của chính asset `GameUpAdsConfig`.
+3. Inspector component `AdmobNetwork` / `MaxNetwork` / `IronSourceNetwork` trên prefab — nhúng lại đúng section tương ứng.
+
+**Override theo scene:** mỗi network có field `configOverride`; để trống = dùng asset chung, gán asset khác = dùng bộ ID riêng (test / A-B / build nhiều biến thể từ một project).
+
+**Dự án nâng cấp từ bản cũ:** mở Setup — nếu còn dữ liệu trong prefab, cửa sổ hiện nút **Migrate dữ liệu từ Prefab → ScriptableObject**. Hoặc chạy menu **GameUp → SDK → Migrate Ads Config** / **Migrate SDK Config**. Tool gom list phẳng v1 thành placement mới, giữ nguyên ID.
+
+**Sinh constants:** nút **Tạo Class AdPlacement (Constants)** đọc từ asset và ghi `Assets/_MainProject/Scripts/SDK/AdPlacement.cs`, để gọi `AdsManager.Instance.ShowInterstitial(AdPlacement.EndLevel)` thay vì viết chuỗi tay.
 
 ### B10.6. AdsManager
 
@@ -844,6 +897,8 @@ FirebaseRemoteConfigUtils.Instance.FetchAndActivate(ok => { });
 |-----------|---------|
 | `Assets/GameUpSDK/Scripts/Runtime/` | Runtime: Ads, Analytics, Firebase, AppsFlyer, dispatcher. **`GameUp.SDK.Runtime.asmdef`** → **`GameUp.SDK.Runtime`**. Namespace code: **`GameUp.SDK`**. |
 | `Assets/GameUpSDK/Scripts/Runtime/Ads/` | `AdsManager`, `AdsRules`, `AdsEvent`, IronSource / AdMob / Unity Ads, interfaces |
+| `Assets/GameUpSDK/Scripts/Runtime/Config/` | `GameUpAdsConfig`, `GameUpSdkConfig`, `AdPlacementIds` — xem [B10.5b](#b105b-cấu-hình-bằng-scriptableobject-gameupadsconfig--gameupsdkconfig) |
+| `Assets/_MainProject/Resources/GameUpSDK/` | **Nằm ở project, không nằm trong package** — `GameUpAdsConfig.asset` + `GameUpSdkConfig.asset` |
 | `Assets/GameUpSDK/Scripts/Runtime/Analytics/` | `GameUpAnalytics`, `AnalyticsEvent`, bootstrap GA / Facebook |
 | `Assets/GameUpSDK/Scripts/Runtime/Firebase/` | `FirebaseRemoteConfigUtils`, `FirebaseUtils` (+ `README.md` trong folder) |
 | `Assets/GameUpSDK/Scripts/Runtime/AppsFlyerCheck/` | `AppsFlyerUtils` |

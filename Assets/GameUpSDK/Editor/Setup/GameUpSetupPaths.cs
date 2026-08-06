@@ -37,7 +37,50 @@ namespace GameUp.SDK.Editor.Setup
 
         public const string WritablePrefabsRoot = "Assets/_MainProject/Prefabs/SDK";
 
+        /// <summary>Nơi chứa asset cấu hình của project. Phải nằm trong Resources để build đọc được.</summary>
+        public const string WritableResourcesRoot = "Assets/_MainProject/Resources";
+
+        public static string ConfigFolder => WritableResourcesRoot + "/" + GameUpAdsConfig.ResourceFolder;
+        public static string AdsConfigFolder => ConfigFolder;
+        public static string AdsConfigAssetPath => ConfigFolder + "/" + GameUpAdsConfig.AssetName + ".asset";
+        public static string SdkConfigAssetPath => ConfigFolder + "/" + GameUpSdkConfig.AssetName + ".asset";
+
+        /// <summary>Đường dẫn prefab theo thứ tự ưu tiên: bản clone trong Assets trước, bản trong package sau.</summary>
+        public static System.Collections.Generic.IEnumerable<string> PrefabCandidates(string fileName)
+        {
+            yield return WritablePrefabsRoot + "/" + fileName;
+            yield return GetPackagePrefabDirectory() + "/" + fileName;
+        }
+
+        /// <summary>Component đầu tiên tìm thấy trong các prefab ứng viên (ưu tiên bản clone).</summary>
+        public static T FindComponentInPrefabs<T>(string fileName) where T : Component
+        {
+            foreach (var path in PrefabCandidates(fileName))
+            {
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                var comp = go != null ? go.GetComponentInChildren<T>(true) : null;
+                if (comp != null) return comp;
+            }
+            return null;
+        }
+
         public static string GetPackagePrefabDirectory() => (PackageRoot.Replace('\\', '/') + "/Prefab").Replace("//", "/");
+
+        /// <summary>Tạo folder đệ quy theo từng cấp (AssetDatabase.CreateFolder chỉ tạo được 1 cấp/lần).</summary>
+        public static void EnsureFolderExists(string folderPath)
+        {
+            folderPath = folderPath.Replace('\\', '/').TrimEnd('/');
+            if (AssetDatabase.IsValidFolder(folderPath)) return;
+
+            var parts = folderPath.Split('/');
+            string current = parts[0]; // "Assets"
+            for (int i = 1; i < parts.Length; i++)
+            {
+                string next = current + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(next)) AssetDatabase.CreateFolder(current, parts[i]);
+                current = next;
+            }
+        }
 
         public static string GetPrefabDirectory()
         {

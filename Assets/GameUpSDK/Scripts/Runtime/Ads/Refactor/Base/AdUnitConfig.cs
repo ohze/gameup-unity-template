@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -18,13 +17,13 @@ namespace GameUp.SDK
         [Header("Default IDs (Android)")]
         public string defaultIdAndroid_High;
         public string defaultIdAndroid_Medium;
-        [FormerlySerializedAs("defaultIdAndroid")] 
+        [FormerlySerializedAs("defaultIdAndroid")]
         public string defaultIdAndroid_All;
 
         [Header("Default IDs (iOS)")]
         public string defaultIdIOS_High;
         public string defaultIdIOS_Medium;
-        [FormerlySerializedAs("defaultIdIOS")] 
+        [FormerlySerializedAs("defaultIdIOS")]
         public string defaultIdIOS_All;
 
         [Header("Default Banner Settings")]
@@ -32,15 +31,43 @@ namespace GameUp.SDK
         public BannerFormatType defaultBannerFormat = BannerFormatType.StandardBanner;
         public CollapsibleBannerPlacement defaultCollapsible = CollapsibleBannerPlacement.None;
 
-        [Header("Multi IDs")] 
-        public List<AdUnitIdEntry> multiIdsAndroid = new List<AdUnitIdEntry>();
-        public List<AdUnitIdEntry> multiIdsIOS = new List<AdUnitIdEntry>();
+        [Header("Placements (Multi IDs)")]
+        public List<AdPlacementIds> placementsAndroid = new List<AdPlacementIds>();
+        public List<AdPlacementIds> placementsIOS = new List<AdPlacementIds>();
+
+        // ---------------------------------------------------------------------
+        // LEGACY (v1): dữ liệu phẳng theo từng floor, chỉ còn dùng để migrate
+        // từ prefab cũ sang GameUpAdsConfig. Runtime KHÔNG đọc 2 list này.
+        // ---------------------------------------------------------------------
+        [HideInInspector] public List<AdUnitIdEntry> multiIdsAndroid = new List<AdUnitIdEntry>();
+        [HideInInspector] public List<AdUnitIdEntry> multiIdsIOS = new List<AdUnitIdEntry>();
 
         public EcpmFloor[] GetActiveFloors()
         {
-            return enableWaterfallFloor 
-                ? new[] { EcpmFloor.High, EcpmFloor.Medium, EcpmFloor.All } 
+            return enableWaterfallFloor
+                ? new[] { EcpmFloor.High, EcpmFloor.Medium, EcpmFloor.All }
                 : new[] { EcpmFloor.All };
+        }
+
+        /// <summary>Danh sách placement của platform đang build (Android/iOS).</summary>
+        public List<AdPlacementIds> GetPlacements() => GetPlacements(IsAndroidTarget());
+
+        public List<AdPlacementIds> GetPlacements(bool android)
+        {
+            if (android) return placementsAndroid ??= new List<AdPlacementIds>();
+            return placementsIOS ??= new List<AdPlacementIds>();
+        }
+
+        public AdPlacementIds FindPlacement(string where)
+        {
+            if (!useMultiAdUnitIds || string.IsNullOrWhiteSpace(where)) return null;
+
+            var list = GetPlacements();
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] != null && list[i].Matches(where)) return list[i];
+            }
+            return null;
         }
 
         public AdUnitIdEntry GetEntry(AdUnitType type, string where)
@@ -52,25 +79,24 @@ namespace GameUp.SDK
         {
             if (!enableWaterfallFloor) floor = EcpmFloor.All;
 
-            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
-            var multiIds = isAndroid ? multiIdsAndroid : multiIdsIOS;
-
-            if (useMultiAdUnitIds && !string.IsNullOrWhiteSpace(where))
+            var placement = FindPlacement(where);
+            if (placement != null && placement.HasId(floor))
             {
-                foreach (var entry in multiIds)
+                return new AdUnitIdEntry
                 {
-                    if (entry != null && entry.AdType == type && entry.IsValid() &&
-                        string.Equals(entry.NameId?.Trim(), where.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                        entry.Floor == floor) 
-                    {
-                        return entry;
-                    }
-                }
+                    Id = placement.GetId(floor).Trim(),
+                    AdType = type,
+                    NameId = placement.where,
+                    BannerSize = placement.bannerSize,
+                    BannerFormat = placement.bannerFormat,
+                    CollapsiblePlacement = placement.collapsible,
+                    Floor = floor
+                };
             }
 
             return new AdUnitIdEntry
             {
-                Id = GetDefaultId(isAndroid, floor),
+                Id = GetDefaultId(IsAndroidTarget(), floor),
                 AdType = type,
                 NameId = where,
                 BannerSize = defaultBannerSize,
@@ -102,25 +128,27 @@ namespace GameUp.SDK
             }
         }
 
+        /// <summary>Tra ngược: từ Ad Unit ID thực tế ra tên placement (dùng khi callback chỉ trả unitId).</summary>
         public string WhereByKey(AdUnitType type, string key)
         {
-            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
-            var multiIds = isAndroid ? multiIdsAndroid : multiIdsIOS;
+            if (!useMultiAdUnitIds || string.IsNullOrWhiteSpace(key)) return "default";
 
-            if (useMultiAdUnitIds && !string.IsNullOrWhiteSpace(key))
+            string trimmedKey = key.Trim();
+            var list = GetPlacements();
+            foreach (var placement in list)
             {
-                foreach (var entry in multiIds)
+                if (placement == null) continue;
+                foreach (var floor in AllFloors)
                 {
-                    if (entry != null && entry.AdType == type && entry.IsValid() &&
-                        string.Equals(entry.Id?.Trim(), key.Trim(), StringComparison.OrdinalIgnoreCase))
-                    {
-                        return entry.NameId;
-                    }
+                    var id = placement.GetId(floor);
+                    if (!string.IsNullOrWhiteSpace(id) && string.Equals(id.Trim(), trimmedKey, StringComparison.OrdinalIgnoreCase))
+                        return placement.where;
                 }
             }
             return "default";
         }
 
+        /// <summary>Tất cả placement có ID hợp lệ. Khi tắt Multi IDs chỉ có "default".</summary>
         public List<string> GetAllPlacements()
         {
             var placements = new List<string>();
@@ -130,45 +158,97 @@ namespace GameUp.SDK
                 return placements;
             }
 
-            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
-            var multiIds = isAndroid ? multiIdsAndroid : multiIdsIOS;
-
-            foreach (var entry in multiIds)
+            foreach (var placement in GetPlacements())
             {
-                if (entry != null && entry.IsValid() && !string.IsNullOrWhiteSpace(entry.NameId))
-                {
-                    string cleanName = entry.NameId.Trim();
-                    if (!placements.Contains(cleanName)) placements.Add(cleanName);
-                }
+                if (placement == null || !placement.HasAnyId() || string.IsNullOrWhiteSpace(placement.where)) continue;
+
+                string cleanName = placement.where.Trim();
+                if (!placements.Contains(cleanName)) placements.Add(cleanName);
             }
             return placements;
         }
 
-        public List<string> GetAllWhere()
-        {
-            bool isAndroid = GetRuntimeAdPlatform() == RuntimeAdPlatform.Android;
-            var multiIds = isAndroid ? multiIdsAndroid : multiIdsIOS;
-            if (useMultiAdUnitIds) return multiIds.Select(s => s.NameId).ToList();
-            return new List<string> { "default" };
-        }
+        public List<string> GetAllWhere() => GetAllPlacements();
 
-        public string ResolveUnitId(AdUnitType type, string where, EcpmFloor floor = EcpmFloor.All) 
+        public string ResolveUnitId(AdUnitType type, string where, EcpmFloor floor = EcpmFloor.All)
         {
             return GetEntry(type, where, floor).Id;
         }
 
-        private enum RuntimeAdPlatform { Android, IOS }
+        // =====================================================================
+        // MIGRATE v1 -> v2
+        // =====================================================================
 
-        private RuntimeAdPlatform GetRuntimeAdPlatform()
+        public bool HasLegacyData => (multiIdsAndroid != null && multiIdsAndroid.Count > 0)
+                                     || (multiIdsIOS != null && multiIdsIOS.Count > 0);
+
+        /// <summary>Bản sao sâu (deep copy) đã gom dữ liệu legacy về dạng placement mới.</summary>
+        public AdUnitConfig CloneMigrated()
         {
-#if UNITY_ANDROID
-            return RuntimeAdPlatform.Android;
-#elif UNITY_IOS || UNITY_IPHONE
-            return RuntimeAdPlatform.IOS;
+            var clone = JsonUtility.FromJson<AdUnitConfig>(JsonUtility.ToJson(this)) ?? new AdUnitConfig();
+            clone.MigrateLegacyEntries();
+            return clone;
+        }
+
+        /// <summary>Gom list phẳng (mỗi floor một dòng) thành placement gộp 3 floor. Trả về true nếu có đổi.</summary>
+        public bool MigrateLegacyEntries()
+        {
+            bool changed = false;
+            changed |= MigrateLegacyList(multiIdsAndroid, ref placementsAndroid);
+            changed |= MigrateLegacyList(multiIdsIOS, ref placementsIOS);
+
+            multiIdsAndroid = new List<AdUnitIdEntry>();
+            multiIdsIOS = new List<AdUnitIdEntry>();
+            return changed;
+        }
+
+        private static bool MigrateLegacyList(List<AdUnitIdEntry> legacy, ref List<AdPlacementIds> target)
+        {
+            if (legacy == null || legacy.Count == 0) return false;
+            target ??= new List<AdPlacementIds>();
+
+            bool changed = false;
+            foreach (var entry in legacy)
+            {
+                if (entry == null || string.IsNullOrWhiteSpace(entry.NameId)) continue;
+
+                var placement = target.Find(p => p != null && p.Matches(entry.NameId));
+                if (placement == null)
+                {
+                    placement = new AdPlacementIds { where = entry.NameId.Trim() };
+                    target.Add(placement);
+                    changed = true;
+                }
+
+                // Không ghi đè ID đã có ở bản mới (bản mới luôn được ưu tiên).
+                if (!placement.HasId(entry.Floor) && !string.IsNullOrWhiteSpace(entry.Id))
+                {
+                    placement.SetId(entry.Floor, entry.Id.Trim());
+                    changed = true;
+                }
+
+                if (entry.AdType == AdUnitType.Banner)
+                {
+                    placement.bannerFormat = entry.BannerFormat;
+                    placement.bannerSize = entry.BannerSize;
+                    placement.collapsible = entry.CollapsiblePlacement;
+                }
+            }
+            return changed;
+        }
+
+        private static readonly EcpmFloor[] AllFloors = { EcpmFloor.High, EcpmFloor.Medium, EcpmFloor.All };
+
+        private static bool IsAndroidTarget()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return true;
+#elif (UNITY_IOS || UNITY_IPHONE) && !UNITY_EDITOR
+            return false;
 #elif UNITY_EDITOR
-            return UnityEditor.EditorUserBuildSettings.activeBuildTarget == UnityEditor.BuildTarget.iOS ? RuntimeAdPlatform.IOS : RuntimeAdPlatform.Android;
+            return UnityEditor.EditorUserBuildSettings.activeBuildTarget != UnityEditor.BuildTarget.iOS;
 #else
-            return RuntimeAdPlatform.Android;
+            return true;
 #endif
         }
     }

@@ -37,6 +37,10 @@ namespace GameUp.SDK
 
         [SerializeField]
         protected ScriptableObject remoteConfigExtraData;
+
+        [Tooltip("Để trống = dùng asset GameUpSdkConfig chung của project (Resources/GameUpSDK/GameUpSdkConfig).")]
+        [SerializeField] private GameUpSdkConfig configOverride;
+
         private bool _remoteConfigReady;
         public bool IsRemoteConfigReady => _remoteConfigReady;
         public Action<bool> OnFetchCompleted;
@@ -46,12 +50,52 @@ namespace GameUp.SDK
         protected override void Awake()
         {
             base.Awake();
+            // Giá trị mặc định lấy từ GameUpSdkConfig (ScriptableObject của project) trước mọi thứ khác:
+            // Remote Config sau khi fetch sẽ ghi đè lên chính các field này qua reflection.
+            ApplyConfigDefaults();
             // Đăng ký điều kiện ẩn banner NGAY từ đầu (trước khi fetch) để mọi ShowBanner đều
             // được kiểm soát, kể cả khi banner được gọi show trước lúc Remote Config fetch xong.
             // Lambda đọc enable_banner "live" nên tự cập nhật giá trị sau khi fetch.
             TryAddBannerCondition();
             OnFetchCompleted += OnRemoteConfigFetched;
         }
+
+        /// <summary>
+        /// Copy default từ <see cref="GameUpSdkConfig.remoteConfig"/> sang các field cùng tên của component.
+        /// Giữ nguyên cơ chế bind theo tên field: Remote Config vẫn ghi thẳng vào component như trước,
+        /// asset chỉ đóng vai trò nơi lưu giá trị mặc định (không bị ghi đè lúc runtime).
+        /// </summary>
+        private void ApplyConfigDefaults()
+        {
+            var defaults = GameUpSdkConfig.Resolve(configOverride)?.remoteConfig;
+            if (defaults == null) return;
+
+            inter_capping_time = defaults.inter_capping_time;
+            inter_start_level = defaults.inter_start_level;
+            enable_rate_app = defaults.enable_rate_app;
+            level_start_show_rate_app = defaults.level_start_show_rate_app;
+            no_internet_popup_enable = defaults.no_internet_popup_enable;
+            enable_banner = defaults.enable_banner;
+            native_cta_click_rate = defaults.native_cta_click_rate;
+
+            // Reference gán sẵn trên prefab/scene được ưu tiên, asset chỉ điền khi còn trống.
+            if (remoteConfigExtraData == null) remoteConfigExtraData = defaults.extraData;
+        }
+
+#if UNITY_EDITOR
+        /// <summary>Xuất dữ liệu cũ trong prefab (chỉ dùng cho công cụ migrate).</summary>
+        public RemoteConfigDefaults ExportLegacyDefaults() => new RemoteConfigDefaults
+        {
+            inter_capping_time = inter_capping_time,
+            inter_start_level = inter_start_level,
+            enable_rate_app = enable_rate_app,
+            level_start_show_rate_app = level_start_show_rate_app,
+            no_internet_popup_enable = no_internet_popup_enable,
+            enable_banner = enable_banner,
+            native_cta_click_rate = native_cta_click_rate,
+            extraData = remoteConfigExtraData
+        };
+#endif
 
         private void TryAddBannerCondition()
         {

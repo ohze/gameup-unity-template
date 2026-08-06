@@ -15,6 +15,43 @@ namespace GameUp.SDK
         , IAppsFlyerPurchaseValidation, IAppsFlyerPurchaseRevenueDataSource, IAppsFlyerPurchaseRevenueDataSourceStoreKit2
 #endif
     {
+        [Tooltip("Để trống = dùng asset GameUpSdkConfig chung của project (Resources/GameUpSDK/GameUpSdkConfig).")]
+        [SerializeField] private GameUpSdkConfig configOverride;
+
+        /// <summary>
+        /// Đẩy devKey / appID / isDebug từ GameUpSdkConfig sang <c>AppsFlyerObjectScript</c> (component của
+        /// AppsFlyer SDK) trước khi <c>Start()</c> của nó chạy — mọi Awake đều chạy trước mọi Start,
+        /// nên SDK init bằng giá trị trong asset mà không cần sửa prefab của package.
+        /// </summary>
+        protected override void Awake()
+        {
+            base.Awake();
+            ApplyConfigToAppsFlyerObject();
+        }
+
+        private void ApplyConfigToAppsFlyerObject()
+        {
+#if APPSFLYER_DEPENDENCIES_INSTALLED
+            var settings = GameUpSdkConfig.Resolve(configOverride)?.appsFlyer;
+            if (settings == null) return;
+
+            // AppsFlyerObject là prefab con của SDK root; fallback quét scene cho trường hợp đặt rời.
+            var afObject = GetComponentInChildren<AppsFlyerObjectScript>(true)
+                           ?? FindObjectOfType<AppsFlyerObjectScript>(true);
+            if (afObject == null)
+            {
+                GULogger.Warning("GameUp", "AppsFlyerUtils: không tìm thấy AppsFlyerObjectScript trong scene.");
+                return;
+            }
+
+            // Chuỗi rỗng trong asset không ghi đè giá trị đang có trên prefab (tránh xoá key khi chưa migrate).
+            if (!string.IsNullOrWhiteSpace(settings.devKey)) afObject.devKey = settings.devKey;
+            if (!string.IsNullOrWhiteSpace(settings.appIdIOS)) afObject.appID = settings.appIdIOS;
+            afObject.isDebug = settings.isDebug;
+            afObject.getConversionData = settings.getConversionData;
+#endif
+        }
+
 #if APPSFLYER_DEPENDENCIES_INSTALLED
         private static bool _purchaseConnectorInitialized;
         private static bool _purchaseConnectorInitializing;

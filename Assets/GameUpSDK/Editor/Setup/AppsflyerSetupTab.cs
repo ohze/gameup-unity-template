@@ -8,173 +8,112 @@ using UnityEngine;
 namespace GameUp.SDK.Editor.Setup
 {
     // ==========================================
-    // APPSFLYER SETUP TAB -> AppsFlyerObject.prefab
+    // APPSFLYER SETUP TAB -> GameUpSdkConfig.appsFlyer
     // ==========================================
-    public class AppsFlyerSetupTab : SetupTabBase
+    public class AppsFlyerSetupTab : SdkConfigTabBase
     {
         public override string Title => "AppsFlyer";
-        private string _devKey, _appId;
-        private bool _isDebug;
 
-        public override void Load()
+        protected override void DrawSection(SerializedObject so)
         {
-            var go = AssetDatabase.LoadAssetAtPath<GameObject>(GameUpSetupPaths.PathAppsFlyer);
-            if (go == null) return;
-            var type = Type.GetType("AppsFlyerObjectScript, AppsFlyer");
-            if (type == null) return;
-            var comp = go.GetComponent(type);
-            if (comp != null)
-            {
-                var so = new SerializedObject(comp);
-                Assign(so, "devKey", ref _devKey);
-                Assign(so, "appID", ref _appId);
-                AssignBool(so, "isDebug", ref _isDebug);
-            }
-        }
+            var appsFlyer = so.FindProperty("appsFlyer");
 
-        public override void Draw()
-        {
             EditorGUILayout.LabelField("AppsFlyer Configuration", EditorStyles.boldLabel);
             EditorGUILayout.BeginVertical("box");
-            _devKey = EditorGUILayout.TextField("Dev Key", _devKey);
-            _appId = EditorGUILayout.TextField("App ID (iOS)", _appId);
-            _isDebug = EditorGUILayout.Toggle("Debug Mode", _isDebug);
+            EditorGUILayout.PropertyField(appsFlyer.FindPropertyRelative("devKey"), new GUIContent("Dev Key"));
+            EditorGUILayout.PropertyField(appsFlyer.FindPropertyRelative("appIdIOS"), new GUIContent("App ID (iOS)"));
+            EditorGUILayout.PropertyField(appsFlyer.FindPropertyRelative("isDebug"), new GUIContent("Debug Mode"));
+            EditorGUILayout.PropertyField(appsFlyer.FindPropertyRelative("getConversionData"), new GUIContent("Get Conversion Data"));
             EditorGUILayout.EndVertical();
-        }
 
-        public override void Save()
-        {
-            ModifyPrefab(GameUpSetupPaths.PathAppsFlyer, root =>
-            {
-                var type = Type.GetType("AppsFlyerObjectScript, AppsFlyer");
-                if (type == null) return;
-                var comp = root.GetComponent(type);
-                if (comp != null)
-                {
-                    var so = new SerializedObject(comp);
-                    Set(so, "devKey", _devKey);
-                    Set(so, "appID", _appId);
-                    SetBool(so, "isDebug", _isDebug);
-                    so.ApplyModifiedPropertiesWithoutUndo();
-                    Debug.Log($"AppsFlyer saved: {GameUpSetupPaths.PathAppsFlyer} : {_devKey} : {_appId}");
-                }
-            });
+            EditorGUILayout.HelpBox(
+                "AppsFlyerUtils đẩy các giá trị này sang AppsFlyerObjectScript lúc Awake, trước khi SDK init — không cần sửa prefab.",
+                MessageType.None);
         }
     }
 
     // ==========================================
-    // APPMETRICA SETUP TAB -> AppmetricaObject.prefab
+    // APPMETRICA SETUP TAB -> GameUpSdkConfig.appMetrica
     // ==========================================
-    public class AppmetricaSetupTab : SetupTabBase
+    public class AppmetricaSetupTab : SdkConfigTabBase
     {
         public override string Title => "AppMetrica";
 
 #if APPMETRICA_DEPENDENCIES_INSTALLED
         public override bool IsVisible => true;
+#else
+        public override bool IsVisible => false;
+#endif
 
-        private string _apiKey;
-        private bool _enableLogs;
-        private bool _enableEventLogging = true;
-
-        public override void Load()
+        protected override void DrawSection(SerializedObject so)
         {
-            var go = AssetDatabase.LoadAssetAtPath<GameObject>(GameUpSetupPaths.PathAppmetrica);
-            if (go == null) return;
-            var comp = go.GetComponent<AppMetricaActivator>();
-            if (comp != null)
-            {
-                var so = new SerializedObject(comp);
-                Assign(so, "apiKey", ref _apiKey);
-                AssignBool(so, "enableLogs", ref _enableLogs);
-                AssignBool(so, "enableEventLogging", ref _enableEventLogging);
-            }
-        }
+            var appMetrica = so.FindProperty("appMetrica");
 
-        public override void Draw()
-        {
             EditorGUILayout.LabelField("AppMetrica Configuration", EditorStyles.boldLabel);
             EditorGUILayout.BeginVertical("box");
-            _apiKey = EditorGUILayout.TextField("API Key", _apiKey);
+            EditorGUILayout.PropertyField(appMetrica.FindPropertyRelative("apiKey"), new GUIContent("API Key"));
             EditorGUILayout.Space();
-            _enableEventLogging = EditorGUILayout.Toggle("Send Game Events", _enableEventLogging);
+            EditorGUILayout.PropertyField(appMetrica.FindPropertyRelative("enableEventLogging"), new GUIContent("Send Game Events"));
             EditorGUILayout.HelpBox("Send game events: gửi level/wave/IAP/ad revenue qua GameUpAnalytics → AppMetrica.",
                 MessageType.None);
             EditorGUILayout.Space();
-            _enableLogs = EditorGUILayout.Toggle("SDK Debug Logs", _enableLogs);
+            EditorGUILayout.PropertyField(appMetrica.FindPropertyRelative("enableLogs"), new GUIContent("SDK Debug Logs"));
             EditorGUILayout.EndVertical();
         }
-
-        public override void Save()
-        {
-            ModifyPrefab(GameUpSetupPaths.PathAppmetrica, root =>
-            {
-                var comp = root.GetComponent<AppMetricaActivator>();
-                if (comp != null)
-                {
-                    var so = new SerializedObject(comp);
-                    Set(so, "apiKey", _apiKey);
-                    SetBool(so, "enableLogs", _enableLogs);
-                    SetBool(so, "enableEventLogging", _enableEventLogging);
-                    so.ApplyModifiedPropertiesWithoutUndo();
-                }
-            });
-        }
-#else
-        public override bool IsVisible => false;
-        public override void Load() { } public override void Draw() { } public override void Save() { }
-#endif
     }
 
     // ==========================================
-    // FIREBASE REMOTE CONFIG TAB -> SDK.prefab
+    // FIREBASE REMOTE CONFIG TAB -> GameUpSdkConfig.remoteConfig
     // ==========================================
-    public class FirebaseRCSetupTab : SetupTabBase
+    public class FirebaseRCSetupTab : SdkConfigTabBase
     {
         public override string Title => "Firebase RC";
 
-        private int _rcInterCappingTime = 120;
-        private int _rcInterStartLevel = 3;
-        private bool _rcEnableBanner = true;
-
-        public override void Load()
+        protected override void DrawSection(SerializedObject so)
         {
-            var go = AssetDatabase.LoadAssetAtPath<GameObject>(GameUpSetupPaths.PathSDK);
-            if (go == null) return;
+            var rc = so.FindProperty("remoteConfig");
 
-            var rcComp = go.GetComponent<FirebaseRemoteConfigUtils>();
-            if (rcComp != null)
-            {
-                var so = new SerializedObject(rcComp);
-                AssignInt(so, "inter_capping_time", ref _rcInterCappingTime);
-                AssignInt(so, "inter_start_level", ref _rcInterStartLevel);
-                AssignBool(so, "enable_banner", ref _rcEnableBanner);
-            }
-        }
-
-        public override void Draw()
-        {
             EditorGUILayout.LabelField("Firebase Remote Config Defaults", EditorStyles.boldLabel);
-            EditorGUILayout.BeginVertical("box");
-            _rcInterCappingTime = EditorGUILayout.IntField("inter_capping_time (s)", _rcInterCappingTime);
-            _rcInterStartLevel = EditorGUILayout.IntField("inter_start_level", _rcInterStartLevel);
-            _rcEnableBanner = EditorGUILayout.Toggle("enable_banner", _rcEnableBanner);
-            EditorGUILayout.EndVertical();
-        }
+            EditorGUILayout.HelpBox(
+                "Đây là giá trị mặc định (SetDefaults) khi chưa fetch được Remote Config. Tên field = key trên Firebase Console.",
+                MessageType.None);
 
-        public override void Save()
-        {
-            ModifyPrefab(GameUpSetupPaths.PathSDK, root =>
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.LabelField("Ads", EditorStyles.miniBoldLabel);
+            EditorGUILayout.PropertyField(rc.FindPropertyRelative("inter_capping_time"),
+                new GUIContent("inter_capping_time (s)", "Khoảng thời gian tối thiểu (giây) giữa 2 lần hiển thị Interstitial."));
+            EditorGUILayout.PropertyField(rc.FindPropertyRelative("inter_start_level"),
+                new GUIContent("inter_start_level", "Level bắt đầu hiện Interstitial (level tính từ 1)."));
+            EditorGUILayout.PropertyField(rc.FindPropertyRelative("enable_banner"),
+                new GUIContent("enable_banner", "Tắt/Bật hiển thị Banner trong Game. Ưu tiên cao hơn AdsManager.showBannerAfterInit: nếu false thì không show banner."));
+
+            var ctaRate = rc.FindPropertyRelative("native_cta_click_rate");
+            ctaRate.floatValue = EditorGUILayout.Slider(
+                new GUIContent("native_cta_click_rate", "Tỉ lệ (0..1) vùng CTA nhận click của Native Ad, đẩy xuống native Android/iOS sau khi fetch."),
+                ctaRate.floatValue, 0f, 1f);
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.Space(6);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.LabelField("Rate App", EditorStyles.miniBoldLabel);
+            var enableRateApp = rc.FindPropertyRelative("enable_rate_app");
+            EditorGUILayout.PropertyField(enableRateApp,
+                new GUIContent("enable_rate_app", "Tắt/Bật hiển thị Rate App trong Game."));
+            using (new EditorGUI.DisabledScope(!enableRateApp.boolValue))
             {
-                var rcComp = root.GetComponent<FirebaseRemoteConfigUtils>();
-                if (rcComp != null)
-                {
-                    var so = new SerializedObject(rcComp);
-                    SetInt(so, "inter_capping_time", _rcInterCappingTime);
-                    SetInt(so, "inter_start_level", _rcInterStartLevel);
-                    SetBool(so, "enable_banner", _rcEnableBanner);
-                    so.ApplyModifiedPropertiesWithoutUndo();
-                }
-            });
+                EditorGUILayout.PropertyField(rc.FindPropertyRelative("level_start_show_rate_app"),
+                    new GUIContent("level_start_show_rate_app", "Level hiện Rate App."));
+            }
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.Space(6);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.LabelField("Khác", EditorStyles.miniBoldLabel);
+            EditorGUILayout.PropertyField(rc.FindPropertyRelative("no_internet_popup_enable"),
+                new GUIContent("no_internet_popup_enable", "Tắt/Bật hiển thị Popup yêu cầu Internet."));
+            EditorGUILayout.PropertyField(rc.FindPropertyRelative("extraData"),
+                new GUIContent("Remote Config Extra Data", "ScriptableObject chứa thêm các key Remote Config riêng của dự án (tên field = key)."));
+            EditorGUILayout.EndVertical();
         }
     }
 
@@ -184,6 +123,8 @@ namespace GameUp.SDK.Editor.Setup
     public class FacebookSetupTab : SetupTabBase
     {
         public override string Title => "Facebook";
+        public override bool RequiresWritablePrefab => false;
+
         private string _appLabel, _appId, _clientToken, _androidKeystorePath;
         private static Type _settingsType;
 
@@ -320,6 +261,8 @@ namespace GameUp.SDK.Editor.Setup
     public class GameAnalyticsSetupTab : SetupTabBase
     {
         public override string Title => "Game Analytics";
+        public override bool RequiresWritablePrefab => false;
+
         private ScriptableObject _gaAsset;
         private int _addPlatformDropdownIndex;
 

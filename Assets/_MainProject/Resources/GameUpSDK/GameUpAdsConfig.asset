@@ -1,0 +1,267 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d2e4f5879c44b56bfdf89fda3af7822, type: 3}
+  m_Name: GameUpAdsConfig
+  m_EditorClassIdentifier: 
+  admob:
+    appIdAndroid: 
+    appIdIOS: 
+    testDevices: []
+    showMediationInspector: 0
+    units:
+      banner:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      interstitial:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      rewarded:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      appOpen:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      nativeAd:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+  max:
+    sdkKey: 
+    showMediationDebugger: 0
+    units:
+      banner:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      interstitial:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      rewarded:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      appOpen:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      nativeAd:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+  ironSource:
+    appKey: 
+    units:
+      banner:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      interstitial:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      rewarded:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      appOpen:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      nativeAd:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []

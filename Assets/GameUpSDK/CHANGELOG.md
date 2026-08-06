@@ -4,6 +4,64 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Gỡ toàn bộ dependencies không còn xóa `Assets/Plugins/Android`.** Danh sách residual từng liệt kê nguyên thư mục này, tức là xóa cả `mainTemplate.gradle`, `settingsTemplate.gradle`, `gradleTemplate.properties` và mọi `.aar` của plugin khác trong project. Nay chỉ xóa đúng file thuộc SDK; thêm chốt chặn `s_neverDeleteExactPaths` cấm xóa các thư mục dùng chung (`Assets/Plugins`, `Assets/Resources`, `Assets/Editor`, …) kể cả khi có entry sai trong danh sách. Cũng bỏ `Assets/SDK` khỏi danh sách vì tên quá chung.
+- **"Cài tất cả" không còn chết giữa chừng khi Unity reload domain.** Scope được lưu vào `SessionState`, sau mỗi lần compile/reload phần còn thiếu tự chạy tiếp (tối đa 3 lượt), có nút hủy và log rõ khi dừng.
+- **Tự xóa `Assets/FacebookSDK/Examples` giờ mới thực sự chạy.** Trước đây cleanup gọi ngay sau `AssetDatabase.ImportPackage` (bất đồng bộ) nên thư mục chưa tồn tại; nay chạy trong `importPackageCompleted`, và chạy bù sau domain reload nếu callback bị cắt ngang.
+- **Lỗi cài không còn bị nuốt.** `RefreshStatus` từng xóa `InstallError` của mọi package mỗi lần chạy (rất thường xuyên) nên HelpBox lỗi hầu như không kịp hiện; nay chỉ xóa khi package đã cài được.
+- Trạng thái "đang cài" bám theo `importPackageCompleted` thay vì đánh dấu "đã cài" ngay khi vừa gọi import, kèm timeout 5 phút để không kẹt cờ.
+- `HasDefine` so khớp từng symbol thay vì `string.Contains` (tránh khớp nhầm khi một define là chuỗi con của define khác).
+- Callback "Cập nhật bản AdMob mới nhất" kiểm tra window đã đóng trước khi thao tác; package không có URL tải không còn treo cờ "đang cài"; package `ScopedRegistry` đi đúng nhánh sửa manifest thay vì bị đẩy vào hàng đợi Git URL.
+
+### Changed
+
+- Gỡ lẻ từng package dọn đủ hơn: Firebase kèm `Editor Default Resources/Firebase`, `GeneratedLocalRepo/Firebase`, `Plugins/iOS|tvOS/Firebase`; AdMob kèm `GoogleMobileAdsPlugin.androidlib`, `googlemobileads-unity.aar`, `GADUAdNetworkExtras.h`; GameAnalytics kèm `Resources/GameAnalytics`. EDM4U (dùng chung) vẫn chỉ dọn khi gỡ toàn bộ.
+- Mô tả package khớp với cờ `Required` (chỉ Facebook là bắt buộc; Firebase là "khuyến nghị mạnh", AdMob "cần khi Primary Mediation = AdMob").
+- Cửa sổ **Setup Dependencies** vẽ lại: toolbar chuyển tab + tiến độ, cột trái là 2 bước có đánh số (chọn mediation → cài), cột phải là danh sách package với vạch trạng thái và bộ lọc "chỉ hiện mục chưa cài", footer cố định dẫn sang cửa sổ cấu hình. Tự chuyển 1 cột khi cửa sổ hẹp.
+- Cửa sổ **GameUp SDK Setup** chuyển sang dạng sidebar trái (nhóm Quảng cáo / Analytics & dịch vụ) + panel chi tiết bên phải, thanh nút Lưu/Tạo SDK luôn hiển thị.
+- Dọn code chết trong installer: `StartInstall`, `EnqueueGitInstall`, `StartDownloadAndImport`, `GetBundledPackagePath` và các field download không còn dùng.
+
+## [1.3.0] — 2026-08-06
+
+### Summary
+
+Toàn bộ dữ liệu cấu hình chuyển từ **prefab** sang **ScriptableObject** nằm trong project: `GameUpAdsConfig.asset` (ads) và `GameUpSdkConfig.asset` (AppsFlyer, AppMetrica, Remote Config defaults), cùng ở `Assets/_MainProject/Resources/GameUpSDK/`. Package cài qua Git UPM là read-only nên để cấu hình trong prefab của package là bế tắc — nay **không tab Setup nào còn ghi vào prefab**, project chỉ cần mở Setup, điền key, Save là chạy.
+
+### Added
+
+- **`GameUpAdsConfig` (ScriptableObject)** — nguồn cấu hình ads duy nhất, gồm 3 nhánh `admob` / `max` / `ironSource`, mỗi nhánh có `AdUnitConfigSet` (banner, interstitial, rewarded, appOpen, nativeAd). Load runtime qua `Resources.Load("GameUpSDK/GameUpAdsConfig")`, cache trong `GameUpAdsConfig.Instance`.
+- **`AdPlacementIds`** — một placement gộp cả 3 tầng eCPM (`idHigh` / `idMedium` / `idAll`) + thiết lập banner, thay cho list phẳng "mỗi floor một dòng" của v1. UI và runtime dùng chung một cấu trúc nên không còn khâu gom/tách nhóm.
+- **`configOverride`** trên `AdmobNetwork` / `MaxNetwork` / `IronSourceNetwork`: để trống = dùng asset chung, gán asset khác = bộ ID riêng cho scene/biến thể build.
+- **Migrate tool** — menu **GameUp → SDK → Migrate Ads Config (Prefab → ScriptableObject)** và nút migrate trong cửa sổ Setup khi phát hiện ID còn nằm trong prefab. Tự chạy lần đầu khi asset được tạo.
+- **Custom Inspector cho `GameUpAdsConfig`** (toolbar AdMob / MAX / IronSource) và inspector rút gọn cho 3 network — sửa ID ở Setup window, ở asset hay ở prefab đều ghi vào cùng một chỗ.
+- `AdPlacementGenerator` tách khỏi `GameUpSetupWindow`, đọc placement từ asset thay vì mở từng prefab bằng `LoadPrefabContents`.
+- **`GameUpSdkConfig` (ScriptableObject)** — `appsFlyer` (devKey, appIdIOS, isDebug, getConversionData), `appMetrica` (apiKey, enableLogs, enableEventLogging), `remoteConfig` (7 key mặc định + `extraData`). Có `configOverride` trên `AppsFlyerUtils`, `AppMetricaActivator`, `FirebaseRemoteConfigUtils`; custom Inspector cảnh báo khi asset nằm ngoài `Resources`.
+- **Migrate SDK Config** — menu **GameUp → SDK → Migrate SDK Config (Prefab → ScriptableObject)**; đọc `AppsFlyerObjectScript` qua reflection nên chạy được cả khi chưa cài AppsFlyer SDK.
+- `AdsManager.mediationPriority` và `nativeCtaClickRate` chuyển vào `GameUpAdsConfig`, đọc lúc `Awake`.
+- Mục **Nâng cao** trong cửa sổ Setup: clone prefab (giờ là tuỳ chọn) và migrate lại dữ liệu.
+
+### Changed
+
+- **Không tab Setup nào còn yêu cầu clone prefab** (`SetupTabBase.RequiresWritablePrefab = false` cho tất cả). Luồng clone prefab + vá link nested prefab chuyển xuống mục Nâng cao, chỉ dùng khi muốn sửa cấu trúc prefab.
+- `AppsFlyerUtils.Awake` ghi devKey / appID / isDebug từ asset sang `AppsFlyerObjectScript` trước khi `Start()` của nó init SDK — không phải sửa prefab hay code của AppsFlyer. Chuỗi rỗng trong asset không ghi đè giá trị đang có trên prefab.
+- `FirebaseRemoteConfigUtils` copy default từ asset vào field cùng tên lúc `Awake`, giữ nguyên cơ chế bind Remote Config theo tên field — asset không bị ghi đè lúc runtime.
+- Prefab `AppsFlyerObject` trong package: xoá chuỗi rác trong `devKey` (trước đây project mới migrate sẽ nuốt phải giá trị này).
+- UI cấu hình ads vẽ trực tiếp trên `SerializedProperty` của asset: bỏ lớp mirror `AdUnitConfigData` / `PlacementGroup` cùng cặp `Load`/`Save` tra field theo chuỗi ⇒ có sẵn Undo, tự đánh dấu dirty, và sai tên field là lỗi biên dịch chứ không im lặng.
+- `AdUnitConfig` giữ nguyên API runtime (`GetEntry`, `ResolveUnitId`, `GetAllPlacements`, `WhereByKey`) nên `BaseAdFormat` và các format Admob/MAX/LevelPlay không đổi; chỉ đổi cách lưu trữ bên trong.
+- `GetAllWhere()` trả về danh sách đã loại trùng (trước đây trả cả bản trùng theo từng floor).
+- Việc so khớp placement không còn phụ thuộc `AdType` của từng entry — trước đây entry sai `AdType` sẽ âm thầm rơi về ID mặc định.
+
+### Fixed
+
+- **ID App Open của MAX chưa bao giờ được lưu/đọc:** setup window tra field `"appOpenConfig"` trong khi `MaxNetwork` khai báo `appOpenAdConfig`, `FindProperty` trả null và bị các guard `if (p != null)` nuốt mất. Tool migrate đọc đúng field cũ nên dữ liệu (nếu có) không mất.
+
+### Migration
+
+Dự án đang dùng bản cũ: mở **GameUp → SDK → Setup** → bấm **Migrate dữ liệu từ Prefab → ScriptableObject** → **Save Configuration**. Field cũ trong prefab được giữ lại (ẩn khỏi Inspector) để migrate; runtime không đọc chúng nữa.
+
 ## [1.2.7] — 2026-07-29
 
 ### Summary

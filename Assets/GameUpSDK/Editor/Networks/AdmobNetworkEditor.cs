@@ -1,33 +1,25 @@
+using GameUp.SDK;
 using UnityEditor;
 using UnityEngine;
-using GameUp.SDK;
 
 namespace GameUp.SDK.Editor.Setup
 {
-    [CustomEditor(typeof(AdmobNetwork))]
-    public class AdmobNetworkEditor : UnityEditor.Editor
+    /// <summary>
+    /// Inspector chung cho 3 network: dữ liệu thật nằm trong GameUpAdsConfig,
+    /// ở đây chỉ nhúng lại đúng section tương ứng để sửa nhanh ngay trên prefab.
+    /// </summary>
+    public abstract class AdNetworkEditorBase : UnityEditor.Editor
     {
-        private AdUnitConfigData _interstitialConfig = new AdUnitConfigData();
-        private AdUnitConfigData _rewardedConfig = new AdUnitConfigData();
-        private AdUnitConfigData _appOpenConfig = new AdUnitConfigData();
-        private AdUnitConfigData _bannerConfig = new AdUnitConfigData();
-        private AdUnitConfigData _nativeAdConfig = new AdUnitConfigData();
-
         private AdMobIdEditorPlatform _platform;
+        private SerializedObject _configSerialized;
+        private bool _expanded = true;
 
-        private void OnEnable()
-        {
-            _platform = EditorUserBuildSettings.activeBuildTarget == BuildTarget.iOS ? AdMobIdEditorPlatform.IOS : AdMobIdEditorPlatform.Android;
-            LoadData();
-        }
+        protected abstract string HeaderLabel { get; }
+        protected abstract void DrawSection(SerializedObject config, AdMobIdEditorPlatform platform);
 
-        private void LoadData()
+        protected virtual void OnEnable()
         {
-            _interstitialConfig.Load(serializedObject.FindProperty("interstitialConfig"));
-            _rewardedConfig.Load(serializedObject.FindProperty("rewardedConfig"));
-            _appOpenConfig.Load(serializedObject.FindProperty("appOpenConfig"));
-            _bannerConfig.Load(serializedObject.FindProperty("bannerConfig"));
-            _nativeAdConfig.Load(serializedObject.FindProperty("nativeAdConfig"));
+            _platform = NetworkEditorUI.DefaultPlatform;
         }
 
         public override void OnInspectorGUI()
@@ -35,34 +27,50 @@ namespace GameUp.SDK.Editor.Setup
             serializedObject.Update();
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("AdMob Network Configuration", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Giao diện cấu hình ID đã được đồng bộ với cửa sổ SDK Setup. Bạn có thể sửa trực tiếp tại đây.", MessageType.Info);
+            EditorGUILayout.LabelField(HeaderLabel, EditorStyles.boldLabel);
+            DrawPropertiesExcluding(serializedObject, "m_Script");
+            serializedObject.ApplyModifiedProperties();
+
+            var overrideProp = serializedObject.FindProperty("configOverride");
+            var config = overrideProp?.objectReferenceValue as GameUpAdsConfig ?? GameUpAdsConfigAsset.Find();
+
             EditorGUILayout.Space();
-
-            DrawPropertiesExcluding(serializedObject, "m_Script", "interstitialConfig", "rewardedConfig", "appOpenConfig", "bannerConfig", "nativeAdConfig");
-            
-            EditorGUILayout.Space();
-            _platform = (AdMobIdEditorPlatform)EditorGUILayout.EnumPopup("Preview Platform UI", _platform);
-            EditorGUILayout.Space();
-
-            EditorGUI.BeginChangeCheck();
-
-            NetworkEditorUI.DrawConfigDataUI("Banner Configuration", _bannerConfig, _platform, AdUnitType.Banner);
-            NetworkEditorUI.DrawConfigDataUI("Interstitial Configuration", _interstitialConfig, _platform, AdUnitType.Interstitial);
-            NetworkEditorUI.DrawConfigDataUI("Rewarded Configuration", _rewardedConfig, _platform, AdUnitType.RewardedVideo);
-            NetworkEditorUI.DrawConfigDataUI("App Open Configuration", _appOpenConfig, _platform, AdUnitType.AppOpen);
-            NetworkEditorUI.DrawConfigDataUI("Native Ad Configuration", _nativeAdConfig, _platform, AdUnitType.NativeAd);
-
-            if (EditorGUI.EndChangeCheck() || GUI.changed)
+            if (config == null)
             {
-                _interstitialConfig.Save(serializedObject.FindProperty("interstitialConfig"));
-                _rewardedConfig.Save(serializedObject.FindProperty("rewardedConfig"));
-                _appOpenConfig.Save(serializedObject.FindProperty("appOpenConfig"));
-                _bannerConfig.Save(serializedObject.FindProperty("bannerConfig"));
-                _nativeAdConfig.Save(serializedObject.FindProperty("nativeAdConfig"));
-                
-                serializedObject.ApplyModifiedProperties();
+                EditorGUILayout.HelpBox("Chưa có asset GameUpAdsConfig trong project.", MessageType.Warning);
+                if (GUILayout.Button("Tạo GameUpAdsConfig")) GameUpAdsConfigAsset.GetOrCreate();
+                return;
             }
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Nguồn cấu hình", AssetDatabase.GetAssetPath(config));
+            if (GUILayout.Button("Chọn asset", GUILayout.Width(90)))
+            {
+                Selection.activeObject = config;
+                EditorGUIUtility.PingObject(config);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            _expanded = EditorGUILayout.Foldout(_expanded, "Cấu hình ID (sửa trực tiếp)", true);
+            if (!_expanded) return;
+
+            if (_configSerialized == null || _configSerialized.targetObject != config)
+                _configSerialized = new SerializedObject(config);
+
+            _configSerialized.Update();
+            _platform = NetworkEditorUI.DrawPlatformSelector(_platform);
+            EditorGUILayout.Space();
+            DrawSection(_configSerialized, _platform);
+            _configSerialized.ApplyModifiedProperties();
         }
+    }
+
+    [CustomEditor(typeof(AdmobNetwork))]
+    public class AdmobNetworkEditor : AdNetworkEditorBase
+    {
+        protected override string HeaderLabel => "AdMob Network Configuration";
+
+        protected override void DrawSection(SerializedObject config, AdMobIdEditorPlatform platform)
+            => NetworkEditorUI.DrawAdmobSection(config.FindProperty("admob"), platform);
     }
 }

@@ -36,14 +36,17 @@ namespace GameUp.SDK
     [DefaultExecutionOrder(-50)]
     public class AdsManager : MonoSingleton<AdsManager>
     {
-        [Header("Waterfall Configuration")]
-        [Tooltip(
-            "Danh sách ưu tiên mạng quảng cáo. Mạng ở Index 0 là Chính. Rớt xuống Index 1, 2... nếu mạng trên lỗi.")]
-        public List<MediationProvider> mediationPriority = new List<MediationProvider>
+        [Tooltip("Để trống = dùng asset GameUpAdsConfig chung của project (Resources/GameUpSDK/GameUpAdsConfig).")]
+        [SerializeField] private GameUpAdsConfig configOverride;
+
+        /// <summary>
+        /// Thứ tự ưu tiên mạng quảng cáo. Giá trị đọc từ GameUpAdsConfig lúc Awake;
+        /// giá trị serialize ở đây chỉ là fallback khi chưa có asset config.
+        /// </summary>
+        [HideInInspector] public List<MediationProvider> mediationPriority = new List<MediationProvider>
             { MediationProvider.Max, MediationProvider.Admob, MediationProvider.IronSource };
 
-        [Tooltip("Tỉ lệ (%) biến toàn bộ vùng Native Ad thành CTA. Có thể override bằng Remote Config native_cta_click_rate.")]
-        [SerializeField][Range(0, 100)] private int nativeCtaClickRate = 30;
+        [HideInInspector] [SerializeField] [Range(0, 100)] private int nativeCtaClickRate = 30;
 
         private readonly HashSet<string> _activeBanners = new HashSet<string>();
         private readonly Dictionary<MediationProvider, IAdNetwork> _networkDict =
@@ -65,6 +68,7 @@ namespace GameUp.SDK
         {
             base.Awake();
             DontDestroyOnLoad(gameObject);
+            ApplyConfig();
             _tracker = gameObject.AddComponent<AdsTracker>();
             IAdNetwork[] foundNetworks = GetComponentsInChildren<IAdNetwork>(true);
             foreach (var provider in mediationPriority)
@@ -75,6 +79,28 @@ namespace GameUp.SDK
                     _networkDict.Add(provider, network);
                 }
             }
+        }
+
+#if UNITY_EDITOR
+        /// <summary>Chép cấu hình cũ trên prefab vào asset (chỉ dùng cho công cụ migrate).</summary>
+        public void ExportLegacyInto(GameUpAdsConfig target)
+        {
+            if (target == null) return;
+            if (mediationPriority != null && mediationPriority.Count > 0)
+                target.mediationPriority = new List<MediationProvider>(mediationPriority);
+            target.nativeCtaClickRate = nativeCtaClickRate;
+        }
+#endif
+
+        private void ApplyConfig()
+        {
+            var config = GameUpAdsConfig.Resolve(configOverride);
+            if (config == null) return;
+
+            if (config.mediationPriority != null && config.mediationPriority.Count > 0)
+                mediationPriority = new List<MediationProvider>(config.mediationPriority);
+
+            nativeCtaClickRate = config.nativeCtaClickRate;
         }
 
         private void Start()

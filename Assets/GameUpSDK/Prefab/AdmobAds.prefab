@@ -44,28 +44,86 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c6a2472e151d4a859495a089d0379074, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  configOverride: {fileID: 0}
   testDevices: []
+  showMediationInspector: 0
   interstitialConfig:
+    enableWaterfallFloor: 0
     useMultiAdUnitIds: 0
-    defaultIdAndroid: 
-    defaultIdIOS: 
+    defaultIdAndroid_High: 
+    defaultIdAndroid_Medium: 
+    defaultIdAndroid_All: 
+    defaultIdIOS_High: 
+    defaultIdIOS_Medium: 
+    defaultIdIOS_All: 
+    defaultBannerSize: 2
+    defaultBannerFormat: 0
+    defaultCollapsible: 0
+    placementsAndroid: []
+    placementsIOS: []
     multiIdsAndroid: []
     multiIdsIOS: []
   rewardedConfig:
+    enableWaterfallFloor: 0
     useMultiAdUnitIds: 0
-    defaultIdAndroid: 
-    defaultIdIOS: 
+    defaultIdAndroid_High: 
+    defaultIdAndroid_Medium: 
+    defaultIdAndroid_All: 
+    defaultIdIOS_High: 
+    defaultIdIOS_Medium: 
+    defaultIdIOS_All: 
+    defaultBannerSize: 2
+    defaultBannerFormat: 0
+    defaultCollapsible: 0
+    placementsAndroid: []
+    placementsIOS: []
     multiIdsAndroid: []
     multiIdsIOS: []
   appOpenConfig:
+    enableWaterfallFloor: 0
     useMultiAdUnitIds: 0
-    defaultIdAndroid: 
-    defaultIdIOS: 
+    defaultIdAndroid_High: 
+    defaultIdAndroid_Medium: 
+    defaultIdAndroid_All: 
+    defaultIdIOS_High: 
+    defaultIdIOS_Medium: 
+    defaultIdIOS_All: 
+    defaultBannerSize: 2
+    defaultBannerFormat: 0
+    defaultCollapsible: 0
+    placementsAndroid: []
+    placementsIOS: []
     multiIdsAndroid: []
     multiIdsIOS: []
   bannerConfig:
+    enableWaterfallFloor: 0
     useMultiAdUnitIds: 0
-    defaultIdAndroid: 
-    defaultIdIOS: 
+    defaultIdAndroid_High: 
+    defaultIdAndroid_Medium: 
+    defaultIdAndroid_All: 
+    defaultIdIOS_High: 
+    defaultIdIOS_Medium: 
+    defaultIdIOS_All: 
+    defaultBannerSize: 2
+    defaultBannerFormat: 0
+    defaultCollapsible: 0
+    placementsAndroid: []
+    placementsIOS: []
+    multiIdsAndroid: []
+    multiIdsIOS: []
+  nativeAdConfig:
+    enableWaterfallFloor: 0
+    useMultiAdUnitIds: 0
+    defaultIdAndroid_High: 
+    defaultIdAndroid_Medium: 
+    defaultIdAndroid_All: 
+    defaultIdIOS_High: 
+    defaultIdIOS_Medium: 
+    defaultIdIOS_All: 
+    defaultBannerSize: 2
+    defaultBannerFormat: 0
+    defaultCollapsible: 0
+    placementsAndroid: []
+    placementsIOS: []
     multiIdsAndroid: []
     multiIdsIOS: []

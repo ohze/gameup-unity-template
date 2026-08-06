@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a2ec6ba1ee8b48749524f015ed572a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  devKey: "\u01B0qeq\u01B0ew"
+  devKey: 
   appID: 
   UWPAppID: 
   macOSAppID: 
