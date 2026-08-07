@@ -67,6 +67,18 @@ namespace GameUp.Core.Editor
             return null;
         }
 
+        /// <summary>Tìm field kể cả protected/private, duyệt ngược lên base.</summary>
+        public static FieldInfo FindField(Type type, string name)
+        {
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                var field = t.GetField(name, MemberFlags);
+                if (field != null) return field;
+            }
+
+            return null;
+        }
+
         /// <summary>Đọc property <c>Key</c> (protected) của một instance.</summary>
         public static string ReadKey(object instance)
         {
@@ -206,28 +218,171 @@ namespace GameUp.Core.Editor
 
         #endregion
 
-        #region Đọc thẳng store của PlayerPrefs
+        #region SettingVar khai báo trong code
+
+        public static bool IsSettingVar(Type type)
+        {
+            return FindSettingVarBase(type) != null;
+        }
+
+        /// <summary>Kiểu giá trị T của <c>SettingVar&lt;T&gt;</c> (bool/int/float/long…), null nếu không phải SettingVar.</summary>
+        public static Type GetSettingValueType(Type type)
+        {
+            return FindSettingVarBase(type)?.GetGenericArguments()[0];
+        }
+
+        private static Type FindSettingVarBase(Type type)
+        {
+            if (type == null) return null;
+
+            for (var t = type; t != null; t = t.BaseType)
+            {
+                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(SettingVar<>)) return t;
+            }
+
+            return null;
+        }
 
         /// <summary>
-        /// Trả về map key → data class, gồm mọi key trong PlayerPrefs mà giải mã ra JSON có
-        /// <c>$type</c> trỏ tới một class kế thừa BaseDataSave.
-        /// <paramref name="diagnostic"/> khác null nghĩa là không đọc được store (sẽ phải dựa vào ScanIntKeys).
+        /// Tìm các <c>SettingVar</c> khai báo dạng field static để biết key kể cả khi chưa lưu lần nào,
+        /// và biết luôn kiểu giá trị (BooleanVar hay IntVar) thay vì phải đoán từ chuỗi đã lưu.
+        ///
+        /// Chỉ đọc field static — không gọi property getter, vì getter hay khởi tạo Singleton
+        /// và sẽ đẻ GameObject ngay trong Editor.
         /// </summary>
-        public static Dictionary<string, Type> FindSavedKeys(out string diagnostic)
+        public static Dictionary<string, Type> FindDeclaredSettingVars()
         {
             var result = new Dictionary<string, Type>();
+
+            foreach (var type in EnumerateCandidateTypes())
+            {
+                CollectSettingVars(type, result);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Chỉ duyệt assembly có tham chiếu tới GameUp.Core — class kế thừa BaseDataSave hay SettingVar
+        /// bắt buộc phải tham chiếu, nên bỏ qua vài trăm assembly của Unity cho nhanh.
+        /// </summary>
+        public static IEnumerable<Type> EnumerateCandidateTypes()
+        {
+            var coreAssembly = typeof(SettingVar<>).Assembly;
+            var coreName = coreAssembly.GetName().Name;
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly != coreAssembly && !References(assembly, coreName)) continue;
+
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException e)
+                {
+                    types = e.Types.Where(t => t != null).ToArray();
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                foreach (var type in types)
+                {
+                    if (type != null) yield return type;
+                }
+            }
+        }
+
+        private static bool References(Assembly assembly, string assemblyName)
+        {
+            try
+            {
+                foreach (var reference in assembly.GetReferencedAssemblies())
+                {
+                    if (reference.Name == assemblyName) return true;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return false;
+        }
+
+        private static void CollectSettingVars(Type type, Dictionary<string, Type> result)
+        {
+            FieldInfo[] fields;
+            try
+            {
+                fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static |
+                                        BindingFlags.DeclaredOnly);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            foreach (var field in fields)
+            {
+                if (!IsSettingVar(field.FieldType)) continue;
+
+                try
+                {
+                    // Đọc field static sẽ chạy static constructor của class khai báo — bọc try cho chắc.
+                    var instance = field.GetValue(null);
+                    if (instance == null) continue;
+
+                    var key = FindField(instance.GetType(), "Key")?.GetValue(instance) as string;
+                    if (!string.IsNullOrEmpty(key)) result[key] = instance.GetType();
+                }
+                catch (Exception)
+                {
+                    // Field chưa khởi tạo được (phụ thuộc runtime) — bỏ qua, đường đọc store vẫn tìm ra key.
+                }
+            }
+        }
+
+        #endregion
+
+        #region Đọc thẳng store của PlayerPrefs
+
+        /// <summary>Kết quả đọc store: tách sẵn dữ liệu dạng object và dạng giá trị đơn.</summary>
+        public class StoreScan
+        {
+            /// <summary>Key → data class, lấy từ <c>$type</c> trong JSON.</summary>
+            public readonly Dictionary<string, Type> DataSaves = new Dictionary<string, Type>();
+
+            /// <summary>Key → giá trị đã giải mã của những key không phải JSON (SettingVar, cờ lưu bằng LocalStorageUtils…).</summary>
+            public readonly Dictionary<string, string> Scalars = new Dictionary<string, string>();
+        }
+
+        /// <summary>
+        /// Đọc mọi key trong PlayerPrefs rồi phân loại. Key của SDK khác không giải mã được nên tự bị loại.
+        /// <paramref name="diagnostic"/> khác null nghĩa là không đọc được store (sẽ phải dựa vào ScanIntKeys).
+        /// </summary>
+        public static StoreScan ScanStore(out string diagnostic)
+        {
+            var result = new StoreScan();
             var store = ReadStore(out diagnostic);
             if (store == null) return result;
 
             foreach (var pair in store)
             {
-                var json = TryDecrypt(pair.Value);
-                if (string.IsNullOrEmpty(json)) continue;
+                var value = TryDecrypt(pair.Value);
+                if (string.IsNullOrEmpty(value)) continue;
 
-                var type = ReadTypeFromJson(json);
-                if (type == null || !IsDataSave(type)) continue;
+                if (value.StartsWith("{", StringComparison.Ordinal))
+                {
+                    var type = ReadTypeFromJson(value);
+                    if (type != null && IsDataSave(type)) result.DataSaves[pair.Key] = type;
+                    continue;
+                }
 
-                result[pair.Key] = type;
+                result.Scalars[pair.Key] = value;
             }
 
             return result;
@@ -240,14 +395,30 @@ namespace GameUp.Core.Editor
             try
             {
                 // Chuỗi lưu xuống được ghi bằng UTF8 kèm BOM, cắt luôn cho chắc (TrimStart không coi BOM là whitespace).
-                var json = EncryptUtils.Decrypt(stored)?.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
-                return json != null && json.StartsWith("{", StringComparison.Ordinal) ? json : null;
+                var value = EncryptUtils.Decrypt(stored)?.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+                return IsPlainText(value) ? value : null;
             }
             catch (Exception)
             {
                 // Key của SDK khác / dữ liệu không mã hoá — bỏ qua, không log để khỏi rác console.
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Giải mã nhầm chuỗi base64 của SDK khác vẫn có xác suất lọt qua bước kiểm padding,
+        /// nên loại thêm bằng cách đòi kết quả phải là text đọc được.
+        /// </summary>
+        private static bool IsPlainText(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return false;
+
+            foreach (var c in value)
+            {
+                if (char.IsControl(c) && c != '\r' && c != '\n' && c != '\t') return false;
+            }
+
+            return true;
         }
 
         /// <summary>

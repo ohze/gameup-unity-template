@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using FullSerializer;
@@ -48,13 +49,43 @@ namespace GameUp.Core.Editor
             public Dictionary<FieldInfo, object> KeyValues;
         }
 
+        /// <summary>Kiểu của một giá trị đơn để biết dùng ô nhập nào và setter nào lúc ghi.</summary>
+        private enum ScalarKind
+        {
+            Bool,
+            Int,
+            Long,
+            Float,
+            Text
+        }
+
+        /// <summary>
+        /// Một key lưu giá trị đơn (SettingVar, hoặc cờ lưu thẳng bằng LocalStorageUtils) —
+        /// không phải JSON nên không thuộc class nào.
+        /// </summary>
+        private class ScalarEntry
+        {
+            public string Key;
+            public ScalarKind Kind;
+
+            /// <summary>Class SettingVar khai báo key này, null nếu chỉ tìm thấy trong PlayerPrefs.</summary>
+            public Type DeclaredType;
+
+            /// <summary>Giá trị đã giải mã, cache lúc quét để vẽ danh sách không phải giải mã lại mỗi frame.</summary>
+            public string Value;
+        }
+
         private readonly List<SaveEntry> _entries = new List<SaveEntry>();
+        private readonly List<ScalarEntry> _scalars = new List<ScalarEntry>();
         private readonly Dictionary<string, bool> _foldouts = new Dictionary<string, bool>();
 
         /// <summary>Class đang xổ danh sách key. Mặc định thu gọn để một class nhiều save chỉ chiếm một dòng.</summary>
         private readonly HashSet<Type> _expandedGroups = new HashSet<Type>();
 
         private SaveEntry _selected;
+        private ScalarEntry _selectedScalar;
+        private string _scalarText = string.Empty;
+        private bool _scalarsExpanded;
         private ViewMode _mode = ViewMode.Fields;
 
         private object _instance;
@@ -86,7 +117,12 @@ namespace GameUp.Core.Editor
         private void OnFocus()
         {
             // Game đang chạy có thể vừa ghi đè dữ liệu — đọc lại cho khớp.
-            if (_selected != null && !_dirty) Load(_selected);
+            if (!_dirty)
+            {
+                if (_selected != null) Load(_selected);
+                else if (_selectedScalar != null) LoadScalar(_selectedScalar);
+            }
+
             Repaint();
         }
 
@@ -95,51 +131,98 @@ namespace GameUp.Core.Editor
         private void RefreshEntries()
         {
             var previousType = _selected?.Type;
-            var previousKey = _selected?.Key;
+            var previousKey = _selected?.Key ?? _selectedScalar?.Key;
 
             _entries.Clear();
+            _scalars.Clear();
 
-            var stored = GUDataSaveScanner.FindSavedKeys(out _storeDiagnostic);
+            var store = GUDataSaveScanner.ScanStore(out _storeDiagnostic);
 
             var types = FindDataSaveTypes().ToList();
             _typeCount = types.Count;
 
             foreach (var type in types)
             {
-                _entries.AddRange(BuildEntries(type, stored));
+                _entries.AddRange(BuildEntries(type, store.DataSaves));
             }
 
-            if (previousType == null) return;
+            _scalars.AddRange(BuildScalarEntries(store.Scalars));
 
-            var again = _entries.FirstOrDefault(e => e.Type == previousType && e.Key == previousKey)
-                        ?? _entries.FirstOrDefault(e => e.Type == previousType);
+            if (previousKey == null) return;
 
-            if (again != null) Load(again);
+            if (previousType != null)
+            {
+                var again = _entries.FirstOrDefault(e => e.Type == previousType && e.Key == previousKey)
+                            ?? _entries.FirstOrDefault(e => e.Type == previousType);
+
+                if (again != null) Load(again);
+                else ClearSelection();
+
+                return;
+            }
+
+            var scalarAgain = _scalars.FirstOrDefault(s => s.Key == previousKey);
+            if (scalarAgain != null) LoadScalar(scalarAgain);
             else ClearSelection();
+        }
+
+        /// <summary>
+        /// Gộp key lấy từ store với key khai báo static trong code: khai báo cho biết kiểu chính xác
+        /// (BooleanVar hay IntVar) và cho thấy cả key chưa từng được ghi.
+        /// </summary>
+        private static IEnumerable<ScalarEntry> BuildScalarEntries(Dictionary<string, string> stored)
+        {
+            var entries = new Dictionary<string, ScalarEntry>();
+
+            foreach (var pair in stored)
+            {
+                entries[pair.Key] = new ScalarEntry { Key = pair.Key, Kind = InferKind(pair.Value), Value = pair.Value };
+            }
+
+            foreach (var pair in GUDataSaveScanner.FindDeclaredSettingVars())
+            {
+                var valueType = GUDataSaveScanner.GetSettingValueType(pair.Value);
+
+                if (!entries.TryGetValue(pair.Key, out var entry))
+                {
+                    // Key khai báo trong code nhưng không có trong store (chưa ghi lần nào, hoặc không đọc được store).
+                    entry = new ScalarEntry { Key = pair.Key, Value = LocalStorageUtils.GetString(pair.Key) };
+                    entries[pair.Key] = entry;
+                }
+
+                entry.DeclaredType = pair.Value;
+                entry.Kind = KindOf(valueType, entry.Kind);
+            }
+
+            return entries.Values.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Đoán kiểu từ chuỗi đã lưu — chỉ dùng khi không có khai báo SettingVar để đối chiếu.</summary>
+        private static ScalarKind InferKind(string value)
+        {
+            if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
+                return number >= int.MinValue && number <= int.MaxValue ? ScalarKind.Int : ScalarKind.Long;
+
+            return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                ? ScalarKind.Float
+                : ScalarKind.Text;
+        }
+
+        private static ScalarKind KindOf(Type valueType, ScalarKind fallback)
+        {
+            if (valueType == typeof(bool)) return ScalarKind.Bool;
+            if (valueType == typeof(int)) return ScalarKind.Int;
+            if (valueType == typeof(long)) return ScalarKind.Long;
+            if (valueType == typeof(float) || valueType == typeof(double)) return ScalarKind.Float;
+
+            return fallback;
         }
 
         private static IEnumerable<Type> FindDataSaveTypes()
         {
-            var types = new List<Type>();
-
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                Type[] assemblyTypes;
-                try
-                {
-                    assemblyTypes = assembly.GetTypes();
-                }
-                catch (ReflectionTypeLoadException e)
-                {
-                    assemblyTypes = e.Types.Where(t => t != null).ToArray();
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
-
-                types.AddRange(assemblyTypes.Where(GUDataSaveScanner.IsDataSave));
-            }
+            var types = GUDataSaveScanner.EnumerateCandidateTypes()
+                .Where(GUDataSaveScanner.IsDataSave)
+                .ToList();
 
             types.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
             return types;
@@ -209,8 +292,10 @@ namespace GameUp.Core.Editor
         private void ClearSelection()
         {
             _selected = null;
+            _selectedScalar = null;
             _instance = null;
             _json = string.Empty;
+            _scalarText = string.Empty;
             _loadError = null;
             _hasKey = false;
             _dirty = false;
@@ -220,6 +305,7 @@ namespace GameUp.Core.Editor
         private void Load(SaveEntry entry)
         {
             _selected = entry;
+            _selectedScalar = null;
             _instance = null;
             _loadError = null;
             _dirty = false;
@@ -232,6 +318,79 @@ namespace GameUp.Core.Editor
             if (string.IsNullOrEmpty(raw)) return;
 
             _instance = Deserialize(entry.Type, raw, out _loadError);
+        }
+
+        private void LoadScalar(ScalarEntry entry)
+        {
+            _selectedScalar = entry;
+            _selected = null;
+            _instance = null;
+            _loadError = null;
+            _dirty = false;
+            _scalarsExpanded = true;
+
+            _hasKey = LocalStorageUtils.HasKey(entry.Key);
+            _scalarText = LocalStorageUtils.GetString(entry.Key);
+            entry.Value = _scalarText;
+        }
+
+        /// <summary>Ghi qua đúng setter của kiểu để chuỗi lưu xuống giống hệt lúc runtime ghi.</summary>
+        private void SaveScalar()
+        {
+            var key = _selectedScalar.Key;
+
+            switch (_selectedScalar.Kind)
+            {
+                case ScalarKind.Bool:
+                    LocalStorageUtils.SetBoolean(key, ParseBool(_scalarText));
+                    break;
+                case ScalarKind.Int:
+                    LocalStorageUtils.SetInt(key, ParseInt(_scalarText));
+                    break;
+                case ScalarKind.Long:
+                    LocalStorageUtils.SetLong(key, ParseLong(_scalarText));
+                    break;
+                case ScalarKind.Float:
+                    LocalStorageUtils.SetFloat(key, ParseFloat(_scalarText));
+                    break;
+                default:
+                    LocalStorageUtils.SetString(key, _scalarText ?? string.Empty);
+                    break;
+            }
+
+            PlayerPrefs.Save();
+            _dirty = false;
+            LoadScalar(_selectedScalar);
+        }
+
+        private void DeleteScalarKey()
+        {
+            if (!EditorUtility.DisplayDialog("Xoá dữ liệu",
+                    $"Xoá key '{_selectedScalar.Key}' khỏi PlayerPrefs?", "Xoá", "Huỷ")) return;
+
+            PlayerPrefs.DeleteKey(_selectedScalar.Key);
+            PlayerPrefs.Save();
+            LoadScalar(_selectedScalar);
+        }
+
+        private static bool ParseBool(string value)
+        {
+            return ParseInt(value) == 1;
+        }
+
+        private static int ParseInt(string value)
+        {
+            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : 0;
+        }
+
+        private static long ParseLong(string value)
+        {
+            return long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : 0L;
+        }
+
+        private static float ParseFloat(string value)
+        {
+            return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var result) ? result : 0f;
         }
 
         private static object Deserialize(Type type, string raw, out string error)
@@ -568,7 +727,7 @@ namespace GameUp.Core.Editor
 
             var filtered = _entries.Where(Matches).ToList();
 
-            if (filtered.Count == 0)
+            if (filtered.Count == 0 && !_scalars.Any(MatchesScalar))
             {
                 EditorGUILayout.HelpBox(_entries.Count == 0
                     ? "Chưa có class nào kế thừa BaseDataSave<T>."
@@ -579,6 +738,8 @@ namespace GameUp.Core.Editor
             {
                 DrawGroup(group.Key, group.ToList());
             }
+
+            DrawScalarGroup();
 
             EditorGUILayout.EndScrollView();
 
@@ -622,24 +783,49 @@ namespace GameUp.Core.Editor
         {
             var expanded = _expandedGroups.Contains(type);
 
-            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.GroupHeader,
-                GUILayout.ExpandWidth(true), GUILayout.Height(RowHeight + 2f));
-
-            EditorGUI.DrawRect(rect, GroupBarColor);
-
-            var content = new GUIContent($"{type.Name}",
-                $"{type.FullName}\n{savedCount}/{totalCount} bản save có dữ liệu");
-
-            var toggled = EditorGUI.Foldout(new Rect(rect.x + 2f, rect.y, rect.width - 44f, rect.height),
-                expanded, content, true, Styles.GroupHeader);
-
-            GUI.Label(new Rect(rect.xMax - 44f, rect.y, 42f, rect.height), $"{savedCount}/{totalCount}", Styles.Badge);
+            var toggled = DrawBar(new GUIContent(type.Name, $"{type.FullName}\n{savedCount}/{totalCount} bản save có dữ liệu"),
+                $"{savedCount}/{totalCount}", expanded);
 
             if (toggled != expanded)
             {
                 if (toggled) _expandedGroups.Add(type);
                 else _expandedGroups.Remove(type);
             }
+
+            return toggled;
+        }
+
+        /// <summary>
+        /// Nhóm cuối: các key lưu giá trị đơn (SettingVar như BooleanVar/IntVar/FloatVar,
+        /// hoặc cờ ghi thẳng bằng LocalStorageUtils) — không thuộc data class nào nên gom riêng.
+        /// </summary>
+        private void DrawScalarGroup()
+        {
+            var filtered = _scalars.Where(MatchesScalar).ToList();
+            if (filtered.Count == 0) return;
+
+            var savedCount = filtered.Count(s => LocalStorageUtils.HasKey(s.Key));
+
+            _scalarsExpanded = DrawBar(
+                new GUIContent("Giá trị đơn (SettingVar)", "Key lưu bool/int/long/float/string, không phải object"),
+                $"{savedCount}/{filtered.Count}", _scalarsExpanded);
+
+            if (!_scalarsExpanded) return;
+
+            foreach (var entry in filtered) DrawScalarRow(entry);
+        }
+
+        private bool DrawBar(GUIContent content, string badge, bool expanded)
+        {
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.GroupHeader,
+                GUILayout.ExpandWidth(true), GUILayout.Height(RowHeight + 2f));
+
+            EditorGUI.DrawRect(rect, GroupBarColor);
+
+            var toggled = EditorGUI.Foldout(new Rect(rect.x + 2f, rect.y, rect.width - 44f, rect.height),
+                expanded, content, true, Styles.GroupHeader);
+
+            GUI.Label(new Rect(rect.xMax - 44f, rect.y, 42f, rect.height), badge, Styles.Badge);
 
             return toggled;
         }
@@ -674,14 +860,69 @@ namespace GameUp.Core.Editor
             }
         }
 
+        private void DrawScalarRow(ScalarEntry entry)
+        {
+            var isSelected = _selectedScalar != null && _selectedScalar.Key == entry.Key;
+            var hasData = LocalStorageUtils.HasKey(entry.Key);
+
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.Row,
+                GUILayout.ExpandWidth(true), GUILayout.Height(RowHeight));
+
+            if (isSelected) EditorGUI.DrawRect(rect, SelectionColor);
+
+            var source = entry.DeclaredType != null ? entry.DeclaredType.Name : "PlayerPrefs";
+            var content = new GUIContent(entry.Key, $"Key: {entry.Key}\nKiểu: {entry.Kind}\nNguồn: {source}");
+
+            var previousColor = GUI.color;
+            if (!hasData && !isSelected) GUI.color = new Color(1f, 1f, 1f, 0.5f);
+            GUI.Label(new Rect(rect.x + 16f, rect.y, rect.width - 70f, rect.height), content,
+                isSelected ? Styles.RowSelected : Styles.Row);
+            GUI.color = previousColor;
+
+            var badge = hasData ? Truncate(entry.Value, 8) : "trống";
+            GUI.Label(new Rect(rect.xMax - 54f, rect.y, 52f, rect.height), badge, Styles.Badge);
+
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 &&
+                rect.Contains(Event.current.mousePosition))
+            {
+                if (!isSelected) TrySelectScalar(entry);
+                Event.current.Use();
+            }
+        }
+
+        private static string Truncate(string value, int length)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            return value.Length <= length ? value : value.Substring(0, length - 1) + "…";
+        }
+
+        private bool MatchesScalar(ScalarEntry entry)
+        {
+            return string.IsNullOrEmpty(_search) ||
+                   entry.Key.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private void TrySelect(SaveEntry entry)
         {
-            if (_dirty && !EditorUtility.DisplayDialog("Chưa lưu",
-                    "Thay đổi hiện tại chưa được lưu. Bỏ thay đổi và chuyển sang data khác?", "Bỏ", "Ở lại")) return;
+            if (!ConfirmDiscard()) return;
 
             _foldouts.Clear();
             Load(entry);
             GUI.FocusControl(null);
+        }
+
+        private void TrySelectScalar(ScalarEntry entry)
+        {
+            if (!ConfirmDiscard()) return;
+
+            LoadScalar(entry);
+            GUI.FocusControl(null);
+        }
+
+        private bool ConfirmDiscard()
+        {
+            return !_dirty || EditorUtility.DisplayDialog("Chưa lưu",
+                "Thay đổi hiện tại chưa được lưu. Bỏ thay đổi và chuyển sang data khác?", "Bỏ", "Ở lại");
         }
 
         #endregion
@@ -691,6 +932,13 @@ namespace GameUp.Core.Editor
         private void DrawDetailPanel()
         {
             EditorGUILayout.BeginVertical();
+
+            if (_selectedScalar != null)
+            {
+                DrawScalarDetail();
+                EditorGUILayout.EndVertical();
+                return;
+            }
 
             if (_selected == null)
             {
@@ -722,6 +970,112 @@ namespace GameUp.Core.Editor
             DrawHorizontalSeparator();
             DrawActions();
             EditorGUILayout.EndVertical();
+        }
+
+        private void DrawScalarDetail()
+        {
+            DrawPanelTitle($"CHI TIẾT — {_selectedScalar.Key}");
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(_selectedScalar.Key, Styles.DetailTitle);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Copy key", EditorStyles.miniButton, GUILayout.Width(70)))
+                EditorGUIUtility.systemCopyBuffer = _selectedScalar.Key;
+            EditorGUILayout.EndHorizontal();
+
+            var previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 110f;
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Nguồn",
+                _selectedScalar.DeclaredType != null ? _selectedScalar.DeclaredType.Name : "PlayerPrefs (đoán kiểu)");
+            EditorGUILayout.LabelField("Trạng thái", _hasKey ? "Đã có dữ liệu" : "Chưa có dữ liệu");
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUIUtility.labelWidth = previousLabelWidth;
+            EditorGUILayout.EndVertical();
+
+            _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll);
+            GUILayout.Space(4f);
+
+            previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 170f;
+
+            // Không có khai báo SettingVar thì kiểu chỉ là suy đoán từ chuỗi đã lưu — cho đổi tay.
+            using (new EditorGUI.DisabledScope(_selectedScalar.DeclaredType != null))
+            {
+                EditorGUI.BeginChangeCheck();
+                var kind = (ScalarKind)EditorGUILayout.EnumPopup("Kiểu giá trị", _selectedScalar.Kind);
+                if (EditorGUI.EndChangeCheck()) _selectedScalar.Kind = kind;
+            }
+
+            DrawScalarValueField();
+
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.LabelField("Chuỗi lưu xuống", string.IsNullOrEmpty(_scalarText) ? "—" : _scalarText);
+
+            EditorGUIUtility.labelWidth = previousLabelWidth;
+            EditorGUILayout.EndScrollView();
+
+            DrawHorizontalSeparator();
+            DrawScalarActions();
+        }
+
+        private void DrawScalarValueField()
+        {
+            EditorGUI.BeginChangeCheck();
+            string edited;
+
+            switch (_selectedScalar.Kind)
+            {
+                case ScalarKind.Bool:
+                    edited = EditorGUILayout.Toggle("Giá trị", ParseBool(_scalarText)) ? "1" : "0";
+                    break;
+                case ScalarKind.Int:
+                    edited = EditorGUILayout.IntField("Giá trị", ParseInt(_scalarText))
+                        .ToString(CultureInfo.InvariantCulture);
+                    break;
+                case ScalarKind.Long:
+                    edited = EditorGUILayout.LongField("Giá trị", ParseLong(_scalarText))
+                        .ToString(CultureInfo.InvariantCulture);
+                    break;
+                case ScalarKind.Float:
+                    edited = EditorGUILayout.FloatField("Giá trị", ParseFloat(_scalarText))
+                        .ToString("R", CultureInfo.InvariantCulture);
+                    break;
+                default:
+                    edited = EditorGUILayout.TextField("Giá trị", _scalarText ?? string.Empty);
+                    break;
+            }
+
+            if (!EditorGUI.EndChangeCheck()) return;
+
+            _scalarText = edited;
+            _dirty = true;
+        }
+
+        private void DrawScalarActions()
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(4f);
+
+            using (new EditorGUI.DisabledScope(!_dirty))
+            {
+                if (GUILayout.Button(_dirty ? "Lưu *" : "Lưu", GUILayout.Height(26))) SaveScalar();
+            }
+
+            if (GUILayout.Button("Tải lại", GUILayout.Height(26))) LoadScalar(_selectedScalar);
+
+            using (new EditorGUI.DisabledScope(!_hasKey))
+            {
+                if (GUILayout.Button("Xoá key", GUILayout.Height(26))) DeleteScalarKey();
+            }
+
+            GUILayout.Space(4f);
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(4f);
         }
 
         private void DrawDetailHeader()
