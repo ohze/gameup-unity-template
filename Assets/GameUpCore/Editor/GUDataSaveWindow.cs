@@ -24,7 +24,8 @@ namespace GameUp.Core.Editor
     {
         private const string MenuPath = "GameUp/Data/Data Save Viewer";
         private const string WindowTitle = "Data Save";
-        private const float ListWidth = 220f;
+        private const float ListWidth = 230f;
+        private const float RowHeight = 18f;
 
         private enum ViewMode
         {
@@ -50,6 +51,9 @@ namespace GameUp.Core.Editor
         private readonly List<SaveEntry> _entries = new List<SaveEntry>();
         private readonly Dictionary<string, bool> _foldouts = new Dictionary<string, bool>();
 
+        /// <summary>Class đang xổ danh sách key. Mặc định thu gọn để một class nhiều save chỉ chiếm một dòng.</summary>
+        private readonly HashSet<Type> _expandedGroups = new HashSet<Type>();
+
         private SaveEntry _selected;
         private ViewMode _mode = ViewMode.Fields;
 
@@ -61,6 +65,7 @@ namespace GameUp.Core.Editor
         private bool _dirty;
 
         private string _search = string.Empty;
+        private int _typeCount;
         private Vector2 _listScroll;
         private Vector2 _detailScroll;
 
@@ -96,7 +101,10 @@ namespace GameUp.Core.Editor
 
             var stored = GUDataSaveScanner.FindSavedKeys(out _storeDiagnostic);
 
-            foreach (var type in FindDataSaveTypes())
+            var types = FindDataSaveTypes().ToList();
+            _typeCount = types.Count;
+
+            foreach (var type in types)
             {
                 _entries.AddRange(BuildEntries(type, stored));
             }
@@ -215,6 +223,7 @@ namespace GameUp.Core.Editor
             _instance = null;
             _loadError = null;
             _dirty = false;
+            _expandedGroups.Add(entry.Type);
 
             _hasKey = LocalStorageUtils.HasKey(entry.Key);
             var raw = LocalStorageUtils.GetString(entry.Key);
@@ -446,13 +455,76 @@ namespace GameUp.Core.Editor
 
         #region GUI
 
+        /// <summary>Style dựng một lần: OnGUI chạy mỗi frame nên không tạo GUIStyle trong vòng vẽ.</summary>
+        private static class Styles
+        {
+            public static GUIStyle Row;
+            public static GUIStyle RowSelected;
+            public static GUIStyle Badge;
+            public static GUIStyle GroupHeader;
+            public static GUIStyle PanelTitle;
+            public static GUIStyle DetailTitle;
+
+            private static bool _built;
+
+            public static void Build()
+            {
+                if (_built) return;
+
+                Row = new GUIStyle(EditorStyles.label)
+                {
+                    padding = new RectOffset(4, 4, 0, 0),
+                    alignment = TextAnchor.MiddleLeft
+                };
+
+                RowSelected = new GUIStyle(Row) { fontStyle = FontStyle.Bold };
+                RowSelected.normal.textColor = Color.white;
+
+                Badge = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    alignment = TextAnchor.MiddleRight,
+                    padding = new RectOffset(0, 6, 0, 0)
+                };
+
+                GroupHeader = new GUIStyle(EditorStyles.foldout)
+                {
+                    fontStyle = FontStyle.Bold,
+                    alignment = TextAnchor.MiddleLeft
+                };
+
+                PanelTitle = new GUIStyle(EditorStyles.miniBoldLabel)
+                {
+                    padding = new RectOffset(6, 6, 2, 2)
+                };
+
+                DetailTitle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 13 };
+
+                _built = true;
+            }
+        }
+
+        private static Color SeparatorColor =>
+            EditorGUIUtility.isProSkin ? new Color(0f, 0f, 0f, 0.4f) : new Color(0f, 0f, 0f, 0.2f);
+
+        private static Color SelectionColor =>
+            EditorGUIUtility.isProSkin ? new Color(0.24f, 0.44f, 0.75f) : new Color(0.28f, 0.5f, 0.85f);
+
+        private static Color GroupBarColor =>
+            EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.05f) : new Color(0f, 0f, 0f, 0.05f);
+
+        private static Color PanelHeaderColor =>
+            EditorGUIUtility.isProSkin ? new Color(0f, 0f, 0f, 0.15f) : new Color(0f, 0f, 0f, 0.06f);
+
         private void OnGUI()
         {
+            Styles.Build();
+
             DrawToolbar();
 
             EditorGUILayout.BeginHorizontal();
-            DrawList();
-            DrawDetail();
+            DrawListPanel();
+            DrawVerticalSeparator();
+            DrawDetailPanel();
             EditorGUILayout.EndHorizontal();
         }
 
@@ -461,6 +533,14 @@ namespace GameUp.Core.Editor
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
             if (GUILayout.Button("Quét lại", EditorStyles.toolbarButton, GUILayout.Width(70))) RefreshEntries();
+
+            if (GUILayout.Button("Mở tất cả", EditorStyles.toolbarButton, GUILayout.Width(70)))
+            {
+                foreach (var entry in _entries) _expandedGroups.Add(entry.Type);
+            }
+
+            if (GUILayout.Button("Thu gọn", EditorStyles.toolbarButton, GUILayout.Width(70)))
+                _expandedGroups.Clear();
 
             GUILayout.Space(4);
             _search = GUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.Width(160));
@@ -476,15 +556,17 @@ namespace GameUp.Core.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawList()
+        #region Cột trái: danh sách
+
+        private void DrawListPanel()
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(ListWidth));
+
+            DrawPanelTitle($"DATA CLASS ({_typeCount})");
+
             _listScroll = EditorGUILayout.BeginScrollView(_listScroll, GUILayout.Width(ListWidth));
 
-            var filtered = _entries.Where(e => string.IsNullOrEmpty(_search) ||
-                                               e.Type.Name.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                               e.Key.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0)
-                .ToList();
+            var filtered = _entries.Where(Matches).ToList();
 
             if (filtered.Count == 0)
             {
@@ -495,18 +577,10 @@ namespace GameUp.Core.Editor
 
             foreach (var group in filtered.GroupBy(e => e.Type))
             {
-                var entries = group.ToList();
-
-                // Class một key thì hiện thẳng tên class; nhiều key thì gom dưới một tiêu đề.
-                if (entries.Count == 1)
-                {
-                    DrawListItem(entries[0], entries[0].Type.Name);
-                    continue;
-                }
-
-                GUILayout.Label(group.Key.Name, EditorStyles.miniBoldLabel);
-                foreach (var entry in entries) DrawListItem(entry, "   " + entry.Key);
+                DrawGroup(group.Key, group.ToList());
             }
+
+            EditorGUILayout.EndScrollView();
 
             if (!string.IsNullOrEmpty(_storeDiagnostic))
             {
@@ -516,33 +590,88 @@ namespace GameUp.Core.Editor
                     MessageType.None);
             }
 
-            EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawListItem(SaveEntry entry, string label)
+        private bool Matches(SaveEntry entry)
+        {
+            return string.IsNullOrEmpty(_search) ||
+                   entry.Type.Name.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   entry.Key.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// Class một key thì chính thanh tiêu đề là dòng chọn được.
+        /// Class nhiều key (Key phụ thuộc dữ liệu) thì thanh tiêu đề chỉ đóng/mở danh sách key bên dưới.
+        /// </summary>
+        private void DrawGroup(Type type, List<SaveEntry> entries)
+        {
+            if (entries.Count == 1)
+            {
+                DrawEntryRow(entries[0], entries[0].Type.Name, false);
+                return;
+            }
+
+            var savedCount = entries.Count(e => LocalStorageUtils.HasKey(e.Key));
+            if (!DrawGroupBar(type, savedCount, entries.Count)) return;
+
+            foreach (var entry in entries) DrawEntryRow(entry, entry.Key, true);
+        }
+
+        private bool DrawGroupBar(Type type, int savedCount, int totalCount)
+        {
+            var expanded = _expandedGroups.Contains(type);
+
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.GroupHeader,
+                GUILayout.ExpandWidth(true), GUILayout.Height(RowHeight + 2f));
+
+            EditorGUI.DrawRect(rect, GroupBarColor);
+
+            var content = new GUIContent($"{type.Name}",
+                $"{type.FullName}\n{savedCount}/{totalCount} bản save có dữ liệu");
+
+            var toggled = EditorGUI.Foldout(new Rect(rect.x + 2f, rect.y, rect.width - 44f, rect.height),
+                expanded, content, true, Styles.GroupHeader);
+
+            GUI.Label(new Rect(rect.xMax - 44f, rect.y, 42f, rect.height), $"{savedCount}/{totalCount}", Styles.Badge);
+
+            if (toggled != expanded)
+            {
+                if (toggled) _expandedGroups.Add(type);
+                else _expandedGroups.Remove(type);
+            }
+
+            return toggled;
+        }
+
+        private void DrawEntryRow(SaveEntry entry, string label, bool indent)
         {
             var isSelected = _selected != null && _selected.Type == entry.Type && _selected.Key == entry.Key;
             var hasData = LocalStorageUtils.HasKey(entry.Key);
 
-            var content = new GUIContent(
-                hasData ? label : label + "  (trống)",
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.Row,
+                GUILayout.ExpandWidth(true), GUILayout.Height(RowHeight));
+
+            if (isSelected) EditorGUI.DrawRect(rect, SelectionColor);
+
+            var content = new GUIContent(label,
                 $"{entry.Type.FullName}\nKey: {entry.Key}\nVersion trong code: {entry.CodeVersion}");
 
-            var style = new GUIStyle(EditorStyles.miniButton)
+            var labelRect = new Rect(rect.x + (indent ? 16f : 0f), rect.y, rect.width - (indent ? 16f : 0f) - 44f,
+                rect.height);
+
+            var previousColor = GUI.color;
+            if (!hasData && !isSelected) GUI.color = new Color(1f, 1f, 1f, 0.5f);
+            GUI.Label(labelRect, content, isSelected ? Styles.RowSelected : Styles.Row);
+            GUI.color = previousColor;
+
+            if (!hasData) GUI.Label(new Rect(rect.xMax - 44f, rect.y, 42f, rect.height), "trống", Styles.Badge);
+
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && rect.Contains(Event.current.mousePosition))
             {
-                alignment = TextAnchor.MiddleLeft,
-                fontStyle = isSelected ? FontStyle.Bold : FontStyle.Normal
-            };
-
-            var previousColor = GUI.backgroundColor;
-            if (isSelected) GUI.backgroundColor = new Color(0.45f, 0.65f, 1f);
-            if (!hasData) GUI.contentColor = new Color(1f, 1f, 1f, 0.55f);
-
-            if (GUILayout.Button(content, style) && !isSelected) TrySelect(entry);
-
-            GUI.backgroundColor = previousColor;
-            GUI.contentColor = Color.white;
+                if (!isSelected) TrySelect(entry);
+                Event.current.Use();
+            }
         }
 
         private void TrySelect(SaveEntry entry)
@@ -555,52 +684,71 @@ namespace GameUp.Core.Editor
             GUI.FocusControl(null);
         }
 
-        private void DrawDetail()
+        #endregion
+
+        #region Cột phải: chi tiết
+
+        private void DrawDetailPanel()
         {
             EditorGUILayout.BeginVertical();
 
             if (_selected == null)
             {
-                EditorGUILayout.HelpBox("Chọn một data class ở danh sách bên trái.", MessageType.Info);
+                DrawPanelTitle("CHI TIẾT");
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.LabelField("Chọn một bản save ở danh sách bên trái.", EditorStyles.centeredGreyMiniLabel);
+                GUILayout.FlexibleSpace();
                 EditorGUILayout.EndVertical();
                 return;
             }
 
-            DrawHeader();
+            DrawPanelTitle($"CHI TIẾT — {_selected.Key}");
+            DrawDetailHeader();
+            DrawModeTabs();
 
             _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll);
+            GUILayout.Space(4f);
+
+            var previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 170f;
 
             if (_mode == ViewMode.Fields) DrawFieldsMode();
             else DrawJsonMode();
 
+            EditorGUIUtility.labelWidth = previousLabelWidth;
+
             EditorGUILayout.EndScrollView();
 
+            DrawHorizontalSeparator();
             DrawActions();
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawHeader()
+        private void DrawDetailHeader()
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-            EditorGUILayout.LabelField(_selected.Type.Name, EditorStyles.boldLabel);
-
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("PlayerPrefs key", _selected.Key);
+            EditorGUILayout.LabelField(_selected.Type.Name, Styles.DetailTitle);
+            GUILayout.FlexibleSpace();
             if (GUILayout.Button("Copy key", EditorStyles.miniButton, GUILayout.Width(70)))
                 EditorGUIUtility.systemCopyBuffer = _selected.Key;
             EditorGUILayout.EndHorizontal();
 
-            if (!string.IsNullOrEmpty(_selected.ProbeError))
-                EditorGUILayout.HelpBox($"Không đọc được Key/Version: {_selected.ProbeError}", MessageType.Warning);
+            var previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 110f;
 
-            EditorGUILayout.LabelField("Trạng thái", _hasKey ? "Đã có dữ liệu lưu" : "Chưa có dữ liệu");
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("PlayerPrefs key", _selected.Key);
+            EditorGUILayout.LabelField("Trạng thái", _hasKey ? "Đã có dữ liệu" : "Chưa có dữ liệu");
+            EditorGUILayout.EndHorizontal();
 
             DrawVersionRow();
 
-            EditorGUI.BeginChangeCheck();
-            var mode = (ViewMode)GUILayout.Toolbar((int)_mode, new[] { "Field", "JSON" });
-            if (EditorGUI.EndChangeCheck() && mode != _mode) SwitchMode(mode);
+            EditorGUIUtility.labelWidth = previousLabelWidth;
+
+            if (!string.IsNullOrEmpty(_selected.ProbeError))
+                EditorGUILayout.HelpBox($"Không đọc được Key/Version: {_selected.ProbeError}", MessageType.Warning);
 
             EditorGUILayout.EndVertical();
         }
@@ -620,7 +768,7 @@ namespace GameUp.Core.Editor
             if (versionField != null)
             {
                 EditorGUI.BeginChangeCheck();
-                var version = EditorGUILayout.IntField("dataVersion (save)", (int)versionField.GetValue(_instance));
+                var version = EditorGUILayout.IntField("dataVersion", (int)versionField.GetValue(_instance));
                 if (EditorGUI.EndChangeCheck())
                 {
                     versionField.SetValue(_instance, version);
@@ -629,11 +777,23 @@ namespace GameUp.Core.Editor
             }
             else
             {
-                EditorGUILayout.LabelField("dataVersion (save)", "—");
+                EditorGUILayout.LabelField("dataVersion", "—");
             }
 
-            EditorGUILayout.LabelField($"Version trong code: {_selected.CodeVersion}", GUILayout.Width(160));
+            EditorGUILayout.LabelField("Version trong code", _selected.CodeVersion.ToString());
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawModeTabs()
+        {
+            GUILayout.Space(2f);
+
+            EditorGUI.BeginChangeCheck();
+            var mode = (ViewMode)GUILayout.Toolbar((int)_mode, new[] { "Field", "JSON" }, GUILayout.Height(20f));
+            if (EditorGUI.EndChangeCheck() && mode != _mode) SwitchMode(mode);
+
+            GUILayout.Space(2f);
+            DrawHorizontalSeparator();
         }
 
         private void DrawFieldsMode()
@@ -660,27 +820,27 @@ namespace GameUp.Core.Editor
 
         private void DrawJsonMode()
         {
-            EditorGUILayout.LabelField("JSON thô (đã giải mã)", EditorStyles.miniBoldLabel);
-
-            EditorGUI.BeginChangeCheck();
-            _json = EditorGUILayout.TextArea(_json, GUILayout.ExpandHeight(true), GUILayout.MinHeight(200f));
-            if (EditorGUI.EndChangeCheck()) _dirty = true;
-
             EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("JSON thô (đã giải mã)", EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
 
-            if (GUILayout.Button("Format lại", EditorStyles.miniButton, GUILayout.Width(90)))
+            if (GUILayout.Button("Format lại", EditorStyles.miniButton, GUILayout.Width(80)))
                 _json = PrettyPrint(_json);
 
-            if (GUILayout.Button("Copy", EditorStyles.miniButton, GUILayout.Width(60)))
+            if (GUILayout.Button("Copy", EditorStyles.miniButton, GUILayout.Width(50)))
                 EditorGUIUtility.systemCopyBuffer = _json;
 
-            if (GUILayout.Button("Paste", EditorStyles.miniButton, GUILayout.Width(60)))
+            if (GUILayout.Button("Paste", EditorStyles.miniButton, GUILayout.Width(50)))
             {
                 _json = EditorGUIUtility.systemCopyBuffer;
                 _dirty = true;
             }
 
             EditorGUILayout.EndHorizontal();
+
+            EditorGUI.BeginChangeCheck();
+            _json = EditorGUILayout.TextArea(_json, GUILayout.ExpandHeight(true), GUILayout.MinHeight(220f));
+            if (EditorGUI.EndChangeCheck()) _dirty = true;
 
             EditorGUILayout.HelpBox(
                 "JSON được ghi nguyên trạng (chỉ kiểm tra cú pháp) — có thể dán lại save của bản cũ để test Migrate().",
@@ -689,28 +849,59 @@ namespace GameUp.Core.Editor
 
         private void DrawActions()
         {
-            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(4f);
 
             var canSave = _dirty && (_mode == ViewMode.Json ? !string.IsNullOrEmpty(_json) : _instance != null);
             using (new EditorGUI.DisabledScope(!canSave))
             {
-                if (GUILayout.Button(_dirty ? "Lưu *" : "Lưu", GUILayout.Height(24)))
+                if (GUILayout.Button(_dirty ? "Lưu *" : "Lưu", GUILayout.Height(26)))
                 {
                     if (_mode == ViewMode.Json) SaveJson();
                     else SaveInstance();
                 }
             }
 
-            if (GUILayout.Button("Tải lại", GUILayout.Height(24))) Load(_selected);
-            if (GUILayout.Button("Tạo lại mặc định", GUILayout.Height(24))) ResetToDefault();
+            if (GUILayout.Button("Tải lại", GUILayout.Height(26))) Load(_selected);
+            if (GUILayout.Button("Tạo lại mặc định", GUILayout.Height(26))) ResetToDefault();
 
             using (new EditorGUI.DisabledScope(!_hasKey))
             {
-                if (GUILayout.Button("Xoá key", GUILayout.Height(24))) DeleteKey();
+                if (GUILayout.Button("Xoá key", GUILayout.Height(26))) DeleteKey();
             }
 
+            GUILayout.Space(4f);
             EditorGUILayout.EndHorizontal();
+            GUILayout.Space(4f);
         }
+
+        #endregion
+
+        #region Vẽ khung
+
+        private static void DrawPanelTitle(string title)
+        {
+            var rect = GUILayoutUtility.GetRect(GUIContent.none, Styles.PanelTitle,
+                GUILayout.ExpandWidth(true), GUILayout.Height(18f));
+
+            EditorGUI.DrawRect(rect, PanelHeaderColor);
+            GUI.Label(rect, title, Styles.PanelTitle);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.yMax - 1f, rect.width, 1f), SeparatorColor);
+        }
+
+        private static void DrawVerticalSeparator()
+        {
+            var rect = GUILayoutUtility.GetRect(1f, 1f, GUILayout.Width(1f), GUILayout.ExpandHeight(true));
+            EditorGUI.DrawRect(rect, SeparatorColor);
+        }
+
+        private static void DrawHorizontalSeparator()
+        {
+            var rect = GUILayoutUtility.GetRect(1f, 1f, GUILayout.ExpandWidth(true), GUILayout.Height(1f));
+            EditorGUI.DrawRect(rect, SeparatorColor);
+        }
+
+        #endregion
 
         #endregion
     }
