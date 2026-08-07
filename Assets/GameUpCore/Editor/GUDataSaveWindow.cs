@@ -14,8 +14,9 @@ namespace GameUp.Core.Editor
     /// Cửa sổ xem/sửa mọi dữ liệu kế thừa <see cref="BaseDataSave{T}"/>.
     ///
     /// Dữ liệu nằm trong PlayerPrefs và đã bị mã hoá nên không xem được bằng công cụ có sẵn của Unity.
-    /// Window này quét toàn bộ class kế thừa BaseDataSave, đọc key tương ứng qua
-    /// <see cref="LocalStorageUtils"/> (tự giải mã), rồi vẽ ra để sửa — theo field hoặc theo JSON thô.
+    /// Window này quét toàn bộ class kế thừa BaseDataSave, tìm mọi bản save của từng class
+    /// (xem <see cref="GUDataSaveScanner"/> — một class có thể có nhiều key nếu <c>Key</c> phụ thuộc dữ liệu),
+    /// đọc qua <see cref="LocalStorageUtils"/> (tự giải mã) rồi vẽ ra để sửa — theo field hoặc theo JSON thô.
     ///
     /// Ghi lại đi đúng đường <c>Save()</c> của chính data class nên format luôn khớp với runtime.
     /// </summary>
@@ -31,24 +32,31 @@ namespace GameUp.Core.Editor
             Json
         }
 
-        /// <summary>Một data class tìm được, kèm key và version đọc từ code.</summary>
-        private class SaveInfo
+        /// <summary>Một bản save cụ thể: data class + key thật trong PlayerPrefs.</summary>
+        private class SaveEntry
         {
             public Type Type;
             public string Key;
             public int CodeVersion;
             public string ProbeError;
+
+            /// <summary>Field quyết định key (rỗng nếu key cố định) — dùng khi tạo lại dữ liệu mặc định.</summary>
+            public List<FieldInfo> KeyFields;
+
+            /// <summary>Giá trị của các field trên, nếu key này tìm được bằng cách dò id.</summary>
+            public Dictionary<FieldInfo, object> KeyValues;
         }
 
-        private readonly List<SaveInfo> _saves = new List<SaveInfo>();
+        private readonly List<SaveEntry> _entries = new List<SaveEntry>();
         private readonly Dictionary<string, bool> _foldouts = new Dictionary<string, bool>();
 
-        private SaveInfo _selected;
+        private SaveEntry _selected;
         private ViewMode _mode = ViewMode.Fields;
 
         private object _instance;
         private string _json = string.Empty;
         private string _loadError;
+        private string _storeDiagnostic;
         private bool _hasKey;
         private bool _dirty;
 
@@ -67,7 +75,7 @@ namespace GameUp.Core.Editor
 
         private void OnEnable()
         {
-            RefreshTypes();
+            RefreshEntries();
         }
 
         private void OnFocus()
@@ -77,99 +85,113 @@ namespace GameUp.Core.Editor
             Repaint();
         }
 
-        #region Quét type
+        #region Quét dữ liệu
 
-        private void RefreshTypes()
+        private void RefreshEntries()
         {
-            _saves.Clear();
+            var previousType = _selected?.Type;
+            var previousKey = _selected?.Key;
+
+            _entries.Clear();
+
+            var stored = GUDataSaveScanner.FindSavedKeys(out _storeDiagnostic);
+
+            foreach (var type in FindDataSaveTypes())
+            {
+                _entries.AddRange(BuildEntries(type, stored));
+            }
+
+            if (previousType == null) return;
+
+            var again = _entries.FirstOrDefault(e => e.Type == previousType && e.Key == previousKey)
+                        ?? _entries.FirstOrDefault(e => e.Type == previousType);
+
+            if (again != null) Load(again);
+            else ClearSelection();
+        }
+
+        private static IEnumerable<Type> FindDataSaveTypes()
+        {
+            var types = new List<Type>();
 
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                Type[] types;
+                Type[] assemblyTypes;
                 try
                 {
-                    types = assembly.GetTypes();
+                    assemblyTypes = assembly.GetTypes();
                 }
                 catch (ReflectionTypeLoadException e)
                 {
-                    types = e.Types.Where(t => t != null).ToArray();
+                    assemblyTypes = e.Types.Where(t => t != null).ToArray();
                 }
                 catch (Exception)
                 {
                     continue;
                 }
 
-                foreach (var type in types)
-                {
-                    if (type == null || type.IsAbstract || type.IsGenericTypeDefinition) continue;
-                    if (!IsDataSave(type)) continue;
-
-                    _saves.Add(BuildInfo(type));
-                }
+                types.AddRange(assemblyTypes.Where(GUDataSaveScanner.IsDataSave));
             }
 
-            _saves.Sort((a, b) => string.CompareOrdinal(a.Type.Name, b.Type.Name));
-
-            if (_selected != null)
-            {
-                var stillThere = _saves.FirstOrDefault(s => s.Type == _selected.Type);
-                if (stillThere != null) Load(stillThere);
-                else ClearSelection();
-            }
-        }
-
-        private static bool IsDataSave(Type type)
-        {
-            for (var t = type.BaseType; t != null; t = t.BaseType)
-            {
-                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(BaseDataSave<>)) return true;
-            }
-
-            return false;
+            types.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+            return types;
         }
 
         /// <summary>
-        /// Key và Version là property protected nên phải tạo instance rỗng rồi đọc bằng reflection.
-        /// Instance này chỉ dùng để dò thông tin, không đụng tới dữ liệu đã lưu.
+        /// Gộp key từ ba nguồn: key của instance mặc định, key dò được theo id, và key đọc từ store.
+        /// Một class có key cố định thì chỉ ra đúng một dòng.
         /// </summary>
-        private static SaveInfo BuildInfo(Type type)
+        private static IEnumerable<SaveEntry> BuildEntries(Type type, Dictionary<string, Type> stored)
         {
-            var info = new SaveInfo { Type = type, Key = type.Name, CodeVersion = 1 };
+            var defaultKey = type.Name;
+            var codeVersion = 1;
+            string probeError = null;
+            var keyFields = new List<FieldInfo>();
 
             try
             {
                 var probe = Activator.CreateInstance(type);
-                var keyProperty = FindProperty(type, "Key");
-                var versionProperty = FindProperty(type, "Version");
 
-                if (keyProperty != null)
-                {
-                    var key = (string)keyProperty.GetValue(probe, null);
-                    if (!string.IsNullOrEmpty(key)) info.Key = key;
-                }
+                var key = GUDataSaveScanner.ReadKey(probe);
+                if (!string.IsNullOrEmpty(key)) defaultKey = key;
 
-                if (versionProperty != null) info.CodeVersion = (int)versionProperty.GetValue(probe, null);
+                var versionProperty = GUDataSaveScanner.FindProperty(type, "Version");
+                if (versionProperty != null) codeVersion = (int)versionProperty.GetValue(probe, null);
+
+                keyFields = GUDataSaveScanner.FindKeyFields(type);
             }
             catch (Exception e)
             {
-                info.ProbeError = e.InnerException?.Message ?? e.Message;
+                probeError = (e.InnerException ?? e).Message;
             }
 
-            return info;
-        }
+            var keys = new Dictionary<string, Dictionary<FieldInfo, object>> { { defaultKey, null } };
 
-        private static PropertyInfo FindProperty(Type type, string name)
-        {
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
-                                       BindingFlags.Instance | BindingFlags.DeclaredOnly;
-
-            for (var t = type; t != null; t = t.BaseType)
+            if (keyFields.Count > 0)
             {
-                var property = t.GetProperty(name, flags);
-                if (property != null) return property;
+                foreach (var scanned in GUDataSaveScanner.ScanIntKeys(type, keyFields))
+                {
+                    keys[scanned.Key] = scanned.Value;
+                }
             }
 
-            return null;
+            foreach (var pair in stored.Where(p => p.Value == type))
+            {
+                if (!keys.ContainsKey(pair.Key)) keys[pair.Key] = null;
+            }
+
+            return keys
+                .OrderBy(pair => pair.Key.Length)
+                .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => new SaveEntry
+                {
+                    Type = type,
+                    Key = pair.Key,
+                    CodeVersion = codeVersion,
+                    ProbeError = probeError,
+                    KeyFields = keyFields,
+                    KeyValues = pair.Value
+                });
         }
 
         #endregion
@@ -187,20 +209,20 @@ namespace GameUp.Core.Editor
             _foldouts.Clear();
         }
 
-        private void Load(SaveInfo info)
+        private void Load(SaveEntry entry)
         {
-            _selected = info;
+            _selected = entry;
             _instance = null;
             _loadError = null;
             _dirty = false;
 
-            _hasKey = LocalStorageUtils.HasKey(info.Key);
-            var raw = LocalStorageUtils.GetString(info.Key);
+            _hasKey = LocalStorageUtils.HasKey(entry.Key);
+            var raw = LocalStorageUtils.GetString(entry.Key);
             _json = string.IsNullOrEmpty(raw) ? string.Empty : PrettyPrint(raw);
 
             if (string.IsNullOrEmpty(raw)) return;
 
-            _instance = Deserialize(info.Type, raw, out _loadError);
+            _instance = Deserialize(entry.Type, raw, out _loadError);
         }
 
         private static object Deserialize(Type type, string raw, out string error)
@@ -267,14 +289,8 @@ namespace GameUp.Core.Editor
 
             try
             {
-                var save = _selected.Type.GetMethod("Save", BindingFlags.Public | BindingFlags.Instance);
-                if (save == null)
-                {
-                    GULogger.Error("DataSaveWindow", $"Không tìm thấy Save() trên {_selected.Type.Name}.");
-                    return;
-                }
+                if (!InvokeSave(_instance)) return;
 
-                save.Invoke(_instance, null);
                 PlayerPrefs.Save();
                 _dirty = false;
                 Load(_selected);
@@ -283,6 +299,19 @@ namespace GameUp.Core.Editor
             {
                 GULogger.Exception(e.InnerException ?? e, "DataSaveWindow");
             }
+        }
+
+        private static bool InvokeSave(object instance)
+        {
+            var save = instance.GetType().GetMethod("Save", BindingFlags.Public | BindingFlags.Instance);
+            if (save == null)
+            {
+                GULogger.Error("DataSaveWindow", $"Không tìm thấy Save() trên {instance.GetType().Name}.");
+                return false;
+            }
+
+            save.Invoke(instance, null);
+            return true;
         }
 
         /// <summary>
@@ -313,7 +342,11 @@ namespace GameUp.Core.Editor
             Load(_selected);
         }
 
-        /// <summary>Xoá key rồi gọi Create() để data class tự chạy InitDefault và ghi lại.</summary>
+        /// <summary>
+        /// Dựng lại dữ liệu mặc định đúng như nhánh "chưa có key" của <c>Create()</c>:
+        /// InitDefault + gán dataVersion. Có thêm bước khôi phục field quyết định key
+        /// để bản save nhiều key (hero_3 chẳng hạn) không bị ghi nhầm về key mặc định.
+        /// </summary>
         private void ResetToDefault()
         {
             if (!EditorUtility.DisplayDialog("Tạo lại mặc định",
@@ -321,12 +354,26 @@ namespace GameUp.Core.Editor
 
             try
             {
+                var instance = Activator.CreateInstance(_selected.Type);
+                RestoreKeyFields(instance);
+
+                var key = GUDataSaveScanner.ReadKey(instance);
+                if (key != _selected.Key)
+                {
+                    GULogger.Warning("DataSaveWindow",
+                        $"Không dựng lại được key '{_selected.Key}' (instance mới cho ra '{key}'). Huỷ thao tác.");
+                    return;
+                }
+
+                InvokeVoid(instance, "InitDefault");
+
+                var versionProperty = GUDataSaveScanner.FindProperty(_selected.Type, "Version");
+                var versionField = _selected.Type.GetField("dataVersion", BindingFlags.Public | BindingFlags.Instance);
+                if (versionProperty != null && versionField != null)
+                    versionField.SetValue(instance, (int)versionProperty.GetValue(instance, null));
+
                 PlayerPrefs.DeleteKey(_selected.Key);
-
-                var create = _selected.Type.GetMethod("Create",
-                    BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-                create?.Invoke(null, null);
-
+                InvokeSave(instance);
                 PlayerPrefs.Save();
             }
             catch (Exception e)
@@ -335,6 +382,26 @@ namespace GameUp.Core.Editor
             }
 
             Load(_selected);
+        }
+
+        /// <summary>Gán lại field quyết định key: ưu tiên giá trị dò được, không có thì lấy từ dữ liệu đang mở.</summary>
+        private void RestoreKeyFields(object instance)
+        {
+            if (_selected.KeyValues != null)
+            {
+                foreach (var pair in _selected.KeyValues) pair.Key.SetValue(instance, pair.Value);
+                return;
+            }
+
+            if (_instance == null || _selected.KeyFields == null) return;
+
+            foreach (var field in _selected.KeyFields) field.SetValue(instance, field.GetValue(_instance));
+        }
+
+        private static void InvokeVoid(object instance, string methodName)
+        {
+            var method = GUDataSaveScanner.FindMethod(instance.GetType(), methodName);
+            method?.Invoke(instance, null);
         }
 
         private static string PrettyPrint(string json)
@@ -393,7 +460,7 @@ namespace GameUp.Core.Editor
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
-            if (GUILayout.Button("Quét lại", EditorStyles.toolbarButton, GUILayout.Width(70))) RefreshTypes();
+            if (GUILayout.Button("Quét lại", EditorStyles.toolbarButton, GUILayout.Width(70))) RefreshEntries();
 
             GUILayout.Space(4);
             _search = GUILayout.TextField(_search, EditorStyles.toolbarSearchField, GUILayout.Width(160));
@@ -414,36 +481,53 @@ namespace GameUp.Core.Editor
             EditorGUILayout.BeginVertical(GUILayout.Width(ListWidth));
             _listScroll = EditorGUILayout.BeginScrollView(_listScroll, GUILayout.Width(ListWidth));
 
-            var filtered = _saves.Where(s => string.IsNullOrEmpty(_search) ||
-                                             s.Type.Name.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                             s.Key.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0);
+            var filtered = _entries.Where(e => string.IsNullOrEmpty(_search) ||
+                                               e.Type.Name.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                               e.Key.IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToList();
 
-            var any = false;
-            foreach (var info in filtered)
+            if (filtered.Count == 0)
             {
-                any = true;
-                DrawListItem(info);
-            }
-
-            if (!any)
-            {
-                EditorGUILayout.HelpBox(_saves.Count == 0
+                EditorGUILayout.HelpBox(_entries.Count == 0
                     ? "Chưa có class nào kế thừa BaseDataSave<T>."
                     : "Không khớp từ khoá tìm kiếm.", MessageType.Info);
+            }
+
+            foreach (var group in filtered.GroupBy(e => e.Type))
+            {
+                var entries = group.ToList();
+
+                // Class một key thì hiện thẳng tên class; nhiều key thì gom dưới một tiêu đề.
+                if (entries.Count == 1)
+                {
+                    DrawListItem(entries[0], entries[0].Type.Name);
+                    continue;
+                }
+
+                GUILayout.Label(group.Key.Name, EditorStyles.miniBoldLabel);
+                foreach (var entry in entries) DrawListItem(entry, "   " + entry.Key);
+            }
+
+            if (!string.IsNullOrEmpty(_storeDiagnostic))
+            {
+                EditorGUILayout.HelpBox(
+                    $"Không đọc được danh sách key của PlayerPrefs ({_storeDiagnostic}).\n" +
+                    $"Class có key động chỉ dò được id 0..{GUDataSaveScanner.ScanRange - 1}.",
+                    MessageType.None);
             }
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
         }
 
-        private void DrawListItem(SaveInfo info)
+        private void DrawListItem(SaveEntry entry, string label)
         {
-            var isSelected = _selected != null && _selected.Type == info.Type;
-            var hasData = LocalStorageUtils.HasKey(info.Key);
+            var isSelected = _selected != null && _selected.Type == entry.Type && _selected.Key == entry.Key;
+            var hasData = LocalStorageUtils.HasKey(entry.Key);
 
-            var label = new GUIContent(
-                hasData ? info.Type.Name : info.Type.Name + "  (trống)",
-                $"{info.Type.FullName}\nKey: {info.Key}\nVersion trong code: {info.CodeVersion}");
+            var content = new GUIContent(
+                hasData ? label : label + "  (trống)",
+                $"{entry.Type.FullName}\nKey: {entry.Key}\nVersion trong code: {entry.CodeVersion}");
 
             var style = new GUIStyle(EditorStyles.miniButton)
             {
@@ -455,19 +539,19 @@ namespace GameUp.Core.Editor
             if (isSelected) GUI.backgroundColor = new Color(0.45f, 0.65f, 1f);
             if (!hasData) GUI.contentColor = new Color(1f, 1f, 1f, 0.55f);
 
-            if (GUILayout.Button(label, style) && !isSelected) TrySelect(info);
+            if (GUILayout.Button(content, style) && !isSelected) TrySelect(entry);
 
             GUI.backgroundColor = previousColor;
             GUI.contentColor = Color.white;
         }
 
-        private void TrySelect(SaveInfo info)
+        private void TrySelect(SaveEntry entry)
         {
             if (_dirty && !EditorUtility.DisplayDialog("Chưa lưu",
                     "Thay đổi hiện tại chưa được lưu. Bỏ thay đổi và chuyển sang data khác?", "Bỏ", "Ở lại")) return;
 
             _foldouts.Clear();
-            Load(info);
+            Load(entry);
             GUI.FocusControl(null);
         }
 
