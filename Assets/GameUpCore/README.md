@@ -31,9 +31,44 @@ Package phụ thuộc `com.unity.addressables` và `com.unity.textmeshpro` — P
 
 ### 3. Dựng cấu trúc dự án
 
-- **GameUp → Project → Project folder setup**: tạo cây thư mục `_MainProject`.
-- **GameUp → Project → Core setup**: copy prefab `====Manager====` và `=====UI=====` vào `_MainProject/Prefabs/Core` rồi đặt lên scene.
-- **GameUp → Project → Install Cursor IDE rules** (tuỳ chọn): cài `com.boxqkrtm.ide.cursor`, chép `.mdc` rules, `.cursorrules`, `.cursorignore` từ `Documentation~`.
+Mở **GameUp → Settings** — cửa sổ tổng, hiện đủ trạng thái và nút cho từng bước. Lần đầu mở project sau khi thêm GameUpCore, cửa sổ này tự bật.
+
+- **Bước 1 — DOTween**: define `DOTween__DEPENDENCIES_INSTALLED` (xem mục 1 ở trên).
+- **Bước 2 — Folder Setup**: tạo cây thư mục `_MainProject`.
+- **Bước 3 — Core setup**: copy prefab `====Manager====` và `=====UI=====` vào `_MainProject/Prefabs/Core` rồi đặt lên scene hiện tại.
+- **Bộ công cụ AI** (tuỳ chọn nhưng nên bật): xem mục dưới.
+
+---
+
+## Bộ công cụ AI cho team
+
+GameUp Core mang sẵn quy ước dự án dưới dạng file cấu hình cho AI coding assistant. **Claude Code và Cursor là hai lựa chọn độc lập** — bật cái nào cũng được, cả hai cũng được, hoặc không dùng cái nào.
+
+Lần đầu mở project sau khi cài GameUpCore, cửa sổ **GameUp → Settings** bật lên và hỏi. Trước khi bạn chọn, Core **không sinh** `.claude/` hay `.cursor/`. Nếu project clone về đã sẵn một trong hai (team đã commit), Core tự suy ra lựa chọn và không hỏi lại.
+
+Đổi ý bất cứ lúc nào: **GameUp → Settings → Bộ công cụ AI** (hoặc **Project Settings → GameUp**), bấm **Chọn lại**.
+
+### Claude Code
+
+Cài `CLAUDE.md` + `.claude/{agents,skills,commands,hooks,settings.json}` vào gốc project:
+
+| Thành phần | Nội dung |
+|---|---|
+| `CLAUDE.md` | Naming/style C#, luật cứng (`GULogger` thay `Debug`, không tự chế lại API Core), bản đồ toàn bộ API Core, quy ước Scene/Prefab, ngân sách hiệu năng mobile |
+| Agents | `unity-game-developer`, `gameup-core-architect`, `unity-performance-optimizer`, `unity-qa-engineer` |
+| Skills | `gameup-core-api`, `unity-feature-kickoff`, `unity-design-to-tasks`, `unity-implement-story`, `unity-refactor-safely`, `unity-test-plan`, `unity-bug-triage`, `unity-perf-audit`, `unity-release-checklist`, `gameup-sdk-installer-flow` |
+| Commands | `/gu-kickoff` `/gu-tasks` `/gu-story` `/gu-refactor` `/gu-review` `/gu-test` `/gu-bug` `/gu-perf` `/gu-release` `/gu-core` `/gu-installer` |
+| Hooks | `gu-shell-guard` chặn `rm -rf`, `git reset --hard`, `git push --force`, `git clean -f`, xoá `.meta`… · `gu-csharp-guard` bắt `UnityEngine.Debug.*` ngay sau khi AI ghi file `.cs` và bắt nó đổi sang `GULogger` |
+
+Hook là phần khác biệt so với "rules": nó **thi hành** chứ không chỉ nhắc. Hook cố ý chỉ gác luật cứng kiểm được chính xác — quy ước cần đọc ngữ cảnh (namespace, naming, alloc mỗi frame) để cho `/gu-review`, vì hook chạy sau *mỗi* lần ghi file nên nhiễu một chút là bị tắt. Muốn bỏ qua lint cho một file, thêm comment `// gu-lint:allow-debug`.
+
+Installer tự chọn script `.sh` hay `.ps1` theo hệ điều hành và `chmod +x` trên macOS/Linux. File `.claude/settings.local.json` (quyền cá nhân của từng người) không bao giờ bị đụng tới.
+
+Mẫu nằm trong `Documentation~/claude/` — sửa mẫu rồi bấm **Cập nhật** trong cửa sổ Settings để phát cho cả team.
+
+### Cursor
+
+**GameUp → Project → Install Cursor IDE rules**: cài `com.boxqkrtm.ide.cursor`, chép `.mdc` rules, `.cursorrules`, `.cursorignore`, skills và hooks từ `Documentation~`.
 
 ---
 
@@ -166,6 +201,30 @@ data.Save();
 Ngoài ra: `LocalStorageUtils` (PlayerPrefs + AES, an toàn với culture và dữ liệu hỏng) và `FileStorageUtils` (ghi file trong `persistentDataPath`).
 
 > ⚠️ Khoá AES mặc định nằm trong `EncryptUtils` và giống nhau cho mọi dự án dùng package này. Hãy đổi khoá riêng cho từng game trước khi phát hành.
+
+### Xem và sửa dữ liệu đã lưu — Data Save Viewer
+
+**GameUp → Data → Data Save Viewer**
+
+Cửa sổ tự quét mọi class kế thừa `BaseDataSave<T>` và mọi key tương ứng trong PlayerPrefs (tự giải mã), cho sửa theo field hoặc theo JSON thô rồi ghi lại bằng chính `Save()` của data class.
+
+| Việc cần làm | Cách làm trong cửa sổ |
+|---|---|
+| Xem/sửa một bản save | Chọn class ở cột trái → sửa ở tab **Field** → **Lưu** |
+| Class sinh nhiều bản save (`Key` phụ thuộc dữ liệu) | Bấm thanh tên class để xổ danh sách key (`hero_0`, `hero_1`, …) |
+| Test `Migrate()` | Hạ `dataVersion` rồi **Lưu**, hoặc dán JSON của bản cũ ở tab **JSON** |
+| Về dữ liệu gốc | **Tạo lại mặc định** (chạy `InitDefault()`) |
+| Sửa `BooleanVar` / `IntVar` / `FloatVar` / `LongVar` | Nhóm **Giá trị đơn (SettingVar)** ở cuối danh sách |
+
+**Điều kiện để dữ liệu hiện ra:**
+
+- Dữ liệu phải được ghi qua `BaseDataSave.Save()` hoặc `LocalStorageUtils` — key do SDK khác ghi không giải mã được nên bị bỏ qua.
+- Data class phải tạo được bằng constructor rỗng (ràng buộc `new()` của `BaseDataSave<T>` đã bảo đảm) và `Key` đọc được trên instance mới.
+- Class có nhiều bản save chỉ hiện đủ khi **đọc được store của PlayerPrefs** (file `prefs` trên Linux, plist trên macOS, registry trên Windows), hoặc khi `Key` được quyết định bởi **một field `int`/`long`/`enum`** — khi đó cửa sổ dò id `0..199`. Không đạt điều kiện nào thì chỉ thấy key của instance mặc định.
+- `SettingVar` khai báo dạng **field static** thì hiện ngay cả khi chưa ghi lần nào; khai báo dạng field instance hoặc trong `Dictionary` chỉ hiện sau khi đã được ghi xuống ít nhất một lần.
+- Dữ liệu vừa ghi trong Play mode có thể chưa được flush xuống store — thoát Play rồi bấm **Quét lại**.
+
+> ⚠️ Sửa trong lúc đang Play thì instance trong RAM của game vẫn giữ giá trị cũ và sẽ ghi đè khi nó `Save()`. Nên sửa lúc không Play.
 
 ### Bootstrap và Scene loader
 

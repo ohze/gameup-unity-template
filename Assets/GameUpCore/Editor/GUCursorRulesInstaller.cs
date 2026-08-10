@@ -32,6 +32,12 @@ namespace GameUp.Core.Editor
         private static string DestSkillsDir => Path.Combine(ProjectRoot, ".cursor", "skills");
         private static string DestHooksDir => Path.Combine(ProjectRoot, ".cursor", "hooks");
 
+        /// <summary>Rules đã có ở gốc project chưa (tính từ file thật, không từ EditorPrefs).</summary>
+        internal static bool IsInstalled()
+        {
+            return File.Exists(Path.Combine(DestRulesDir, MarkerFile));
+        }
+
         [InitializeOnLoadMethod]
         private static void OnEditorLoad()
         {
@@ -43,56 +49,37 @@ namespace GameUp.Core.Editor
             EditorApplication.delayCall += TryAutoInstallIfMissing;
         }
 
+        /// <summary>
+        /// Chỉ bù file khi dev đã chọn dùng Cursor trong <c>GameUp → Settings</c>.
+        /// Trước đây bước này chạy vô điều kiện, nên project của người chỉ dùng Claude
+        /// vẫn bị sinh <c>.cursor/</c>.
+        /// </summary>
         private static void TryAutoInstallIfMissing()
         {
-            if (File.Exists(Path.Combine(DestRulesDir, MarkerFile)))
+            if (!GUCoreUserPrefs.AiToolkitChoiceMade)
             {
                 return;
             }
 
-            if (!TryGetCursorRulesTemplatesDir(out var src))
+            if (!GUCoreUserPrefs.UseCursorToolkit || !GUCoreUserPrefs.AutoInstallAiToolkit)
             {
                 return;
             }
 
-            CopyAllMdc(src, DestRulesDir, overwrite: false);
-            GULogger.Log("CursorRules", "Đã copy Cursor rules (.mdc) vào .cursor/rules — mở lại Cursor nếu cần.");
+            if (IsInstalled())
+            {
+                return;
+            }
+
+            if (InstallAll(overwrite: false, log: false, addIdePackage: false))
+            {
+                GULogger.Log("CursorRules", "Đã bù file Cursor còn thiếu (.cursor/rules, skills, hooks) — mở lại Cursor nếu cần.");
+            }
         }
 
         [MenuItem(MenuPath)]
         private static void InstallFromMenu()
         {
-            if (!TryGetGameUpCorePackageRoot(out var packageRoot))
-            {
-                EditorUtility.DisplayDialog(
-                    "GameUp Core",
-                    "Không tìm thấy package com.ohze.gameup.core (resolved path).",
-                    "OK");
-                return;
-            }
-
-            var rulesSrc = Path.Combine(packageRoot, "Documentation~", CursorRulesTemplatesDirName);
-            var rootTemplates = Path.Combine(packageRoot, "Documentation~", CursorProjectRootTemplatesDirName);
-            var skillsSrc = Path.Combine(packageRoot, "Documentation~", CursorSkillsTemplatesDirName);
-            var hooksSrc = Path.Combine(packageRoot, "Documentation~", CursorHooksTemplatesDirName);
-            if (!Directory.Exists(rulesSrc))
-            {
-                EditorUtility.DisplayDialog(
-                    "GameUp Core",
-                    "Thiếu thư mục Documentation~/cursor-rules trong GameUp Core.",
-                    "OK");
-                return;
-            }
-
-            if (!Directory.Exists(rootTemplates))
-            {
-                EditorUtility.DisplayDialog(
-                    "GameUp Core",
-                    "Thiếu thư mục Documentation~/cursor-project-root (.cursorrules / cursorignore mẫu).",
-                    "OK");
-                return;
-            }
-
             if (!EditorUtility.DisplayDialog(
                     "GameUp Core",
                     "Thực hiện:\n" +
@@ -105,25 +92,87 @@ namespace GameUp.Core.Editor
                 return;
             }
 
-            CopyAllMdc(rulesSrc, DestRulesDir, overwrite: true);
-            CopyProjectRootTemplate(Path.Combine(rootTemplates, ".cursorrules"), Path.Combine(ProjectRoot, ".cursorrules"));
-            // File mẫu tên `cursorignore` (không dấu chấm) để tránh hạn chế FS/tooling khi đóng gói.
-            CopyProjectRootTemplate(Path.Combine(rootTemplates, "cursorignore"), Path.Combine(ProjectRoot, ".cursorignore"));
-            CopyAllSkills(skillsSrc, DestSkillsDir, overwrite: true);
-            CopyHooksTemplates(hooksSrc, overwrite: true);
-
-            RequestAddIdeCursorPackage();
-
-            GULogger.Log(
-                "CursorRules",
-                "Đã cập nhật .cursor/rules, .cursor/skills, .cursor/hooks, .cursorrules, .cursorignore. Nếu package IDE Cursor chưa có, Unity đang thêm qua Git URL (xem Package Manager / Console).");
+            InstallAll(overwrite: true, log: true, addIdePackage: true);
         }
 
-        private static void CopyProjectRootTemplate(string sourceFile, string destFile)
+        /// <summary>
+        /// Copy toàn bộ template Cursor sang gốc project.
+        /// <paramref name="overwrite"/> = false chỉ bù file còn thiếu, không đè bản dev đã sửa.
+        /// </summary>
+        internal static bool InstallAll(bool overwrite, bool log, bool addIdePackage)
+        {
+            if (!TryGetGameUpCorePackageRoot(out var packageRoot))
+            {
+                if (log)
+                {
+                    EditorUtility.DisplayDialog(
+                        "GameUp Core",
+                        "Không tìm thấy package com.ohze.gameup.core (resolved path).",
+                        "OK");
+                }
+
+                return false;
+            }
+
+            var rulesSrc = Path.Combine(packageRoot, "Documentation~", CursorRulesTemplatesDirName);
+            var rootTemplates = Path.Combine(packageRoot, "Documentation~", CursorProjectRootTemplatesDirName);
+            var skillsSrc = Path.Combine(packageRoot, "Documentation~", CursorSkillsTemplatesDirName);
+            var hooksSrc = Path.Combine(packageRoot, "Documentation~", CursorHooksTemplatesDirName);
+
+            if (!Directory.Exists(rulesSrc))
+            {
+                if (log)
+                {
+                    EditorUtility.DisplayDialog(
+                        "GameUp Core",
+                        "Thiếu thư mục Documentation~/cursor-rules trong GameUp Core.",
+                        "OK");
+                }
+
+                return false;
+            }
+
+            CopyAllMdc(rulesSrc, DestRulesDir, overwrite);
+
+            if (Directory.Exists(rootTemplates))
+            {
+                CopyProjectRootTemplate(Path.Combine(rootTemplates, ".cursorrules"), Path.Combine(ProjectRoot, ".cursorrules"), overwrite);
+                // File mẫu tên `cursorignore` (không dấu chấm) để tránh hạn chế FS/tooling khi đóng gói.
+                CopyProjectRootTemplate(Path.Combine(rootTemplates, "cursorignore"), Path.Combine(ProjectRoot, ".cursorignore"), overwrite);
+            }
+            else if (log)
+            {
+                GULogger.Warning("CursorRules", "Thiếu Documentation~/cursor-project-root (.cursorrules / cursorignore mẫu).");
+            }
+
+            CopyAllSkills(skillsSrc, DestSkillsDir, overwrite);
+            CopyHooksTemplates(hooksSrc, overwrite);
+
+            if (addIdePackage)
+            {
+                RequestAddIdeCursorPackage();
+            }
+
+            if (log)
+            {
+                GULogger.Log(
+                    "CursorRules",
+                    "Đã cập nhật .cursor/rules, .cursor/skills, .cursor/hooks, .cursorrules, .cursorignore. Nếu package IDE Cursor chưa có, Unity đang thêm qua Git URL (xem Package Manager / Console).");
+            }
+
+            return true;
+        }
+
+        private static void CopyProjectRootTemplate(string sourceFile, string destFile, bool overwrite)
         {
             if (!File.Exists(sourceFile))
             {
                 GULogger.Warning("CursorRules", $"Thiếu file mẫu: {sourceFile}");
+                return;
+            }
+
+            if (!overwrite && File.Exists(destFile))
+            {
                 return;
             }
 
@@ -258,7 +307,11 @@ namespace GameUp.Core.Editor
             var hooksJson = Path.Combine(sourceDir, "hooks.json");
             if (File.Exists(hooksJson))
             {
-                File.Copy(hooksJson, Path.Combine(DestCursorDir, "hooks.json"), overwrite);
+                var destHooksJson = Path.Combine(DestCursorDir, "hooks.json");
+                if (overwrite || !File.Exists(destHooksJson))
+                {
+                    File.Copy(hooksJson, destHooksJson, overwrite: true);
+                }
             }
 
             var hooksDir = Path.Combine(sourceDir, "hooks");
@@ -283,13 +336,18 @@ namespace GameUp.Core.Editor
             {
                 var relative = file.Substring(normalizedSource.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var destination = Path.Combine(destDir, relative);
+                if (!overwrite && File.Exists(destination))
+                {
+                    continue;
+                }
+
                 var destinationDir = Path.GetDirectoryName(destination);
                 if (!string.IsNullOrEmpty(destinationDir))
                 {
                     Directory.CreateDirectory(destinationDir);
                 }
 
-                File.Copy(file, destination, overwrite);
+                File.Copy(file, destination, overwrite: true);
             }
         }
     }
