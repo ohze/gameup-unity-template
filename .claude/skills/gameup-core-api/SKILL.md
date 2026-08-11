@@ -16,7 +16,7 @@ Nếu cần chi tiết chữ ký hàm → **đọc thẳng file nguồn**, đừ
 | Singleton Mono | `MonoSingleton<T>` | `GameUp.Core` |
 | Singleton C#/SO | `Singleton<T>`, `ScriptableObjectSingleton<T>`, `ResourcesSingleton` | `GameUp.Core` |
 | Event type-safe | `Signal`, `BaseSignal`, `IBaseSignal` | `GameUp.Core` |
-| Pool | `GUPool`, `GUPoolers`, `IPoolable` | `GameUp.Core` |
+| Pool | `GUPool`, `IPoolable` | `GameUp.Core` |
 | Save | `BaseDataSave<T>`, `LocalStorageUtils`, `FileStorageUtils`, `JsonHelper`, `EncryptUtils` | `GameUp.Core` |
 | Giá trị đơn persist | `SettingVar` (`BooleanVar`/`IntVar`/`FloatVar`/`LongVar`) | `GameUp.Core` |
 | Audio | `AudioManager`, `AudioIdentity`, `AudioIdentityReference`, `AudioDatabase`, `AudioSetting`, `AudioCategory`, `AudioHandle` | `GameUp.Core` |
@@ -49,8 +49,8 @@ public class GameController : MonoSingleton<GameController>
 }
 
 // Pool thay cho Instantiate/Destroy
-var bullet = GUPoolers.Spawn(bulletPrefab, position, rotation);
-GUPoolers.Despawn(bullet);
+var bullet = GUPool.Spawn(bulletPrefab, position, rotation);
+GUPool.Despawn(bullet);
 // object cần reset state khi tái sử dụng thì implement IPoolable (OnSpawn/OnDespawn)
 
 // Save có versioning
