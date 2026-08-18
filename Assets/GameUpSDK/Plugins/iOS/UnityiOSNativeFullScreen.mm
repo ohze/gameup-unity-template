@@ -13,29 +13,24 @@ typedef void (*Action_Log)(const char* unitId, const char* message);
 extern int g_ctaClickRate;
 
 @interface NativeFullScreenManager : NSObject <GADNativeAdLoaderDelegate, GADNativeAdDelegate>
-
 @property (nonatomic, strong) NSMutableDictionary<NSString*, GADAdLoader*> *adLoaders;
 @property (nonatomic, strong) NSMutableDictionary<NSString*, GADNativeAd*> *loadedAds;
 @property (nonatomic, strong) NSMutableDictionary<NSString*, NSNumber*> *loadingStates;
-
 @property (nonatomic, strong) GADNativeAd *currentNativeAd;
 @property (nonatomic, strong) NSString *currentShowingUnitId;
 @property (nonatomic, strong) UIView *currentAdLayout;
 
-// UI Elements
 @property (nonatomic, strong) GADNativeAdView *nativeAdView;
 @property (nonatomic, strong) UILabel *headlineLabel;
 @property (nonatomic, strong) UILabel *bodyLabel;
 @property (nonatomic, strong) UIButton *ctaBtn;
 @property (nonatomic, strong) UIImageView *iconView;
 
-// Global Callbacks
 @property (nonatomic, assign) Action_Loaded onLoadedDelegate;
 @property (nonatomic, assign) Action_Failed onFailedDelegate;
 @property (nonatomic, assign) Action_Closed onClosedDelegate;
 @property (nonatomic, assign) Action_Paid onPaidDelegate;
 @property (nonatomic, assign) Action_Log onLogDelegate;
-
 + (instancetype)sharedInstance;
 - (void)loadAd:(NSString *)adUnitId;
 - (BOOL)isAdReady:(NSString *)adUnitId;
@@ -59,59 +54,38 @@ extern int g_ctaClickRate;
 }
 
 - (void)sendLog:(NSString *)unitId format:(NSString *)format, ... {
-    va_list args;
-    va_start(args, format);
+    va_list args; va_start(args, format);
     NSString *message = [[NSString alloc] initWithFormat:format arguments:args];
     va_end(args);
-    
     NSString *targetId = unitId != nil ? unitId : (self.currentShowingUnitId != nil ? self.currentShowingUnitId : @"UNKNOWN");
-    if (self.onLogDelegate != NULL) {
-        self.onLogDelegate([targetId UTF8String], [message UTF8String]);
-    }
+    if (self.onLogDelegate != NULL) self.onLogDelegate([targetId UTF8String], [message UTF8String]);
 }
 
 - (void)loadAd:(NSString *)adUnitId {
-    if (self.loadedAds[adUnitId] != nil || [self.loadingStates[adUnitId] boolValue] == YES) {
-        return;
-    }
-    
+    if (self.loadedAds[adUnitId] != nil || [self.loadingStates[adUnitId] boolValue] == YES) return;
     self.loadingStates[adUnitId] = @(YES);
-    [self sendLog:adUnitId format:@"Start Loading iOS FullScreen ID: %@", adUnitId];
-
+    
     UIViewController *rootVC = UnityGetGLViewController();
     GADNativeAdViewAdOptions *viewOptions = [[GADNativeAdViewAdOptions alloc] init];
     viewOptions.preferredAdChoicesPosition = GADAdChoicesPositionTopLeftCorner;
 
-    GADAdLoader *adLoader = [[GADAdLoader alloc] initWithAdUnitID:adUnitId
-                                       rootViewController:rootVC
-                                                  adTypes:@[GADAdLoaderAdTypeNative]
-                                                  options:@[viewOptions]];
+    GADAdLoader *adLoader = [[GADAdLoader alloc] initWithAdUnitID:adUnitId rootViewController:rootVC adTypes:@[GADAdLoaderAdTypeNative] options:@[viewOptions]];
     adLoader.delegate = self;
     self.adLoaders[adUnitId] = adLoader;
     [adLoader loadRequest:[GADRequest request]];
 }
 
-- (BOOL)isAdReady:(NSString *)adUnitId {
-    return self.loadedAds[adUnitId] != nil;
-}
+- (BOOL)isAdReady:(NSString *)adUnitId { return self.loadedAds[adUnitId] != nil; }
 
 - (NSString *)getUnitIdForLoader:(GADAdLoader *)loader {
-    for (NSString *key in self.adLoaders) {
-        if (self.adLoaders[key] == loader) {
-            return key;
-        }
-    }
+    for (NSString *key in self.adLoaders) { if (self.adLoaders[key] == loader) return key; }
     return nil;
 }
 
 - (void)showAd:(NSString *)adUnitId {
-    if (!self.loadedAds[adUnitId]) {
-        [self sendLog:adUnitId format:@"=> Cannot show iOS FullScreen: Ad not loaded yet."];
-        return;
-    }
+    if (!self.loadedAds[adUnitId]) return;
     
     [self hideAd];
-    
     self.currentNativeAd = self.loadedAds[adUnitId];
     self.currentShowingUnitId = adUnitId;
     [self.loadedAds removeObjectForKey:adUnitId];
@@ -124,18 +98,25 @@ extern int g_ctaClickRate;
     UIEdgeInsets safeArea = UIEdgeInsetsZero;
     if (@available(iOS 11.0, *)) { safeArea = rootView.safeAreaInsets; }
     
+    CGFloat safeLeft = safeArea.left;
+    CGFloat safeRight = safeArea.right;
+    CGFloat safeTop = safeArea.top;
+    CGFloat safeBottom = safeArea.bottom;
+    
+    CGFloat safeWidth = screenWidth - safeLeft - safeRight;
+    
     CGFloat mediaHeight = 180.0;
     CGFloat footerHeight = 68.0;
     CGFloat totalAdHeight = mediaHeight + footerHeight;
-    CGFloat yPos = rootView.bounds.size.height - safeArea.bottom - totalAdHeight;
+    CGFloat yPos = rootView.bounds.size.height - safeBottom - totalAdHeight;
 
     self.currentAdLayout = [[UIView alloc] initWithFrame:CGRectMake(0, yPos, screenWidth, totalAdHeight)];
     self.currentAdLayout.backgroundColor = [UIColor whiteColor];
     
-    self.nativeAdView = [[GADNativeAdView alloc] initWithFrame:CGRectMake(0, 0, screenWidth, totalAdHeight)];
+    self.nativeAdView = [[GADNativeAdView alloc] initWithFrame:CGRectMake(safeLeft, 0, safeWidth, totalAdHeight)];
     [self.currentAdLayout addSubview:self.nativeAdView];
     
-    UIView *mediaContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, screenWidth, mediaHeight)];
+    UIView *mediaContainer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, safeWidth, mediaHeight)];
     mediaContainer.clipsToBounds = YES;
     [self.nativeAdView addSubview:mediaContainer];
 
@@ -152,7 +133,7 @@ extern int g_ctaClickRate;
     whiteOverlay.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.7];
     [blurBg addSubview:whiteOverlay];
 
-    UIView *shadowContainer = [[UIView alloc] initWithFrame:CGRectMake(12, 12, screenWidth - 24, mediaHeight - 24)];
+    UIView *shadowContainer = [[UIView alloc] initWithFrame:CGRectMake(12, 12, safeWidth - 24, mediaHeight - 24)];
     shadowContainer.layer.shadowColor = [UIColor blackColor].CGColor;
     shadowContainer.layer.shadowOffset = CGSizeMake(0, 4);
     shadowContainer.layer.shadowOpacity = 0.25;
@@ -165,8 +146,45 @@ extern int g_ctaClickRate;
     [shadowContainer addSubview:mediaView];
     self.nativeAdView.mediaView = mediaView;
 
+    // =========================================================================
+    // CĂN CHỈNH SÁT MÉP ADCHOICES & SHADOW SPONSORED
+    // =========================================================================
+    // 1. Nhãn Ad (Y=0, X=18)
+    UILabel *adBadge = [[UILabel alloc] init];
+    adBadge.text = @"Ad";
+    adBadge.textColor = [UIColor blackColor];
+    adBadge.backgroundColor = [UIColor colorWithRed:255.0/255.0 green:204.0/255.0 blue:0.0/255.0 alpha:1.0];
+    adBadge.font = [UIFont boldSystemFontOfSize:10];
+    adBadge.textAlignment = NSTextAlignmentCenter;
+    adBadge.layer.cornerRadius = 3.0;
+    adBadge.clipsToBounds = YES;
+    [adBadge sizeToFit];
+    adBadge.frame = CGRectMake(18, 0, adBadge.frame.size.width + 8, 15); 
+    [self.nativeAdView addSubview:adBadge];
+    
+    // 2. Chữ Sponsored (Center, Y=0)
+    NSString *advString = self.currentNativeAd.advertiser ? self.currentNativeAd.advertiser : self.currentNativeAd.store;
+    NSString *sponText = advString ? [NSString stringWithFormat:@"Sponsored • %@", advString] : @"Sponsored";
+    
+    UILabel *sponsoredLabel = [[UILabel alloc] init];
+    sponsoredLabel.text = sponText;
+    sponsoredLabel.textColor = [UIColor whiteColor];
+    sponsoredLabel.font = [UIFont boldSystemFontOfSize:11];
+    sponsoredLabel.layer.shadowColor = [UIColor blackColor].CGColor;
+    sponsoredLabel.layer.shadowOffset = CGSizeMake(1, 1);
+    sponsoredLabel.layer.shadowOpacity = 1.0;
+    sponsoredLabel.layer.shadowRadius = 2.0;
+    [sponsoredLabel sizeToFit];
+    
+    CGFloat sponX = (safeWidth - sponsoredLabel.frame.size.width) / 2;
+    sponsoredLabel.frame = CGRectMake(sponX, 0, sponsoredLabel.frame.size.width, 15);
+    [self.nativeAdView addSubview:sponsoredLabel];
+    
+    if (self.currentNativeAd.advertiser) self.nativeAdView.advertiserView = sponsoredLabel;
+    else if (self.currentNativeAd.store) self.nativeAdView.storeView = sponsoredLabel;
+
     UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-    closeBtn.frame = CGRectMake(screenWidth - 32 - 10, 10, 32, 32);
+    closeBtn.frame = CGRectMake(safeWidth - 32 - 10, 10, 32, 32);
     [closeBtn setTitle:@"X" forState:UIControlStateNormal];
     [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:14];
@@ -177,7 +195,7 @@ extern int g_ctaClickRate;
     closeBtn.layer.borderColor = [UIColor colorWithWhite:0.7 alpha:1.0].CGColor;
     [self.nativeAdView addSubview:closeBtn];
 
-    UIView *footerContainer = [[UIView alloc] initWithFrame:CGRectMake(0, mediaHeight, screenWidth, footerHeight)];
+    UIView *footerContainer = [[UIView alloc] initWithFrame:CGRectMake(0, mediaHeight, safeWidth, footerHeight)];
     footerContainer.backgroundColor = [UIColor whiteColor];
     [self.nativeAdView addSubview:footerContainer];
     
@@ -188,7 +206,7 @@ extern int g_ctaClickRate;
     [footerContainer addSubview:self.iconView];
     
     self.ctaBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-    self.ctaBtn.frame = CGRectMake(screenWidth - 10 - 80, 14, 80, 40);
+    self.ctaBtn.frame = CGRectMake(safeWidth - 10 - 80, 14, 80, 40);
     self.ctaBtn.backgroundColor = [UIColor colorWithRed:244.0/255.0 green:139.0/255.0 blue:68.0/255.0 alpha:1.0];
     [self.ctaBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     self.ctaBtn.titleLabel.font = [UIFont boldSystemFontOfSize:13];
@@ -197,7 +215,7 @@ extern int g_ctaClickRate;
     self.ctaBtn.layer.borderColor = [UIColor colorWithRed:211.0/255.0 green:84.0/255.0 blue:0.0/255.0 alpha:1.0].CGColor;
     [footerContainer addSubview:self.ctaBtn];
     
-    CGFloat textWidth = screenWidth - 10 - 48 - 10 - 80 - 10; 
+    CGFloat textWidth = safeWidth - 10 - 48 - 10 - 80 - 10; 
     self.headlineLabel = [[UILabel alloc] initWithFrame:CGRectMake(68, 10, textWidth, 20)];
     self.headlineLabel.textColor = [UIColor colorWithWhite:0.13 alpha:1.0];
     self.headlineLabel.font = [UIFont boldSystemFontOfSize:15];
@@ -213,11 +231,9 @@ extern int g_ctaClickRate;
     int roll = arc4random_uniform(100);
     BOOL enableTrap = (roll < g_ctaClickRate);
     
-    [self sendLog:adUnitId format:@"[iOS FullScreen Show] Roll: %d / Target: %d%% -> Enable Trap? %@", roll, g_ctaClickRate, enableTrap ? @"YES" : @"NO"];
-
     if (enableTrap) {
         UIButton *overlayClickBtn = [UIButton buttonWithType:UIButtonTypeCustom];
-        overlayClickBtn.frame = CGRectMake(0, 0, screenWidth, totalAdHeight);
+        overlayClickBtn.frame = CGRectMake(0, 0, safeWidth, totalAdHeight);
         overlayClickBtn.backgroundColor = [UIColor clearColor];
         [self.nativeAdView addSubview:overlayClickBtn];
         [self.nativeAdView bringSubviewToFront:overlayClickBtn];
@@ -228,7 +244,6 @@ extern int g_ctaClickRate;
     }
 
     [rootView addSubview:self.currentAdLayout];
-    [self sendLog:adUnitId format:@"=> iOS Native FullScreen DISPLAYED on screen."];
 }
 
 - (void)populateUI {
@@ -248,13 +263,11 @@ extern int g_ctaClickRate;
     if (self.currentAdLayout) {
         [self.currentAdLayout removeFromSuperview];
         self.currentAdLayout = nil;
-        [self sendLog:nil format:@"=> iOS Native FullScreen DESTROYED and memory cleared."];
     }
     self.currentNativeAd = nil;
 }
 
 - (void)closeTapped {
-    [self sendLog:nil format:@"=> FullScreen Close button tapped (Non-CTA). Hiding ad."];
     [self hideAd];
     if (self.onClosedDelegate && self.currentShowingUnitId != nil) {
         self.onClosedDelegate([self.currentShowingUnitId UTF8String]);
@@ -268,29 +281,22 @@ extern int g_ctaClickRate;
 
     self.loadingStates[unitId] = @(NO);
     self.loadedAds[unitId] = nativeAd;
-    [self sendLog:unitId format:@"=> iOS Native FullScreen LOADED successfully!"];
     
     nativeAd.paidEventHandler = ^(GADAdValue * _Nonnull value) {
         if (self.onPaidDelegate) self.onPaidDelegate([unitId UTF8String], [value.value doubleValue] * 0.000001);
     };
-    
     if (self.onLoadedDelegate) self.onLoadedDelegate([unitId UTF8String]);
 }
 
 - (void)adLoader:(GADAdLoader *)adLoader didFailToReceiveAdWithError:(NSError *)error {
     NSString *unitId = [self getUnitIdForLoader:adLoader];
     if (!unitId) return;
-    
     self.loadingStates[unitId] = @(NO);
-    [self sendLog:unitId format:@"=> iOS FullScreen LOAD FAILED: %@", error.localizedDescription];
     if (self.onFailedDelegate) self.onFailedDelegate([unitId UTF8String], [error.localizedDescription UTF8String]);
 }
 
 - (void)nativeAdDidRecordClick:(GADNativeAd *)nativeAd {
-    [self sendLog:nil format:@"=> [Google SDK Callback] FullScreen nativeAdDidRecordClick! Store/Safari opening..."];
-    // Delay 1.5s (1.5 * NSEC_PER_SEC) để nhường tài nguyên cho luồng mở StoreKit/Browser
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self sendLog:nil format:@"=> Closing iOS FullScreen view after 1.5s CTA delay."];
         [self hideAd];
         if (self.onClosedDelegate && self.currentShowingUnitId != nil) {
             self.onClosedDelegate([self.currentShowingUnitId UTF8String]);
@@ -301,9 +307,8 @@ extern int g_ctaClickRate;
 @end
 
 extern "C" {
-    void _iosSetNativeFullScreenCtaRate(int rate) {
-        g_ctaClickRate = MAX(0, MIN(100, rate));
-    }
+    void _iosSetNativeFullScreenCtaRate(int rate) { g_ctaClickRate = MAX(0, MIN(100, rate)); }
+
     void _iosLoadNativeAd(const char* adUnitId, Action_Loaded onLoaded, Action_Failed onFailed, Action_Closed onClosed, Action_Paid onPaid, Action_Log onLog) {
         NativeFullScreenManager *mgr = [NativeFullScreenManager sharedInstance];
         mgr.onLoadedDelegate = onLoaded; 
@@ -314,15 +319,7 @@ extern "C" {
         [mgr loadAd:[NSString stringWithUTF8String:adUnitId]]; 
     }
     
-    bool _iosIsNativeAdReady(const char* adUnitId) { 
-        return [[NativeFullScreenManager sharedInstance] isAdReady:[NSString stringWithUTF8String:adUnitId]]; 
-    }
-    
-    void _iosShowNativeAd(const char* adUnitId) { 
-        [[NativeFullScreenManager sharedInstance] showAd:[NSString stringWithUTF8String:adUnitId]]; 
-    }
-    
-    void _iosHideNativeAd() { 
-        [[NativeFullScreenManager sharedInstance] hideAd]; 
-    }
+    bool _iosIsNativeAdReady(const char* adUnitId) { return [[NativeFullScreenManager sharedInstance] isAdReady:[NSString stringWithUTF8String:adUnitId]]; }
+    void _iosShowNativeAd(const char* adUnitId) { [[NativeFullScreenManager sharedInstance] showAd:[NSString stringWithUTF8String:adUnitId]]; }
+    void _iosHideNativeAd() { [[NativeFullScreenManager sharedInstance] hideAd]; }
 }

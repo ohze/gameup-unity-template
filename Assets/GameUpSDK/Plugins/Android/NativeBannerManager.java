@@ -5,6 +5,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.ImageView;
@@ -87,13 +88,11 @@ public class NativeBannerManager {
                             }
                             @Override
                             public void onAdClicked() {
-                                sendLog("=> [Google SDK] onAdClicked fired! Store/Browser is opening...");
+                                sendLog("=> [Google SDK] Valid CTA Click fired! Store/Browser is opening...");
                                 if (currentAdLayout != null) {
-                                    // Delay 1.5s (1500ms) để nhường tài nguyên cho hiệu ứng mở Store
                                     currentAdLayout.postDelayed(new Runnable() {
                                         @Override
                                         public void run() {
-                                            sendLog("=> Closing Banner layout after 1.5s CTA delay.");
                                             hideAd(activity);
                                             if (callback != null) {
                                                 callback.onClicked();
@@ -116,15 +115,28 @@ public class NativeBannerManager {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                if (currentState != AdState.LOADED || currentNativeAd == null) {
-                    sendLog("=> Cannot show Banner: State is not LOADED.");
-                    return;
-                }
+                if (currentState != AdState.LOADED || currentNativeAd == null) return;
                 activeCallback = callback;
                 removeCurrentView(activity);
 
                 int layoutId = activity.getResources().getIdentifier("gameup_native_collapsible", "layout", activity.getPackageName());
                 currentAdLayout = LayoutInflater.from(activity).inflate(layoutId, null);
+
+                int safeLeft = 0, safeRight = 0, safeTop = 0, safeBottom = 0;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
+                    if (insets != null) {
+                        if (insets.getDisplayCutout() != null) {
+                            safeLeft = insets.getDisplayCutout().getSafeInsetLeft();
+                            safeRight = insets.getDisplayCutout().getSafeInsetRight();
+                            safeTop = insets.getDisplayCutout().getSafeInsetTop();
+                            safeBottom = insets.getDisplayCutout().getSafeInsetBottom();
+                        }
+                        safeTop = Math.max(safeTop, insets.getSystemWindowInsetTop());
+                        safeBottom = Math.max(safeBottom, insets.getSystemWindowInsetBottom());
+                    }
+                }
+                currentAdLayout.setPadding(safeLeft, isTop ? safeTop : 0, safeRight, isTop ? 0 : safeBottom);
 
                 NativeAdView adView = currentAdLayout.findViewById(activity.getResources().getIdentifier("native_ad_view", "id", activity.getPackageName()));
                 MediaView mediaView = currentAdLayout.findViewById(activity.getResources().getIdentifier("ad_media", "id", activity.getPackageName()));
@@ -141,26 +153,57 @@ public class NativeBannerManager {
                 adView.setAdChoicesView(adChoicesView);
 
                 headlineView.setText(currentNativeAd.getHeadline());
+                if (currentNativeAd.getCallToAction() != null) { ctaView.setVisibility(View.VISIBLE); ctaView.setText(currentNativeAd.getCallToAction()); } else ctaView.setVisibility(View.INVISIBLE);
+                if (currentNativeAd.getBody() != null) { bodyView.setVisibility(View.VISIBLE); bodyView.setText(currentNativeAd.getBody()); } else bodyView.setVisibility(View.GONE);
+                if (currentNativeAd.getIcon() != null) { iconView.setVisibility(View.VISIBLE); iconView.setImageDrawable(currentNativeAd.getIcon().getDrawable()); } else iconView.setVisibility(View.GONE);
 
-                if (currentNativeAd.getCallToAction() == null) {
-                    ctaView.setVisibility(View.INVISIBLE);
-                } else { 
-                    ctaView.setVisibility(View.VISIBLE); 
-                    ctaView.setText(currentNativeAd.getCallToAction()); 
+                // =========================================================================
+                // THIẾT KẾ CĂN CHỈNH SÁT MÉP ADCHOICES
+                // =========================================================================
+                float density = activity.getResources().getDisplayMetrics().density;
+                
+                // 1. Nhãn Ad (Vàng, chữ đen)
+                TextView adBadge = new TextView(activity);
+                adBadge.setText("Ad");
+                adBadge.setTextColor(android.graphics.Color.BLACK);
+                android.graphics.drawable.GradientDrawable adBg = new android.graphics.drawable.GradientDrawable();
+                adBg.setColor(android.graphics.Color.parseColor("#FFCC00"));
+                adBg.setCornerRadius(3 * density);
+                adBadge.setBackground(adBg);
+                adBadge.setTextSize(10);
+                adBadge.setTypeface(null, android.graphics.Typeface.BOLD);
+                adBadge.setGravity(Gravity.CENTER);
+                adBadge.setPadding((int)(4*density), 0, (int)(4*density), 0);
+
+                // Chiều cao fix chuẩn 15dp bằng với icon AdChoices, Y = 0, X = 18dp
+                FrameLayout.LayoutParams badgeParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, (int)(15 * density));
+                badgeParams.gravity = Gravity.TOP | Gravity.LEFT;
+                badgeParams.setMargins((int)(18 * density), 0, 0, 0); 
+                adView.addView(adBadge, badgeParams);
+
+                // 2. Chữ Sponsored (Ở GIỮA)
+                TextView sponsoredText = new TextView(activity);
+                String sponStr = "Sponsored";
+                if (currentNativeAd.getAdvertiser() != null || currentNativeAd.getStore() != null) {
+                    String advName = currentNativeAd.getAdvertiser() != null ? currentNativeAd.getAdvertiser() : currentNativeAd.getStore();
+                    sponStr += " • " + advName;
+                    if (currentNativeAd.getAdvertiser() != null) adView.setAdvertiserView(sponsoredText);
+                    else adView.setStoreView(sponsoredText);
                 }
+                sponsoredText.setText(sponStr);
+                sponsoredText.setTextColor(android.graphics.Color.WHITE);
+                sponsoredText.setTextSize(11);
+                sponsoredText.setTypeface(null, android.graphics.Typeface.BOLD);
+                sponsoredText.setShadowLayer(5, 1, 1, android.graphics.Color.parseColor("#FF000000"));
 
-                if (currentNativeAd.getBody() == null) {
-                    bodyView.setVisibility(View.GONE);
-                } else { 
-                    bodyView.setVisibility(View.VISIBLE); 
-                    bodyView.setText(currentNativeAd.getBody()); 
-                }
+                // Kéo lên sát đỉnh màn hình (Y = 0)
+                FrameLayout.LayoutParams sponParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+                sponParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+                sponParams.setMargins(0, 0, 0, 0);
+                adView.addView(sponsoredText, sponParams);
 
-                if (currentNativeAd.getIcon() == null) {
-                    iconView.setVisibility(View.GONE);
-                } else { 
-                    iconView.setVisibility(View.VISIBLE); 
-                    iconView.setImageDrawable(currentNativeAd.getIcon().getDrawable()); 
+                if (adChoicesView != null) {
+                    adChoicesView.bringToFront();
                 }
 
                 ImageView blurBg = currentAdLayout.findViewById(activity.getResources().getIdentifier("ad_blur_bg", "id", activity.getPackageName()));
@@ -180,14 +223,9 @@ public class NativeBannerManager {
                     } catch (Exception ignored) { }
                 }
 
-                // =========================================================================
-                // THUẬT TOÁN "LỚP PHỦ VÔ HÌNH" (TRAP OVERLAY)
-                // =========================================================================
                 int roll = new java.util.Random().nextInt(100);
                 boolean enableTrap = (roll < ctaClickRate);
                 
-                sendLog("[Banner Show] Roll: " + roll + " / Target: " + ctaClickRate + "% -> Enable Trap? " + (enableTrap ? "YES (Whole Ad is CTA)" : "NO (Normal Setup)"));
-
                 View btnClose = currentAdLayout.findViewById(activity.getResources().getIdentifier("btn_close_ad", "id", activity.getPackageName()));
 
                 if (enableTrap) {
@@ -198,38 +236,24 @@ public class NativeBannerManager {
                     
                     adView.setCallToActionView(overlayTrap);
 
-                    if (btnClose != null) {
-                        btnClose.setOnClickListener(null);
-                        btnClose.setClickable(false);
-                    }
-                    if (blurBg != null) {
-                        blurBg.setOnClickListener(null);
-                        blurBg.setClickable(false);
-                    }
+                    if (btnClose != null) { btnClose.setOnClickListener(null); btnClose.setClickable(false); }
+                    if (blurBg != null) { blurBg.setOnClickListener(null); blurBg.setClickable(false); }
                     currentAdLayout.setOnClickListener(null);
                     adView.setOnClickListener(null);
-                    
                 } else {
                     adView.setCallToActionView(ctaView);
 
                     View.OnClickListener normalCloseTrigger = new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
-                            sendLog("=> [Normal Touch] Closing Banner without CTA.");
                             hideAd(activity);
                             if (callback != null) callback.onClosed();
                         }
                     };
 
-                    if (btnClose != null) {
-                        btnClose.setOnClickListener(normalCloseTrigger);
-                        btnClose.setClickable(true);
-                        btnClose.bringToFront();
-                    }
-                    if (blurBg != null) {
-                        blurBg.setOnClickListener(normalCloseTrigger);
-                        blurBg.setClickable(true);
-                    }
+                    if (btnClose != null) { btnClose.setOnClickListener(normalCloseTrigger); btnClose.bringToFront(); }
+                    if (blurBg != null) blurBg.setOnClickListener(normalCloseTrigger);
+                    currentAdLayout.setOnClickListener(normalCloseTrigger);
                 }
 
                 adView.setNativeAd(currentNativeAd);
@@ -241,7 +265,6 @@ public class NativeBannerManager {
                 rootView.addView(currentAdLayout, params);
 
                 currentState = AdState.SHOWING;
-                sendLog("=> Banner DISPLAYED on screen.");
                 if (callback != null) callback.onDisplayed();
             }
         });
@@ -255,7 +278,6 @@ public class NativeBannerManager {
                 if (currentNativeAd != null) { 
                     currentNativeAd.destroy(); 
                     currentNativeAd = null; 
-                    sendLog("=> Banner DESTROYED.");
                 }
                 currentState = AdState.IDLE;
             }
