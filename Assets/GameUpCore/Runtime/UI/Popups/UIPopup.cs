@@ -20,6 +20,19 @@ namespace GameUp.Core.UI
 
         public static bool IsPopupOn => ActivePopups.Count > 0;
 
+        #region Signals
+
+        /// <summary>Bắn ngay sau khi một popup mở xong phần logic (trước khi animation chạy xong).</summary>
+        public static Signal<UIPopup> OnPopupOpened { get; private set; } = new();
+
+        /// <summary>Bắn khi popup đã ẩn và bị gỡ khỏi danh sách đang mở.</summary>
+        public static Signal<UIPopup> OnPopupClosed { get; private set; } = new();
+
+        /// <summary>Bắn khi popup cuối cùng đóng lại, tức <see cref="IsPopupOn"/> chuyển sang false.</summary>
+        public static Signal OnAllPopupClosed { get; private set; } = new();
+
+        #endregion
+
         #region Static lifecycle
 
         private static readonly List<Type> StaleKeyBuffer = new();
@@ -38,6 +51,11 @@ namespace GameUp.Core.UI
             CloseBuffer.Clear();
 
             _popupData = null;
+
+            // Signal giữ listener của phiên Play trước khi tắt Domain Reload — tạo mới để bỏ hết.
+            OnPopupOpened = new Signal<UIPopup>();
+            OnPopupClosed = new Signal<UIPopup>();
+            OnAllPopupClosed = new Signal();
 
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
@@ -90,6 +108,7 @@ namespace GameUp.Core.UI
             transform.SetAsLastSibling();
             if (!ActivePopups.Contains(this)) ActivePopups.Add(this);
             base.OnOpen();
+            OnPopupOpened.Dispatch(this);
         }
 
         public override void OnClose(Action callbackClose = null)
@@ -107,7 +126,12 @@ namespace GameUp.Core.UI
             GULogger.Log("UIPopup", $"Close View: {name}");
             gameObject.Hide();
             callbackClose?.Invoke();
-            ActivePopups.Remove(this);
+
+            // Chỉ báo đóng khi popup thực sự còn nằm trong danh sách mở, tránh bắn trùng nếu ActionClose bị gọi lại.
+            if (!ActivePopups.Remove(this)) return;
+
+            OnPopupClosed.Dispatch(this);
+            if (ActivePopups.Count == 0) OnAllPopupClosed.Dispatch();
         }
 
         /// <summary>Chỉ đóng những popup đang thực sự mở — duyệt bản sao vì <see cref="ActionClose"/> sẽ sửa danh sách.</summary>

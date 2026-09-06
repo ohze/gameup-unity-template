@@ -38,6 +38,12 @@ namespace GameUp.Core.UI
 
         public static event Action<UIScreen> OnCurrentScreenChanged;
 
+        /// <summary>Bắn ngay sau khi một screen mở xong phần logic (trước khi animation chạy xong).</summary>
+        public static Signal<UIScreen> OnScreenOpened { get; private set; } = new();
+
+        /// <summary>Bắn khi screen đã ẩn xong sau animation đóng.</summary>
+        public static Signal<UIScreen> OnScreenClosed { get; private set; } = new();
+
         private static UIScreen _currentScreen;
         public static UIScreen currentScreen
         {
@@ -83,6 +89,10 @@ namespace GameUp.Core.UI
             _screenHolder = null;
             _screenData = null;
             OnCurrentScreenChanged = null;
+
+            // Signal giữ listener của phiên Play trước khi tắt Domain Reload — tạo mới để bỏ hết.
+            OnScreenOpened = new Signal<UIScreen>();
+            OnScreenClosed = new Signal<UIScreen>();
 
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
@@ -156,6 +166,7 @@ namespace GameUp.Core.UI
             transform.SetAsLastSibling();
             base.OnOpen();
             currentScreen = this;
+            OnScreenOpened.Dispatch(this);
         }
 
         public override void OnClose(Action onComplete = null)
@@ -170,6 +181,7 @@ namespace GameUp.Core.UI
                 }
 
                 onComplete?.Invoke();
+                OnScreenClosed.Dispatch(this);
             }).OnReverse();
         }
 

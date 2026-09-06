@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Added
+- **Signal thông báo mở/đóng UI.** `UIPopup.OnPopupOpened` / `OnPopupClosed` (`Signal<UIPopup>`), `UIPopup.OnAllPopupClosed` (`Signal`) và `UIScreen.OnScreenOpened` / `OnScreenClosed` (`Signal<UIScreen>`) — code ngoài (audio, analytics, khoá input, pause gameplay) nghe được vòng đời UI mà không phải sửa từng popup/screen hay tự dựng event bus riêng. Popup báo đóng sau khi đã ẩn và gỡ khỏi danh sách đang mở (dựa trên kết quả `ActivePopups.Remove` nên gọi `ActionClose` lần hai không bắn trùng); screen báo đóng sau khi animation reverse chạy xong. Các Signal được tạo mới trong `ResetStaticState()` vì `Signal` giữ listener qua phiên Play khi tắt Domain Reload. `UIScreen.OnCurrentScreenChanged` giữ nguyên, không breaking.
 - **`GameUp → Settings` — cửa sổ tổng cho project mới.** Trước đây người mới phải tự mò 6 menu rời rạc và không biết thứ tự; nay một cửa sổ hiện toàn bộ trạng thái (DOTween define → cấu trúc `_MainProject` → prefab Core trên scene → bộ công cụ AI), có thanh tiến độ, badge trạng thái và nút hành động cho từng bước, kèm khu mở nhanh mọi tool lẻ và bật/tắt log. Trạng thái đọc từ file thật trong project nên clone repo về máy khác vẫn đúng.
   - Có thêm mục **Project Settings → GameUp** cho ai quen tìm cài đặt ở đó.
   - **Tự chạy lần đầu**: khi mở một project vừa thêm GameUpCore, Editor mở cửa sổ Settings đúng một lần để dev chọn công cụ AI, sau đó mới bù các file còn thiếu (không bao giờ ghi đè file đã có). Tắt được bằng hai toggle trong mục "Tự động"; có nút cho hiện lại.

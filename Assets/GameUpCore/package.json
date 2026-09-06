@@ -1,6 +1,6 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "displayName": "GameUp Core",
   "description": "Bộ khung nền cho dự án game Unity: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nDuyLV 2026",
   "unity": "2022.3",
