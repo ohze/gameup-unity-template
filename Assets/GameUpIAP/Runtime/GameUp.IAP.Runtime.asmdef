@@ -4,7 +4,10 @@
     "references": [
         "GameUp.Core.Runtime",
         "Unity.Purchasing",
-        "GameUp.SDK.Runtime"
+        "GameUp.SDK.Runtime",
+        "Unity.Purchasing.Security",
+        "Unity.Purchasing.SecurityStub",
+        "Unity.Purchasing.SecurityCore"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -42,10 +42,17 @@ namespace GameUp.IAP
         [SerializeField] private bool testMode;
         [SerializeField] private bool enableAnalytics = true;
 
-        private List<IAPProductDefinition> _products = new();
+        [Tooltip("Kiểm tra chữ ký receipt trước khi cấp hàng. Chỉ tắt khi debug.")]
+        [SerializeField] private bool enableReceiptValidation = true;
+
+        [Tooltip("Từ chối purchase khi không dựng được validator (thiếu tangle, store lạ). Bật lên là an toàn nhất nhưng chặn cả người mua thật nếu quên sinh tangle.")]
+        [SerializeField] private bool blockPurchaseWhenValidatorUnavailable;
+
+        private readonly List<IAPProductDefinition> _products = new();
         private readonly Dictionary<string, Action<bool>> _purchaseCallbacks = new();
         private readonly Dictionary<string, int?> _purchaseLevels = new();
         private readonly HashSet<string> _configuredProductIds = new();
+        private readonly IAPReceiptValidator _receiptValidator = new();
 
         private StoreController _storeController;
         private bool _isInitializing;
@@ -182,9 +189,15 @@ namespace GameUp.IAP
 
             if (testMode)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 LogPurchaseStart(productId, level);
-                LogPurchaseSuccess(productId, "TEST", "0", "TEST_ORDER", level);
                 onPurchaseComplete?.Invoke(true);
+#else
+                // testMode cấp hàng miễn phí và bơm doanh thu ảo, không được phép chạy trong build release.
+                GULogger.Error(Tag, $"testMode is enabled in a release build. BuyProduct is refused. productId={productId}");
+                LogPurchaseFail(productId, "test_mode_in_release", level);
+                onPurchaseComplete?.Invoke(false);
+#endif
                 return;
             }
 
@@ -388,12 +401,15 @@ namespace GameUp.IAP
                 return;
             }
 
+            _storeController.OnStoreConnected += OnStoreConnected;
             _storeController.OnStoreDisconnected += OnStoreDisconnected;
             _storeController.OnProductsFetched += OnProductsFetched;
             _storeController.OnProductsFetchFailed += OnProductsFetchFailed;
             _storeController.OnPurchasesFetched += OnPurchasesFetched;
             _storeController.OnPurchasesFetchFailed += OnPurchasesFetchFailed;
             _storeController.OnPurchasePending += OnPurchasePending;
+            _storeController.OnPurchaseFailed += OnPurchaseFailed;
+            _storeController.OnPurchaseDeferred += OnPurchaseDeferred;
             _eventsBound = true;
         }
 
@@ -404,13 +420,25 @@ namespace GameUp.IAP
                 return;
             }
 
+            _storeController.OnStoreConnected -= OnStoreConnected;
             _storeController.OnStoreDisconnected -= OnStoreDisconnected;
             _storeController.OnProductsFetched -= OnProductsFetched;
             _storeController.OnProductsFetchFailed -= OnProductsFetchFailed;
             _storeController.OnPurchasesFetched -= OnPurchasesFetched;
             _storeController.OnPurchasesFetchFailed -= OnPurchasesFetchFailed;
             _storeController.OnPurchasePending -= OnPurchasePending;
+            _storeController.OnPurchaseFailed -= OnPurchaseFailed;
+            _storeController.OnPurchaseDeferred -= OnPurchaseDeferred;
             _eventsBound = false;
+        }
+
+        private void OnStoreConnected()
+        {
+            GULogger.Log(Tag, "Store connected.");
+            if (enableReceiptValidation)
+            {
+                _receiptValidator.Initialize();
+            }
         }
 
         private void OnStoreDisconnected(StoreConnectionFailureDescription failure)
@@ -455,38 +483,140 @@ namespace GameUp.IAP
         private void OnPurchasePending(PendingOrder order)
         {
             var productId = GetProductIdFromOrder(order);
-            int? level = null;
-            if (!string.IsNullOrWhiteSpace(productId) && _purchaseLevels.TryGetValue(productId, out var storedLevel))
+            var isStartedInThisSession = TakePendingPurchase(productId, out var callback, out var level);
+
+            var validation = ValidateOrder(order);
+            if (!IsPurchaseGranted(validation))
             {
-                level = storedLevel;
-                _purchaseLevels.Remove(productId);
+                GULogger.Error(Tag, $"Purchase rejected by receipt validation. productId={productId} result={validation}");
+                LogPurchaseFail(productId, GetValidationFailReason(validation), level);
+                callback?.Invoke(false);
+
+                // Vẫn confirm để order giả không dội lại OnPurchasePending mỗi lần mở app.
+                _storeController.ConfirmPurchase(order);
+                return;
             }
 
-            if (!string.IsNullOrWhiteSpace(productId) && _purchaseCallbacks.TryGetValue(productId, out var callback))
-            {
-                callback?.Invoke(true);
-                _purchaseCallbacks.Remove(productId);
-            }
+            callback?.Invoke(true);
 
-            var product = FindProductById(productId);
-            if (product != null)
+            // Chỉ log doanh thu cho lượt mua bắt đầu trong session này. Order pending
+            // được store trả lại lúc khởi động cũng đi qua đây, log nữa là đếm trùng.
+            if (isStartedInThisSession)
             {
-                var currencyCode = string.IsNullOrWhiteSpace(product.metadata.isoCurrencyCode)
-                    ? "USD"
-                    : product.metadata.isoCurrencyCode;
-                var purchasePrice = product.metadata.localizedPrice.ToString(CultureInfo.InvariantCulture);
-                LogPurchaseSuccess(productId, currencyCode, purchasePrice, string.Empty, level);
-            }
-            else
-            {
-                LogPurchaseSuccess(productId, "USD", "0", string.Empty, level);
+                LogOrderPurchaseSuccess(order, productId, level);
             }
 
             _storeController.ConfirmPurchase(order);
-            GULogger.Log(Tag, $"Purchase processed and confirmed. productId={productId}");
+            GULogger.Log(Tag, $"Purchase processed and confirmed. productId={productId} validation={validation}");
         }
 
-        private static string GetProductIdFromOrder(PendingOrder order)
+        private void OnPurchaseFailed(FailedOrder order)
+        {
+            var productId = GetProductIdFromOrder(order);
+            TakePendingPurchase(productId, out var callback, out var level);
+
+            GULogger.Warning(Tag, $"Purchase failed. productId={productId} reason={order.FailureReason} details={order.Details}");
+            LogPurchaseFail(productId, order.FailureReason.ToString(), level);
+            callback?.Invoke(false);
+        }
+
+        private void OnPurchaseDeferred(DeferredOrder order)
+        {
+            var productId = GetProductIdFromOrder(order);
+            TakePendingPurchase(productId, out var callback, out var level);
+
+            GULogger.Log(Tag, $"Purchase deferred. productId={productId}");
+            LogPurchaseFail(productId, "purchase_deferred", level);
+            callback?.Invoke(false);
+        }
+
+        private ReceiptValidationResult ValidateOrder(Order order)
+        {
+            if (!enableReceiptValidation)
+            {
+                return ReceiptValidationResult.Unsupported;
+            }
+
+            var result = _receiptValidator.Validate(order.Info.Receipt, out var parsedReceipts);
+            if (result == ReceiptValidationResult.Valid)
+            {
+                _receiptValidator.LogParsedReceipts(parsedReceipts);
+            }
+
+            return result;
+        }
+
+        private bool IsPurchaseGranted(ReceiptValidationResult validation)
+        {
+            if (!enableReceiptValidation)
+            {
+                return true;
+            }
+
+            switch (validation)
+            {
+                case ReceiptValidationResult.Valid:
+                    return true;
+                case ReceiptValidationResult.Invalid:
+                    return false;
+                default:
+                    return !blockPurchaseWhenValidatorUnavailable;
+            }
+        }
+
+        private static string GetValidationFailReason(ReceiptValidationResult validation)
+        {
+            return validation == ReceiptValidationResult.Invalid
+                ? "invalid_receipt"
+                : "receipt_validator_unavailable";
+        }
+
+        private bool TakePendingPurchase(string productId, out Action<bool> callback, out int? level)
+        {
+            callback = null;
+            level = null;
+
+            if (string.IsNullOrWhiteSpace(productId))
+            {
+                return false;
+            }
+
+            var hasPendingPurchase = false;
+            if (_purchaseLevels.TryGetValue(productId, out var storedLevel))
+            {
+                level = storedLevel;
+                _purchaseLevels.Remove(productId);
+                hasPendingPurchase = true;
+            }
+
+            if (_purchaseCallbacks.TryGetValue(productId, out var storedCallback))
+            {
+                callback = storedCallback;
+                _purchaseCallbacks.Remove(productId);
+                hasPendingPurchase = true;
+            }
+
+            return hasPendingPurchase;
+        }
+
+        private void LogOrderPurchaseSuccess(Order order, string productId, int? level)
+        {
+            var product = FindProductById(productId);
+            var orderId = order.Info?.TransactionID ?? string.Empty;
+            if (product?.metadata == null)
+            {
+                LogPurchaseSuccess(productId, "USD", "0", orderId, level);
+                return;
+            }
+
+            var currencyCode = string.IsNullOrWhiteSpace(product.metadata.isoCurrencyCode)
+                ? "USD"
+                : product.metadata.isoCurrencyCode;
+            var purchasePrice = product.metadata.localizedPrice.ToString(CultureInfo.InvariantCulture);
+            LogPurchaseSuccess(productId, currencyCode, purchasePrice, orderId, level);
+        }
+
+        private static string GetProductIdFromOrder(Order order)
         {
             var item = order?.CartOrdered?.Items()?.FirstOrDefault();
             return item?.Product?.definition?.id;

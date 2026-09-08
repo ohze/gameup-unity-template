@@ -12,11 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d2e4f5879c44b56bfdf89fda3af7822, type: 3}
   m_Name: GameUpAdsConfig
   m_EditorClassIdentifier: 
+  mediationPriority: 030000000200000001000000
+  nativeCtaClickRate: 30
+  appOpenOnColdStart: 0
   admob:
     appIdAndroid: 
     appIdIOS: 
     testDevices: []
     showMediationInspector: 0
+    tagForChildDirectedTreatment: 0
+    tagForUnderAgeOfConsent: 0
+    maxAdContentRating: 0
+    umpDebugForceEea: 0
+    umpTestDeviceHashedIds: []
     units:
       banner:
         enableWaterfallFloor: 0
