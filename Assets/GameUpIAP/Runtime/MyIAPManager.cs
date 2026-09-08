@@ -7,6 +7,7 @@ using GameUp.Core;
 using GameUp.SDK;
 using UnityEngine;
 using UnityEngine.Purchasing;
+using UnityEngine.Purchasing.Security;
 
 namespace GameUp.IAP
 {
@@ -485,7 +486,7 @@ namespace GameUp.IAP
             var productId = GetProductIdFromOrder(order);
             var isStartedInThisSession = TakePendingPurchase(productId, out var callback, out var level);
 
-            var validation = ValidateOrder(order);
+            var validation = ValidateOrder(order, productId);
             if (!IsPurchaseGranted(validation))
             {
                 GULogger.Error(Tag, $"Purchase rejected by receipt validation. productId={productId} result={validation}");
@@ -530,7 +531,7 @@ namespace GameUp.IAP
             callback?.Invoke(false);
         }
 
-        private ReceiptValidationResult ValidateOrder(Order order)
+        private ReceiptValidationResult ValidateOrder(Order order, string productId)
         {
             if (!enableReceiptValidation)
             {
@@ -538,12 +539,37 @@ namespace GameUp.IAP
             }
 
             var result = _receiptValidator.Validate(order.Info.Receipt, out var parsedReceipts);
-            if (result == ReceiptValidationResult.Valid)
+            if (result != ReceiptValidationResult.Valid)
             {
-                _receiptValidator.LogParsedReceipts(parsedReceipts);
+                return result;
             }
 
-            return result;
+            // Chữ ký hợp lệ vẫn chưa đủ: một receipt thật của sản phẩm khác (hoặc gói rẻ hơn)
+            // cũng qua được signature check. Unity yêu cầu đối chiếu product id.
+            if (!IsProductInReceipts(parsedReceipts, productId))
+            {
+                GULogger.Error(Tag, $"Receipt signature is valid but does not contain productId={productId}.");
+                return ReceiptValidationResult.Invalid;
+            }
+
+            _receiptValidator.LogParsedReceipts(parsedReceipts);
+            return ReceiptValidationResult.Valid;
+        }
+
+        private bool IsProductInReceipts(IPurchaseReceipt[] parsedReceipts, string productId)
+        {
+            // Apple StoreKit 2 tự xác thực transaction và trả về mảng rỗng, không có gì để đối chiếu.
+            if (parsedReceipts == null || parsedReceipts.Length == 0)
+            {
+                return true;
+            }
+
+            var storeSpecificId = FindProductById(productId)?.definition?.storeSpecificId;
+
+            return parsedReceipts.Any(parsedReceipt =>
+                string.Equals(parsedReceipt.productID, productId, StringComparison.Ordinal)
+                || (!string.IsNullOrWhiteSpace(storeSpecificId)
+                    && string.Equals(parsedReceipt.productID, storeSpecificId, StringComparison.Ordinal)));
         }
 
         private bool IsPurchaseGranted(ReceiptValidationResult validation)
