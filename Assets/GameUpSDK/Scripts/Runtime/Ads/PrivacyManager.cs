@@ -149,7 +149,10 @@ namespace GameUp.SDK
             var request = new ConsentRequestParameters();
             ApplyDebugSettings(request);
 
-            ConsentInformation.Update(request, error =>
+            // Callback UMP về từ thread native, trong khi `done` được coroutine đọc trên main thread.
+            // Ghi thẳng từ thread khác là race không có memory barrier, và LoadAndShowConsentFormIfRequired
+            // lại là lệnh dựng UI — nên toàn bộ thân callback đẩy qua MainThreadDispatcher.
+            ConsentInformation.Update(request, error => MainThreadDispatcher.Enqueue(() =>
             {
                 if (error != null)
                 {
@@ -161,14 +164,14 @@ namespace GameUp.SDK
                     return;
                 }
 
-                ConsentForm.LoadAndShowConsentFormIfRequired(formError =>
+                ConsentForm.LoadAndShowConsentFormIfRequired(formError => MainThreadDispatcher.Enqueue(() =>
                 {
                     if (formError != null)
                         GULogger.Warning("GameUp", "PrivacyManager UMP form lỗi: " + formError.Message);
 
                     done = true;
-                });
-            });
+                }));
+            }));
 
             while (!done)
                 yield return null;
@@ -203,7 +206,7 @@ namespace GameUp.SDK
         public void ShowPrivacyOptionsForm(Action<string> onError = null)
         {
 #if ADMOB_DEPENDENCIES_INSTALLED && (UNITY_ANDROID || UNITY_IOS)
-            ConsentForm.ShowPrivacyOptionsForm(formError =>
+            ConsentForm.ShowPrivacyOptionsForm(formError => MainThreadDispatcher.Enqueue(() =>
             {
                 if (formError != null)
                 {
@@ -215,7 +218,7 @@ namespace GameUp.SDK
                 // User có thể vừa cấp thêm consent — cập nhật lại cổng để AdsManager init được.
                 _canRequestAds = ConsentInformation.CanRequestAds();
                 GULogger.Log("GameUp", $"PrivacyManager privacy options đóng. canRequestAds={_canRequestAds}");
-            });
+            }));
 #else
             onError?.Invoke("UMP không khả dụng (thiếu AdMob dependencies).");
 #endif

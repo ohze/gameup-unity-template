@@ -8,6 +8,16 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Fixed
 
+- **Bỏ `MobileAds.RaiseAdEventsOnUnityMainThread` (obsolete từ Google Mobile Ads 10.7) và tự marshal callback.** Cờ này trước đây gánh việc đưa mọi callback AdMob về main thread; bỏ đi mà không sửa gì thì callback quay lại thread native và mọi thao tác Unity API trong đó sẽ ném exception. Đã bọc lại các chỗ trước đây dựa vào nó:
+  - `AdmobNetwork`: toàn bộ thân callback `MobileAds.Initialize` chuyển vào `MobileAdsEventExecutor.ExecuteInUpdate` — trước đây chỉ nửa sau nằm trong, còn dòng log dùng `Time.realtimeSinceStartup` nằm ngoài (sẽ ném `UnityException: can only be called from the main thread` ngay lần init đầu).
+  - `AdmobAdFormat`: thân callback `Load(...)` của Interstitial/Rewarded/AppOpen (`HandleLoadSuccess`/`HandleLoadFailed`, ghi `_ads`, `_expireTimes`) đẩy qua `MainThreadDispatcher` — cũng khiến các Dictionary chỉ bị đụng từ một thread.
+  - `AdmobAdFormat`: 4 handler `OnAdPaid` (3 fullscreen + banner) đọc `adValue` ngay trên thread native rồi chỉ đẩy `TrackRevenue` về main thread, tránh giữ tham chiếu native qua frame.
+- **Luồng UMP không còn đọc/ghi cờ `done` xuyên thread.** `RequestUmpCoroutine` spin `while (!done)` trên main thread trong khi callback `ConsentInformation.Update` / `ConsentForm.LoadAndShowConsentFormIfRequired` set cờ từ thread native — race không có memory barrier, và `LoadAndShowConsentFormIfRequired` lại là lệnh dựng UI. Thân các callback UMP (kể cả `ShowPrivacyOptionsForm`) nay đi qua `MainThreadDispatcher`.
+
+### Removed
+
+- **`ScreenshotCapture` / `ScreenshotCaptureEditor` chuyển sang GameUp Core** (`GameUp.Core` / `GameUp.Core.Editor`, xem CHANGELOG của Core 0.5.0) — công cụ chụp màn hình không liên quan tới ads/analytics. `.meta` đi kèm nên prefab/scene không mất reference; code gọi thẳng theo namespace `GameUp.SDK` phải đổi sang `GameUp.Core`.
+
 - **Gỡ dependencies không còn để sót Scripting Define Symbols.** Auto-sync define dựa vào `IsAssemblyLoaded`, nhưng assembly của SDK vừa gỡ vẫn còn trong AppDomain tới lần domain reload kế tiếp — nên `compilationFinished` ngay sau khi xóa file lại set đúng những define vừa clear, kéo theo `GameUp.SDK.Runtime` compile code trong `#if` của SDK đã mất (lỗi compile khiến installer không load được để tự sửa). Nay trạng thái dependency đọc theo asset trên disk (+ asmdef còn trong project), auto-sync bị chặn trong lúc installer đang gỡ, và `ProjectSettings.asset` được lưu ngay sau khi clear define.
 - **Gỡ lẻ một package cũng clear define trước khi xóa file** (trước đây chỉ nút "Gỡ toàn bộ" làm việc này), kèm dọn define do chính SDK third-party ghi: `gameanalytics_*` (GameAnalytics), `APPMETRICA_FEATURES_*` (AppMetrica).
 - **Gỡ toàn bộ dependencies không còn xóa `Assets/Plugins/Android`.** Danh sách residual từng liệt kê nguyên thư mục này, tức là xóa cả `mainTemplate.gradle`, `settingsTemplate.gradle`, `gradleTemplate.properties` và mọi `.aar` của plugin khác trong project. Nay chỉ xóa đúng file thuộc SDK; thêm chốt chặn `s_neverDeleteExactPaths` cấm xóa các thư mục dùng chung (`Assets/Plugins`, `Assets/Resources`, `Assets/Editor`, …) kể cả khi có entry sai trong danh sách. Cũng bỏ `Assets/SDK` khỏi danh sách vì tên quá chung.

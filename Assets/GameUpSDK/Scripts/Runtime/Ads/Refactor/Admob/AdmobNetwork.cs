@@ -48,27 +48,26 @@ namespace GameUp.SDK
             var timeInit = Time.realtimeSinceStartup;
             GULogger.Log("GameUp", $"Initializing Admob Network: {Time.realtimeSinceStartup}");
 
-            // Phải đặt TRƯỚC Initialize: buộc plugin raise mọi callback trên Unity main thread,
-            // nếu không callback về từ thread native và mọi thao tác UnityEngine trong handler đều rủi ro.
-            GoogleMobileAds.Api.MobileAds.RaiseAdEventsOnUnityMainThread = true;
-
             GoogleMobileAds.Api.MobileAds.SetRequestConfiguration(BuildRequestConfiguration(settings));
 
+            // MobileAds.RaiseAdEventsOnUnityMainThread đã obsolete từ GMA 10.7 (khuyến nghị dùng
+            // MobileAdsEventExecutor.ExecuteInUpdate). Mọi callback dưới đây về từ thread native, nên
+            // phần nào đụng Unity API / state đều được đẩy về main thread thủ công.
             GoogleMobileAds.Api.MobileAds.Initialize(initStatus =>
             {
-                GULogger.Log("GameUp", $"Initialized Admob Network: {Time.realtimeSinceStartup} - Total time initialized: {Time.realtimeSinceStartup - timeInit}");
-                var adapterStatusMap = initStatus.getAdapterStatusMap();
-                foreach (var adapter in adapterStatusMap)
-                {
-                    string name = adapter.Key;
-                    var status = adapter.Value;
-
-                    // In ra log: Tên mạng - Trạng thái - Thời gian trễ - Mô tả lỗi (nếu có)
-                    GULogger.Log($"[AdMob Init] adapter: {name} | status: {status.InitializationState} | Độ trễ: {status.Latency}ms | Phản hồi: {status.Description}");
-                }
-
                 GoogleMobileAds.Common.MobileAdsEventExecutor.ExecuteInUpdate(() =>
                 {
+                    GULogger.Log("GameUp", $"Initialized Admob Network: {Time.realtimeSinceStartup} - Total time initialized: {Time.realtimeSinceStartup - timeInit}");
+                    var adapterStatusMap = initStatus.getAdapterStatusMap();
+                    foreach (var adapter in adapterStatusMap)
+                    {
+                        string name = adapter.Key;
+                        var status = adapter.Value;
+
+                        // In ra log: Tên mạng - Trạng thái - Thời gian trễ - Mô tả lỗi (nếu có)
+                        GULogger.Log($"[AdMob Init] adapter: {name} | status: {status.InitializationState} | Độ trễ: {status.Latency}ms | Phản hồi: {status.Description}");
+                    }
+
                     IsInitialized = true;
                     GULogger.Log("[GameUp] AdmobNetwork Initialized.");
 

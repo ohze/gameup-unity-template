@@ -35,17 +35,24 @@ namespace GameUp.SDK
 #if ADMOB_DEPENDENCIES_INSTALLED
             if (_ads.TryGetValue(unitId, out var oldAd) && oldAd != null) oldAd.Destroy();
 
-            InterstitialAd.Load(unitId, new AdRequest(), (ad, error) =>
+            // RaiseAdEventsOnUnityMainThread đã bị bỏ (obsolete từ GMA 10.7) nên callback này
+            // về từ thread native — mọi thao tác trên state/Unity API phải đẩy về main thread.
+            InterstitialAd.Load(unitId, new AdRequest(), (ad, error) => MainThreadDispatcher.Enqueue(() =>
             {
                 if (error != null || ad == null)
                 {
                     HandleLoadFailed(unitId, where, floor, error?.GetMessage());
                     return;
                 }
-                ad.OnAdPaid += (adValue) => { if (adValue != null) TrackRevenue(unitId, where, $"Interstitial_{floor}", adValue.Value * 0.000001f); };
+                ad.OnAdPaid += (adValue) =>
+                {
+                    if (adValue == null) return;
+                    double revenue = adValue.Value * 0.000001f;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Interstitial_{floor}", revenue));
+                };
                 _ads[unitId] = ad;
                 HandleLoadSuccess(unitId, where);
-            });
+            }));
 #endif
         }
 
@@ -127,17 +134,24 @@ namespace GameUp.SDK
 #if ADMOB_DEPENDENCIES_INSTALLED
             if (_ads.TryGetValue(unitId, out var oldAd) && oldAd != null) oldAd.Destroy();
 
-            RewardedAd.Load(unitId, new AdRequest(), (ad, error) =>
+            // RaiseAdEventsOnUnityMainThread đã bị bỏ (obsolete từ GMA 10.7) nên callback này
+            // về từ thread native — mọi thao tác trên state/Unity API phải đẩy về main thread.
+            RewardedAd.Load(unitId, new AdRequest(), (ad, error) => MainThreadDispatcher.Enqueue(() =>
             {
                 if (error != null || ad == null)
                 {
                     HandleLoadFailed(unitId, where, floor, error?.GetMessage());
                     return;
                 }
-                ad.OnAdPaid += (adValue) => { if (adValue != null) TrackRevenue(unitId, where, $"Rewarded_{floor}", adValue.Value * 0.000001f); };
+                ad.OnAdPaid += (adValue) =>
+                {
+                    if (adValue == null) return;
+                    double revenue = adValue.Value * 0.000001f;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Rewarded_{floor}", revenue));
+                };
                 _ads[unitId] = ad;
                 HandleLoadSuccess(unitId, where);
-            });
+            }));
 #endif
         }
 
@@ -224,18 +238,25 @@ namespace GameUp.SDK
 #if ADMOB_DEPENDENCIES_INSTALLED
             if (_ads.TryGetValue(unitId, out var oldAd) && oldAd != null) oldAd.Destroy();
 
-            AppOpenAd.Load(unitId, new AdRequest(), (ad, error) =>
+            // RaiseAdEventsOnUnityMainThread đã bị bỏ (obsolete từ GMA 10.7) nên callback này
+            // về từ thread native — mọi thao tác trên state/Unity API phải đẩy về main thread.
+            AppOpenAd.Load(unitId, new AdRequest(), (ad, error) => MainThreadDispatcher.Enqueue(() =>
             {
                 if (error != null || ad == null)
                 {
                     HandleLoadFailed(unitId, where, floor, error?.GetMessage());
                     return;
                 }
-                ad.OnAdPaid += (adValue) => { if (adValue != null) TrackRevenue(unitId, where, $"AppOpen_{floor}", adValue.Value * 0.000001f); };
+                ad.OnAdPaid += (adValue) =>
+                {
+                    if (adValue == null) return;
+                    double revenue = adValue.Value * 0.000001f;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"AppOpen_{floor}", revenue));
+                };
                 _ads[unitId] = ad;
                 _expireTimes[unitId] = DateTime.UtcNow.AddHours(4);
                 HandleLoadSuccess(unitId, where);
-            });
+            }));
 #endif
         }
 
@@ -352,7 +373,12 @@ namespace GameUp.SDK
                     _banners.Remove(unitId);
                     HandleLoadFailed(unitId, where, floor, err?.GetMessage());
                 });
-                banner.OnAdPaid += (adValue) => { if (adValue != null) TrackRevenue(unitId, where, "Banner", adValue.Value * 0.000001f); };
+                banner.OnAdPaid += (adValue) =>
+                {
+                    if (adValue == null) return;
+                    double revenue = adValue.Value * 0.000001f;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, "Banner", revenue));
+                };
 
                 var request = new AdRequest();
                 if (entry.CollapsiblePlacement != CollapsibleBannerPlacement.None)

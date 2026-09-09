@@ -2,8 +2,11 @@ using UnityEngine;
 using System.Collections;
 using System;
 using System.IO;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
-namespace GameUp.SDK
+namespace GameUp.Core
 {
     public class ScreenshotCapture : MonoBehaviour
     {
@@ -19,6 +22,11 @@ namespace GameUp.SDK
         [SerializeField] private bool requireLeftControl = false;
         [SerializeField] private bool requireLeftShift = false;
 
+#if ENABLE_INPUT_SYSTEM
+        private KeyCode _cachedKeyCode = KeyCode.None;
+        private Key _cachedKey = Key.None;
+#endif
+
         private void Update()
         {
             if (!enableKeyboardShortcut || !Application.isPlaying)
@@ -26,23 +34,95 @@ namespace GameUp.SDK
                 return;
             }
 
-            if (!Input.GetKeyDown(screenshotKey))
-            {
-                return;
-            }
-
-            if (requireLeftControl && !Input.GetKey(KeyCode.LeftControl))
-            {
-                return;
-            }
-
-            if (requireLeftShift && !Input.GetKey(KeyCode.LeftShift))
+            if (!WasShortcutPressedThisFrame())
             {
                 return;
             }
 
             TakeScreenshot();
         }
+
+        private bool WasShortcutPressedThisFrame()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (Keyboard.current != null)
+            {
+                return WasShortcutPressedOnInputSystem(Keyboard.current);
+            }
+#endif
+#if ENABLE_LEGACY_INPUT_MANAGER
+            return WasShortcutPressedOnLegacyInput();
+#else
+            return false;
+#endif
+        }
+
+#if ENABLE_INPUT_SYSTEM
+        private bool WasShortcutPressedOnInputSystem(Keyboard keyboard)
+        {
+            Key key = ResolveInputSystemKey();
+            if (key == Key.None || !keyboard[key].wasPressedThisFrame)
+            {
+                return false;
+            }
+
+            if (requireLeftControl && !keyboard.leftCtrlKey.isPressed)
+            {
+                return false;
+            }
+
+            if (requireLeftShift && !keyboard.leftShiftKey.isPressed)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Map <see cref="KeyCode"/> sang <see cref="Key"/> bằng tên enum (KeyCode.F12 -> Key.F12).
+        /// Kết quả được cache để <c>Update</c> không parse enum mỗi frame (0 alloc sau lần đầu).
+        /// </summary>
+        private Key ResolveInputSystemKey()
+        {
+            if (_cachedKeyCode == screenshotKey)
+            {
+                return _cachedKey;
+            }
+
+            _cachedKeyCode = screenshotKey;
+            _cachedKey = Enum.TryParse(screenshotKey.ToString(), true, out Key parsedKey) ? parsedKey : Key.None;
+
+            if (_cachedKey == Key.None)
+            {
+                GULogger.Warning($"Không map được {screenshotKey} sang Key của Input System, phím tắt chụp màn hình bị bỏ qua.");
+            }
+
+            return _cachedKey;
+        }
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        private bool WasShortcutPressedOnLegacyInput()
+        {
+            if (!Input.GetKeyDown(screenshotKey))
+            {
+                return false;
+            }
+
+            if (requireLeftControl && !Input.GetKey(KeyCode.LeftControl))
+            {
+                return false;
+            }
+
+            if (requireLeftShift && !Input.GetKey(KeyCode.LeftShift))
+            {
+                return false;
+            }
+
+            return true;
+        }
+#endif
 
         [ContextMenu("Take Screenshot")]
         public void TakeScreenshot()
@@ -62,7 +142,7 @@ namespace GameUp.SDK
 
             string outputPath = BuildOutputPath();
             ScreenCapture.CaptureScreenshot(outputPath, Mathf.Max(1, superSize));
-            Debug.Log($"Screenshot saved at: {outputPath}");
+            GULogger.Log($"Screenshot saved at: {outputPath}");
         }
 
         private IEnumerator CaptureWithCustomSize()
@@ -78,21 +158,36 @@ namespace GameUp.SDK
 
         private void SaveTextureToFile(Texture2D sourceTexture, int targetWidth, int targetHeight)
         {
-            Texture2D resizedTexture = ResizeTexture(sourceTexture, targetWidth, targetHeight);
+            bool needResize = sourceTexture.width != targetWidth || sourceTexture.height != targetHeight;
+            Texture2D outputTexture = needResize
+                ? ResizeTexture(sourceTexture, targetWidth, targetHeight)
+                : sourceTexture;
             string outputPath = BuildOutputPath();
 
-            File.WriteAllBytes(outputPath, resizedTexture.EncodeToPNG());
-            Debug.Log($"Screenshot saved at: {outputPath}");
+            File.WriteAllBytes(outputPath, outputTexture.EncodeToPNG());
+            GULogger.Log($"Screenshot saved at: {outputPath}");
+
+            DestroyTexture(sourceTexture);
+            if (needResize)
+            {
+                DestroyTexture(outputTexture);
+            }
+        }
+
+        private void DestroyTexture(Texture2D texture)
+        {
+            if (texture == null)
+            {
+                return;
+            }
 
             if (Application.isPlaying)
             {
-                Destroy(sourceTexture);
-                Destroy(resizedTexture);
+                Destroy(texture);
             }
             else
             {
-                DestroyImmediate(sourceTexture);
-                DestroyImmediate(resizedTexture);
+                DestroyImmediate(texture);
             }
         }
 
@@ -135,15 +230,26 @@ namespace GameUp.SDK
             return $"{nameWithoutExtension}_{timestamp}{extension}";
         }
 
+        /// <summary>
+        /// Resize ảnh chụp mà <b>không</b> để Unity chèn thêm bước chuyển sRGB &lt;-&gt; Linear.
+        /// Project chạy Linear color space, còn pixel do <c>ScreenCapture</c> trả về đã là sRGB
+        /// thành phẩm; nếu blit qua RenderTexture sRGB thì ảnh bị convert dư một lần và trắng bệch.
+        /// </summary>
         private static Texture2D ResizeTexture(Texture2D source, int targetWidth, int targetHeight)
         {
-            RenderTexture renderTexture = RenderTexture.GetTemporary(targetWidth, targetHeight);
+            RenderTexture renderTexture = RenderTexture.GetTemporary(
+                targetWidth,
+                targetHeight,
+                0,
+                RenderTextureFormat.ARGB32,
+                RenderTextureReadWrite.Linear);
             RenderTexture previous = RenderTexture.active;
 
+            source.filterMode = FilterMode.Bilinear;
             Graphics.Blit(source, renderTexture);
             RenderTexture.active = renderTexture;
 
-            Texture2D output = new Texture2D(targetWidth, targetHeight, TextureFormat.RGB24, false);
+            Texture2D output = new Texture2D(targetWidth, targetHeight, TextureFormat.RGB24, false, true);
             output.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0);
             output.Apply();
 
@@ -166,7 +272,7 @@ namespace GameUp.SDK
             {
                 string outputPath = BuildOutputPath();
                 ScreenCapture.CaptureScreenshot(outputPath, Mathf.Max(1, superSize));
-                Debug.Log($"Screenshot saved at: {outputPath}");
+                GULogger.Log($"Screenshot saved at: {outputPath}");
                 return;
             }
 
