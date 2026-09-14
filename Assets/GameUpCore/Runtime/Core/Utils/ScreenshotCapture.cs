@@ -95,7 +95,7 @@ namespace GameUp.Core
 
             if (_cachedKey == Key.None)
             {
-                GULogger.Warning($"Không map được {screenshotKey} sang Key của Input System, phím tắt chụp màn hình bị bỏ qua.");
+                GULogger.Warning(nameof(ScreenshotCapture), $"Không map được {screenshotKey} sang Key của Input System, phím tắt chụp màn hình bị bỏ qua.");
             }
 
             return _cachedKey;
