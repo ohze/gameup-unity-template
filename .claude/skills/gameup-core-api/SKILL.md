@@ -5,8 +5,20 @@ description: Tra cứu API GameUp Core và mẫu code chuẩn (logger, singleton
 
 # GameUp Core — tra API trước khi viết mới
 
-Nguồn: `Assets/GameUpCore/Runtime/` (embedded) hoặc `Packages/com.ohze.gameup.core/Runtime/` (UPM).
-Nếu cần chi tiết chữ ký hàm → **đọc thẳng file nguồn**, đừng đoán.
+## Bước 0 — mở đúng nguồn
+
+1. **Đọc `.claude/gameup-core/API_INDEX.md` trước.** File tự sinh bằng reflection từ bản Core đang cài: chữ ký
+   member thật, bảng *class nền để kế thừa* (member abstract/virtual), prefab có sẵn, asmdef cần reference.
+   Bảng tra nhanh bên dưới chỉ để định hướng — chữ ký lấy từ index, không lấy từ trí nhớ.
+2. **Grep/Read source** với `path` tường minh (thư mục ẩn `.claude/` có thể bị bỏ qua khi tìm từ gốc):
+   - Cài qua Git UPM: `.claude/gameup-core/src/` (bản chép — file thật nằm trong `Library/PackageCache`, bị chặn đọc).
+   - Embedded: `Assets/GameUpCore/` hoặc `Packages/com.ohze.gameup.core/`.
+   - Dòng đầu `API_INDEX.md` ghi đúng thư mục source của project này.
+3. Thiếu `.claude/gameup-core/` hoặc index ghi version khác `Packages/packages-lock.json` → **dừng**, nhờ người dùng
+   chạy `GameUp → Project → Sync GameUp source for AI`. Không đoán API khi không đọc được nguồn.
+
+Muốn kế thừa (`UIScreen`, `UIPopup`, `UIBaseView`, `MonoSingleton<T>`, `BaseDataSave<T>`, `BaseSelectView`…) → xem mục
+*Class nền để kế thừa* trong index, mở file nguồn để biết override nào phải gọi `base.`.
 
 ## Bảng tra nhanh
 
@@ -16,7 +28,7 @@ Nếu cần chi tiết chữ ký hàm → **đọc thẳng file nguồn**, đừ
 | Singleton Mono | `MonoSingleton<T>` | `GameUp.Core` |
 | Singleton C#/SO | `Singleton<T>`, `ScriptableObjectSingleton<T>`, `ResourcesSingleton` | `GameUp.Core` |
 | Event type-safe | `Signal`, `BaseSignal`, `IBaseSignal` | `GameUp.Core` |
-| Pool | `GUPool`, `IPoolable` | `GameUp.Core` |
+| Pool | `GUPool`, `GUPoolers`, `IPoolable` | `GameUp.Core` |
 | Save | `BaseDataSave<T>`, `LocalStorageUtils`, `FileStorageUtils`, `JsonHelper`, `EncryptUtils` | `GameUp.Core` |
 | Giá trị đơn persist | `SettingVar` (`BooleanVar`/`IntVar`/`FloatVar`/`LongVar`) | `GameUp.Core` |
 | Audio | `AudioManager`, `AudioIdentity`, `AudioIdentityReference`, `AudioDatabase`, `AudioSetting`, `AudioCategory`, `AudioHandle` | `GameUp.Core` |
@@ -49,8 +61,8 @@ public class GameController : MonoSingleton<GameController>
 }
 
 // Pool thay cho Instantiate/Destroy
-var bullet = GUPool.Spawn(bulletPrefab, position, rotation);
-GUPool.Despawn(bullet);
+var bullet = GUPoolers.Spawn(bulletPrefab, position, rotation);
+GUPoolers.Despawn(bullet);
 // object cần reset state khi tái sử dụng thì implement IPoolable (OnSpawn/OnDespawn)
 
 // Save có versioning
@@ -62,7 +74,8 @@ public class PlayerSave : BaseDataSave<PlayerSave>
 }
 
 // UI
-public class ShopPopup : UIPopup { /* override lifecycle của UIBaseView */ }
+// Kế thừa bản generic để có sẵn ShopPopup.OpenViewAsync()/CloseView(); override OnOpen/OnClose (xem API_INDEX.md)
+public class ShopPopup : UIPopup<ShopPopup> { }
 ```
 
 *Chữ ký chính xác của `Spawn`/`Despawn`/`CurrentVersion`… có thể khác giữa các version — mở file nguồn xác nhận trước khi dùng.*
@@ -76,5 +89,5 @@ public class ShopPopup : UIPopup { /* override lifecycle của UIBaseView */ }
 ## Ranh giới
 
 - Code game mới → `Assets/_MainProject/Scripts/`, namespace riêng (không phải `GameUp.Core*`).
-- Không sửa `Packages/com.ohze.gameup.core/` (bản restore từ registry/Git).
+- Không sửa `Packages/com.ohze.gameup.core/` (bản restore từ registry/Git) và `.claude/gameup-core/` (bản chép tự sinh).
 - Trong một project chỉ có **một** nguồn Core: embedded *hoặc* UPM.

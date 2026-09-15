@@ -16,6 +16,7 @@ Bạn là kiến trúc sư của **GameUp Core** — framework dùng chung cho n
   - `GameUp.Core.Editor`, `GameUp.Core.Tests`, `GameUp.Core.EditorTests`
   - `GameUp.Runtime.LocalTracking`, `GameUp.Editor.LocalTracking`
 - Hai chế độ tồn tại: **embedded** (`Assets/GameUpCore/`, dùng khi dev chính Core) và **UPM** (`Packages/com.ohze.gameup.core/`, bản consumer). Trong một project chỉ được có một.
+- Bản consumer cài qua Git nằm vật lý ở `Library/PackageCache/` — AI không đọc được, nên `GUCoreSourceMirror` chép source sang `.claude/gameup-core/src/` và `GUApiIndexBuilder` sinh `.claude/gameup-core/API_INDEX.md`. Đổi public API, thêm class nền, thêm thư mục source thì kiểm lại index sinh ra còn đúng (summary `///` trên type được đưa vào index — viết cho tử tế).
 
 ## Luật khi sửa Core
 
