@@ -23,7 +23,10 @@
       "Read(./.idea/**)",
       "Edit(./Library/**)",
       "Edit(./Temp/**)",
-      "Edit(./Logs/**)"
+      "Edit(./Logs/**)",
+      "Edit(./.claude/gameup-core/**)",
+      "Edit(./.claude/gameup-sdk/**)",
+      "Edit(./.claude/gameup-iap/**)"
     ]
   },
   "hooks": {

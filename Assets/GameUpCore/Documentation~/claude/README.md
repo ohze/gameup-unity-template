@@ -16,18 +16,29 @@ Cài vào project bằng **`GameUp → Settings` → thẻ AI Toolkit → Cài /
 | `hooks/*` | `.claude/hooks/` | Có |
 | `settings/settings.template.json` | `.claude/settings.json` | Có (backup `.bak` nếu file cũ không do GameUp sinh) |
 
+| *(sinh từ package, không có mẫu)* | `.claude/gameup-<core\|sdk\|iap>/API_INDEX.md` + `src/` | Tự sinh lại khi cài/gỡ/đổi version package |
+
 `.claude/settings.local.json` (quyền cá nhân của từng người) **không bao giờ** bị đụng tới.
+
+## Vì sao có `.claude/gameup-core/`, `gameup-sdk/`, `gameup-iap/`
+
+Cài Core/SDK/IAP qua Git UPM thì file thật nằm trong `Library/PackageCache/<tên>@<hash>/` — thư mục bị chặn đọc
+(và tên đổi mỗi commit), nên Claude không thấy `UIScreen`, `UIPopup`, `AdsManager`, `MyIAPManager` hay class nền cần kế thừa.
+`GUCoreSourceMirror` chép source text của từng package đang cài sang `.claude/gameup-<core|sdk|iap>/src/` (bỏ `Documentation~`,
+`Plugins`); `GUApiIndexBuilder` sinh `API_INDEX.md` bằng reflection (chữ ký thật, bảng class nền + member abstract/virtual,
+prefab, asmdef). Package embedded chỉ sinh index; package bị gỡ thì thư mục tương ứng bị xoá.
+Chạy tay: `GameUp → Project → Sync GameUp source for AI`. Nên commit thư mục này để teammate chưa mở Unity vẫn có.
 
 ## Nội dung
 
 **Agents** — `unity-game-developer`, `gameup-core-architect`, `unity-performance-optimizer`, `unity-qa-engineer`.
 
-**Skills** — `gameup-core-api`, `unity-feature-kickoff`, `unity-design-to-tasks`, `unity-implement-story`,
+**Skills** — `gameup-core-api`, `gameup-sdk-api`, `gameup-iap-api`, `unity-feature-kickoff`, `unity-design-to-tasks`, `unity-implement-story`,
 `unity-refactor-safely`, `unity-test-plan`, `unity-bug-triage`, `unity-perf-audit`,
 `unity-release-checklist`, `gameup-sdk-installer-flow`.
 
 **Commands** — `/gu-kickoff` `/gu-tasks` `/gu-story` `/gu-refactor` `/gu-test` `/gu-bug` `/gu-perf`
-`/gu-release` `/gu-core` `/gu-review` `/gu-installer`.
+`/gu-release` `/gu-core` `/gu-sdk` `/gu-iap` `/gu-review` `/gu-installer`.
 
 **Hooks**
 - `gu-shell-guard` (PreToolUse · Bash) — chặn `rm -rf`, `git reset --hard`, `git push --force`, `git clean -f`, xoá `.meta`.
@@ -53,7 +64,7 @@ Installer chọn `.sh` hay `.ps1` theo hệ điều hành lúc cài, và `chmod 
 /gu-release  → Go / No-Go
 ```
 
-Gặp bug: `/gu-bug`. Game giật/nặng: `/gu-perf`. Không biết Core có sẵn gì: `/gu-core`.
+Gặp bug: `/gu-bug`. Game giật/nặng: `/gu-perf`. Không biết Core có sẵn gì: `/gu-core`. Quảng cáo/analytics: `/gu-sdk`. Mua hàng: `/gu-iap`.
 
 ## Sửa template
 

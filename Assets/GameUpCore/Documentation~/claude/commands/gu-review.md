@@ -10,9 +10,11 @@ Kiểm theo đúng thứ tự này, chỉ báo lỗi thật, không báo ý ki�
 
 **1. Luật cứng**
 - `UnityEngine.Debug.*` trong code feature (phải là `GULogger`)
-- Viết lại thứ Core đã có: singleton, pool, event bus, save, popup, coroutine runner
+- Viết lại thứ Core đã có: singleton, pool, event bus, save, popup, coroutine runner — đối chiếu `.claude/gameup-core/API_INDEX.md`
 - Code game nằm trong `Packages/com.ohze.gameup.core/` hoặc namespace `GameUp.Core*`
 - `using` thừa · dead code · local function lồng trong hàm · nhiều public type trong một file
+- (Có GameUp SDK) gọi thẳng API Firebase/AppsFlyer/AdMob/MAX/LevelPlay thay vì `AdsManager`/`GameUpAnalytics`/`FirebaseRemoteConfigUtils`; code đụng SDK bên thứ ba không bọc `#if <X>_DEPENDENCIES_INSTALLED`; show ads thiếu nhánh `onFail` (flow game kẹt) hoặc thưởng rewarded ngoài `onSuccess` — đối chiếu `.claude/gameup-sdk/API_INDEX.md`
+- (Có GameUp IAP) cấp hàng ngoài callback `BuyProduct(..., success => …)` khi `success == true`; tự dựng `StoreController` riêng; `testMode` bật trong build release
 
 **2. Naming** (`CLAUDE.md` §3)
 - private `_camelCase`; `[SerializeField] private` camelCase **không** `_`

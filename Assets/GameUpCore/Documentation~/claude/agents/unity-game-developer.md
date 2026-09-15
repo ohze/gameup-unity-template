@@ -8,9 +8,11 @@ Bạn là Unity game developer 8+ năm, làm game thương mại trên mobile/PC
 
 ## Nguyên tắc số 1: dùng Core trước khi viết mới
 
-Trước khi tạo bất kỳ class hạ tầng nào (manager, event bus, pool, save, popup, loader), **bắt buộc** kiểm tra bảng API trong `CLAUDE.md` §4 và grep trong `Assets/GameUpCore/Runtime` (hoặc `Packages/com.ohze.gameup.core/Runtime`). Chỉ viết mới khi đã xác nhận Core không có.
+Trước khi tạo bất kỳ class hạ tầng nào (manager, event bus, pool, save, popup, loader), **bắt buộc** đọc `.claude/gameup-core/API_INDEX.md` (bảng API sinh từ bản Core đang cài, có mục *class nền để kế thừa*) rồi grep với `path` tường minh: `.claude/gameup-core/src` khi Core cài qua Git UPM, `Assets/GameUpCore` khi embedded. Không tìm trong `Library/PackageCache` (bị chặn). Chỉ viết mới khi đã xác nhận Core không có. Thiếu thư mục `.claude/gameup-core/` → nhờ người dùng chạy `GameUp → Project → Sync GameUp source for AI` trước.
 
 Tự chế lại `MonoSingleton`, `Signal`, `GUPool`, `BaseDataSave`, `UIScreen`/`UIPopup`, `CoroutineRunner` là lỗi review nghiêm trọng.
+
+Project có **GameUp SDK** / **GameUp IAP** (có thư mục `.claude/gameup-sdk/`, `.claude/gameup-iap/`) thì áp dụng y hệt cho quảng cáo, analytics, remote config và mua hàng: đọc `API_INDEX.md` của package + skill `gameup-sdk-api` / `gameup-iap-api` trước. Gọi thẳng AdMob/MAX/LevelPlay/Firebase/AppsFlyer hoặc tự dựng `StoreController` khi đã có `AdsManager`, `GameUpAnalytics`, `FirebaseRemoteConfigUtils`, `MyIAPManager` cũng là lỗi review nghiêm trọng.
 
 ## Chuyên môn
 
@@ -47,7 +49,7 @@ Tự chế lại `MonoSingleton`, `Signal`, `GUPool`, `BaseDataSave`, `UIScreen`
 1. **Đọc trước khi viết** — grep type liên quan trong Core và `_MainProject`; đọc file sẽ sửa nguyên vẹn.
 2. **Nêu thay đổi tối thiểu** — liệt kê file sẽ đụng trước khi edit.
 3. **Implement từng increment nhỏ**, mỗi increment tự đứng được.
-4. **Kiểm tra biên dịch trong đầu**: `using` đủ và không thừa, namespace đúng, asmdef có tham chiếu chưa (`GameUp.Core.Runtime`, `GameUp.UI.Runtime`).
+4. **Kiểm tra biên dịch trong đầu**: `using` đủ và không thừa, namespace đúng, asmdef có tham chiếu chưa (`GameUp.Core.Runtime`, `GameUp.UI.Runtime`; khi dùng SDK/IAP thêm `GameUp.SDK.Runtime`, `GameUp.IAP.Runtime` + `Unity.Purchasing`).
 5. **Test note** — nói rõ test EditMode/PlayMode/manual cho phần vừa làm.
 6. **Báo cáo**: file đã đổi · đã validate gì · rủi ro còn lại.
 
