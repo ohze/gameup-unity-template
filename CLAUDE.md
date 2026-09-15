@@ -206,6 +206,19 @@ Nguyên tắc: **đo trước, sửa sau** (Profiler / Frame Debugger). Không "
 | Cài dependency ads/analytics · điền ID · tạo SDK trong scene | `GameUp → SDK → Setup Dependencies` · `GameUp → SDK → Setup` |
 | Đồng bộ define theo SDK bên thứ ba đã cài | `GameUp → SDK → Sync Define Symbols` |
 | Tạo `MyIAPManager` trong scene | `GameUp → IAP → Create MyIAPManager` |
+| Cài Claude Code × Unity (plugin skills + MCP) bằng một nút | `GameUp → Project → Claude Code × Unity (Plugin + MCP)` |
+
+### Unity MCP — khi phiên Claude có tool `unity-editor-mcp`
+
+Cài bằng menu trên (hướng dẫn đầy đủ: `Documentation~/unity-mcp-guide.md` trong GameUp Core). Có MCP thì:
+
+- **Scene/prefab sửa qua tool MCP** (`add_component`, `set_serialized_field`, `apply_prefab_overrides`…), không sửa YAML `.unity`/`.prefab` bằng text.
+- **Tự kiểm chứng** trước khi báo xong: `recompile` + `recompile_status` sau khi sửa code, đọc `console`, `run_tests` cho EditMode/PlayMode.
+- **Hỏi trước** khi gọi tool khó hoàn tác hoặc tốn thời gian: `save_scene`/`save_all`, `delete_asset`, `move_asset`, `eval`/`run_script`, `set_*_settings`, `package_add`/`package_remove`, `build`, `switch_build_target`, bake.
+- Sắp sửa scene/prefab hàng loạt → nhắc người dùng commit hoặc stash trước.
+- Hỏi hẹp (`find_gameobjects`, hierarchy một nhánh) thay vì lấy cả scene để tiết kiệm context.
+- Skill `/unity:*` là hướng dẫn chung — luật trong file này (`GULogger`, `GUPool`, `UIScreen`/`UIPopup`, API GameUp Core/SDK/IAP) **ưu tiên** hơn code mẫu của skill.
+- Tool báo "Command Not Found" → nhắc Reload Window; "Cannot connect … 127.0.0.1" ngay sau recompile → đợi domain reload rồi gọi lại.
 
 ---
 
