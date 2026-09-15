@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Added
+- **Trình cài một nút Cursor × Unity MCP (`GameUp/Project/Cursor × Unity (MCP)`).** Cùng giao diện và cách chạy với trình cài của Claude Code, 7 bước kiểm tra → cài nếu thiếu → kiểm tra lại: Cursor trên máy, Unity CLI, server `unity` trong `~/.cursor/mcp.json` qua `unity mcp configure cursor --yes` (đã thử thật: gộp vào file có sẵn, giữ server khác; vẫn backup `mcp.gameup-backup.json`), 31 skill chính thức của Unity vào `~/.cursor/skills` (lấy từ cache plugin Claude Code, không có thì `git clone --depth 1` repo plugin), rules/skills GameUp + rule mới `unity-mcp.mdc`, `com.unity.pipeline`, Editor ready. `GameUp → Settings` có dòng trạng thái ngay dưới mục Cursor IDE.
+  - Tách lõi chung `GUMcpInstallRunner` (vòng chạy, lệnh ngoài, log, tự chạy tiếp sau domain reload, bước Unity CLI / pipeline / Editor ready) và `GUMcpInstallerWindowBase` (giao diện); trình cài Claude Code và Cursor chỉ khai báo bước riêng. `GUClaudeUnityMcpStep` đổi tên thành `GUMcpInstallStep` (giữ `.meta`).
+  - Guide `unity-mcp-guide.md` thêm mục 10 "Cursor × Unity MCP".
+  - **Sửa "Cursor không thấy tool Unity dù server Connected":** Cursor chạy server MCP với cwd = thư mục home nên `unity mcp` không tìm ra Editor và trả 0 tool (đo thật: cwd=home → 0, cwd=project hoặc `--project-path` → 151; `UNITY_PROJECT_PATH` không tác dụng). Trình cài đặt args `["mcp", "--project-path", "${workspaceFolder}"]` — Cursor 3.20 thay biến bằng thư mục đang mở, một cấu hình user dùng cho mọi project. Không truyền được biến qua CLI (nó ghép thành `/home/<user>/${workspaceFolder}`) nên sửa thẳng mảng args của entry `unity`; bước kiểm tra chỉ báo XONG khi có `--project-path ${workspaceFolder}`. Hướng dẫn sau khi cài nhắc thoát hẳn Cursor, bật server, mở chat mới.
+
 ### Changed
 - **Cursor dùng toàn bộ skill của bộ Claude.** Installer Cursor copy thẳng `Documentation~/claude/skills` sang `.cursor/skills` (12 skill: `gameup-core-api`, `gameup-sdk-api`, `gameup-iap-api`, `gameup-sdk-installer-flow`, `unity-*`) thay vì template `cursor-skills` riêng chỉ có 1 skill và đã lệch bản Claude — gỡ template đó, một nguồn cho cả hai IDE. Index `.claude/gameup-*/API_INDEX.md` nay tự sync cả khi project chỉ dùng Cursor (skill tra API cần nó); cài Cursor rules cũng sync luôn.
 - **`GameUp → Settings`: nút "Mở thư mục .claude" / "Mở CLAUDE.md" chuyển về ngay dưới dòng Claude Code.** Trước đây chúng nằm ở hàng chung bên dưới mục Cursor nên nhìn như Cursor mở Claude; mục Cursor có nút riêng "Mở thư mục .cursor" / "Mở .cursorrules", hàng chung chỉ còn "Chọn lại".
