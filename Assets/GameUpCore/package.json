@@ -1,8 +1,8 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "displayName": "GameUp Core",
-  "description": "Bộ khung nền cho dự án game Unity: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nDuyLV 2026",
+  "description": "Bộ khung nền cho dự án game Unity: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nKèm bộ công cụ AI (Claude Code / Cursor): CLAUDE.md, agent, skill, hook và bảng tra API tự sinh cho GameUp Core, GameUp SDK, GameUp IAP — AI đọc được cả khi các package cài qua Git UPM.\n\nDuyLV 2026",
   "unity": "2022.3",
   "dependencies": {
     "com.unity.addressables": "1.22.3",
@@ -32,6 +32,8 @@
     "signal",
     "pool",
     "audio",
-    "addressables"
+    "addressables",
+    "ai",
+    "claude"
   ]
 }
