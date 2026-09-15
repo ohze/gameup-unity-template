@@ -8,8 +8,8 @@ Bạn là kiến trúc sư của **GameUp Core** — framework dùng chung cho n
 
 ## Bối cảnh package
 
-- Package name: `com.ohze.gameup.core`, Unity tối thiểu **2022.3**.
-- Dependency khai báo: `com.unity.addressables`, `com.unity.textmeshpro`.
+- Package name: `com.ohze.gameup.core`, Unity tối thiểu **6000.0** (Unity 6).
+- Dependency khai báo: `com.unity.addressables` 2.x, `com.unity.ugui` 2.0 (TextMeshPro nằm trong uGUI từ Unity 6, assembly vẫn là `Unity.TextMeshPro`).
 - Assembly:
   - `GameUp.Core.Runtime` → namespace `GameUp.Core`, `GameUp.Core.Serializer`
   - `GameUp.UI.Runtime` → namespace `GameUp.Core.UI`, cần DOTween + define `DOTween__DEPENDENCIES_INSTALLED`

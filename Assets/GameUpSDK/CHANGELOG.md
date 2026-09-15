@@ -8,6 +8,8 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Changed
 
+- **BREAKING — 2.0.0 yêu cầu Unity 6 (`"unity": "6000.0"`) và GameUp Core ≥ 0.7.0.** Không đổi API; `com.unity.services.core` 1.12.0 → 1.18.0 theo bản Unity 6 đã resolve và chạy thật trên template. Project còn ở 2022.3 hãy ghim Git URL về commit trước bản này. GameUp IAP lên 2.0.0 cùng lý do (Unity 6, cần Core ≥ 0.7.0 + SDK ≥ 2.0.0; `com.unity.purchasing` giữ 5.2.1).
+
 - **`package.json` 1.4.1 — chỉ metadata, không đổi code.** Mô tả liệt kê đủ tính năng hiện có (AppLovin MAX, AppMetrica, Native Ads, Remote Config, consent ATT/GDPR) thay vì bản cũ chỉ nhắc LevelPlay/AdMob; thêm keyword `applovin-max`, `appmetrica`, `remote-config`. Kết hợp GameUp Core ≥ 0.6.0, Claude Code đọc được API SDK kể cả khi cài qua Git UPM: `.claude/gameup-sdk/API_INDEX.md`, skill `gameup-sdk-api`, lệnh `/gu-sdk`.
 
 ### Fixed

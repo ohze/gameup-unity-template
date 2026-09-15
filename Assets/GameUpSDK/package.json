@@ -1,9 +1,9 @@
 {
   "name": "com.ohze.gameup.sdk",
   "displayName": "GameUp SDK",
-  "version": "1.4.1",
-  "unity": "2022.3",
-  "description": "GameUp SDK — quảng cáo đa mediation (AdMob, AppLovin MAX, IronSource LevelPlay: banner, interstitial, rewarded, app open, native) kèm luật capping / remove ads, analytics (Firebase, AppsFlyer, AppMetrica, GameAnalytics, Facebook), Firebase Remote Config và consent ATT/GDPR.\n\nCần GameUp Core. Sau khi cài, cửa sổ Setup Dependencies hướng dẫn cài SDK bên thứ ba và đồng bộ Scripting Define Symbols. Với GameUp Core ≥ 0.6.0, Claude Code có bảng tra API tự sinh (.claude/gameup-sdk) để dùng đúng AdsManager / GameUpAnalytics.\n\nDuyLV 2026",
+  "version": "2.0.0",
+  "unity": "6000.0",
+  "description": "GameUp SDK — quảng cáo đa mediation (AdMob, AppLovin MAX, IronSource LevelPlay: banner, interstitial, rewarded, app open, native) kèm luật capping / remove ads, analytics (Firebase, AppsFlyer, AppMetrica, GameAnalytics, Facebook), Firebase Remote Config và consent ATT/GDPR.\n\nCần Unity 6 và GameUp Core ≥ 0.7.0. Sau khi cài, cửa sổ Setup Dependencies hướng dẫn cài SDK bên thứ ba và đồng bộ Scripting Define Symbols. Với GameUp Core ≥ 0.6.0, Claude Code có bảng tra API tự sinh (.claude/gameup-sdk) để dùng đúng AdsManager / GameUpAnalytics.\n\nDuyLV 2026",
   "keywords": [
     "gameup",
     "ads",
@@ -34,7 +34,7 @@
   "documentationUrl": "https://github.com/ohze/gameup-unity-template/blob/main/README.md",
   "changelogUrl": "https://raw.githubusercontent.com/ohze/gameup-unity-template/main/Assets/GameUpSDK/CHANGELOG.md",
   "dependencies": {
-    "com.unity.services.core": "1.12.0",
+    "com.unity.services.core": "1.18.0",
     "com.unity.ads.ios-support": "1.0.1"
   }
 }

@@ -1,12 +1,12 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "displayName": "GameUp Core",
-  "description": "Bộ khung nền cho dự án game Unity: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nKèm bộ công cụ AI (Claude Code / Cursor): CLAUDE.md, agent, skill, hook và bảng tra API tự sinh cho GameUp Core, GameUp SDK, GameUp IAP — AI đọc được cả khi các package cài qua Git UPM.\n\nDuyLV 2026",
-  "unity": "2022.3",
+  "description": "Bộ khung nền cho dự án game Unity 6: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nKèm bộ công cụ AI (Claude Code / Cursor): CLAUDE.md, agent, skill, hook, bảng tra API tự sinh cho GameUp Core, GameUp SDK, GameUp IAP, và trình cài một nút Claude Code × Unity (plugin skills + MCP điều khiển Editor).\n\nDuyLV 2026",
+  "unity": "6000.0",
   "dependencies": {
-    "com.unity.addressables": "1.22.3",
-    "com.unity.textmeshpro": "3.0.6"
+    "com.unity.addressables": "2.9.1",
+    "com.unity.ugui": "2.0.0"
   },
   "repository": {
     "type": "git",
@@ -34,6 +34,7 @@
     "audio",
     "addressables",
     "ai",
-    "claude"
+    "claude",
+    "mcp"
   ]
 }

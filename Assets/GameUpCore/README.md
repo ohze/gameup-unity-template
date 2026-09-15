@@ -2,7 +2,7 @@
 
 Bộ khung nền cho dự án game Unity: singleton, signal, object pool, UI screen/popup, audio, lưu dữ liệu cục bộ, bootstrap và scene loader.
 
-- Unity tối thiểu: **2022.3**
+- Unity tối thiểu: **6000.0** (Unity 6) — project còn ở 2022.3 ghim Git URL về commit trước Core 0.7.0
 - Namespace: `GameUp.Core`, `GameUp.Core.UI`
 - Assembly: `GameUp.Core.Runtime`, `GameUp.UI.Runtime`, `GameUp.Core.Editor`
 
@@ -27,7 +27,7 @@ Thêm vào `Packages/manifest.json`:
 "com.ohze.gameup.core": "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpCore"
 ```
 
-Package phụ thuộc `com.unity.addressables` và `com.unity.textmeshpro` — Package Manager tự kéo về.
+Package phụ thuộc `com.unity.addressables` 2.x và `com.unity.ugui` 2.0 (TextMeshPro nằm trong uGUI từ Unity 6) — Package Manager tự kéo về.
 
 ### 3. Dựng cấu trúc dự án
 

@@ -1,6 +1,6 @@
 # GameUp Unity Template
 
-**GameUp Core Framework** là nền tảng cốt lõi cho Unity (2022.3 LTS trở lên): Singleton, Signal, Object Pool, Logger, Audio, lưu trữ có mã hóa, **UI (Screen / Popup)** tích hợp Addressables và DOTween, cùng các cửa sổ Editor để setup nhanh. **GameUp SDK** (`com.ohze.gameup.sdk`, thư mục `Assets/GameUpSDK`) bổ sung **quảng cáo** (IronSource LevelPlay / AdMob App Open), **analytics** (Firebase, AppsFlyer; tùy chọn GameAnalytics, Facebook bootstrap), **Firebase Remote Config** — xem [B10](#b10-gameup-sdk-assetsgameupsdk).
+**GameUp Core Framework** là nền tảng cốt lõi cho Unity 6 (6000.0 trở lên): Singleton, Signal, Object Pool, Logger, Audio, lưu trữ có mã hóa, **UI (Screen / Popup)** tích hợp Addressables và DOTween, cùng các cửa sổ Editor để setup nhanh. **GameUp SDK** (`com.ohze.gameup.sdk`, thư mục `Assets/GameUpSDK`) bổ sung **quảng cáo** (IronSource LevelPlay / AdMob App Open), **analytics** (Firebase, AppsFlyer; tùy chọn GameAnalytics, Facebook bootstrap), **Firebase Remote Config** — xem [B10](#b10-gameup-sdk-assetsgameupsdk).
 
 ---
 
@@ -180,7 +180,7 @@ Sau đó có thể tạo prefab Popup/Screen, để `ViewCreatorPostProcessor` h
 - **`Prefab/`** — Prefab mẫu Core + UI (Manager, UI root, Loading, Toast…) được **Core setup** copy sang `_MainProject`.
 - **`Editor/`** — `GUProjectFolderSetupWindow`, `GUCoreProjectSetup`, `GULoggerMenu`, `GUAudioManagerWindow`, menu Poolers, v.v.
 
-File `package.json` của core ghi rõ Unity **2022.3** và dependency **Addressables**.
+File `package.json` của core ghi rõ Unity **6000.0** và dependency **Addressables 2.x** + **uGUI 2.0** (đã gồm TextMeshPro). Project còn ở 2022.3 ghim Git URL về commit trước Core 0.7.0.
 
 ---
 
@@ -321,7 +321,7 @@ Hoặc key `com.gameup.core` trong `manifest.json` như mục A3.
 
 Dùng repo này làm project gốc:
 
-1. Clone, mở bằng Unity Hub (**2022.3+**).
+1. Clone, mở bằng Unity Hub (**Unity 6 — 6000.3.21f1**).
 2. Làm **Bước 1 DOTween** nếu chưa có Modules trong project.
 3. Mở scene mẫu (ví dụ `Assets/Scenes/SampleScene.unity`).
 4. Chạy **Folder Setup → Create All Folders** nếu `_MainProject` chưa có.
@@ -626,7 +626,7 @@ public class SlowMotionExample : MonoBehaviour
 
 ## B10. GameUp SDK (`Assets/GameUpSDK`)
 
-**GameUp SDK** (`com.ohze.gameup.sdk`, Unity **2022.3+**) tích hợp **Ads** (IronSource/LevelPlay: Banner, Interstitial, Rewarded; **AdMob** cho App Open), **Analytics** (Firebase Analytics + Crashlytics + Remote Config, AppsFlyer MMP; tùy chọn **GameAnalytics** progression level/wave; **Facebook SDK** bootstrap qua installer), **Remote Config** với auto-sync vào field cùng tên.
+**GameUp SDK** (`com.ohze.gameup.sdk`, Unity **6000.0+**) tích hợp **Ads** (IronSource/LevelPlay: Banner, Interstitial, Rewarded; **AdMob** cho App Open), **Analytics** (Firebase Analytics + Crashlytics + Remote Config, AppsFlyer MMP; tùy chọn **GameAnalytics** progression level/wave; **Facebook SDK** bootstrap qua installer), **Remote Config** với auto-sync vào field cùng tên.
 
 **Phụ thuộc:** assembly runtime **`GameUp.SDK.Runtime`** reference **`GameUp.Core.Runtime`** — cần cài **GameUp Core** trước (mục [A3](#a3-bước-2--thêm-gameupcore-qua-git-upm) hoặc clone template đã có sẵn cả hai package).
 
