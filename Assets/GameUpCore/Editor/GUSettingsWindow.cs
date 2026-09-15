@@ -50,7 +50,8 @@ namespace GameUp.Core.Editor
             if (!GUCoreUserPrefs.AiToolkitChoiceMade)
                 return false;
 
-            if (GUCoreUserPrefs.UseClaudeToolkit && !GUClaudeToolkitInstaller.GetStatus().IsComplete)
+            if (GUCoreUserPrefs.UseClaudeToolkit
+                && (!GUClaudeToolkitInstaller.GetStatus().IsComplete || !GUCoreSourceMirror.IsSynced()))
                 return false;
 
             if (GUCoreUserPrefs.UseCursorToolkit && !GUCursorRulesInstaller.IsInstalled())
@@ -211,8 +212,36 @@ namespace GameUp.Core.Editor
             }
 
             GUInstallerUI.Hint(
-                "4 agent · 10 skill · 11 lệnh /gu-* · hook chặn lệnh phá huỷ và bắt logger sai chuẩn. "
+                "4 agent · 12 skill · 13 lệnh /gu-* · hook chặn lệnh phá huỷ và bắt logger sai chuẩn. "
                 + ".claude/settings.local.json cá nhân không bị đụng tới.");
+
+            EditorGUILayout.Space(4);
+            DrawCoreSourceRow(enabled);
+        }
+
+        private void DrawCoreSourceRow(bool claudeEnabled)
+        {
+            var synced = GUCoreSourceMirror.IsSynced();
+            var state = !claudeEnabled
+                ? GUSetupState.Optional
+                : synced
+                    ? GUSetupState.Done
+                    : GUSetupState.Missing;
+
+            if (GUInstallerUI.StatusRow(
+                    ".claude/gameup-{core, sdk, iap} · API_INDEX.md + source cho AI",
+                    state,
+                    GUCoreSourceMirror.DescribeStatus(),
+                    "Đồng bộ",
+                    claudeEnabled))
+            {
+                GUCoreSourceMirror.Sync(force: true, log: true);
+                Repaint();
+            }
+
+            GUInstallerUI.Hint(
+                "Core/SDK/IAP cài qua Git UPM nằm trong Library/PackageCache — Claude bị chặn đọc ở đó nên không thấy UIScreen/UIPopup, AdsManager, MyIAPManager… "
+                + "Mục này chép source và sinh bảng tra API cho từng package; tự chạy lại khi cài, gỡ hoặc đổi version.");
         }
 
         private void DrawCursorRow()

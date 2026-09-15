@@ -3,6 +3,7 @@
     "rootNamespace": "GameUp.Core.Tests",
     "references": [
         "GameUp.Core.Runtime",
+        "GameUp.Core.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

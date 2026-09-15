@@ -112,7 +112,8 @@ namespace GameUp.Core.Editor
                     "Ghi vào gốc project:\n" +
                     "• CLAUDE.md (quy ước dự án)\n" +
                     "• .claude/agents, .claude/skills, .claude/commands, .claude/hooks\n" +
-                    "• .claude/settings.json (hook chặn lệnh nguy hiểm + lint C#)\n\n" +
+                    "• .claude/settings.json (hook chặn lệnh nguy hiểm + lint C#)\n" +
+                    "• .claude/gameup-core (API index + source Core cho AI đọc)\n\n" +
                     "File .claude/settings.local.json của bạn không bị đụng tới.\n" +
                     "Tiếp tục?",
                     "Cài / Cập nhật",
@@ -149,6 +150,9 @@ namespace GameUp.Core.Editor
 
             written += WriteSettings(templates, overwrite, log) ? 1 : 0;
             MarkHookScriptsExecutable();
+
+            // CLAUDE.md trỏ AI tới .claude/gameup-core — thiếu thư mục đó thì bản cài qua Git UPM bị "mù" API Core.
+            GUCoreSourceMirror.Sync(force: overwrite, log: log);
 
             if (log)
             {
