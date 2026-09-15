@@ -1,9 +1,9 @@
 {
   "name": "com.ohze.gameup.sdk",
   "displayName": "GameUp SDK",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "unity": "2022.3",
-  "description": "GameUp SDK — quảng cáo (IronSource LevelPlay / AdMob, App Open), analytics (Firebase, AppsFlyer), GameAnalytics (level/wave) và Facebook SDK (bootstrap / analytics).\n\nSau khi cài, cửa sổ Setup Dependencies hướng dẫn Firebase, AppsFlyer, GameAnalytics, Facebook, mediation và đồng bộ Scripting Define Symbols. \n\nDuyLV 2026",
+  "description": "GameUp SDK — quảng cáo đa mediation (AdMob, AppLovin MAX, IronSource LevelPlay: banner, interstitial, rewarded, app open, native) kèm luật capping / remove ads, analytics (Firebase, AppsFlyer, AppMetrica, GameAnalytics, Facebook), Firebase Remote Config và consent ATT/GDPR.\n\nCần GameUp Core. Sau khi cài, cửa sổ Setup Dependencies hướng dẫn cài SDK bên thứ ba và đồng bộ Scripting Define Symbols. Với GameUp Core ≥ 0.6.0, Claude Code có bảng tra API tự sinh (.claude/gameup-sdk) để dùng đúng AdsManager / GameUpAnalytics.\n\nDuyLV 2026",
   "keywords": [
     "gameup",
     "ads",
@@ -16,7 +16,10 @@
     "gameanalytics",
     "facebook",
     "mediation",
-    "mmp"
+    "mmp",
+    "applovin-max",
+    "appmetrica",
+    "remote-config"
   ],
   "author": {
     "name": "GameUp",

@@ -6,6 +6,10 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ## [Unreleased]
 
+### Changed
+
+- **`package.json` 1.4.1 — chỉ metadata, không đổi code.** Mô tả liệt kê đủ tính năng hiện có (AppLovin MAX, AppMetrica, Native Ads, Remote Config, consent ATT/GDPR) thay vì bản cũ chỉ nhắc LevelPlay/AdMob; thêm keyword `applovin-max`, `appmetrica`, `remote-config`. Kết hợp GameUp Core ≥ 0.6.0, Claude Code đọc được API SDK kể cả khi cài qua Git UPM: `.claude/gameup-sdk/API_INDEX.md`, skill `gameup-sdk-api`, lệnh `/gu-sdk`.
+
 ### Fixed
 
 - **Bỏ `MobileAds.RaiseAdEventsOnUnityMainThread` (obsolete từ Google Mobile Ads 10.7) và tự marshal callback.** Cờ này trước đây gánh việc đưa mọi callback AdMob về main thread; bỏ đi mà không sửa gì thì callback quay lại thread native và mọi thao tác Unity API trong đó sẽ ném exception. Đã bọc lại các chỗ trước đây dựa vào nó:
