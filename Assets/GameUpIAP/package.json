@@ -1,12 +1,15 @@
 {
   "name": "com.ohze.gameup.iap",
   "displayName": "GameUp IAP",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "unity": "2022.3",
-  "description": "GameUp IAP - Unity IAP Manager. \n\nDuyLV 2026",
+  "description": "GameUp IAP — Unity IAP v5 bọc sẵn trong MyIAPManager: khai báo sản phẩm (IAPProductDefinition), khởi tạo, mua, giá localize, kiểm chữ ký receipt chống hack (IAPReceiptValidator) và gửi analytics mua hàng.\n\nCần GameUp Core và GameUp SDK. Hướng dẫn: Doc/README.md. Với GameUp Core ≥ 0.6.0, Claude Code có bảng tra API tự sinh (.claude/gameup-iap) để dùng đúng MyIAPManager.\n\nDuyLV 2026",
   "keywords": [
     "gameup",
-    "iap"
+    "iap",
+    "in-app-purchase",
+    "unity-purchasing",
+    "receipt-validation"
   ],
   "author": {
     "name": "GameUp",
