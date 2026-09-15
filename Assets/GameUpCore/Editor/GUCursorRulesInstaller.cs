@@ -20,8 +20,13 @@ namespace GameUp.Core.Editor
         private const string IdeCursorPackageDirName = "com.boxqkrtm.ide.cursor";
         private const string CursorRulesTemplatesDirName = "cursor-rules";
         private const string CursorProjectRootTemplatesDirName = "cursor-project-root";
-        private const string CursorSkillsTemplatesDirName = "cursor-skills";
         private const string CursorHooksTemplatesDirName = "cursor-hooks";
+
+        /// <summary>
+        /// Skill dùng chung một nguồn với bộ Claude (<c>Documentation~/claude/skills</c>): cùng định dạng <c>SKILL.md</c>,
+        /// nội dung không phụ thuộc IDE. Trước đây Cursor có bản copy riêng nên lệch và thiếu skill tra API Core/SDK/IAP.
+        /// </summary>
+        private const string SharedSkillsTemplatesDirName = "claude";
 
         private static AddRequest _ideCursorAddRequest;
 
@@ -31,6 +36,15 @@ namespace GameUp.Core.Editor
         private static string DestRulesDir => Path.Combine(ProjectRoot, ".cursor", "rules");
         private static string DestSkillsDir => Path.Combine(ProjectRoot, ".cursor", "skills");
         private static string DestHooksDir => Path.Combine(ProjectRoot, ".cursor", "hooks");
+
+        internal static string CursorRulesFilePath => Path.Combine(ProjectRoot, ".cursorrules");
+
+        /// <summary>Mở thư mục .cursor trong file explorer (nút phụ của cửa sổ Settings).</summary>
+        internal static void RevealCursorFolder()
+        {
+            Directory.CreateDirectory(DestCursorDir);
+            EditorUtility.RevealInFinder(DestCursorDir);
+        }
 
         /// <summary>Rules đã có ở gốc project chưa (tính từ file thật, không từ EditorPrefs).</summary>
         internal static bool IsInstalled()
@@ -84,7 +98,8 @@ namespace GameUp.Core.Editor
                     "GameUp Core",
                     "Thực hiện:\n" +
                     "• Thêm package IDE Cursor qua Git (nếu chưa có): com.boxqkrtm.ide.cursor\n" +
-                    "• Ghi đè / cập nhật .cursor/rules/*.mdc, .cursor/skills/*, .cursor/hooks*, .cursorrules, .cursorignore tại gốc project\n\n" +
+                    "• Ghi đè / cập nhật .cursor/rules/*.mdc, .cursor/hooks*, .cursorrules, .cursorignore tại gốc project\n" +
+                    "• .cursor/skills/* — toàn bộ skill dùng chung với bộ Claude\n\n" +
                     "Tiếp tục?",
                     "OK",
                     "Cancel"))
@@ -116,7 +131,7 @@ namespace GameUp.Core.Editor
 
             var rulesSrc = Path.Combine(packageRoot, "Documentation~", CursorRulesTemplatesDirName);
             var rootTemplates = Path.Combine(packageRoot, "Documentation~", CursorProjectRootTemplatesDirName);
-            var skillsSrc = Path.Combine(packageRoot, "Documentation~", CursorSkillsTemplatesDirName);
+            var skillsSrc = Path.Combine(packageRoot, "Documentation~", SharedSkillsTemplatesDirName, "skills");
             var hooksSrc = Path.Combine(packageRoot, "Documentation~", CursorHooksTemplatesDirName);
 
             if (!Directory.Exists(rulesSrc))
@@ -147,6 +162,9 @@ namespace GameUp.Core.Editor
 
             CopyAllSkills(skillsSrc, DestSkillsDir, overwrite);
             CopyHooksTemplates(hooksSrc, overwrite);
+
+            // Skill gameup-core/sdk/iap-api trỏ tới .claude/gameup-*/API_INDEX.md — thiếu index là skill vô dụng.
+            GUCoreSourceMirror.Sync(force: overwrite, log: log);
 
             if (addIdePackage)
             {

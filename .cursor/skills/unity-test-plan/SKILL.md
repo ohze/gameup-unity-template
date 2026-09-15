@@ -1,35 +1,44 @@
 ---
 name: unity-test-plan
-description: Produces pragmatic Unity test plans across edit mode, play mode, and manual checks. Use when preparing validation for a feature, bug fix, or release candidate.
-disable-model-invocation: true
+description: Lập test plan thực dụng cho Unity gồm EditMode, PlayMode và kịch bản manual tái hiện được. Dùng khi chuẩn bị validate một feature, một bug fix, hoặc một build ứng viên.
 ---
 
 # Unity Test Plan
 
-## Plan Sections
+## Chọn tầng test
+
+| Thứ cần kiểm | Tầng |
+|---|---|
+| Tính toán, save/`Migrate`, serializer, utils, editor tooling | EditMode (`Tests/Editor`) |
+| Pool, audio, UI flow, coroutine, bootstrap, thứ cần `Awake`/frame | PlayMode (`Tests/Runtime`) |
+| Cảm giác chơi, VFX, thiết bị thật, IAP/Ads/store | Manual |
+
+## Output
 
 ```markdown
 ## Scope
-- Feature/bug:
-- Risk level:
+- Feature/bug: · Risk level: low|medium|high
 
 ## Automated Tests
 - EditMode:
 - PlayMode:
 
 ## Manual Scenarios
-- Scenario 1:
-- Scenario 2:
+- Scenario 1: scene → setup → thao tác → kết quả mong đợi → platform
 
 ## Non-Functional Checks
-- Performance:
-- Memory/GC:
+- Performance (FPS, frame spike):
+- Memory / GC alloc:
 - Platform-specific:
+
+## Deferred
+- Test hoãn — lý do — khi nào bổ sung:
 ```
 
 ## Rules
 
-- Tie each acceptance criterion to at least one test.
-- Include one negative case and one edge case.
-- Keep manual scenarios reproducible.
-- If tests are deferred, explicitly record why and when they will be added.
+- Mỗi acceptance criterion ↔ ít nhất một test.
+- Bắt buộc có 1 negative case và 1 edge case.
+- Kịch bản manual phải tái hiện được bởi người khác (nêu scene, build, thiết bị).
+- Test phải dọn state (`PlayerPrefs`/save) trong `SetUp`/`TearDown` — save của Core mã hoá và lưu trong PlayerPrefs, rất dễ rò giữa các test.
+- Không assert theo thời gian thực; PlayMode đếm frame hoặc `yield` tường minh.

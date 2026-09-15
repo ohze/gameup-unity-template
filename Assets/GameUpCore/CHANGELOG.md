@@ -5,6 +5,8 @@
 ## [Unreleased]
 
 ### Changed
+- **Cursor dùng toàn bộ skill của bộ Claude.** Installer Cursor copy thẳng `Documentation~/claude/skills` sang `.cursor/skills` (12 skill: `gameup-core-api`, `gameup-sdk-api`, `gameup-iap-api`, `gameup-sdk-installer-flow`, `unity-*`) thay vì template `cursor-skills` riêng chỉ có 1 skill và đã lệch bản Claude — gỡ template đó, một nguồn cho cả hai IDE. Index `.claude/gameup-*/API_INDEX.md` nay tự sync cả khi project chỉ dùng Cursor (skill tra API cần nó); cài Cursor rules cũng sync luôn.
+- **`GameUp → Settings`: nút "Mở thư mục .claude" / "Mở CLAUDE.md" chuyển về ngay dưới dòng Claude Code.** Trước đây chúng nằm ở hàng chung bên dưới mục Cursor nên nhìn như Cursor mở Claude; mục Cursor có nút riêng "Mở thư mục .cursor" / "Mở .cursorrules", hàng chung chỉ còn "Chọn lại".
 - **BREAKING — 0.7.0 yêu cầu Unity 6 (`"unity": "6000.0"`).** Template chuyển sang Unity 6000.3.21f1; `package.json` khai báo đúng phụ thuộc Unity 6 đã resolve thật: `com.unity.addressables` 1.22.3 → **2.9.1** (Addressables 2.x không chạy dưới Unity 6), `com.unity.textmeshpro` 3.0.6 → **`com.unity.ugui` 2.0.0** (Unity 6 gộp TextMeshPro vào uGUI; assembly `Unity.TextMeshPro` giữ nguyên tên nên asmdef không đổi). Project còn ở 2022.3 hãy ghim Git URL về commit trước bản này.
 
 ### Added

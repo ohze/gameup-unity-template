@@ -184,13 +184,15 @@ namespace GameUp.Core.Editor
         // ─── Nội bộ ──────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Chỉ tự chạy khi project đã dùng bộ công cụ Claude của GameUp — không tự sinh <c>.claude/</c>
-        /// cho dev chưa chọn (xem <see cref="GUCoreUserPrefs.AiToolkitChoiceMade"/>). Cài/gỡ/cập nhật SDK hay IAP
-        /// đều gây domain reload nên đi qua đây.
+        /// Chỉ tự chạy khi project đã dùng bộ công cụ AI của GameUp (Claude hoặc Cursor — skill của cả hai đều đọc
+        /// <c>API_INDEX.md</c>); không tự sinh file cho dev chưa chọn (xem <see cref="GUCoreUserPrefs.AiToolkitChoiceMade"/>).
+        /// Cài/gỡ/cập nhật SDK hay IAP đều gây domain reload nên đi qua đây.
         /// </summary>
         private static void SyncOnEditorLoad()
         {
-            if (!GUCoreUserPrefs.UseClaudeToolkit || GUClaudeToolkitInstaller.GetStatus().Installed == 0)
+            var claudeInUse = GUCoreUserPrefs.UseClaudeToolkit && GUClaudeToolkitInstaller.GetStatus().Installed > 0;
+            var cursorInUse = GUCoreUserPrefs.UseCursorToolkit && GUCursorRulesInstaller.IsInstalled();
+            if (!claudeInUse && !cursorInUse)
                 return;
 
             try

@@ -5,7 +5,7 @@ This workspace includes a lightweight "studio workflow" inspired by CCGS and ada
 ## Included
 
 - Rules in `.cursor/rules/`
-- Skills in `.cursor/skills/`
+- Skills in `.cursor/skills/` — cùng một nguồn với bộ Claude (`Documentation~/claude/skills` của GameUp Core), cài lại bằng `GameUp → Settings → Cursor IDE → Cập nhật`
 - Basic shell safety hook in `.cursor/hooks.json`
 
 ## Core Skills
@@ -16,8 +16,17 @@ This workspace includes a lightweight "studio workflow" inspired by CCGS and ada
 - `unity-refactor-safely`
 - `unity-test-plan`
 - `unity-bug-triage`
+- `unity-perf-audit`
 - `unity-release-checklist`
 - `gameup-sdk-installer-flow`
+
+## GameUp API Skills (tra trước khi viết class mới)
+
+- `gameup-core-api` — Core: logger, singleton, signal, pool, UI screen/popup, save, audio…
+- `gameup-sdk-api` — SDK: `AdsManager`, `GameUpAnalytics`, Remote Config, consent (khi project có cài)
+- `gameup-iap-api` — IAP: `MyIAPManager`, sản phẩm, giá, receipt (khi project có cài)
+
+Các skill này đọc `.claude/gameup-<core|sdk|iap>/API_INDEX.md` — bảng API sinh tự động từ package đang cài, kể cả khi cài qua Git UPM. Thiếu thư mục đó thì chạy `GameUp → Project → Sync GameUp source for AI`.
 
 ## Suggested Daily Flow
 

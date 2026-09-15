@@ -215,6 +215,15 @@ namespace GameUp.Core.Editor
                 "4 agent · 12 skill · 13 lệnh /gu-* · hook chặn lệnh phá huỷ và bắt logger sai chuẩn. "
                 + ".claude/settings.local.json cá nhân không bị đụng tới.");
 
+            EditorGUILayout.BeginHorizontal();
+            if (GUInstallerUI.MiniButton("Mở thư mục .claude", enabled, 150f))
+                GUClaudeToolkitInstaller.RevealClaudeFolder();
+
+            if (GUInstallerUI.MiniButton("Mở CLAUDE.md", enabled && File.Exists(GUClaudeToolkitInstaller.MemoryFilePath), 120f))
+                EditorUtility.OpenWithDefaultApp(GUClaudeToolkitInstaller.MemoryFilePath);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
             EditorGUILayout.Space(4);
             DrawCoreSourceRow(enabled);
 
@@ -301,8 +310,17 @@ namespace GameUp.Core.Editor
             }
 
             GUInstallerUI.Hint(
-                "7 rule .mdc · skills CCGS-lite · hook chặn shell nguy hiểm. "
+                "7 rule .mdc · 12 skill dùng chung với Claude (gameup-core/sdk/iap-api, unity-*) · hook chặn shell nguy hiểm. "
                 + "Kèm thêm package IDE Cursor cho Unity (com.boxqkrtm.ide.cursor).");
+
+            EditorGUILayout.BeginHorizontal();
+            if (GUInstallerUI.MiniButton("Mở thư mục .cursor", enabled, 150f))
+                GUCursorRulesInstaller.RevealCursorFolder();
+
+            if (GUInstallerUI.MiniButton("Mở .cursorrules", enabled && File.Exists(GUCursorRulesInstaller.CursorRulesFilePath), 120f))
+                EditorUtility.OpenWithDefaultApp(GUCursorRulesInstaller.CursorRulesFilePath);
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawAiToolkitActions(bool chosen)
@@ -330,13 +348,8 @@ namespace GameUp.Core.Editor
                 return;
             }
 
+            // Nút mở thư mục/file của từng IDE nằm ngay dưới dòng của IDE đó; hàng chung chỉ còn thao tác chung.
             EditorGUILayout.BeginHorizontal();
-            if (GUInstallerUI.MiniButton("Mở thư mục .claude", GUCoreUserPrefs.UseClaudeToolkit, 150f))
-                GUClaudeToolkitInstaller.RevealClaudeFolder();
-
-            if (GUInstallerUI.MiniButton("Mở CLAUDE.md", File.Exists(GUClaudeToolkitInstaller.MemoryFilePath), 120f))
-                EditorUtility.OpenWithDefaultApp(GUClaudeToolkitInstaller.MemoryFilePath);
-
             GUILayout.FlexibleSpace();
             if (GUInstallerUI.MiniButton("Chọn lại", true, 90f))
             {

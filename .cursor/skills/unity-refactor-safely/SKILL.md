@@ -1,28 +1,32 @@
 ---
 name: unity-refactor-safely
-description: Refactors Unity C# code with behavior preservation and rollback safety. Use when improving architecture, readability, or performance without changing feature behavior.
-disable-model-invocation: true
+description: Refactor C# Unity mà không đổi hành vi và không làm hỏng reference scene/prefab. Dùng khi cải thiện kiến trúc, khả năng đọc hoặc hiệu năng của code đã chạy.
 ---
 
 # Unity Refactor Safely
 
-## Steps
+Rủi ro đặc thù Unity: đổi tên/di chuyển file làm **rơi reference** trong scene/prefab, mất `[SerializeField]` value, hỏng GUID.
 
-1. Define unchanged behavior explicitly.
-2. Identify seams for extraction or simplification.
-3. Refactor in tiny checkpoints.
-4. Run or design regression checks after each checkpoint.
-5. Document what was intentionally not changed.
+## Các bước
 
-## Checklist
+1. Ghi rõ **hành vi phải giữ nguyên**.
+2. Tìm seam để tách/đơn giản hoá; ưu tiên rename/extract/move hơn viết lại.
+3. Refactor theo checkpoint tí một, mỗi checkpoint biên dịch được.
+4. Sau mỗi checkpoint: nêu regression check (test hoặc bước manual).
+5. Ghi lại thứ cố ý **không** đổi.
 
-- [ ] Public behavior preserved
-- [ ] Scene/prefab references still valid
-- [ ] No new allocations in hot paths
-- [ ] Tests or manual regression notes updated
+## Checklist Unity
+
+- [ ] Đổi tên class → **đổi tên file cùng lúc**; Unity mất reference nếu lệch
+- [ ] Xoá/đổi tên `[SerializeField]` field → giá trị Inspector mất; cần `[FormerlySerializedAs]` nếu muốn giữ
+- [ ] Di chuyển file kèm `.meta` (dùng `git mv`, không copy-delete)
+- [ ] Đổi namespace không làm mất script reference trên prefab (GUID không đổi khi chỉ đổi namespace)
+- [ ] Prefab variant / nested prefab vẫn nguyên override
+- [ ] Không phát sinh alloc mới ở hot path
+- [ ] Test hoặc ghi chú regression manual đã cập nhật
 
 ## Guardrails
 
-- Prefer rename/extract/move over broad rewrites.
-- Stop if refactor becomes feature work.
-- Keep file moves and namespace changes explicit to avoid broken Unity references.
+- Dừng lại nếu refactor đang biến thành làm feature.
+- Không refactor lớn trong `Packages/com.ohze.gameup.core/` — đó là bản restore.
+- Nêu tường minh mọi file move / namespace change để người review kiểm reference.
