@@ -20,6 +20,7 @@ MonoBehaviour:
       m_AssetGUID: 1fd9d7f7cfe812d478608e0d6c9993f0
       m_SubObjectName: 
       m_SubObjectType: 
+      m_SubObjectGUID: 
       m_EditorAssetChanged: 0
   - name: ScreenTest2
     typeName: ScreenTest2
@@ -27,4 +28,5 @@ MonoBehaviour:
       m_AssetGUID: 27e58f661067e894fae15b63600af4b4
       m_SubObjectName: 
       m_SubObjectType: 
+      m_SubObjectGUID: 
       m_EditorAssetChanged: 0
