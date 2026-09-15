@@ -339,7 +339,7 @@ namespace GameUp.Core.Editor
             }
         }
 
-        private static void CopyDirectoryRecursive(string sourceDir, string destDir, bool overwrite)
+        internal static void CopyDirectoryRecursive(string sourceDir, string destDir, bool overwrite)
         {
             Directory.CreateDirectory(destDir);
             var normalizedSource = sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

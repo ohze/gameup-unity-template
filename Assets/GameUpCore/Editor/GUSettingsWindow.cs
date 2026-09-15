@@ -228,35 +228,40 @@ namespace GameUp.Core.Editor
             DrawCoreSourceRow(enabled);
 
             EditorGUILayout.Space(4);
-            DrawUnityMcpRow();
+            if (DrawUnityMcpRow(
+                    GUClaudeUnityMcpInstaller.Runner,
+                    "Claude Code × Unity · plugin skills + MCP điều khiển Editor",
+                    "Một nút cài plugin unity, Unity CLI, MCP unity-editor-mcp và com.unity.pipeline — Claude đọc scene, bấm Play, "
+                    + $"đọc Console, chạy test trên Editor đang mở. Phần pipeline cần Unity {GUMcpInstallRunner.MinUnityMajorVersion}.0+."))
+            {
+                GUClaudeUnityMcpWindow.Open();
+            }
         }
 
         /// <summary>
+        /// Dòng trạng thái của một trình cài "IDE × Unity MCP"; trả về true khi bấm "Mở trình cài".
         /// Không tự chạy kiểm tra ở đây: kiểm tra phải gọi nhiều lệnh ngoài (claude, unity CLI), chỉ chạy khi mở trình cài.
         /// </summary>
-        private void DrawUnityMcpRow()
+        private static bool DrawUnityMcpRow(GUMcpInstallRunner runner, string label, string hint)
         {
-            var done = GUClaudeUnityMcpInstaller.CountDone(out var applicable);
-            var busy = GUClaudeUnityMcpInstaller.IsBusy;
+            var done = runner.CountDone(out var applicable);
+            var busy = runner.IsBusy;
             var state = busy
                 ? GUSetupState.Busy
-                : !GUClaudeUnityMcpInstaller.HasChecked
+                : !runner.HasChecked
                     ? GUSetupState.Optional
                     : done >= applicable
                         ? GUSetupState.Done
                         : GUSetupState.Missing;
             var detail = busy
-                ? GUClaudeUnityMcpInstaller.CurrentActivity ?? "đang kiểm tra…"
-                : GUClaudeUnityMcpInstaller.HasChecked
+                ? runner.CurrentActivity ?? "đang kiểm tra…"
+                : runner.HasChecked
                     ? $"{done}/{applicable} bước"
                     : "chưa kiểm tra";
 
-            if (GUInstallerUI.StatusRow("Claude Code × Unity · plugin skills + MCP điều khiển Editor", state, detail, "Mở trình cài"))
-                GUClaudeUnityMcpWindow.Open();
-
-            GUInstallerUI.Hint(
-                "Một nút cài plugin unity, Unity CLI, MCP unity-editor-mcp và com.unity.pipeline — Claude đọc scene, bấm Play, "
-                + $"đọc Console, chạy test trên Editor đang mở. Phần pipeline cần Unity {GUClaudeUnityMcpInstaller.MinUnityMajorVersion}.0+.");
+            var clicked = GUInstallerUI.StatusRow(label, state, detail, "Mở trình cài");
+            GUInstallerUI.Hint(hint);
+            return clicked;
         }
 
         private void DrawCoreSourceRow(bool claudeEnabled)
@@ -310,7 +315,7 @@ namespace GameUp.Core.Editor
             }
 
             GUInstallerUI.Hint(
-                "7 rule .mdc · 12 skill dùng chung với Claude (gameup-core/sdk/iap-api, unity-*) · hook chặn shell nguy hiểm. "
+                "8 rule .mdc (kèm unity-mcp) · 12 skill dùng chung với Claude (gameup-core/sdk/iap-api, unity-*) · hook chặn shell nguy hiểm. "
                 + "Kèm thêm package IDE Cursor cho Unity (com.boxqkrtm.ide.cursor).");
 
             EditorGUILayout.BeginHorizontal();
@@ -321,6 +326,16 @@ namespace GameUp.Core.Editor
                 EditorUtility.OpenWithDefaultApp(GUCursorRulesInstaller.CursorRulesFilePath);
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.Space(4);
+            if (DrawUnityMcpRow(
+                    GUCursorUnityMcpInstaller.Runner,
+                    "Cursor × Unity · MCP điều khiển Editor + skill Unity",
+                    $"Một nút đăng ký server {GUCursorUnityMcpInstaller.McpServerName} vào ~/.cursor/mcp.json, chép skill chính thức của Unity, "
+                    + $"bù rule unity-mcp.mdc và com.unity.pipeline. Phần pipeline cần Unity {GUMcpInstallRunner.MinUnityMajorVersion}.0+."))
+            {
+                GUCursorUnityMcpWindow.Open();
+            }
         }
 
         private void DrawAiToolkitActions(bool chosen)
@@ -451,6 +466,7 @@ namespace GameUp.Core.Editor
                 EditorGUILayout.Space(3);
                 EditorGUILayout.BeginHorizontal();
                 if (GUInstallerUI.MiniButton("Claude × Unity MCP")) GUClaudeUnityMcpWindow.Open();
+                if (GUInstallerUI.MiniButton("Cursor × Unity MCP")) GUCursorUnityMcpWindow.Open();
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.Space(6);
