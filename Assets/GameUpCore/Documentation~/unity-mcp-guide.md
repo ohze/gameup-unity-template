@@ -355,3 +355,52 @@ RÀNG BUỘC
 - [ ] `unity status` → `ready`
 - [ ] Đã Reload Window VS Code
 - [ ] Thử: "Liệt kê scene đang mở và lỗi trong Console"
+
+---
+
+## 10. Cursor × Unity MCP
+
+Dùng chung Unity CLI và `com.unity.pipeline` với Claude Code — đã cài cho Claude thì Cursor chỉ cần đăng ký MCP và skill.
+
+**Cách nhanh:** Unity Editor → `GameUp → Project → Cursor × Unity (MCP)` → **Cài đặt tất cả** (hoặc nút trong `GameUp → Settings`, mục Cursor IDE). Cửa sổ chạy tuần tự, bước đã xong thì bỏ qua:
+
+| Bước | Kiểm tra | Nếu thiếu |
+|---|---|---|
+| Cursor trên máy | lệnh `cursor` hoặc thư mục `~/.cursor` | cài và mở Cursor một lần |
+| Unity CLI | `unity --version` | script cài channel beta |
+| MCP server `unity` | `~/.cursor/mcp.json` có entry `unity` với args `--project-path ${workspaceFolder}` | `unity mcp configure cursor --yes` (gộp vào file có sẵn, giữ server khác; backup `mcp.gameup-backup.json`) rồi sửa args |
+| Skill chính thức của Unity | `~/.cursor/skills/unity-cli/SKILL.md` | chép 31 skill từ cache plugin Claude Code, hoặc `git clone --depth 1` repo `Unity-Technologies/unity-agent-plugin` |
+| Rules + skills GameUp | `.cursor/rules/gameup-core-usage.mdc` + `unity-mcp.mdc` | bù file còn thiếu từ template GameUp Core |
+| `com.unity.pipeline` | `Packages/manifest.json` | `unity pipeline install` |
+| Editor ready | `unity status --json` | xem lỗi compile / Safe Mode |
+
+**Cách tay:**
+
+```bash
+unity mcp configure cursor --yes        # ~/.cursor/mcp.json — KHÔNG dùng --local (đường dẫn tuyệt đối của máy bạn sẽ bị commit)
+mkdir -p ~/.cursor/skills
+cp -r ~/.claude/plugins/cache/unity-agent-plugin/unity/<version>/skills/. ~/.cursor/skills/
+```
+
+Rồi **sửa tay** entry `unity` trong `~/.cursor/mcp.json` cho có `--project-path ${workspaceFolder}`:
+
+```json
+"unity": {
+  "command": "/home/<bạn>/.local/bin/unity",
+  "args": ["mcp", "--project-path", "${workspaceFolder}"]
+}
+```
+
+⚠️ **Thiếu bước này Cursor sẽ báo "không có tool Unity" dù server Connected.** Cursor chạy server MCP với thư mục làm việc là thư mục home, nên `unity mcp` không tìm ra Editor và trả **0 tool** (đo thật: chạy từ home → 0 tool, từ thư mục project hoặc có `--project-path` → 151 tool; biến môi trường `UNITY_PROJECT_PATH` không có tác dụng). Claude Code không bị vì nó chạy server từ thư mục project.
+Không truyền `--project-path '${workspaceFolder}'` qua `unity mcp configure` được — CLI coi đó là đường dẫn tương đối và ghi thành `/home/<bạn>/${workspaceFolder}`. Không ghi đường dẫn tuyệt đối của một project vào file user vì sẽ ghim Cursor vào đúng project đó.
+
+Sau đó:
+1. **Thoát hẳn Cursor rồi mở lại** đúng thư mục project — Cursor chỉ đọc `~/.cursor/mcp.json` lúc khởi động; `Reload Window` không đủ.
+2. **Cursor Settings → Tools & MCP** → bật server `unity` (chấm xanh + số tool = đã kết nối).
+3. **Mở chat mới.** Phiên chat mở trước khi server lên đã chốt danh sách tool, Agent sẽ báo "không có tool Unity" dù server đã chạy.
+
+Lưu ý:
+- Cursor không có lệnh kiểu `claude mcp get` để kiểm "Connected" từ terminal — nhìn chấm xanh trong Settings → Tools & MCP. Muốn chắc server phía Unity chạy được: `unity mcp` phải in "MCP server started (stdio)" và trả ~150 tool khi client gọi `tools/list`.
+- Chấm đỏ / không lên → Output panel → chọn **MCP Logs** để xem lỗi.
+- Skill của Unity theo **Unity Companion License**: chỉ chép vào `~/.cursor/skills` trên từng máy, không commit vào repo. Plugin lên bản mới thì chạy lại bước skill.
+- Luật dùng MCP cho Agent của Cursor nằm trong rule `.cursor/rules/unity-mcp.mdc`.

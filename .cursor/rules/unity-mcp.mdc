@@ -1,0 +1,16 @@
+---
+description: Dùng Unity MCP (server unity) đúng cách khi Agent điều khiển Unity Editor — scene/prefab, Console, test, build
+alwaysApply: false
+---
+
+# Unity MCP — khi Agent có tool của server `unity`
+
+Cài bằng `GameUp → Project → Cursor × Unity (MCP)` (hướng dẫn: `Documentation~/unity-mcp-guide.md` trong GameUp Core). Unity Editor phải đang mở.
+
+- **Scene/prefab sửa qua tool MCP** (`add_component`, `set_serialized_field`, `apply_prefab_overrides`…), không sửa YAML `.unity`/`.prefab` bằng text — tránh hỏng `fileID`/GUID và reference.
+- **Tự kiểm chứng** trước khi báo xong: `recompile` + `recompile_status` sau khi sửa code, đọc `console`, `run_tests` cho EditMode/PlayMode.
+- **Hỏi trước** khi gọi tool khó hoàn tác hoặc tốn thời gian: `save_scene`/`save_all`, `delete_asset`, `move_asset`, `eval`/`run_script`, `set_*_settings`, `package_add`/`package_remove`, `build`, `switch_build_target`, bake.
+- Sắp sửa scene/prefab hàng loạt → nhắc người dùng commit hoặc stash trước.
+- Hỏi hẹp (`find_gameobjects`, hierarchy một nhánh) thay vì lấy cả scene để tiết kiệm context.
+- Skill chính thức của Unity là hướng dẫn chung — rules GameUp (`GULogger`, `GUPool`, `UIScreen`/`UIPopup`, API trong `.claude/gameup-*/API_INDEX.md`) **ưu tiên** hơn code mẫu của skill.
+- Tool báo "Command Not Found" → Reload Window; "Cannot connect … 127.0.0.1" ngay sau recompile → đợi domain reload rồi gọi lại; server không có chấm xanh → bật lại trong Cursor Settings → MCP.
