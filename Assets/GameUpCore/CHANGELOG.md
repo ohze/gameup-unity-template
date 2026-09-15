@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- **Xung đột GUID `ScreenshotCapture` khi cài qua Git UPM.** Lúc chuyển từ SDK sang Core (0.5.0) file giữ `.meta` cũ, nên project có Core mới nhưng SDK còn khoá ở commit trước 1.4.0 (`packages-lock.json` không tự cập nhật Git package) có hai package cùng GUID → Unity báo `GUID [...] conflicts with 'Packages/com.ohze.gameup.sdk/...'` và bỏ qua file của Core (thư mục package là immutable nên không tự cấp GUID mới). `ScreenshotCapture.cs` và `ScreenshotCaptureEditor.cs` trong Core nay có GUID riêng. Hệ quả: prefab/scene đang gắn component `ScreenshotCapture` từ bản SDK cũ sẽ báo *Missing Script* — gắn lại `GameUp.Core.ScreenshotCapture`. Nên cập nhật luôn SDK lên ≥ 2.0.0 để bỏ bản trùng.
+
 ### Added
 - **Trình cài một nút Cursor × Unity MCP (`GameUp/Project/Cursor × Unity (MCP)`).** Cùng giao diện và cách chạy với trình cài của Claude Code, 7 bước kiểm tra → cài nếu thiếu → kiểm tra lại: Cursor trên máy, Unity CLI, server `unity` trong `~/.cursor/mcp.json` qua `unity mcp configure cursor --yes` (đã thử thật: gộp vào file có sẵn, giữ server khác; vẫn backup `mcp.gameup-backup.json`), 31 skill chính thức của Unity vào `~/.cursor/skills` (lấy từ cache plugin Claude Code, không có thì `git clone --depth 1` repo plugin), rules/skills GameUp + rule mới `unity-mcp.mdc`, `com.unity.pipeline`, Editor ready. `GameUp → Settings` có dòng trạng thái ngay dưới mục Cursor IDE.
   - Tách lõi chung `GUMcpInstallRunner` (vòng chạy, lệnh ngoài, log, tự chạy tiếp sau domain reload, bước Unity CLI / pipeline / Editor ready) và `GUMcpInstallerWindowBase` (giao diện); trình cài Claude Code và Cursor chỉ khai báo bước riêng. `GUClaudeUnityMcpStep` đổi tên thành `GUMcpInstallStep` (giữ `.meta`).
