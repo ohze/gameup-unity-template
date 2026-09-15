@@ -217,6 +217,37 @@ namespace GameUp.Core.Editor
 
             EditorGUILayout.Space(4);
             DrawCoreSourceRow(enabled);
+
+            EditorGUILayout.Space(4);
+            DrawUnityMcpRow();
+        }
+
+        /// <summary>
+        /// Không tự chạy kiểm tra ở đây: kiểm tra phải gọi nhiều lệnh ngoài (claude, unity CLI), chỉ chạy khi mở trình cài.
+        /// </summary>
+        private void DrawUnityMcpRow()
+        {
+            var done = GUClaudeUnityMcpInstaller.CountDone(out var applicable);
+            var busy = GUClaudeUnityMcpInstaller.IsBusy;
+            var state = busy
+                ? GUSetupState.Busy
+                : !GUClaudeUnityMcpInstaller.HasChecked
+                    ? GUSetupState.Optional
+                    : done >= applicable
+                        ? GUSetupState.Done
+                        : GUSetupState.Missing;
+            var detail = busy
+                ? GUClaudeUnityMcpInstaller.CurrentActivity ?? "đang kiểm tra…"
+                : GUClaudeUnityMcpInstaller.HasChecked
+                    ? $"{done}/{applicable} bước"
+                    : "chưa kiểm tra";
+
+            if (GUInstallerUI.StatusRow("Claude Code × Unity · plugin skills + MCP điều khiển Editor", state, detail, "Mở trình cài"))
+                GUClaudeUnityMcpWindow.Open();
+
+            GUInstallerUI.Hint(
+                "Một nút cài plugin unity, Unity CLI, MCP unity-editor-mcp và com.unity.pipeline — Claude đọc scene, bấm Play, "
+                + $"đọc Console, chạy test trên Editor đang mở. Phần pipeline cần Unity {GUClaudeUnityMcpInstaller.MinUnityMajorVersion}.0+.");
         }
 
         private void DrawCoreSourceRow(bool claudeEnabled)
@@ -402,6 +433,11 @@ namespace GameUp.Core.Editor
                 if (GUInstallerUI.MiniButton("Data Save Viewer")) EditorApplication.ExecuteMenuItem(DataSaveMenu);
                 if (GUInstallerUI.MiniButton("Audio Setup")) EditorApplication.ExecuteMenuItem(AudioSetupMenu);
                 if (GUInstallerUI.MiniButton("Level Tracking")) EditorApplication.ExecuteMenuItem(LevelTrackingMenu);
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.Space(3);
+                EditorGUILayout.BeginHorizontal();
+                if (GUInstallerUI.MiniButton("Claude × Unity MCP")) GUClaudeUnityMcpWindow.Open();
                 EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.Space(6);
