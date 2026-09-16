@@ -15,6 +15,9 @@ namespace GameUp.Core
         [SerializeField] private bool preloadIdentityOnAwake = true;
         [SerializeField] private AudioDatabase database;
 
+        [SerializeField, Tooltip("Khi hệ điều hành báo sắp hết RAM (Application.lowMemory), tự nhả mọi clip không đang phát.")]
+        private bool releaseUnusedOnLowMemory = true;
+
         [Header("Music")]
         [SerializeField, Min(0f), Tooltip("Thời gian fade mặc định khi đổi/nhạc dừng, tính bằng giây.")]
         private float defaultMusicFade = 0.5f;
@@ -75,6 +78,7 @@ namespace GameUp.Core
         private readonly List<PlayingEntry> _playing = new();
         private int _nextHandleId = 1;
         private readonly Dictionary<object, AsyncOperationHandle<AudioClip>> _clipHandles = new();
+        private readonly List<object> _releaseKeys = new(); // tái sử dụng khi duyệt cache để nhả, tránh alloc
         private readonly Dictionary<AudioIdentityReference, AsyncOperationHandle<AudioIdentity>> _identityHandles = new();
         private readonly Dictionary<string, AudioIdentity> _identityByName = new(StringComparer.OrdinalIgnoreCase);
 
@@ -139,6 +143,7 @@ namespace GameUp.Core
             setting.IsSoundOn.OnValueChange.AddListener(OnToggleChanged);
             setting.MusicVolume.OnValueChange.AddListener(OnVolumeChanged);
             setting.SoundVolume.OnValueChange.AddListener(OnVolumeChanged);
+            Application.lowMemory += OnLowMemory;
         }
 
         private void OnDisable()
@@ -148,6 +153,15 @@ namespace GameUp.Core
             setting.IsSoundOn.OnValueChange.RemoveListener(OnToggleChanged);
             setting.MusicVolume.OnValueChange.RemoveListener(OnVolumeChanged);
             setting.SoundVolume.OnValueChange.RemoveListener(OnVolumeChanged);
+            Application.lowMemory -= OnLowMemory;
+        }
+
+        private void OnLowMemory()
+        {
+            if (!releaseUnusedOnLowMemory) return;
+
+            var released = ReleaseUnusedClips();
+            if (released > 0) GULogger.Warning("AudioManager", $"Low memory: đã nhả {released} clip không dùng.");
         }
 
         private void OnToggleChanged(bool _) => RefreshVolumes();
@@ -466,7 +480,29 @@ namespace GameUp.Core
         }
 
         /// <summary>
-        /// Nhả clip đã preload của identity để giải phóng bộ nhớ (ví dụ khi rời màn chơi).
+        /// Giải phóng RAM mức nhẹ: xả dữ liệu âm thanh đã giải nén/nạp của clip nhưng vẫn giữ asset trong cache.
+        /// Phát lại vẫn được (Unity tự nạp lại data, có thể trễ một chút với clip lớn) hoặc gọi <see cref="PreloadAudio(AudioIdentity, Action)"/> lần nữa.
+        /// Clip đang phát được giữ nguyên.
+        /// </summary>
+        public static void UnloadAudioData(AudioIdentity identity)
+        {
+            var instance = Instance;
+            if (!instance || !identity || identity.clipRefs == null) return;
+
+            for (var i = 0; i < identity.clipRefs.Count; i++)
+            {
+                var clip = instance.GetLoadedClip(identity.clipRefs[i]);
+                if (clip && !instance.IsClipInUse(clip)) clip.UnloadAudioData();
+            }
+        }
+
+        public static void UnloadAudioData(string identityName)
+        {
+            if (TryGetIdentity(identityName, out var identity)) UnloadAudioData(identity);
+        }
+
+        /// <summary>
+        /// Giải phóng RAM triệt để cho identity (ví dụ khi rời màn chơi): xả dữ liệu âm thanh và nhả handle Addressables.
         /// Clip đang phát hoặc đang load dở được giữ lại. Lần phát sau sẽ load lại từ đầu.
         /// Lưu ý: clip dùng chung giữa nhiều identity cũng bị nhả theo.
         /// </summary>
@@ -477,8 +513,26 @@ namespace GameUp.Core
 
             for (var i = 0; i < identity.clipRefs.Count; i++)
             {
-                instance.ReleaseClip(identity.clipRefs[i]);
+                var clipRef = identity.clipRefs[i];
+                if (clipRef != null && clipRef.RuntimeKeyIsValid()) instance.TryReleaseClip(clipRef.RuntimeKey);
             }
+        }
+
+        public static void ReleaseAudio(string identityName)
+        {
+            if (TryGetIdentity(identityName, out var identity)) ReleaseAudio(identity);
+        }
+
+        /// <summary>
+        /// Nhả MỌI clip đã cache mà không đang phát/đang load — gọi khi đổi scene, rời màn chơi hoặc sau khi đóng màn nặng.
+        /// Identity (asset nhỏ) vẫn giữ để phát theo tên được. Tự chạy khi <c>Application.lowMemory</c> nếu bật
+        /// <c>releaseUnusedOnLowMemory</c>.
+        /// </summary>
+        /// <returns>Số clip đã nhả.</returns>
+        public static int ReleaseUnusedAudio()
+        {
+            var instance = Instance;
+            return instance ? instance.ReleaseUnusedClips() : 0;
         }
 
         private void PreloadClips(AudioIdentity identity, Action onCompleted)
@@ -542,22 +596,64 @@ namespace GameUp.Core
             return handle.Result.loadState == AudioDataLoadState.Loaded;
         }
 
-        private void ReleaseClip(AudioClipReference clipRef)
+        private AudioClip GetLoadedClip(AudioClipReference clipRef)
         {
-            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return;
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return null;
+            if (!_clipHandles.TryGetValue(clipRef.RuntimeKey, out var handle) || !handle.IsValid()) return null;
 
-            var cacheKey = clipRef.RuntimeKey;
-            if (!_clipHandles.TryGetValue(cacheKey, out var handle)) return;
+            return handle.IsDone && handle.Status == AsyncOperationStatus.Succeeded ? handle.Result : null;
+        }
+
+        private int ReleaseUnusedClips()
+        {
+            _releaseKeys.Clear();
+            _releaseKeys.AddRange(_clipHandles.Keys);
+
+            var released = 0;
+            for (var i = 0; i < _releaseKeys.Count; i++)
+            {
+                if (TryReleaseClip(_releaseKeys[i])) released++;
+            }
+
+            _releaseKeys.Clear();
+            return released;
+        }
+
+        private bool TryReleaseClip(object cacheKey)
+        {
+            if (!_clipHandles.TryGetValue(cacheKey, out var handle)) return false;
 
             if (handle.IsValid())
             {
                 // Đang load dở: còn lần phát đang chờ callback, nhả lúc này sẽ làm hỏng nó.
-                if (!handle.IsDone || IsClipInUse(handle.Result)) return;
+                if (!handle.IsDone) return false;
+
+                var clip = handle.Result;
+                if (clip)
+                {
+                    if (IsClipInUse(clip)) return false;
+
+                    // Addressables chỉ unload khi cả bundle hết người dùng — xả data trước để RAM giảm ngay.
+                    DetachClipFromIdleSources(clip);
+                    clip.UnloadAudioData();
+                }
 
                 Addressables.Release(handle);
             }
 
             _clipHandles.Remove(cacheKey);
+            return true;
+        }
+
+        /// <summary>Source phát xong vẫn giữ tham chiếu clip — gỡ ra để asset thực sự được giải phóng.</summary>
+        private void DetachClipFromIdleSources(AudioClip clip)
+        {
+            for (var i = 0; i < _sources.Count; i++)
+            {
+                var source = _sources[i];
+                if (source && source.clip == clip && !source.isPlaying && !_busySources.Contains(source))
+                    source.clip = null;
+            }
         }
 
         private bool IsClipInUse(AudioClip clip)

@@ -1,6 +1,6 @@
 # GameUp Core — API index (tự sinh)
 
-> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.core` `0.8.1`; lần sync sau sẽ ghi đè.
+> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.core` `0.8.2`; lần sync sau sẽ ghi đè.
 
 - Source đọc được: `Assets/GameUpCore/` — cột **File** bên dưới là đường dẫn tương đối so với thư mục này.
 - Đường dẫn trong Unity (dùng cho asmdef/AssetDatabase): `Assets/GameUpCore/`.
@@ -154,6 +154,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `[SerializeField] private int maxSource`
 - `[SerializeField] private bool preloadIdentityOnAwake`
 - `[SerializeField] private AudioDatabase database`
+- `[SerializeField] private bool releaseUnusedOnLowMemory`
 - `[SerializeField] private float defaultMusicFade`
 - `public static AudioIdentity CurrentMusic { get; }`
 - `protected override void Awake()`
@@ -165,7 +166,11 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public static void PreloadAudio(AudioIdentityReference identityReference, Action onCompleted = null)`
 - `public static bool IsAudioReady(AudioIdentity identity)`
 - `public static bool IsAudioReady(string identityName)`
+- `public static void UnloadAudioData(AudioIdentity identity)`
+- `public static void UnloadAudioData(string identityName)`
 - `public static void ReleaseAudio(AudioIdentity identity)`
+- `public static void ReleaseAudio(string identityName)`
+- `public static int ReleaseUnusedAudio()`
 - `public static bool TryGetIdentity(string identityName, out AudioIdentity identity)`
 - `public AudioHandle Play(AudioIdentity identity, bool isRandomClip = false)`
 - `public void Play(AudioIdentityReference identityReference)`

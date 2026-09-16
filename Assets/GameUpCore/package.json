@@ -1,6 +1,6 @@
 {
   "name": "com.ohze.gameup.core",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "displayName": "GameUp Core",
   "description": "Bộ khung nền cho dự án game Unity 6: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nKèm bộ công cụ AI (Claude Code / Cursor): CLAUDE.md, agent, skill, hook, bảng tra API tự sinh cho GameUp Core, GameUp SDK, GameUp IAP, và trình cài một nút Claude Code × Unity / Cursor × Unity (skills + MCP điều khiển Editor).\n\nDuyLV 2026",
   "unity": "6000.0",

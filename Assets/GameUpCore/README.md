@@ -179,7 +179,6 @@ AudioManager.PreloadAudio(hitIdentity);                                // một 
 AudioManager.PreloadAudio("Hit_Death", () => Debug.Log("ready"));      // theo tên, callback khi xong
 AudioManager.PreloadAudio(levelSfxList, onCompleted: StartLevel);      // nhiều identity cùng lúc
 AudioManager.IsAudioReady(hitIdentity);                                // đã sẵn sàng phát tức thì chưa
-AudioManager.ReleaseAudio(hitIdentity);                                // nhả bộ nhớ khi rời màn (clip đang phát được giữ lại)
 
 // Trong bootstrap: chờ preload xong mới vào game
 var audioReady = false;
@@ -187,6 +186,16 @@ GUBootstrap.AddStep("Audio", () => AudioManager.PreloadIdentities(() => audioRea
 ```
 
 Hoặc tick `preloadClips` trên `AudioIdentity`: identity đó được load sẵn clip ngay khi `AudioDatabase` preload. Preload nạp cả dữ liệu âm thanh (`AudioClip.LoadAudioData`) nên clip tắt *Preload Audio Data* / bật *Load In Background* cũng không bị trễ. Callback luôn được gọi đúng một lần, kể cả khi load lỗi.
+
+**Unload để tiết kiệm RAM** — clip đang phát hoặc đang load dở luôn được giữ lại:
+
+```csharp
+AudioManager.UnloadAudioData(hitIdentity);   // nhẹ: xả dữ liệu âm thanh, giữ asset — phát lại vẫn được (có thể trễ chút với clip lớn)
+AudioManager.ReleaseAudio("Boss_Theme");     // triệt để: xả data + nhả Addressables; lần sau load lại từ đầu
+AudioManager.ReleaseUnusedAudio();           // nhả MỌI clip không đang dùng — gọi khi đổi scene / rời màn chơi
+```
+
+Bật `releaseUnusedOnLowMemory` trên `AudioManager` (mặc định bật) để tự gọi `ReleaseUnusedAudio` khi hệ điều hành báo sắp hết RAM (`Application.lowMemory`). Identity (asset nhỏ) không bị nhả nên `PlayAudio("tên")` vẫn dùng được.
 
 ### Lưu dữ liệu
 

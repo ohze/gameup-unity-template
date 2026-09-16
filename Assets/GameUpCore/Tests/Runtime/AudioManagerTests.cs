@@ -125,7 +125,29 @@ namespace GameUp.Core.Tests
         public IEnumerator ReleaseAudio_NotPreloaded_DoesNotThrow()
         {
             Assert.DoesNotThrow(() => AudioManager.ReleaseAudio(_identity));
-            Assert.DoesNotThrow(() => AudioManager.ReleaseAudio(null));
+            Assert.DoesNotThrow(() => AudioManager.ReleaseAudio((AudioIdentity)null));
+            Assert.DoesNotThrow(() => AudioManager.ReleaseAudio("__khong_ton_tai__"));
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator UnloadAudioData_NotPreloaded_DoesNotThrow()
+        {
+            Assert.DoesNotThrow(() => AudioManager.UnloadAudioData(_identity));
+            Assert.DoesNotThrow(() => AudioManager.UnloadAudioData((AudioIdentity)null));
+            Assert.DoesNotThrow(() => AudioManager.UnloadAudioData("__khong_ton_tai__"));
+
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator ReleaseUnusedAudio_NothingCached_ReleasesNothingAndIsRepeatable()
+        {
+            AudioManager.StopAllSfx();
+
+            Assert.AreEqual(0, AudioManager.ReleaseUnusedAudio());
+            Assert.AreEqual(0, AudioManager.ReleaseUnusedAudio(), "Gọi lần hai không được lỗi hay nhả trùng");
 
             yield return null;
         }

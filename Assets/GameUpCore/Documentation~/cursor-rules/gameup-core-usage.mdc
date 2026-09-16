@@ -24,7 +24,8 @@ Asmdef runtime: `GameUp.Core.Runtime` (`GameUp.Core`, `GameUp.Core.Serializer`),
 | Signal / “event” type-safe | `Signal`, `BaseSignal`, `IBaseSignal` trong `GameUp.Core` |
 | Pool object | `GUPool`, `GUPoolers` |
 | Audio + Addressables | `AudioManager`, `AudioIdentity` / `AudioIdentityReference`, `AudioDatabase`, `AudioSetting`, `AudioHandle` |
-| Preload âm thanh (không phát) để phát tức thì | `AudioManager.PreloadAudio` (identity / tên / reference / list + `onCompleted`), `IsAudioReady`, `ReleaseAudio`, cờ `AudioIdentity.preloadClips`, `PreloadIdentities(onCompleted)` — không tự cache/load `AudioClip` |
+| Preload âm thanh (không phát) để phát tức thì | `AudioManager.PreloadAudio` (identity / tên / reference / list + `onCompleted`), `IsAudioReady`, cờ `AudioIdentity.preloadClips`, `PreloadIdentities(onCompleted)` |
+| Unload âm thanh tối ưu RAM | `AudioManager.UnloadAudioData` (xả data, giữ asset), `ReleaseAudio` (nhả hẳn), `ReleaseUnusedAudio()` khi đổi scene; tuỳ chọn `releaseUnusedOnLowMemory` — không tự cache/load/unload `AudioClip` |
 | Lưu local / JSON / mã hóa | `BaseDataSave<T>`, `LocalStorageUtils`, `JsonHelper`, `EncryptUtils`, `FileStorageUtils` |
 | Addressables prefab/component | `ComponentReference<T>`, `DataReference`, `AddressableDataHolder` |
 | Coroutine không gắn MonoBehaviour | `CoroutineRunner` |

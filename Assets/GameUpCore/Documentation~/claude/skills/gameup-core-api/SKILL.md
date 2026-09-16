@@ -32,7 +32,8 @@ Muốn kế thừa (`UIScreen`, `UIPopup`, `UIBaseView`, `MonoSingleton<T>`, `Ba
 | Save | `BaseDataSave<T>`, `LocalStorageUtils`, `FileStorageUtils`, `JsonHelper`, `EncryptUtils` | `GameUp.Core` |
 | Giá trị đơn persist | `SettingVar` (`BooleanVar`/`IntVar`/`FloatVar`/`LongVar`) | `GameUp.Core` |
 | Audio | `AudioManager`, `AudioIdentity`, `AudioIdentityReference`, `AudioDatabase`, `AudioSetting`, `AudioCategory`, `AudioHandle` | `GameUp.Core` |
-| Preload audio (không phát) | `AudioManager.PreloadAudio`, `IsAudioReady`, `ReleaseAudio`, `AudioIdentity.preloadClips` | `GameUp.Core` |
+| Preload audio (không phát) | `AudioManager.PreloadAudio`, `IsAudioReady`, `AudioIdentity.preloadClips` | `GameUp.Core` |
+| Unload audio (RAM) | `AudioManager.UnloadAudioData`, `ReleaseAudio`, `ReleaseUnusedAudio` | `GameUp.Core` |
 | Addressables | `ComponentReference<T>`, `DataReference`, `AddressableDataHolder`, `AddressableLoad` | `GameUp.Core` |
 | Coroutine | `CoroutineRunner`, `CoroutineExtension` | `GameUp.Core` |
 | Thời gian | `TimeManager`, `TimeUtils`, `ConvertTimeExtension` | `GameUp.Core` |
@@ -82,10 +83,14 @@ engine.Stop(fadeDuration: 0.3f);
 // Không tự cache AudioClip / tự LoadAssetAsync clip — dùng API này.
 AudioManager.PreloadAudio(levelSfxList, onCompleted: StartLevel); // identity | tên | AudioIdentityReference | list
 AudioManager.IsAudioReady(hitIdentity);                           // đã phát tức thì được chưa
-AudioManager.ReleaseAudio(hitIdentity);                           // nhả khi rời màn (bỏ qua clip đang phát)
 // Hoặc tick AudioIdentity.preloadClips để preload cùng AudioDatabase; bootstrap chờ bằng:
 var audioReady = false;
 GUBootstrap.AddStep("Audio", () => AudioManager.PreloadIdentities(() => audioReady = true), () => audioReady);
+
+// Unload tối ưu RAM (clip đang phát / đang load luôn được giữ lại)
+AudioManager.UnloadAudioData(hitIdentity); // nhẹ: xả data, giữ asset
+AudioManager.ReleaseAudio(bossTheme);      // triệt để: xả data + nhả Addressables
+AudioManager.ReleaseUnusedAudio();         // đổi scene / rời màn: nhả mọi clip không dùng
 
 // UI
 // Kế thừa bản generic để có sẵn ShopPopup.OpenViewAsync()/CloseView(); override OnOpen/OnClose (xem API_INDEX.md)
