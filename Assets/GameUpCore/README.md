@@ -172,6 +172,22 @@ Volume thực tế = `volume của identity × volume của kênh`, và mọi so
 
 Khai báo `AudioDatabase` trên `AudioManager` để preload identity lúc `Awake`.
 
+**Preload clip (không phát)** — mặc định clip chỉ load từ Addressables ở lần phát đầu, nên tiếng đầu tiên bị trễ. Load sẵn trước thì lúc cần `PlayAudio`/`PlayMusic` phát ngay trong frame được gọi:
+
+```csharp
+AudioManager.PreloadAudio(hitIdentity);                                // một identity (mọi clip trong list)
+AudioManager.PreloadAudio("Hit_Death", () => Debug.Log("ready"));      // theo tên, callback khi xong
+AudioManager.PreloadAudio(levelSfxList, onCompleted: StartLevel);      // nhiều identity cùng lúc
+AudioManager.IsAudioReady(hitIdentity);                                // đã sẵn sàng phát tức thì chưa
+AudioManager.ReleaseAudio(hitIdentity);                                // nhả bộ nhớ khi rời màn (clip đang phát được giữ lại)
+
+// Trong bootstrap: chờ preload xong mới vào game
+var audioReady = false;
+GUBootstrap.AddStep("Audio", () => AudioManager.PreloadIdentities(() => audioReady = true), () => audioReady);
+```
+
+Hoặc tick `preloadClips` trên `AudioIdentity`: identity đó được load sẵn clip ngay khi `AudioDatabase` preload. Preload nạp cả dữ liệu âm thanh (`AudioClip.LoadAudioData`) nên clip tắt *Preload Audio Data* / bật *Load In Background* cũng không bị trễ. Callback luôn được gọi đúng một lần, kể cả khi load lỗi.
+
 ### Lưu dữ liệu
 
 ```csharp

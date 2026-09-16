@@ -86,6 +86,7 @@ Asmdef: `GameUp.Core.Runtime` (`GameUp.Core`, `GameUp.Core.Serializer`) · `Game
 | Event type-safe | `Signal`, `BaseSignal`, `IBaseSignal` |
 | Object pool | `GUPool`, `GUPoolers`, `IPoolable` (`OnSpawn`/`OnDespawn`), `GUPool.Prewarm` |
 | Audio | `AudioManager`, `AudioIdentity(Reference)`, `AudioDatabase`, `AudioSetting`, `AudioCategory`, `AudioHandle` |
+| Preload âm thanh (không phát) để phát tức thì | `AudioManager.PreloadAudio` (identity / tên / reference / list + `onCompleted`), `IsAudioReady`, `ReleaseAudio`, cờ `AudioIdentity.preloadClips`, `PreloadIdentities(onCompleted)` |
 | Save local / JSON / mã hoá | `BaseDataSave<T>` (có `dataVersion` + `Migrate`), `LocalStorageUtils`, `JsonHelper`, `EncryptUtils`, `FileStorageUtils` |
 | Giá trị đơn có persist | `SettingVar` (`BooleanVar`/`IntVar`/`FloatVar`/`LongVar`) |
 | Addressables | `ComponentReference<T>`, `DataReference`, `AddressableDataHolder`, `AddressableLoad.WhenReady` |

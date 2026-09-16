@@ -75,6 +75,62 @@ namespace GameUp.Core.Tests
         }
 
         [UnityTest]
+        public IEnumerator PreloadAudio_IdentityWithoutClips_CompletesOnceImmediately()
+        {
+            var completedCount = 0;
+            AudioManager.PreloadAudio(_identity, () => completedCount++);
+
+            Assert.AreEqual(1, completedCount, "Không có clip thì callback phải chạy ngay, đúng một lần");
+            Assert.IsFalse(AudioManager.IsAudioReady(_identity), "Identity không có clip không được coi là sẵn sàng phát");
+
+            yield return null;
+            Assert.AreEqual(1, completedCount);
+        }
+
+        [UnityTest]
+        public IEnumerator PreloadAudio_ListWithNullEntries_CompletesOnce()
+        {
+            var completedCount = 0;
+            AudioManager.PreloadAudio(new[] { _identity, null, _identity }, () => completedCount++);
+
+            yield return null;
+            Assert.AreEqual(1, completedCount);
+        }
+
+        [UnityTest]
+        public IEnumerator PreloadAudio_UnknownName_StillInvokesCompleted()
+        {
+            var completed = false;
+            // Error có thể bị tắt theo cấu hình GULogger nên không Expect cụ thể.
+            LogAssert.ignoreFailingMessages = true;
+
+            AudioManager.PreloadAudio("__khong_ton_tai__", () => completed = true);
+
+            Assert.IsTrue(completed, "Preload lỗi vẫn phải gọi callback để bootstrap không treo");
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator PreloadAudio_NullInputs_InvokeCompleted()
+        {
+            var completedCount = 0;
+            AudioManager.PreloadAudio((AudioIdentity)null, () => completedCount++);
+            AudioManager.PreloadAudio((AudioIdentity[])null, () => completedCount++);
+
+            Assert.AreEqual(2, completedCount);
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator ReleaseAudio_NotPreloaded_DoesNotThrow()
+        {
+            Assert.DoesNotThrow(() => AudioManager.ReleaseAudio(_identity));
+            Assert.DoesNotThrow(() => AudioManager.ReleaseAudio(null));
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator StopAudio_ByUnknownName_DoesNotThrow()
         {
             Assert.DoesNotThrow(() => AudioManager.StopAudio("__khong_ton_tai__"));

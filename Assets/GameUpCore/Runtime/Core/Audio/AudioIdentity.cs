@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -19,6 +18,13 @@ namespace GameUp.Core
         public float volume = 1f;
 
         public bool isLoop = false;
+
+        /// <summary>
+        /// Load sẵn clip (không phát) khi identity được preload qua <see cref="AudioDatabase"/>,
+        /// để lần phát đầu tiên không phải chờ Addressables.
+        /// </summary>
+        [Tooltip("Load sẵn clip khi AudioManager preload identity qua AudioDatabase — phát lần đầu không phải chờ load.")]
+        public bool preloadClips = false;
     }
 }
 

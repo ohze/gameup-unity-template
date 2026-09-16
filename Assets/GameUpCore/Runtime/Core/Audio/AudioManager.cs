@@ -47,6 +47,29 @@ namespace GameUp.Core
             }
         }
 
+        /// <summary>
+        /// Đếm số việc preload còn dở và gọi callback đúng một lần khi tất cả xong (thành công hay lỗi).
+        /// Bắt đầu ở 1 — phần "niêm phong" — để callback đồng bộ trong lúc đăng ký không kết thúc sớm.
+        /// </summary>
+        private sealed class PreloadCounter
+        {
+            private readonly Action _onCompleted;
+            private int _pending = 1;
+
+            public PreloadCounter(Action onCompleted)
+            {
+                _onCompleted = onCompleted;
+            }
+
+            public void Add() => _pending++;
+
+            public void Done()
+            {
+                if (_pending <= 0) return;
+                if (--_pending == 0) _onCompleted?.Invoke();
+            }
+        }
+
         private readonly List<AudioSource> _sources = new();
         private readonly HashSet<AudioSource> _busySources = new(); // nguồn đang "reserve" trong khi loading
         private readonly List<PlayingEntry> _playing = new();
@@ -312,22 +335,244 @@ namespace GameUp.Core
 
         #region Loading
 
-        public static void PreloadIdentities()
+        /// <summary>
+        /// Load mọi identity khai báo trong <see cref="AudioDatabase"/> để phát được theo tên.
+        /// Identity bật <see cref="AudioIdentity.preloadClips"/> được load sẵn cả clip.
+        /// </summary>
+        /// <param name="onCompleted">Gọi một lần khi mọi identity (và clip cần preload) đã xong, kể cả khi có cái lỗi.</param>
+        public static void PreloadIdentities(Action onCompleted = null)
         {
-            if (!Instance) return;
-            Instance.PreloadIdentitiesInternal();
+            if (!Instance)
+            {
+                onCompleted?.Invoke();
+                return;
+            }
+
+            Instance.PreloadIdentitiesInternal(onCompleted);
         }
 
-        private void PreloadIdentitiesInternal()
+        private void PreloadIdentitiesInternal(Action onCompleted)
         {
+            var counter = new PreloadCounter(onCompleted);
             var refs = database ? database.identityReferences : null;
-            if (refs == null || refs.Count == 0)
-                return;
 
-            for (int i = 0; i < refs.Count; i++)
+            if (refs != null)
             {
-                LoadIdentity(refs[i], null);
+                for (int i = 0; i < refs.Count; i++)
+                {
+                    counter.Add();
+                    LoadIdentity(refs[i], identity => OnDatabaseIdentityLoaded(identity, counter), counter.Done);
+                }
             }
+
+            counter.Done();
+        }
+
+        private void OnDatabaseIdentityLoaded(AudioIdentity identity, PreloadCounter counter)
+        {
+            if (identity.preloadClips)
+            {
+                PreloadClips(identity, counter.Done);
+                return;
+            }
+
+            counter.Done();
+        }
+
+        /// <summary>
+        /// Load sẵn toàn bộ clip của identity (asset Addressables + dữ liệu âm thanh) nhưng không phát.
+        /// Sau khi xong, <see cref="PlayAudio(AudioIdentity, bool)"/> / <see cref="PlayMusic"/> phát ngay trong frame được gọi.
+        /// Gọi nhiều lần an toàn — clip đã load thì dùng lại cache.
+        /// </summary>
+        /// <param name="onCompleted">Gọi một lần khi mọi clip đã xong (thành công hoặc lỗi). Clip đã sẵn thì gọi ngay.</param>
+        public static void PreloadAudio(AudioIdentity identity, Action onCompleted = null)
+        {
+            if (!Instance || !identity)
+            {
+                onCompleted?.Invoke();
+                return;
+            }
+
+            Instance.PreloadClips(identity, onCompleted);
+        }
+
+        /// <summary>Preload clip của nhiều identity, <paramref name="onCompleted"/> gọi khi tất cả đã xong.</summary>
+        public static void PreloadAudio(IReadOnlyList<AudioIdentity> identities, Action onCompleted = null)
+        {
+            if (!Instance || identities == null)
+            {
+                onCompleted?.Invoke();
+                return;
+            }
+
+            var counter = new PreloadCounter(onCompleted);
+            for (var i = 0; i < identities.Count; i++)
+            {
+                if (!identities[i]) continue;
+
+                counter.Add();
+                Instance.PreloadClips(identities[i], counter.Done);
+            }
+
+            counter.Done();
+        }
+
+        /// <summary>Preload clip theo tên identity đã có trong bảng tra (xem <see cref="AudioDatabase"/>).</summary>
+        public static void PreloadAudio(string identityName, Action onCompleted = null)
+        {
+            if (!TryGetIdentity(identityName, out var identity))
+            {
+                GULogger.Error("AudioManager", $"Không tìm thấy AudioIdentity '{identityName}' để preload. Đã preload qua AudioDatabase chưa?");
+                onCompleted?.Invoke();
+                return;
+            }
+
+            PreloadAudio(identity, onCompleted);
+        }
+
+        /// <summary>Load identity từ Addressables rồi preload clip của nó.</summary>
+        public static void PreloadAudio(AudioIdentityReference identityReference, Action onCompleted = null)
+        {
+            var instance = Instance;
+            if (!instance)
+            {
+                onCompleted?.Invoke();
+                return;
+            }
+
+            instance.LoadIdentity(identityReference, identity => instance.PreloadClips(identity, onCompleted), onCompleted);
+        }
+
+        /// <summary>
+        /// Mọi clip của identity đã load xong (cả dữ liệu âm thanh), phát sẽ không phải chờ.
+        /// Identity không có clip trả về false.
+        /// </summary>
+        public static bool IsAudioReady(AudioIdentity identity)
+        {
+            var instance = Instance;
+            if (!instance || !identity || identity.clipRefs == null || identity.clipRefs.Count == 0) return false;
+
+            for (var i = 0; i < identity.clipRefs.Count; i++)
+            {
+                if (!instance.IsClipReady(identity.clipRefs[i])) return false;
+            }
+
+            return true;
+        }
+
+        public static bool IsAudioReady(string identityName)
+        {
+            return TryGetIdentity(identityName, out var identity) && IsAudioReady(identity);
+        }
+
+        /// <summary>
+        /// Nhả clip đã preload của identity để giải phóng bộ nhớ (ví dụ khi rời màn chơi).
+        /// Clip đang phát hoặc đang load dở được giữ lại. Lần phát sau sẽ load lại từ đầu.
+        /// Lưu ý: clip dùng chung giữa nhiều identity cũng bị nhả theo.
+        /// </summary>
+        public static void ReleaseAudio(AudioIdentity identity)
+        {
+            var instance = Instance;
+            if (!instance || !identity || identity.clipRefs == null) return;
+
+            for (var i = 0; i < identity.clipRefs.Count; i++)
+            {
+                instance.ReleaseClip(identity.clipRefs[i]);
+            }
+        }
+
+        private void PreloadClips(AudioIdentity identity, Action onCompleted)
+        {
+            var counter = new PreloadCounter(onCompleted);
+            var clipRefs = identity.clipRefs;
+
+            if (clipRefs != null)
+            {
+                for (var i = 0; i < clipRefs.Count; i++)
+                {
+                    if (clipRefs[i] == null || !clipRefs[i].RuntimeKeyIsValid()) continue;
+
+                    counter.Add();
+                    LoadClip(clipRefs[i], clip => LoadAudioData(clip, counter.Done), counter.Done);
+                }
+            }
+
+            counter.Done();
+        }
+
+        /// <summary>
+        /// Addressables chỉ load asset; clip tắt "Preload Audio Data" hoặc bật "Load In Background"
+        /// vẫn phải nạp dữ liệu âm thanh — làm trước ở đây để lúc Play không bị trễ.
+        /// </summary>
+        private void LoadAudioData(AudioClip clip, Action onDone)
+        {
+            if (clip.loadState == AudioDataLoadState.Unloaded) clip.LoadAudioData();
+
+            if (clip.loadState != AudioDataLoadState.Loading)
+            {
+                LogAudioDataFailure(clip);
+                onDone();
+                return;
+            }
+
+            StartCoroutine(WaitAudioDataRoutine(clip, onDone));
+        }
+
+        private static IEnumerator WaitAudioDataRoutine(AudioClip clip, Action onDone)
+        {
+            while (clip && clip.loadState == AudioDataLoadState.Loading)
+                yield return null;
+
+            if (clip) LogAudioDataFailure(clip);
+            onDone();
+        }
+
+        private static void LogAudioDataFailure(AudioClip clip)
+        {
+            if (clip.loadState == AudioDataLoadState.Failed)
+                GULogger.Error("AudioManager", $"Load audio data thất bại: {clip.name}");
+        }
+
+        private bool IsClipReady(AudioClipReference clipRef)
+        {
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return false;
+            if (!_clipHandles.TryGetValue(clipRef.RuntimeKey, out var handle) || !handle.IsValid()) return false;
+            if (!handle.IsDone || handle.Status != AsyncOperationStatus.Succeeded || !handle.Result) return false;
+
+            return handle.Result.loadState == AudioDataLoadState.Loaded;
+        }
+
+        private void ReleaseClip(AudioClipReference clipRef)
+        {
+            if (clipRef == null || !clipRef.RuntimeKeyIsValid()) return;
+
+            var cacheKey = clipRef.RuntimeKey;
+            if (!_clipHandles.TryGetValue(cacheKey, out var handle)) return;
+
+            if (handle.IsValid())
+            {
+                // Đang load dở: còn lần phát đang chờ callback, nhả lúc này sẽ làm hỏng nó.
+                if (!handle.IsDone || IsClipInUse(handle.Result)) return;
+
+                Addressables.Release(handle);
+            }
+
+            _clipHandles.Remove(cacheKey);
+        }
+
+        private bool IsClipInUse(AudioClip clip)
+        {
+            if (!clip) return false;
+            if (_activeMusic?.Source && _activeMusic.Source.clip == clip) return true;
+            if (_idleMusic?.Source && _idleMusic.Source.clip == clip) return true;
+
+            SweepFinished();
+            for (var i = 0; i < _playing.Count; i++)
+            {
+                if (_playing[i].Source && _playing[i].Source.clip == clip) return true;
+            }
+
+            return false;
         }
 
         /// <summary>Load (và cache) AudioClip theo reference — mọi chỗ phát âm thanh đều đi qua đây.</summary>
@@ -350,9 +595,14 @@ namespace GameUp.Core
         }
 
         /// <summary>Load (và cache) AudioIdentity theo reference, đồng thời đăng ký vào bảng tra theo tên.</summary>
-        private void LoadIdentity(AudioIdentityReference identityReference, Action<AudioIdentity> onLoaded)
+        private void LoadIdentity(AudioIdentityReference identityReference, Action<AudioIdentity> onLoaded,
+            Action onFailed = null)
         {
-            if (identityReference == null || !identityReference.RuntimeKeyIsValid()) return;
+            if (identityReference == null || !identityReference.RuntimeKeyIsValid())
+            {
+                onFailed?.Invoke();
+                return;
+            }
 
             if (!_identityHandles.TryGetValue(identityReference, out var handle) || !handle.IsValid())
             {
@@ -364,7 +614,7 @@ namespace GameUp.Core
             {
                 _identityByName[identity.name] = identity;
                 onLoaded?.Invoke(identity);
-            }, "AudioManager", identityReference.RuntimeKey?.ToString());
+            }, "AudioManager", identityReference.RuntimeKey?.ToString(), onFailed);
         }
 
         public static bool TryGetIdentity(string identityName, out AudioIdentity identity)
