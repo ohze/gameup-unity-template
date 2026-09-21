@@ -208,6 +208,7 @@ Nguyên tắc: **đo trước, sửa sau** (Profiler / Frame Debugger). Không "
 | Cài dependency ads/analytics · điền ID · tạo SDK trong scene | `GameUp → SDK → Setup Dependencies` · `GameUp → SDK → Setup` |
 | Đồng bộ define theo SDK bên thứ ba đã cài | `GameUp → SDK → Sync Define Symbols` |
 | Tạo `MyIAPManager` trong scene | `GameUp → IAP → Create MyIAPManager` |
+| Dựng prefab UI từ ảnh demo + art (package GameUp UI Builder, skill `/gu-ui`) | `GameUp → UI → UI Builder (Demo → Prefab)` |
 | Cài Claude Code × Unity (plugin skills + MCP) bằng một nút | `GameUp → Project → Claude Code × Unity (Plugin + MCP)` |
 
 ### Unity MCP — khi phiên Claude có tool `unity-editor-mcp`

@@ -22,6 +22,8 @@ namespace GameUp.Core.Editor
         public const string GameUpSdkPackageName = "com.ohze.gameup.sdk";
         public const string GameUpIapGitUpmUrl = "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpIAP";
         public const string GameUpIapPackageName = "com.ohze.gameup.iap";
+        public const string GameUpUIBuilderGitUpmUrl = "https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpUIBuilder";
+        public const string GameUpUIBuilderPackageName = "com.ohze.gameup.uibuilder";
 
         private static readonly NamedBuildTarget[] SupportTargets =
         {
@@ -185,6 +187,8 @@ namespace GameUp.Core.Editor
 
         public static bool IsGameUpIapInstalled() => IsPackageInstalled(GameUpIapPackageName, "Assets/GameUpIAP");
 
+        public static bool IsGameUpUIBuilderInstalled() => IsPackageInstalled(GameUpUIBuilderPackageName, "Assets/GameUpUIBuilder");
+
         public static bool CanInstallGameUpIap()
         {
             return IsGameUpSdkInstalled() && GUProjectFolderSetupWindow.IsSetupCompleted();
@@ -202,9 +206,11 @@ namespace GameUp.Core.Editor
         private const string DotweenMessageKey = "GameUp.CoreInstaller.DotweenMessage";
         private const string SdkMessageKey = "GameUp.CoreInstaller.SdkMessage";
         private const string IapMessageKey = "GameUp.CoreInstaller.IapMessage";
+        private const string UIBuilderMessageKey = "GameUp.CoreInstaller.UIBuilderMessage";
 
         private AddRequest _gameUpSdkInstallRequest;
         private AddRequest _gameUpIapInstallRequest;
+        private AddRequest _gameUpUIBuilderInstallRequest;
         private UnityWebRequest _dotweenDownloadRequest;
         private string _dotweenDownloadedPackagePath;
         private bool _dotweenIsInstalling;
@@ -226,6 +232,12 @@ namespace GameUp.Core.Editor
         {
             get => SessionState.GetString(IapMessageKey, string.Empty);
             set => SessionState.SetString(IapMessageKey, value ?? string.Empty);
+        }
+
+        private string UIBuilderMessage
+        {
+            get => SessionState.GetString(UIBuilderMessageKey, string.Empty);
+            set => SessionState.SetString(UIBuilderMessageKey, value ?? string.Empty);
         }
 
         [MenuItem(MenuPath)]
@@ -530,6 +542,17 @@ namespace GameUp.Core.Editor
                 IapMessage,
                 message => IapMessage = message,
                 iapBlockedReason);
+
+            DrawPackageCard(
+                "GameUpUIBuilder",
+                "Dựng prefab UI từ ảnh demo + art của designer: tự dò vị trí sprite (Python/OpenCV), có skill Claude /gu-ui. Mở ở GameUp → UI → UI Builder.",
+                GUDotweenDependencyUtility.GameUpUIBuilderPackageName,
+                GUDotweenDependencyUtility.GameUpUIBuilderGitUpmUrl,
+                GUDotweenDependencyUtility.IsGameUpUIBuilderInstalled(),
+                ref _gameUpUIBuilderInstallRequest,
+                UIBuilderMessage,
+                message => UIBuilderMessage = message,
+                null);
 
             using (GUInstallerUI.BeginCard())
             {

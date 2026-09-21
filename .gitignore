@@ -123,3 +123,9 @@ Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_7_0.dll.meta
 
 # Claude Code — quyen ca nhan tung nguoi, khong chia se
 .claude/settings.local.json
+
+# GameUp UI Builder — file sinh lại được (spec.json vẫn commit)
+/UIBuilder/**/locate.json
+/UIBuilder/**/render.png
+/UIBuilder/**/compare.png
+**/__pycache__/

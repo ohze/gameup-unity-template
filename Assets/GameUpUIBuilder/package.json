@@ -1,0 +1,33 @@
+{
+  "name": "com.ohze.gameup.uibuilder",
+  "displayName": "GameUp UI Builder",
+  "version": "0.1.0",
+  "unity": "6000.0",
+  "description": "Dựng UI (uGUI) từ ảnh demo của designer và art đã cắt: tự dò vị trí/kích thước từng sprite trên demo (OpenCV, kể cả sprite scale và 9-slice), sinh spec JSON, dựng/cập nhật prefab đúng tọa độ, phủ ảnh demo lên Scene View để đối chiếu. Có skill cho Claude Code để AI bổ sung phần ngữ nghĩa (text, button, nhóm, anchor).\n\nCần GameUp Core và Python 3.9+ (cửa sổ tự cài OpenCV vào venv dùng chung).\n\nDuyLV 2026",
+  "keywords": [
+    "gameup",
+    "ui",
+    "ugui",
+    "mockup",
+    "prefab",
+    "builder",
+    "opencv",
+    "ai",
+    "claude"
+  ],
+  "author": {
+    "name": "GameUp",
+    "url": "https://github.com/ohze/gameup-unity-template"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ohze/gameup-unity-template.git",
+    "revision": "main",
+    "directory": "Assets/GameUpUIBuilder"
+  },
+  "documentationUrl": "https://github.com/ohze/gameup-unity-template/blob/main/Assets/GameUpUIBuilder/README.md",
+  "changelogUrl": "https://raw.githubusercontent.com/ohze/gameup-unity-template/main/Assets/GameUpUIBuilder/CHANGELOG.md",
+  "dependencies": {
+    "com.unity.ugui": "2.0.0"
+  }
+}
