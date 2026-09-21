@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using TMPro;
 using UnityEditor;
@@ -16,30 +17,52 @@ namespace GameUp.UIBuilder.Editor
     {
         /// <summary>
         /// Render prefab theo spec rồi ghi <c>render.png</c> và <c>compare.png</c> (demo | prefab | chồng 50%, nửa độ phân giải)
-        /// vào thư mục job. Trả về đường dẫn compare.png, null nếu lỗi.
+        /// vào thư mục job; mỗi demo trạng thái khác (tab 2…) thêm <c>compare_2.png</c>… với đúng nhóm tab được bật.
+        /// Trả về danh sách đường dẫn ảnh so sánh (rỗng nếu lỗi).
         /// </summary>
-        public static string RenderCompare(UISpec spec, string jobFolder)
+        public static List<string> RenderCompare(UISpec spec, string jobFolder)
         {
-            var render = RenderToTexture(spec.output, spec.referenceWidth, spec.referenceHeight);
-            if (render == null) return null;
-
-            WritePng(render, Path.Combine(jobFolder, "render.png"));
-            var demo = LoadDemo(spec.demo);
-            string comparePath = null;
-            if (demo != null)
+            var demos = new List<string> { spec.demo };
+            demos.AddRange(spec.extraDemos);
+            var outputs = new List<string>();
+            for (var state = 0; state < demos.Count; state++)
             {
-                comparePath = Path.Combine(jobFolder, "compare.png").Replace('\\', '/');
-                var compare = BuildCompare(demo, render);
-                WritePng(compare, comparePath);
-                Object.DestroyImmediate(compare);
-                Object.DestroyImmediate(demo);
+                var render = RenderToTexture(spec.output, spec.referenceWidth, spec.referenceHeight, spec.stateGroups, state);
+                if (render == null) break;
+
+                var suffix = state == 0 ? string.Empty : $"_{state + 1}";
+                WritePng(render, Path.Combine(jobFolder, $"render{suffix}.png"));
+                var demo = LoadDemo(demos[state]);
+                if (demo != null)
+                {
+                    var comparePath = Path.Combine(jobFolder, $"compare{suffix}.png").Replace('\\', '/');
+                    var compare = BuildCompare(demo, render);
+                    WritePng(compare, comparePath);
+                    outputs.Add(comparePath);
+                    Object.DestroyImmediate(compare);
+                    Object.DestroyImmediate(demo);
+                }
+
+                Object.DestroyImmediate(render);
             }
 
-            Object.DestroyImmediate(render);
-            return comparePath;
+            return outputs;
         }
 
-        private static Texture2D RenderToTexture(string prefabPath, int width, int height)
+        /// <summary>Bật đúng nhóm của trạng thái <paramref name="state"/>, tắt nhóm các trạng thái khác (chỉ trên bản render).</summary>
+        private static void ApplyState(GameObject instance, List<string> stateGroups, int state)
+        {
+            if (stateGroups == null || stateGroups.Count == 0) return;
+            var all = instance.GetComponentsInChildren<Transform>(true);
+            for (var i = 0; i < stateGroups.Count; i++)
+            {
+                if (string.IsNullOrEmpty(stateGroups[i])) continue;
+                foreach (var t in all)
+                    if (t.name == stateGroups[i]) t.gameObject.SetActive(i == state);
+            }
+        }
+
+        private static Texture2D RenderToTexture(string prefabPath, int width, int height, List<string> stateGroups, int state)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             if (prefab == null) return null;
@@ -69,6 +92,7 @@ namespace GameUp.UIBuilder.Editor
 
                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
                 instance.transform.SetParent(canvasGo.transform, false);
+                ApplyState(instance, stateGroups, state);
 
                 // PreviewScene ở Edit Mode không chạy vòng PreRender của canvas → TMP có mesh nhưng chưa gán material
                 // cho CanvasRenderer, chữ không hiện. Tự rebuild từng text trước khi render.

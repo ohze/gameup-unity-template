@@ -19,9 +19,9 @@ namespace GameUp.UIBuilder.Editor
             foreach (var warning in report.Warnings) sb.AppendLine($"⚠ {warning}");
             if (!report.Success) return sb.ToString();
 
-            var compare = UIPrefabRenderer.RenderCompare(spec, UIBuilderPaths.JobFolder(jobName));
-            sb.AppendLine(compare != null
-                ? $"Ảnh so sánh (demo | prefab | chồng 50%): {compare}"
+            var compares = UIPrefabRenderer.RenderCompare(spec, UIBuilderPaths.JobFolder(jobName));
+            sb.AppendLine(compares.Count > 0
+                ? $"Ảnh so sánh (demo | prefab | chồng 50%), mỗi trạng thái/tab một ảnh: {string.Join(", ", compares)}"
                 : "Không render được ảnh so sánh (thiếu demo?).");
             return sb.ToString();
         }

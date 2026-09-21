@@ -14,5 +14,8 @@ namespace GameUp.UIBuilder.Editor
         public bool sliced;
         public float diff;
         public float zncc;
+
+        /// <summary>Màu tô (Image.color) ước lượng khi sprite bị tint trên demo, "#RRGGBB"; rỗng = không tint.</summary>
+        public string tint;
     }
 }

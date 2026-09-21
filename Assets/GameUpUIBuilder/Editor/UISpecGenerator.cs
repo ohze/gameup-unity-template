@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEditor;
@@ -21,25 +22,171 @@ namespace GameUp.UIBuilder.Editor
 
         public const string PlaceholderText = "Text";
 
+        private const int SameTolerance = 4;
+
         /// <param name="fontPath">TMP_FontAsset cho các node text tìm được; rỗng = font mặc định TMP.</param>
         public static UISpec Generate(LocateResult locate, string name, string demoAssetPath, string outputPrefabPath, string fontPath)
+        {
+            return Generate(new[] { locate }, name, new[] { demoAssetPath }, outputPrefabPath, fontPath);
+        }
+
+        /// <summary>
+        /// Nhiều demo = nhiều trạng thái của cùng một UI (vd 2 tab). Node giống hệt ở mọi demo dựng một lần; phần riêng của
+        /// demo k nằm trong nhóm <c>grp{NhãnTab}</c> (chỉ nhóm đầu bật). Danh sách mỗi tab thành ScrollRect + item prefab
+        /// riêng, đặt tên theo nhãn tab ("Leaderboard" → LeaderboardItem).
+        /// </summary>
+        public static UISpec Generate(IReadOnlyList<LocateResult> states, string name, IReadOnlyList<string> demoAssetPaths,
+            string outputPrefabPath, string fontPath)
         {
             var spec = new UISpec
             {
                 name = name,
-                demo = demoAssetPath,
-                referenceWidth = locate.demoWidth,
-                referenceHeight = locate.demoHeight,
+                demo = demoAssetPaths[0],
+                extraDemos = demoAssetPaths.Skip(1).ToList(),
+                referenceWidth = states[0].demoWidth,
+                referenceHeight = states[0].demoHeight,
                 output = outputPrefabPath
             };
 
-            var nodes = CreateNodes(locate, spec.notes);
-            nodes.AddRange(CreateTextNodes(locate, fontPath, spec.notes, new HashSet<string>(nodes.Select(n => n.id))));
-            AssignParents(nodes);
-            AssignTextAlignment(nodes, locate.demoWidth);
-            spec.nodes = OrderForDrawing(nodes);
-            AddUnmatchedNotes(locate, spec.notes);
+            var perState = new List<List<UISpecNode>>();
+            for (var k = 0; k < states.Count; k++)
+            {
+                var notes = k == 0 ? spec.notes : new List<string>();
+                var nodes = CreateNodes(states[k], notes);
+                nodes.AddRange(CreateTextNodes(states[k], fontPath, notes, new HashSet<string>(nodes.Select(n => n.id))));
+                perState.Add(nodes);
+            }
+
+            var labels = TabLabels(perState[0]);
+            var folder = Path.GetDirectoryName(outputPrefabPath)?.Replace('\\', '/');
+            var usedIds = new HashSet<string>(perState.SelectMany(n => n).Select(n => n.id));
+            for (var k = 0; k < states.Count; k++)
+                UIListExtractor.ExtractLists(perState[k], TemplateNames(labels, k, states.Count, name), folder, spec.templates, usedIds, spec.notes);
+            foreach (var nodes in perState)
+                UIListExtractor.ExtractSimilarRows(nodes, spec.templates, usedIds, spec.notes);
+
+            var merged = states.Count == 1 ? perState[0] : MergeStates(perState, labels, spec.notes, spec.stateGroups);
+            if (states.Count == 1) AssignParents(merged, merged, string.Empty);
+            AddDim(merged, states[0], spec.notes); // sau khi gán cha — lớp phủ kín màn không được làm cha của mọi thứ
+            AssignTextAlignment(merged, states[0].demoWidth);
+            spec.nodes = OrderForDrawing(merged);
+            AddUnmatchedNotes(states[0], spec.notes);
+            spec.notes = spec.notes.Distinct().ToList();
             return spec;
+        }
+
+        /// <summary>Gameplay phía sau bị tối đều (đo từ icon HUD bị tint xám) → lớp dim đen phủ màn, vẽ dưới cùng.</summary>
+        private static void AddDim(List<UISpecNode> nodes, LocateResult locate, List<string> notes)
+        {
+            if (locate.dimAlpha <= 0f) return;
+            var alpha = Mathf.Clamp(Mathf.RoundToInt(locate.dimAlpha * 255f), 0, 255);
+            nodes.Insert(0, new UISpecNode
+            {
+                id = UniqueId("imgDim", new HashSet<string>(nodes.Select(n => n.id))), kind = UISpecNode.KindImage,
+                w = locate.demoWidth, h = locate.demoHeight, anchor = "stretch", color = $"#000000{alpha:X2}",
+                raycastTarget = true, flat = true
+            });
+            notes.Add($"imgDim: lớp dim đen {locate.dimAlpha:P0} đo từ gameplay bị làm tối phía sau.");
+        }
+
+        // ─── Nhiều trạng thái (tab) ──────────────────────────────────────────
+
+        /// <summary>Nhãn tab: chữ nằm trên sprite tên có "tab", trái → phải ("Leaderboard", "Ranking Rewards").</summary>
+        private static List<string> TabLabels(List<UISpecNode> nodes)
+        {
+            var tabs = nodes.Where(n => !string.IsNullOrEmpty(n.sprite)
+                                        && Path.GetFileNameWithoutExtension(n.sprite).ToLowerInvariant().Contains("tab")).ToList();
+            return nodes.Where(n => n.kind == UISpecNode.KindText && !string.IsNullOrWhiteSpace(n.text) && tabs.Any(t => Contains(t, n)))
+                .OrderBy(n => n.x).Select(n => n.text).Distinct().ToList();
+        }
+
+        private static List<string> TemplateNames(List<string> labels, int state, int stateCount, string uiName)
+        {
+            var baseName = state < labels.Count ? TextId(labels[state]).Substring(3)
+                : stateCount > 1 ? $"{uiName}Tab{state + 1}" : uiName;
+            if (string.IsNullOrEmpty(baseName)) baseName = $"{uiName}Tab{state + 1}";
+            return new List<string> { $"{baseName}Item", $"{baseName}Item2", $"{baseName}Item3" };
+        }
+
+        private static List<UISpecNode> MergeStates(List<List<UISpecNode>> perState, List<string> labels, List<string> notes,
+            List<string> stateGroups)
+        {
+            var shared = perState[0].Where(a => perState.Skip(1).All(other => other.Any(b => Same(a, b, perState[0], other)))).ToList();
+            var result = new List<UISpecNode>(shared);
+            AssignParents(shared, shared, string.Empty);
+            var used = new HashSet<string>(shared.Select(n => n.id));
+
+            for (var k = 0; k < perState.Count; k++)
+            {
+                var own = perState[k].Where(n => !shared.Any(s => Same(s, n, perState[0], perState[k]))).ToList();
+                if (own.Count == 0)
+                {
+                    stateGroups.Add(string.Empty);
+                    continue;
+                }
+                RenameCollisions(own, used, k);
+
+                var groupId = UniqueId(k < labels.Count ? $"grp{TextId(labels[k]).Substring(3)}" : $"grpState{k + 1}", used);
+                var tops = own.Where(n => string.IsNullOrEmpty(n.parent)).ToList();
+                var group = new UISpecNode
+                {
+                    id = groupId, kind = UISpecNode.KindEmpty, active = k == 0,
+                    x = tops.Min(n => n.x), y = tops.Min(n => n.y),
+                    w = tops.Max(n => n.x + n.w) - tops.Min(n => n.x), h = tops.Max(n => n.y + n.h) - tops.Min(n => n.y)
+                };
+                group.parent = SmallestContainer(group, shared)?.id ?? string.Empty;
+                stateGroups.Add(groupId);
+                AssignParents(own, own, groupId);
+                result.Add(group);
+                result.AddRange(own);
+                notes.Add($"Trạng thái {k + 1}{(k < labels.Count ? $" (tab \"{labels[k]}\")" : string.Empty)}: {own.Count} node riêng trong {groupId}"
+                          + (k == 0 ? " (bật)." : " (ẩn — bật khi chọn tab)."));
+            }
+
+            return result;
+        }
+
+        /// <summary>id trùng với node đã có (vd "txtPlayerName" ở cả 2 tab) → thêm hậu tố, sửa luôn tham chiếu cha.</summary>
+        private static void RenameCollisions(List<UISpecNode> own, HashSet<string> used, int state)
+        {
+            var renamed = new Dictionary<string, string>();
+            foreach (var node in own)
+            {
+                var id = used.Contains(node.id) ? UniqueId($"{node.id}_tab{state + 1}", used) : node.id;
+                used.Add(id);
+                if (id != node.id) renamed[node.id] = id;
+                node.id = id;
+            }
+
+            foreach (var node in own)
+                if (!string.IsNullOrEmpty(node.parent) && renamed.TryGetValue(node.parent, out var parent)) node.parent = parent;
+        }
+
+        /// <summary>
+        /// Cùng một phần tử ở 2 demo: cùng loại, sprite, chữ, prefab, ghi đè, lệch ≤ 4 px. Chữ so theo nội dung + tâm (khung
+        /// nét chữ lệch vài px giữa 2 ảnh). Scroll so cả item bên trong — 2 tab cùng chỗ nhưng khác danh sách.
+        /// </summary>
+        private static bool Same(UISpecNode a, UISpecNode b, List<UISpecNode> nodesA, List<UISpecNode> nodesB)
+        {
+            if (a.kind != b.kind || a.sprite != b.sprite || a.text != b.text || a.prefab != b.prefab || OverridesKey(a) != OverridesKey(b))
+                return false;
+            if (a.kind == UISpecNode.KindText)
+                return Mathf.Abs(a.x + a.w / 2f - (b.x + b.w / 2f)) <= SameTolerance * 2
+                       && Mathf.Abs(a.y + a.h / 2f - (b.y + b.h / 2f)) <= SameTolerance * 2;
+            if (a.kind == UISpecNode.KindScroll && ScrollItems(a, nodesA) != ScrollItems(b, nodesB))
+                return false;
+            return Mathf.Abs(a.x - b.x) <= SameTolerance && Mathf.Abs(a.y - b.y) <= SameTolerance
+                   && Mathf.Abs(a.w - b.w) <= SameTolerance && Mathf.Abs(a.h - b.h) <= SameTolerance;
+        }
+
+        private static string ScrollItems(UISpecNode scroll, List<UISpecNode> nodes)
+        {
+            return string.Join(",", nodes.Where(n => n.parent == scroll.id).Select(n => n.prefab).Distinct());
+        }
+
+        private static string OverridesKey(UISpecNode node)
+        {
+            return string.Join("|", node.overrides.Select(o => $"{o.id}:{o.hide}:{o.sprite}:{o.setText}:{o.text}"));
         }
 
         private static List<UISpecNode> CreateNodes(LocateResult locate, List<string> notes)
@@ -63,6 +210,7 @@ namespace GameUp.UIBuilder.Editor
                     nodes.Add(new UISpecNode
                     {
                         id = id,
+                        flat = sprite.lowTexture,
                         kind = isButton ? UISpecNode.KindButton : UISpecNode.KindImage,
                         x = match.x,
                         y = match.y,
@@ -70,6 +218,7 @@ namespace GameUp.UIBuilder.Editor
                         h = match.h,
                         sprite = assetPath,
                         sliced = match.sliced,
+                        color = match.tint,
                         raycastTarget = isButton
                     });
                 }
@@ -142,27 +291,38 @@ namespace GameUp.UIBuilder.Editor
             current.Clear();
         }
 
-        /// <summary>Cha = node nhỏ nhất chứa trọn node này (không tính chính nó).</summary>
-        private static void AssignParents(List<UISpecNode> nodes)
+        /// <summary>
+        /// Cha = node nhỏ nhất chứa trọn node này trong <paramref name="candidates"/>, không có thì <paramref name="fallback"/>.
+        /// Node đã có cha (instance trong scroll) giữ nguyên; instance/scroll/text không làm cha theo hình học.
+        /// </summary>
+        private static void AssignParents(List<UISpecNode> nodes, List<UISpecNode> candidates, string fallback)
         {
-            foreach (var node in nodes)
-            {
-                UISpecNode best = null;
-                foreach (var other in nodes)
-                {
-                    if (other == node || Area(other) <= Area(node) || !Contains(other, node)) continue;
-                    if (best == null || Area(other) < Area(best)) best = other;
-                }
+            foreach (var node in nodes.Where(n => string.IsNullOrEmpty(n.parent)))
+                node.parent = SmallestContainer(node, candidates)?.id ?? fallback;
+        }
 
-                node.parent = best != null ? best.id : string.Empty;
+        /// <summary>
+        /// Node nhỏ nhất chứa trọn <paramref name="node"/>. Ưu tiên sprite có hoạ tiết hơn sprite phẳng: nhãn tab nằm trong
+        /// cả nút tab lẫn nền thanh tab — phải là con của nút (nền vẽ bên dưới, con của nền sẽ bị nút che).
+        /// </summary>
+        private static UISpecNode SmallestContainer(UISpecNode node, IEnumerable<UISpecNode> candidates)
+        {
+            UISpecNode best = null;
+            foreach (var other in candidates)
+            {
+                if (other == node || other.kind == UISpecNode.KindInstance || other.kind == UISpecNode.KindScroll
+                    || other.kind == UISpecNode.KindText || Area(other) <= Area(node) || !Contains(other, node)) continue;
+                if (best == null || (best.flat && !other.flat) || (best.flat == other.flat && Area(other) < Area(best))) best = other;
             }
+
+            return best;
         }
 
         /// <summary>
         /// Căn lề chữ — quan trọng khi nội dung đổi dài/ngắn so với demo: các dòng cùng cha thẳng mép trái (danh sách
         /// cạnh icon) → trái, thẳng mép phải → phải; hai lề cân nhau → giữa; còn lại theo phía gần hơn.
         /// </summary>
-        private static void AssignTextAlignment(List<UISpecNode> nodes, int rootWidth)
+        internal static void AssignTextAlignment(List<UISpecNode> nodes, int rootWidth)
         {
             var texts = nodes.Where(n => n.kind == UISpecNode.KindText).ToList();
             foreach (var node in texts)
@@ -189,7 +349,7 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
-        /// <summary>Cha đứng trước con; cùng cha thì node lớn vẽ trước (nằm dưới).</summary>
+        /// <summary>Cha đứng trước con; cùng cha thì sprite phẳng (nền, panel) rồi node lớn vẽ trước (nằm dưới).</summary>
         private static List<UISpecNode> OrderForDrawing(List<UISpecNode> nodes)
         {
             var result = new List<UISpecNode>(nodes.Count);
@@ -199,7 +359,7 @@ namespace GameUp.UIBuilder.Editor
 
         private static void AppendChildren(string parentId, List<UISpecNode> nodes, List<UISpecNode> result)
         {
-            foreach (var child in nodes.Where(n => n.parent == parentId).OrderByDescending(Area).ThenBy(n => n.y))
+            foreach (var child in nodes.Where(n => n.parent == parentId).OrderByDescending(n => n.flat).ThenByDescending(Area).ThenBy(n => n.y))
             {
                 result.Add(child);
                 AppendChildren(child.id, nodes, result);
@@ -222,7 +382,7 @@ namespace GameUp.UIBuilder.Editor
             notes.Add("Chưa có: vùng art thiếu, chữ nằm ngoài sprite đã khớp, phần nền gameplay phía sau (không thuộc prefab) — bổ sung khi review spec.");
         }
 
-        private static string UniqueId(string baseId, HashSet<string> used)
+        internal static string UniqueId(string baseId, HashSet<string> used)
         {
             var id = baseId;
             for (var i = 2; !used.Add(id); i++) id = $"{baseId}_{i}";
@@ -231,7 +391,7 @@ namespace GameUp.UIBuilder.Editor
 
         private static long Area(UISpecNode n) => (long)n.w * n.h;
 
-        private static bool Contains(UISpecNode outer, UISpecNode inner)
+        internal static bool Contains(UISpecNode outer, UISpecNode inner)
         {
             return inner.x >= outer.x - ContainTolerance
                    && inner.y >= outer.y - ContainTolerance

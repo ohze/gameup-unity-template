@@ -19,6 +19,15 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Asset path prefab đầu ra (.prefab).</summary>
         public string output;
 
+        /// <summary>Ảnh demo các trạng thái khác (tab 2, 3…) — node chỉ có ở trạng thái k nằm trong nhóm <c>grpState{k}</c>.</summary>
+        public List<string> extraDemos = new List<string>();
+
+        /// <summary>id nhóm node riêng của từng trạng thái, theo thứ tự demo (rỗng = trạng thái không có node riêng).</summary>
+        public List<string> stateGroups = new List<string>();
+
+        /// <summary>Prefab con (item danh sách) — dựng trước prefab chính.</summary>
+        public List<UITemplateSpec> templates = new List<UITemplateSpec>();
+
         /// <summary>Tên type (Name hoặc FullName) của component gắn vào root, vd <c>PopupResult</c>; rỗng = không gắn.</summary>
         public string rootComponent;
 

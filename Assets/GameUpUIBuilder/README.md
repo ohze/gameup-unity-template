@@ -24,7 +24,7 @@ Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-
 `GameUp → UI → UI Builder (Demo → Prefab)`
 
 1. **Môi trường Python**: cài một lần.
-2. **Đầu vào**: tên UI, ảnh demo, các thư mục art (thư mục riêng của màn + `_Shared`), thư mục prefab.
+2. **Đầu vào**: tên UI, ảnh demo, các thư mục art (thư mục riêng của màn + `_Shared`), thư mục prefab. UI có nhiều tab/trạng thái → thêm các demo khác ở *＋ Demo tab khác*; nút *Demo 1 / Demo 2* chọn ảnh xem trước.
 3. **Chạy định vị**: danh sách sprite khớp (vị trí, scale, 9-slice) và sprite không khớp kèm lý do. Sprite dùng dạng 9-slice mà chưa có border sẽ có nhãn **CẦN BORDER** và gợi ý giá trị; set trong Sprite Editor.
 4. **Spec**: chọn *Font cho text* (font TMP của game) rồi bấm *Tạo spec nháp*. Spec gồm mọi sprite đã định vị (lồng theo quan hệ chứa nhau) và mọi dòng chữ tìm được: đúng vị trí, màu, cỡ, căn lề, và nội dung đọc bằng OCR (RapidOCR, chạy trên máy); node chữ được đặt tên theo nội dung (`txtRemoveAds`). Dòng OCR không chắc được ghi trong phần ghi chú của spec. Sau đó chọn một trong hai cách:
    - *Copy prompt cho Claude* rồi dán vào Claude Code (đã *Cài skill* `/gu-ui`). Claude điền nội dung chữ, đặt tên node, gom nhóm, đặt anchor, ước lượng glow/art thiếu, tự dựng và đối chiếu qua Unity MCP.
@@ -42,6 +42,14 @@ Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-
 - Glow, vfx bán trong suốt không dò được bằng hình; AI hoặc người đặt theo mắt.
 - Chữ chỉ tìm được khi nằm **trên** một sprite đã khớp; chữ nằm thẳng trên nền gameplay thì AI hoặc người thêm.
 - OCR đọc tốt chữ Latin và số, kể cả font pixel; ký hiệu đặc biệt (`₫`, `×`, icon chèn trong chữ) cần soát lại.
+
+## Danh sách, item prefab, nhiều tab
+
+- **Danh sách**: ≥ 3 khung cùng sprite, cùng cột, cách đều → `ScrollRect` (Viewport + Content + VerticalLayoutGroup, spacing đo từ demo) chứa các instance của **một item prefab** riêng (`<Tên tab>Item.prefab`). Item = hợp nội dung mọi hàng; hàng khác nhau được ghi đè (đổi sprite vương miện, đổi chữ, ẩn phần không có).
+- **Hàng lẻ cùng bố cục** (hàng hạng của người chơi, nền khác) → instance của cùng item, ghi đè nền.
+- **Nhiều demo** (tab): phần giống nhau dựng một lần; phần riêng mỗi tab vào nhóm `grp<Tên tab>` (tab đầu bật). Tên item/nhóm lấy từ nhãn tab đọc được (`Leaderboard` → `LeaderboardItem`, `grpLeaderboard`). Ảnh so sánh xuất cho từng tab (`compare.png`, `compare_2.png`).
+- **Tint & dim**: sprite bị tô màu trên demo (tab chưa chọn) → `Image.color`; gameplay phía sau bị tối đều → tự thêm `imgDim` đúng độ đậm, và không đưa HUD gameplay vào prefab.
+- Phần tử **không có art** (avatar, ô điểm, ô vật phẩm) cần thêm vào item prefab (tay hoặc Claude) — tool ghi chú trong spec.
 
 ## Thư mục làm việc
 

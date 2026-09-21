@@ -161,6 +161,49 @@ namespace GameUp.UIBuilder.Tests
             Assert.IsNull(AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath));
         }
 
+        [Test]
+        public void Build_ScrollWithTemplateInstances_CreatesScrollRectAndNestedPrefabsWithOverrides()
+        {
+            const string itemPath = TempFolder + "/RankItem.prefab";
+            var spec = CreateSpec(new UISpecNode { id = "scrollRank", kind = UISpecNode.KindScroll, x = 56, y = 647, w = 968, h = 344, spacing = 8 });
+            spec.templates.Add(new UITemplateSpec
+            {
+                name = "RankItem", output = itemPath, width = 968, height = 168,
+                nodes = new List<UISpecNode>
+                {
+                    Node(UIListExtractor.BackgroundId, "", 0, 0, 968, 168, "auto"),
+                    new UISpecNode { id = "txtName", kind = UISpecNode.KindText, text = "Player Name", x = 300, y = 50, w = 260, h = 60 },
+                    Node("imgCrown", "", 16, 16, 132, 132, "auto")
+                }
+            });
+            spec.nodes.Add(new UISpecNode
+            {
+                id = "RankItem_1", parent = "scrollRank", kind = UISpecNode.KindInstance, prefab = itemPath, x = 56, y = 647, w = 968, h = 168
+            });
+            spec.nodes.Add(new UISpecNode
+            {
+                id = "RankItem_2", parent = "scrollRank", kind = UISpecNode.KindInstance, prefab = itemPath, x = 56, y = 823, w = 968, h = 168,
+                overrides = new List<UISpecOverride>
+                {
+                    new UISpecOverride { id = "imgCrown", hide = true },
+                    new UISpecOverride { id = "txtName", setText = true, text = "Rival" }
+                }
+            });
+
+            var report = UISpecBuilder.Build(spec);
+
+            Assert.IsTrue(report.Success, report.Summary);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            var scroll = prefab.transform.Find("scrollRank").GetComponent<ScrollRect>();
+            Assert.IsNotNull(scroll);
+            Assert.AreEqual(8f, scroll.content.GetComponent<VerticalLayoutGroup>().spacing);
+            var second = scroll.content.Find("RankItem_2");
+            Assert.AreSame(AssetDatabase.LoadAssetAtPath<GameObject>(itemPath), PrefabUtility.GetCorrespondingObjectFromSource(second.gameObject));
+            Assert.IsFalse(second.Find("imgCrown").gameObject.activeSelf);
+            Assert.AreEqual("Rival", second.Find("txtName").GetComponent<TextMeshProUGUI>().text);
+            Assert.IsTrue(scroll.content.Find("RankItem_1/imgCrown").gameObject.activeSelf);
+        }
+
         private static RectTransform BuildAndFind(UISpec spec, string path)
         {
             var report = UISpecBuilder.Build(spec);

@@ -21,16 +21,20 @@ namespace GameUp.UIBuilder.Editor
             Copy(UIBuilderPaths.CommandSource, CommandTarget);
         }
 
-        public static string BuildPrompt(string jobName, string demoPath, IReadOnlyList<string> artFolders, bool recursive, string outputPrefab)
+        public static string BuildPrompt(string jobName, IReadOnlyList<string> demos, IReadOnlyList<string> artFolders, bool recursive, string outputPrefab)
         {
             var specPath = UIBuilderPaths.SpecPath(jobName);
-            var locatePath = UIBuilderPaths.LocatePath(jobName);
             var sb = new StringBuilder();
             sb.AppendLine($"/gu-ui Dựng UI \"{jobName}\" từ ảnh demo bằng GameUp UI Builder.");
-            sb.AppendLine($"- Demo: {demoPath}");
+            if (demos.Count > 1) sb.AppendLine($"- {demos.Count} demo = {demos.Count} trạng thái (tab) của cùng UI, theo thứ tự:");
             sb.AppendLine($"- Art: {string.Join(", ", artFolders)}");
-            sb.AppendLine($"- Kết quả định vị sprite: {locatePath}" + (File.Exists(UIBuilderPaths.ToAbsolute(locatePath)) ? string.Empty : " (chưa chạy)"));
-            sb.AppendLine($"  Chạy lại: {UIBuilderLocator.BuildCommandLine(demoPath, artFolders, recursive, locatePath)}");
+            for (var i = 0; i < demos.Count; i++)
+            {
+                var locatePath = UIBuilderPaths.LocatePath(jobName, i);
+                sb.AppendLine($"- Demo {i + 1}: {demos[i]} → định vị: {locatePath}"
+                              + (File.Exists(UIBuilderPaths.ToAbsolute(locatePath)) ? string.Empty : " (chưa chạy)"));
+                sb.AppendLine($"  Chạy lại: {UIBuilderLocator.BuildCommandLine(demos[i], artFolders, recursive, locatePath)}");
+            }
             sb.AppendLine($"- Spec: {specPath}" + (File.Exists(UIBuilderPaths.ToAbsolute(specPath)) ? " (đã có bản nháp — hoàn thiện tiếp)" : " (chưa có — tạo mới)"));
             sb.AppendLine($"- Prefab đầu ra: {outputPrefab}");
             return sb.ToString();

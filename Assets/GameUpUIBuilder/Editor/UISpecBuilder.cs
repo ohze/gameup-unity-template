@@ -31,30 +31,48 @@ namespace GameUp.UIBuilder.Editor
             var report = new UIBuildReport { PrefabPath = spec.output };
             if (!Validate(spec, report)) return report;
 
-            EnsureFolder(Path.GetDirectoryName(spec.output)?.Replace('\\', '/'));
-            var existing = File.Exists(UIBuilderPaths.ToAbsolute(spec.output));
+            // Item prefab dựng trước để node instance của prefab chính trỏ tới được.
+            foreach (var template in spec.templates)
+            {
+                var size = new RectInt(0, 0, template.width, template.height);
+                if (!BuildPrefab(template.name, template.output, size, true, template.nodes, null, report)) return report;
+            }
+
+            var screen = new RectInt(0, 0, spec.referenceWidth, spec.referenceHeight);
+            report.Success = BuildPrefab(spec.name, spec.output, screen, false, spec.nodes, spec, report);
+            return report;
+        }
+
+        /// <summary>
+        /// Dựng/cập nhật một prefab. <paramref name="fixedRoot"/>: root cố định cỡ (item danh sách) thay vì phủ kín cha
+        /// (màn hình/popup). <paramref name="rootComponentSpec"/> null = không gắn component root.
+        /// </summary>
+        private static bool BuildPrefab(string name, string output, RectInt rootRect, bool fixedRoot, List<UISpecNode> nodes,
+            UISpec rootComponentSpec, UIBuildReport report)
+        {
+            EnsureFolder(Path.GetDirectoryName(output)?.Replace('\\', '/'));
+            var existing = File.Exists(UIBuilderPaths.ToAbsolute(output));
             var root = existing
-                ? PrefabUtility.LoadPrefabContents(spec.output)
-                : new GameObject(spec.name, typeof(RectTransform)) { layer = UILayer };
+                ? PrefabUtility.LoadPrefabContents(output)
+                : new GameObject(name, typeof(RectTransform)) { layer = UILayer };
 
             try
             {
-                var rootRect = (RectTransform)root.transform;
-                SetStretchFull(rootRect);
-                var built = BuildNodes(spec, rootRect, report);
-                AttachRootComponent(spec, root, built, report);
+                var rootTransform = (RectTransform)root.transform;
+                if (fixedRoot) SetFixedSize(rootTransform, rootRect);
+                else SetStretchFull(rootTransform);
+                var built = BuildNodes(nodes, rootTransform, rootRect, report);
+                if (rootComponentSpec != null) AttachRootComponent(rootComponentSpec, root, built, report);
 
-                PrefabUtility.SaveAsPrefabAsset(root, spec.output, out var saved);
-                report.Success = saved;
-                if (!saved) report.Errors.Add($"Không lưu được prefab {spec.output}.");
+                PrefabUtility.SaveAsPrefabAsset(root, output, out var saved);
+                if (!saved) report.Errors.Add($"Không lưu được prefab {output}.");
+                return saved;
             }
             finally
             {
                 if (existing) PrefabUtility.UnloadPrefabContents(root);
                 else Object.DestroyImmediate(root);
             }
-
-            return report;
         }
 
         // ─── Kiểm tra spec ───────────────────────────────────────────────────
@@ -67,34 +85,49 @@ namespace GameUp.UIBuilder.Editor
             if (spec.referenceWidth <= 0 || spec.referenceHeight <= 0)
                 report.Errors.Add("'referenceWidth/referenceHeight' phải > 0.");
 
-            var ids = new HashSet<string>();
-            foreach (var node in spec.nodes)
+            ValidateNodes(spec.name, spec.nodes, report);
+            foreach (var template in spec.templates)
             {
-                if (string.IsNullOrEmpty(node.id)) report.Errors.Add("Có node thiếu 'id'.");
-                else if (!ids.Add(node.id)) report.Errors.Add($"Trùng id '{node.id}'.");
-                else if (!string.IsNullOrEmpty(node.parent) && !ids.Contains(node.parent))
-                    report.Errors.Add($"Node '{node.id}': cha '{node.parent}' phải khai báo trước nó.");
+                if (string.IsNullOrEmpty(template.output) || !template.output.EndsWith(".prefab") || template.width <= 0 || template.height <= 0)
+                    report.Errors.Add($"Template '{template.name}': cần 'output' (.prefab), 'width', 'height' > 0.");
+                ValidateNodes(template.name, template.nodes, report);
             }
 
             return report.Errors.Count == 0;
         }
 
+        private static void ValidateNodes(string owner, List<UISpecNode> nodes, UIBuildReport report)
+        {
+            var ids = new HashSet<string>();
+            foreach (var node in nodes)
+            {
+                if (string.IsNullOrEmpty(node.id)) report.Errors.Add($"{owner}: có node thiếu 'id'.");
+                else if (!ids.Add(node.id)) report.Errors.Add($"{owner}: trùng id '{node.id}'.");
+                else if (!string.IsNullOrEmpty(node.parent) && !ids.Contains(node.parent))
+                    report.Errors.Add($"{owner}: node '{node.id}' — cha '{node.parent}' phải khai báo trước nó.");
+                if (node.kind == UISpecNode.KindInstance && string.IsNullOrEmpty(node.prefab))
+                    report.Errors.Add($"{owner}: node instance '{node.id}' thiếu 'prefab'.");
+            }
+        }
+
         // ─── Dựng node ───────────────────────────────────────────────────────
 
-        private static Dictionary<string, RectTransform> BuildNodes(UISpec spec, RectTransform root, UIBuildReport report)
+        private static Dictionary<string, RectTransform> BuildNodes(List<UISpecNode> nodes, RectTransform root, RectInt rootAbs,
+            UIBuildReport report)
         {
             var built = new Dictionary<string, RectTransform>();
+            var containers = new Dictionary<string, RectTransform>(); // node scroll → Content (nơi đặt con)
             var absolute = new Dictionary<string, RectInt>();
             var siblingIndex = new Dictionary<Transform, int>();
-            var rootAbs = new RectInt(0, 0, spec.referenceWidth, spec.referenceHeight);
 
-            foreach (var node in spec.nodes)
+            foreach (var node in nodes)
             {
                 var hasParent = !string.IsNullOrEmpty(node.parent);
-                var parent = hasParent ? built[node.parent] : root;
+                var parent = hasParent ? containers[node.parent] : root;
                 var parentAbs = hasParent ? absolute[node.parent] : rootAbs;
 
-                var rt = FindOrCreate(root, parent, node.id, report);
+                var rt = FindOrCreate(root, parent, node, report);
+                if (rt == null) continue;
                 var nodeAbs = new RectInt(node.x, node.y, node.w, node.h);
                 ApplyRect(rt, nodeAbs, parentAbs, ResolveAnchor(node, hasParent, rootAbs, report));
                 ApplyContent(rt.gameObject, node, report);
@@ -105,38 +138,85 @@ namespace GameUp.UIBuilder.Editor
                 if (rt.gameObject.activeSelf != node.active) rt.gameObject.SetActive(node.active);
 
                 built[node.id] = rt;
+                containers[node.id] = node.kind == UISpecNode.KindScroll ? ScrollContent(rt) : rt;
                 absolute[node.id] = nodeAbs;
             }
 
             return built;
         }
 
-        private static RectTransform FindOrCreate(RectTransform root, RectTransform parent, string id, UIBuildReport report)
+        private static RectTransform FindOrCreate(RectTransform root, RectTransform parent, UISpecNode node, UIBuildReport report)
         {
-            var direct = parent.Find(id);
-            if (direct is RectTransform found)
+            var existing = parent.Find(node.id) as RectTransform;
+            if (existing == null)
             {
-                report.Updated++;
-                return found;
+                // Node đã có nhưng spec đổi cha → chuyển sang cha mới, giữ component làm tay. Không tìm vào trong prefab lồng.
+                existing = root.GetComponentsInChildren<RectTransform>(true)
+                    .FirstOrDefault(t => t != root && t.name == node.id && !IsInsideNestedPrefab(t, root));
+                if (existing != null) existing.SetParent(parent, false);
             }
 
-            // Node đã có nhưng spec đổi cha → chuyển sang cha mới, giữ component làm tay.
-            var moved = root.GetComponentsInChildren<RectTransform>(true).FirstOrDefault(t => t != root && t.name == id);
-            if (moved != null)
+            if (node.kind == UISpecNode.KindInstance)
+                return FindOrCreateInstance(parent, node, existing, report);
+
+            if (existing != null)
             {
-                moved.SetParent(parent, false);
                 report.Updated++;
-                return moved;
+                return existing;
             }
 
-            var go = new GameObject(id, typeof(RectTransform)) { layer = UILayer };
+            var go = new GameObject(node.id, typeof(RectTransform)) { layer = UILayer };
             var rt = (RectTransform)go.transform;
             rt.SetParent(parent, false);
             report.Created++;
             return rt;
         }
 
+        /// <summary>Instance của prefab lồng (item danh sách). Object cùng tên nhưng không phải instance của prefab đó → thay mới.</summary>
+        private static RectTransform FindOrCreateInstance(RectTransform parent, UISpecNode node, RectTransform existing, UIBuildReport report)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(node.prefab);
+            if (prefab == null)
+            {
+                report.Warnings.Add($"{node.id}: không thấy prefab '{node.prefab}'.");
+                return null;
+            }
+
+            if (existing != null)
+            {
+                if (PrefabUtility.GetCorrespondingObjectFromSource(existing.gameObject) == prefab)
+                {
+                    report.Updated++;
+                    return existing;
+                }
+
+                Object.DestroyImmediate(existing.gameObject);
+            }
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+            instance.name = node.id;
+            report.Created++;
+            return (RectTransform)instance.transform;
+        }
+
+        private static bool IsInsideNestedPrefab(Transform t, Transform root)
+        {
+            for (var p = t.parent; p != null && p != root; p = p.parent)
+                if (PrefabUtility.IsAnyPrefabInstanceRoot(p.gameObject)) return true;
+            return false;
+        }
+
         // ─── Rect & anchor ───────────────────────────────────────────────────
+
+        private static void SetFixedSize(RectTransform rt, RectInt size)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(size.width, size.height);
+            rt.anchoredPosition = Vector2.zero;
+            rt.localScale = Vector3.one;
+            rt.localRotation = Quaternion.identity;
+        }
 
         private static void SetStretchFull(RectTransform rt)
         {
@@ -233,8 +313,14 @@ namespace GameUp.UIBuilder.Editor
                     break;
                 case UISpecNode.KindEmpty:
                     break;
+                case UISpecNode.KindScroll:
+                    ApplyScroll(go, node);
+                    break;
+                case UISpecNode.KindInstance:
+                    ApplyOverrides(go, node, report);
+                    break;
                 default:
-                    report.Warnings.Add($"{node.id}: kind '{node.kind}' không hợp lệ (empty|image|button|text).");
+                    report.Warnings.Add($"{node.id}: kind '{node.kind}' không hợp lệ (empty|image|button|text|scroll|instance).");
                     break;
             }
         }
@@ -308,6 +394,84 @@ namespace GameUp.UIBuilder.Editor
         private static float PreferredWidth(TMP_Text text)
         {
             return text.GetPreferredValues(text.text, float.PositiveInfinity, float.PositiveInfinity).x;
+        }
+
+        // ─── Scroll & instance ───────────────────────────────────────────────
+
+        /// <summary>
+        /// ScrollRect chuẩn uGUI: Viewport (RectMask2D + Image trong suốt để nhận kéo) → Content (LayoutGroup +
+        /// ContentSizeFitter). Con của node scroll trong spec được đặt vào Content và xếp theo layout.
+        /// </summary>
+        private static void ApplyScroll(GameObject go, UISpecNode node)
+        {
+            var vertical = node.direction != "horizontal";
+            var viewport = FindOrCreateChild((RectTransform)go.transform, "Viewport");
+            SetStretchFull(viewport);
+            GetOrAdd<RectMask2D>(viewport.gameObject);
+            var hit = GetOrAdd<Image>(viewport.gameObject);
+            hit.color = new Color(1f, 1f, 1f, 0f);
+
+            var content = FindOrCreateChild(viewport, "Content");
+            content.anchorMin = vertical ? new Vector2(0f, 1f) : Vector2.zero;
+            content.anchorMax = vertical ? Vector2.one : new Vector2(0f, 1f);
+            content.pivot = vertical ? new Vector2(0.5f, 1f) : new Vector2(0f, 0.5f);
+            content.offsetMin = content.offsetMax = Vector2.zero;
+
+            HorizontalOrVerticalLayoutGroup layout = vertical
+                ? (HorizontalOrVerticalLayoutGroup)GetOrAdd<VerticalLayoutGroup>(content.gameObject)
+                : GetOrAdd<HorizontalLayoutGroup>(content.gameObject);
+            layout.spacing = node.spacing;
+            layout.padding = new RectOffset(node.padding, node.padding, node.padding, node.padding);
+            layout.childAlignment = vertical ? TextAnchor.UpperCenter : TextAnchor.MiddleLeft;
+            layout.childControlWidth = layout.childControlHeight = false;
+            layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+
+            var fitter = GetOrAdd<ContentSizeFitter>(content.gameObject);
+            fitter.verticalFit = vertical ? ContentSizeFitter.FitMode.PreferredSize : ContentSizeFitter.FitMode.Unconstrained;
+            fitter.horizontalFit = vertical ? ContentSizeFitter.FitMode.Unconstrained : ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = GetOrAdd<ScrollRect>(go);
+            scroll.viewport = viewport;
+            scroll.content = content;
+            scroll.vertical = vertical;
+            scroll.horizontal = !vertical;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.scrollSensitivity = 30f;
+        }
+
+        private static RectTransform ScrollContent(RectTransform scroll)
+        {
+            return (RectTransform)scroll.Find("Viewport/Content");
+        }
+
+        private static RectTransform FindOrCreateChild(RectTransform parent, string name)
+        {
+            if (parent.Find(name) is RectTransform found) return found;
+            var rt = (RectTransform)new GameObject(name, typeof(RectTransform)) { layer = UILayer }.transform;
+            rt.SetParent(parent, false);
+            return rt;
+        }
+
+        /// <summary>Ghi đè từng hàng: ẩn phần tử hàng này không có, đổi sprite (vương miện top 2/3), đổi chữ.</summary>
+        private static void ApplyOverrides(GameObject instance, UISpecNode node, UIBuildReport report)
+        {
+            foreach (var o in node.overrides)
+            {
+                var target = string.IsNullOrEmpty(o.id) || o.id == instance.name
+                    ? instance.transform
+                    : instance.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == o.id);
+                if (target == null)
+                {
+                    report.Warnings.Add($"{node.id}: không có node '{o.id}' trong prefab để ghi đè.");
+                    continue;
+                }
+
+                if (target != instance.transform) target.gameObject.SetActive(!o.hide);
+                if (!string.IsNullOrEmpty(o.sprite) && target.TryGetComponent<Image>(out var image))
+                    image.sprite = LoadSprite(new UISpecNode { id = $"{node.id}/{o.id}", sprite = o.sprite }, report);
+                if (o.setText && target.TryGetComponent<TMP_Text>(out var text))
+                    text.text = o.text ?? string.Empty;
+            }
         }
 
         private static Sprite LoadSprite(UISpecNode node, UIBuildReport report)

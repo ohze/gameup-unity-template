@@ -9,6 +9,8 @@ namespace GameUp.UIBuilder.Editor
     {
         public string jobName = "NewUI";
         public string demoPath;
+        /// <summary>Demo các trạng thái khác của cùng UI (tab 2, 3…).</summary>
+        public List<string> extraDemos = new List<string>();
         public List<string> artFolders = new List<string>();
         public bool includeSubfolders;
         public string outputFolder = "Assets/_MainProject/Prefabs/UI/Popups";

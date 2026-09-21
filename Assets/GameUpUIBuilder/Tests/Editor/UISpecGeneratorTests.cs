@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using GameUp.UIBuilder.Editor;
 using NUnit.Framework;
 
@@ -101,6 +102,29 @@ namespace GameUp.UIBuilder.Tests
             Assert.IsNotNull(title);
             Assert.AreEqual("Remove Ads", title.text);
             StringAssert.Contains("txt49000", string.Join("\n", spec.notes));
+        }
+
+        [Test]
+        public void Generate_TwoDemos_SharedOnceAndStateOnlyNodesInGroups()
+        {
+            var banner = Sprite("banner_title", Match(28, 75, 1024, 148, false));
+            var tab1 = Locate(banner, Sprite("crown_top1", Match(72, 663, 132, 132, false)));
+            tab1.texts.Add(new LocateText { x = 222, y = 1793, w = 221, h = 45, text = "Leaderboard", confidence = 1f });
+            var tab2 = Locate(Sprite("banner_title", Match(28, 75, 1024, 148, false)), Sprite("crown_top2", Match(72, 663, 132, 132, false)));
+            tab2.texts.Add(new LocateText { x = 222, y = 1793, w = 221, h = 45, text = "Leaderboard", confidence = 1f });
+
+            var spec = UISpecGenerator.Generate(new[] { tab1, tab2 }, "Popup", new[] { "Assets/d1.png", "Assets/d2.png" }, "Assets/Popup.prefab", null);
+
+            Assert.AreEqual(1, spec.nodes.Count(n => n.id == "banner_title"), "phần giống nhau dựng một lần");
+            Assert.AreEqual(1, spec.nodes.Count(n => n.text == "Leaderboard"));
+            Assert.AreEqual(2, spec.stateGroups.Count);
+            var group1 = spec.nodes.Single(n => n.id == spec.stateGroups[0]);
+            var group2 = spec.nodes.Single(n => n.id == spec.stateGroups[1]);
+            Assert.IsTrue(group1.active);
+            Assert.IsFalse(group2.active);
+            Assert.AreEqual(group1.id, spec.nodes.Single(n => n.id == "crown_top1").parent);
+            Assert.AreEqual(group2.id, spec.nodes.Single(n => n.id == "crown_top2").parent);
+            CollectionAssert.AreEqual(new[] { "Assets/d2.png" }, spec.extraDemos);
         }
 
         private static LocateResult Locate(params LocateSprite[] sprites)

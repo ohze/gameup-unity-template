@@ -16,6 +16,9 @@ namespace GameUp.UIBuilder.Editor
         public List<LocateSprite> sprites = new List<LocateSprite>();
         public List<LocateText> texts = new List<LocateText>();
 
+        /// <summary>Độ đậm lớp dim đen phía sau popup (0-1) đo từ gameplay bị làm tối; 0 = không thấy lớp dim.</summary>
+        public float dimAlpha;
+
         /// <summary>ok | unavailable (venv chưa có OCR) | skipped | none (không có chữ).</summary>
         public string ocr;
     }

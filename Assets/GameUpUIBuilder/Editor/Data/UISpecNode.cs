@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace GameUp.UIBuilder.Editor
 {
@@ -13,6 +14,8 @@ namespace GameUp.UIBuilder.Editor
         public const string KindImage = "image";
         public const string KindButton = "button";
         public const string KindText = "text";
+        public const string KindScroll = "scroll";
+        public const string KindInstance = "instance";
 
         /// <summary>Tên GameObject, duy nhất trong spec (vd <c>btnReward</c>, <c>txtName</c>).</summary>
         public string id;
@@ -20,7 +23,7 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>id của node cha; rỗng = con trực tiếp của root.</summary>
         public string parent;
 
-        /// <summary>empty | image | button | text.</summary>
+        /// <summary>empty | image | button | text | scroll | instance.</summary>
         public string kind = KindImage;
 
         public int x;
@@ -54,5 +57,21 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>left | center | right.</summary>
         public string align = "center";
         public bool bold;
+
+        // ─── scroll ───
+        /// <summary>vertical | horizontal. Con của node scroll nằm trong Content, xếp bằng LayoutGroup.</summary>
+        public string direction = "vertical";
+        /// <summary>Khoảng cách giữa các item (px) — đo từ demo.</summary>
+        public float spacing;
+        /// <summary>Lề trong của Content (px, cả 4 phía).</summary>
+        public int padding;
+
+        // ─── instance ───
+        /// <summary>Asset path prefab (thường là output của một <see cref="UITemplateSpec"/>).</summary>
+        public string prefab;
+        public List<UISpecOverride> overrides = new List<UISpecOverride>();
+
+        /// <summary>Sprite một màu (panel/nền) — chỉ dùng lúc sinh spec để xếp thứ tự vẽ, không ghi ra JSON.</summary>
+        [NonSerialized] public bool flat;
     }
 }

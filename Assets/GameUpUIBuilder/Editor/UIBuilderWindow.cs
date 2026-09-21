@@ -24,7 +24,11 @@ namespace GameUp.UIBuilder.Editor
 
         private UIBuilderPython _pythonSetup;
         private UIBuilderLocator _locator;
-        private LocateResult _locate;
+        private int _locatingIndex;
+        private readonly Queue<int> _locateQueue = new Queue<int>();
+        private List<LocateResult> _locates = new List<LocateResult>();
+        private LocateResult _locate; // của demo đang xem trước
+        private int _previewIndex;
         private string _locateMessage;
         private UISpec _spec;
         private string _specError;
@@ -42,7 +46,26 @@ namespace GameUp.UIBuilder.Editor
 
         private string SpecPath => UIBuilderPaths.SpecPath(Settings.jobName);
 
-        private string LocatePath => UIBuilderPaths.LocatePath(Settings.jobName);
+        /// <summary>Demo 1 + demo các trạng thái khác (tab 2…) còn tồn tại.</summary>
+        private List<string> Demos
+        {
+            get
+            {
+                var demos = new List<string>();
+                if (HasDemo()) demos.Add(Settings.demoPath);
+                demos.AddRange(Settings.extraDemos.Where(d => !string.IsNullOrEmpty(d) && File.Exists(UIBuilderPaths.ToAbsolute(d))));
+                return demos;
+            }
+        }
+
+        private string PreviewDemo
+        {
+            get
+            {
+                var demos = Demos;
+                return demos.Count == 0 ? null : demos[Mathf.Clamp(_previewIndex, 0, demos.Count - 1)];
+            }
+        }
 
         private string OutputPrefab => $"{Settings.outputFolder.TrimEnd('/')}/{Settings.jobName}.prefab";
 
@@ -79,7 +102,7 @@ namespace GameUp.UIBuilder.Editor
             if (Event.current.type == EventType.MouseMove) Repaint();
             // locate.json / spec.json có thể bị Claude hoặc terminal ghi lại → tự tải lại khi file đổi.
             if (Event.current.type == EventType.Layout && JobStamp() != _jobStamp) ReloadJob();
-            var texture = HasDemo() ? UIDemoTexture.Get(Settings.demoPath) : null;
+            var texture = HasDemo() ? UIDemoTexture.Get(PreviewDemo) : null;
             var previewWidth = PreviewWidth(texture);
 
             EditorGUILayout.BeginHorizontal();
@@ -190,6 +213,7 @@ namespace GameUp.UIBuilder.Editor
                 }
 
                 if (texture != null) DrawDemoDetails(texture, previewShown);
+                DrawExtraDemos();
                 DrawArtFolders();
 
                 EditorGUI.BeginChangeCheck();
@@ -221,7 +245,7 @@ namespace GameUp.UIBuilder.Editor
                 Settings.showMatchRects = GUILayout.Toggle(Settings.showMatchRects, "Khung sprite đã dò", GUILayout.Width(140f));
             GUILayout.FlexibleSpace();
             if (GUInstallerUI.MiniButton("Mở ảnh gốc", true, 90f))
-                EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(Settings.demoPath));
+                EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(PreviewDemo));
             EditorGUILayout.EndHorizontal();
             if (EditorGUI.EndChangeCheck()) Settings.Save();
 
@@ -229,6 +253,59 @@ namespace GameUp.UIBuilder.Editor
                 GUInstallerUI.Hint("Cửa sổ hẹp — kéo rộng ra để hiện ảnh demo ở cột phải.");
             else if (previewShown && _locate != null && Settings.showMatchRects)
                 GUInstallerUI.Hint("Khung trên ảnh: xanh = khớp · cam = 9-slice · vàng = đang chọn (bấm khung để chọn).");
+        }
+
+        /// <summary>Demo các trạng thái khác (tab 2…): phần giống demo 1 dựng một lần, phần riêng vào nhóm của tab.</summary>
+        private void DrawExtraDemos()
+        {
+            if (!HasDemo()) return;
+            var extras = Settings.extraDemos;
+            for (var i = 0; i < extras.Count; i++)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUI.BeginChangeCheck();
+                var demo = (Texture2D)EditorGUILayout.ObjectField($"Demo {i + 2} (tab {i + 2})", LoadAsset<Texture2D>(extras[i]), typeof(Texture2D), false);
+                if (EditorGUI.EndChangeCheck() && demo != null)
+                {
+                    extras[i] = AssetDatabase.GetAssetPath(demo);
+                    Settings.Save();
+                    ReloadJob();
+                }
+
+                if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(22f)))
+                {
+                    extras.RemoveAt(i);
+                    Settings.Save();
+                    ReloadJob();
+                    GUIUtility.ExitGUI();
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            var added = (Texture2D)EditorGUILayout.ObjectField(new GUIContent("＋ Demo tab khác",
+                "Cùng UI ở trạng thái khác (tab 2…): tool dựng phần chung một lần, phần riêng vào nhóm của từng tab."), null, typeof(Texture2D), false);
+            if (added != null)
+            {
+                extras.Add(AssetDatabase.GetAssetPath(added));
+                Settings.Save();
+                ReloadJob();
+            }
+
+            var demos = Demos;
+            if (demos.Count < 2) return;
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Xem trước", GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
+            var selected = GUILayout.Toolbar(Mathf.Clamp(_previewIndex, 0, demos.Count - 1),
+                demos.Select((_, i) => $"Demo {i + 1}").ToArray(), EditorStyles.miniButton);
+            if (selected != _previewIndex)
+            {
+                _previewIndex = selected;
+                _locate = selected < _locates.Count ? _locates[selected] : null;
+                if (UIMockupOverlay.Enabled) UIMockupOverlay.Show(PreviewDemo);
+            }
+
+            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawArtFolders()
@@ -301,11 +378,22 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
+        /// <summary>Định vị lần lượt từng demo (mỗi demo một process song song nhiều nhân — chạy tuần tự để không tranh CPU).</summary>
         private void StartLocate()
         {
-            _locateMessage = "Đang chạy…";
-            _locator = UIBuilderLocator.Start(Settings.demoPath, Settings.artFolders, Settings.includeSubfolders, LocatePath);
+            _locateQueue.Clear();
+            for (var i = 0; i < Demos.Count; i++) _locateQueue.Enqueue(i);
+            StartNextLocate();
             StartTicking();
+        }
+
+        private void StartNextLocate()
+        {
+            _locatingIndex = _locateQueue.Dequeue();
+            var demos = Demos;
+            _locateMessage = demos.Count > 1 ? $"Đang định vị demo {_locatingIndex + 1}/{demos.Count}…" : "Đang chạy…";
+            _locator = UIBuilderLocator.Start(demos[_locatingIndex], Settings.artFolders, Settings.includeSubfolders,
+                UIBuilderPaths.LocatePath(Settings.jobName, _locatingIndex));
         }
 
         private void DrawLocateResult()
@@ -378,7 +466,7 @@ namespace GameUp.UIBuilder.Editor
                 if (GUInstallerUI.MiniButton("Copy prompt cho Claude", HasDemo(), 170f))
                 {
                     EditorGUIUtility.systemCopyBuffer = UIBuilderAiToolkit.BuildPrompt(
-                        Settings.jobName, Settings.demoPath, Settings.artFolders, Settings.includeSubfolders, OutputPrefab);
+                        Settings.jobName, Demos, Settings.artFolders, Settings.includeSubfolders, OutputPrefab);
                     ShowNotification(new GUIContent("Đã copy prompt"));
                 }
 
@@ -408,7 +496,14 @@ namespace GameUp.UIBuilder.Editor
                     $"{SpecPath} đã có (có thể đã được Claude/bạn chỉnh). Sinh lại sẽ ghi đè toàn bộ.", "Ghi đè", "Huỷ"))
                 return;
 
-            UISpecFile.Save(UISpecGenerator.Generate(_locate, Settings.jobName, Settings.demoPath, OutputPrefab, Settings.textFont), SpecPath);
+            var demos = Demos;
+            if (_locates.Count < demos.Count || _locates.Any(l => l == null))
+            {
+                EditorUtility.DisplayDialog("Thiếu kết quả định vị", "Chạy định vị cho đủ mọi demo trước khi tạo spec.", "OK");
+                return;
+            }
+
+            UISpecFile.Save(UISpecGenerator.Generate(_locates, Settings.jobName, demos, OutputPrefab, Settings.textFont), SpecPath);
             ReloadJob();
         }
 
@@ -444,7 +539,7 @@ namespace GameUp.UIBuilder.Editor
             ReloadJob();
             if (_spec == null) return;
             _report = UISpecBuilder.Build(_spec);
-            _comparePath = _report.Success ? UIPrefabRenderer.RenderCompare(_spec, UIBuilderPaths.JobFolder(Settings.jobName)) : null;
+            _comparePath = _report.Success ? UIPrefabRenderer.RenderCompare(_spec, UIBuilderPaths.JobFolder(Settings.jobName)).FirstOrDefault() : null;
             if (_report.Success) GULogger.Log(LogTag, _report.Summary);
             else GULogger.Error(LogTag, _report.Summary);
         }
@@ -464,7 +559,7 @@ namespace GameUp.UIBuilder.Editor
                 if (GUInstallerUI.MiniButton(label, HasDemo(), 110f))
                 {
                     if (UIMockupOverlay.Enabled) UIMockupOverlay.Hide();
-                    else UIMockupOverlay.Show(Settings.demoPath);
+                    else UIMockupOverlay.Show(PreviewDemo);
                 }
 
                 EditorGUI.BeginChangeCheck();
@@ -502,12 +597,26 @@ namespace GameUp.UIBuilder.Editor
             {
                 if (_locator.Poll())
                 {
-                    _locate = _locator.Result;
-                    _locateMessage = _locate != null
-                        ? $"{_locate.sprites.Count(s => s.IsMatched)}/{_locate.sprites.Count} sprite khớp · {_locate.elapsedMs} ms · cache {_locate.cachedCount}"
-                        : $"Lỗi: {_locator.Error}";
-                    if (_locate == null) GULogger.Error(LogTag, $"Định vị thất bại:\n{_locator.Output}");
+                    var result = _locator.Result;
+                    while (_locates.Count <= _locatingIndex) _locates.Add(null);
+                    _locates[_locatingIndex] = result;
+                    _locate = _locates[Mathf.Clamp(_previewIndex, 0, _locates.Count - 1)];
+                    var prefix = Demos.Count > 1 ? $"Demo {_locatingIndex + 1}: " : string.Empty;
+                    _locateMessage = result != null
+                        ? $"{prefix}{result.sprites.Count(s => s.IsMatched)}/{result.sprites.Count} sprite khớp, {result.texts.Count} dòng chữ · {result.elapsedMs} ms"
+                        : $"{prefix}Lỗi: {_locator.Error}";
+                    if (result == null) GULogger.Error(LogTag, $"Định vị thất bại:\n{_locator.Output}");
                     _locator = null;
+                    if (result != null && _locateQueue.Count > 0)
+                    {
+                        StartNextLocate();
+                        running = true;
+                    }
+                    else
+                    {
+                        _locateQueue.Clear();
+                        _jobStamp = JobStamp();
+                    }
                 }
                 else
                 {
@@ -521,7 +630,9 @@ namespace GameUp.UIBuilder.Editor
 
         private void ReloadJob()
         {
-            _locate = UIBuilderLocator.Load(LocatePath);
+            _locates = Demos.Select((_, i) => UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i))).ToList();
+            _previewIndex = Mathf.Clamp(_previewIndex, 0, Mathf.Max(0, _locates.Count - 1));
+            _locate = _locates.Count > 0 ? _locates[_previewIndex] : null;
             _spec = File.Exists(UIBuilderPaths.ToAbsolute(SpecPath)) ? UISpecFile.Load(SpecPath, out _specError) : null;
             if (_spec == null && !File.Exists(UIBuilderPaths.ToAbsolute(SpecPath))) _specError = null;
             _locateMessage = _locate != null ? $"Kết quả trước: {_locate.sprites.Count(s => s.IsMatched)}/{_locate.sprites.Count} sprite khớp." : null;
@@ -532,9 +643,14 @@ namespace GameUp.UIBuilder.Editor
 
         private DateTime JobStamp()
         {
-            var locate = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(LocatePath));
-            var spec = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(SpecPath));
-            return locate > spec ? locate : spec;
+            var stamp = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(SpecPath));
+            for (var i = 0; i < Demos.Count; i++)
+            {
+                var locate = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(UIBuilderPaths.LocatePath(Settings.jobName, i)));
+                if (locate > stamp) stamp = locate;
+            }
+
+            return stamp;
         }
 
         private bool HasDemo() => !string.IsNullOrEmpty(Settings.demoPath) && File.Exists(UIBuilderPaths.ToAbsolute(Settings.demoPath));

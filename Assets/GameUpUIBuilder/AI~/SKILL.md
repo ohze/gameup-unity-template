@@ -13,7 +13,11 @@ AI chỉ ước lượng những gì máy không dò được (text, glow, art t
 Prompt từ nút *Copy prompt cho Claude* (cửa sổ `GameUp → UI → UI Builder`) có đủ: ảnh demo, thư mục art, `locate.json`,
 lệnh chạy lại định vị, `spec.json`, prefab đầu ra. Thiếu thì hỏi người dùng hoặc đọc `UserSettings/GameUpUIBuilder.asset`.
 
-Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json`, `spec.json`, `render.png`, `compare.png`.
+Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json` (+ `locate_2.json`… mỗi demo tab khác), `spec.json`,
+`render.png`, `compare.png` (+ `compare_2.png`… mỗi tab).
+
+**Nhiều demo = nhiều trạng thái (tab) của cùng UI.** Spec nháp đã: dựng phần giống nhau một lần; phần riêng của demo k
+nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách thành `scroll` + item prefab trong `templates`.
 
 ## Quy trình
 
@@ -23,6 +27,7 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json`, `spec.j
    - `no-match` — không có trên demo, hoặc demo vẽ khác art (vd khung bị che nhiều) → nhìn demo, nếu thấy thì ước lượng rect.
    - `explained-by-other` — trùng pixel sprite khác → bỏ qua.
 
+   `dimAlpha`: độ đậm lớp dim phía sau popup (spec nháp đã có `imgDim`). `matches[].tint`: sprite bị tô màu trên demo (spec đã gán `color`).
    `texts[]`: các dòng chữ máy tìm được (nằm trên sprite đã khớp nhưng khác pixel sprite) — `x,y,w,h` là khung bao nét chữ, `color` là màu chữ chủ đạo, `text` + `confidence` là nội dung đọc bằng OCR (`ocr: "ok"`; `"unavailable"` = venv chưa có OCR → `text` rỗng). Spec nháp đã điền sẵn nội dung và đặt `id` theo nội dung (`txtRemoveAds`). Việc của AI: **soát** nội dung với demo — OCR hay bỏ ký hiệu đặc biệt (`₫`, `×`, icon chèn trong chữ) và đọc nhầm chữ khi `confidence` < 0.9 (có trong `notes`); đổi `id` cho đúng vai trò nếu cần (`txtPrice`); giữ nguyên `x,y,w,h,color,align`. Chữ nằm ngoài mọi sprite (vd "Tap to continue" trên nền) máy không thấy → AI tự thêm.
 3. **Viết `spec.json`** (schema bên dưới). Có bản nháp do tool sinh → giữ nguyên tọa độ node đã có, chỉ đổi `id`, `kind`, `parent`, `anchor` và thêm node mới.
 4. **Dựng + đối chiếu** qua Unity MCP `eval` (ghi tên đầy đủ, eval không nhận `using`):
@@ -66,12 +71,17 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json`, `spec.j
 | image/button | `sprite` (asset path), `sliced`, `preserveAspect`, `color` (#RRGGBB[AA]), `raycastTarget` |
 | text | `text` (hỗ trợ rich text: `<color=#FFE030>Grandpa</color> Win!`), `fontSize` (0 = tự khớp khung), `font` (asset path TMP_FontAsset — tìm font game đang dùng, rỗng = mặc định TMP), `color`, `align` (left/center/right), `bold` |
 | `active` | `false` cho biến thể ẩn (vd phần chỉ hiện khi thua) |
+| `kind: scroll` | ScrollRect + Viewport (RectMask2D) + Content (LayoutGroup + ContentSizeFitter). `direction` vertical/horizontal, `spacing`, `padding`. Con của node scroll nằm trong Content, layout tự xếp (x,y chỉ để lấy cỡ). |
+| `kind: instance` | Instance prefab lồng: `prefab` (asset path, thường là `templates[].output`), `overrides[]`: `{id, hide, sprite, setText, text}` — `id` = tên node trong item (`imgBg` = nền). |
+| `templates[]` | Item prefab dựng trước prefab chính: `{name, output, width, height, nodes}` — tọa độ node **tương đối góc trên-trái item**; node `imgBg` là nền. |
+| `stateGroups` | id nhóm của từng demo/tab theo thứ tự `demo`, `extraDemos` — renderer bật đúng nhóm khi render `compare_k.png`. |
 
 ## Luật đặt tên & cấu trúc
 
 - `id` theo convention project (CLAUDE.md §3): tiền tố component — `btnReward`, `txtName`, `imgTitle`, `grpRewards` (nhóm). Không dấu cách, duy nhất.
 - Text trong demo → node `text` riêng, con của phần tử chứa nó (chữ trên nút → con của nút). Không dùng sprite chứa chữ nếu art tách riêng nền.
-- Phần lặp (ô thưởng, item) → gom vào node `empty` cha; nếu có Layout Group thì ghi chú, builder không tự thêm.
+- Danh sách (≥ 3 khung cùng sprite cách đều) spec nháp đã chuyển thành `scroll` + item prefab. Phần tử **không có art** trong hàng (avatar, ô điểm, ô vật phẩm) → thêm vào `templates[].nodes` của item (tọa độ tương đối), rồi ghi đè/ẩn ở instance nếu hàng khác nhau. Đổi `name` template cho đúng vai trò (`RankItem`, `RewardItem`) — nhớ đổi cả `output` và `prefab` của các instance.
+- Phần lặp ít hơn 3 (2 ô thưởng) → gom vào node `empty` cha; builder không tự thêm Layout Group ngoài scroll.
 - Nhiều biến thể (win/lose) cùng bố cục → **một prefab**, phần khác nhau là node riêng, biến thể phụ đặt `active: false` + ghi chú; không dựng hai prefab gần giống nhau (CLAUDE.md §5 — dùng Prefab Variant nếu khác nhiều).
 - Nền gameplay/HUD phía sau popup không đưa vào. Lớp tối phủ màn hình (dim) nếu có → `image` `stretch`, không sprite, `color` `#000000B0`.
 - Prefab đã tồn tại: builder chỉ cập nhật node theo `id`, giữ nguyên object/component dev thêm tay — **không đổi `id` node đã có** (sẽ tạo node mới, node cũ vẫn còn).
