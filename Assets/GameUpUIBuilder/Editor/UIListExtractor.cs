@@ -34,13 +34,15 @@ namespace GameUp.UIBuilder.Editor
                 .Where(g => g.Count() >= MinRows)
                 .Select(g => g.OrderBy(n => n.y).ToList())
                 .Where(IsEvenlySpaced)
-                .OrderBy(rows => rows[0].y)
+                .OrderByDescending(rows => (long)rows[0].w * rows[0].h) // hàng lớn trước: avatar xếp cột trong hàng không thành danh sách riêng
                 .ToList();
 
-            for (var i = 0; i < groups.Count; i++)
+            var index = 0;
+            foreach (var rows in groups)
             {
-                var name = i < templateNames.Count ? templateNames[i] : $"{templateNames.LastOrDefault() ?? "List"}{i + 1}Item";
-                var rows = groups[i];
+                if (rows.Any(r => !nodes.Contains(r))) continue; // đã thuộc một danh sách lớn hơn
+                var name = index < templateNames.Count ? templateNames[index] : $"{templateNames.LastOrDefault() ?? "List"}{index + 1}";
+                index++;
                 var template = new UITemplateSpec
                 {
                     name = name,
@@ -200,7 +202,8 @@ namespace GameUp.UIBuilder.Editor
             {
                 id = node.id, kind = node.kind, x = node.x - row.x, y = node.y - row.y, w = node.w, h = node.h,
                 sprite = node.sprite, sliced = node.sliced, color = node.color, raycastTarget = node.raycastTarget,
-                text = node.text, font = node.font, fontSize = node.fontSize, align = node.align, bold = node.bold
+                text = node.text, font = node.font, fontSize = node.fontSize, align = node.align, bold = node.bold,
+                material = node.material, outlineWidth = node.outlineWidth, outlineColor = node.outlineColor
             };
         }
 

@@ -30,6 +30,17 @@ namespace GameUp.UIBuilder.Editor
             return Generate(new[] { locate }, name, new[] { demoAssetPath }, outputPrefabPath, fontPath);
         }
 
+        /// <param name="outlineMaterialPath">Material cho chữ có viền; rỗng = builder tự chọn preset outline của font.</param>
+        public static UISpec Generate(IReadOnlyList<LocateResult> states, string name, IReadOnlyList<string> demoAssetPaths,
+            string outputPrefabPath, string fontPath, string outlineMaterialPath)
+        {
+            var spec = Generate(states, name, demoAssetPaths, outputPrefabPath, fontPath);
+            if (string.IsNullOrEmpty(outlineMaterialPath)) return spec;
+            foreach (var node in spec.nodes.Concat(spec.templates.SelectMany(t => t.nodes)))
+                if (node.kind == UISpecNode.KindText && node.outlineWidth > 0f) node.material = outlineMaterialPath;
+            return spec;
+        }
+
         /// <summary>
         /// Nhiều demo = nhiều trạng thái của cùng một UI (vd 2 tab). Node giống hệt ở mọi demo dựng một lần; phần riêng của
         /// demo k nằm trong nhóm <c>grp{NhãnTab}</c> (chỉ nhóm đầu bật). Danh sách mỗi tab thành ScrollRect + item prefab
@@ -253,7 +264,9 @@ namespace GameUp.UIBuilder.Editor
                     h = t.h,
                     text = hasText ? t.text : PlaceholderText,
                     color = t.color,
-                    font = fontPath
+                    font = fontPath,
+                    outlineWidth = t.outlineWidth,
+                    outlineColor = t.outlineColor
                 };
                 nodes.Add(node);
                 if (!hasText || t.confidence < LowOcrConfidence) unsure.Add($"{node.id} (\"{node.text}\")");

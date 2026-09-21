@@ -50,6 +50,7 @@ Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-
 - **Nhiều demo** (tab): phần giống nhau dựng một lần; phần riêng mỗi tab vào nhóm `grp<Tên tab>` (tab đầu bật). Tên item/nhóm lấy từ nhãn tab đọc được (`Leaderboard` → `LeaderboardItem`, `grpLeaderboard`). Ảnh so sánh xuất cho từng tab (`compare.png`, `compare_2.png`).
 - **Tint & dim**: sprite bị tô màu trên demo (tab chưa chọn) → `Image.color`; gameplay phía sau bị tối đều → tự thêm `imgDim` đúng độ đậm, và không đưa HUD gameplay vào prefab.
 - Phần tử **không có art** (avatar, ô điểm, ô vật phẩm) cần thêm vào item prefab (tay hoặc Claude) — tool ghi chú trong spec.
+- **Viền chữ**: chữ có viền trên demo được gán material outline có sẵn cạnh font (vd `FONNTS Material-outline*`) có độ dày gần nhất; muốn cố định một material thì chọn ở ô *Material viền chữ* (Bước 4). Font chưa có preset outline → builder cảnh báo.
 
 ## Thư mục làm việc
 

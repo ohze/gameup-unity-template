@@ -64,6 +64,21 @@ namespace GameUp.UIBuilder.Tests
         }
 
         [Test]
+        public void ExtractLists_ColumnOfIconsInsideRows_IsNotASeparateList()
+        {
+            var nodes = Rows(5);
+            foreach (var row in nodes.ToList())
+                nodes.Add(Image($"avatar_{row.id}", "Assets/art/avatar_001.png", row.x + 187, row.y + 27, 103, 103));
+            var templates = new List<UITemplateSpec>();
+
+            UIListExtractor.ExtractLists(nodes, new[] { "RankItem", "Other" }, "Assets/Out", templates, new HashSet<string>(), new List<string>());
+
+            Assert.AreEqual(1, templates.Count, "cột avatar nằm trong hàng thuộc item, không thành danh sách thứ 2");
+            Assert.IsTrue(templates[0].nodes.Any(n => n.sprite == "Assets/art/avatar_001.png"));
+            Assert.AreEqual(1, nodes.Count(n => n.kind == UISpecNode.KindScroll));
+        }
+
+        [Test]
         public void ExtractLists_UnevenRows_AreNotAList()
         {
             var nodes = new List<UISpecNode>

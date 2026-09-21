@@ -16,6 +16,8 @@ namespace GameUp.UIBuilder.Editor
         public string outputFolder = "Assets/_MainProject/Prefabs/UI/Popups";
         public float overlayOpacity = 0.5f;
         public string textFont;
+        /// <summary>Material TMP gán cho chữ có viền trên demo; rỗng = tự chọn preset outline trong thư mục font.</summary>
+        public string textOutlineMaterial;
         public bool showDemoPreview = true;
         public bool showMatchRects = true;
 

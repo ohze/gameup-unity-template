@@ -57,6 +57,14 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>left | center | right.</summary>
         public string align = "center";
         public bool bold;
+        /// <summary>
+        /// Asset path material preset TMP (vd "FONNTS Material-outline"). Rỗng + <see cref="outlineWidth"/> &gt; 0 → builder tự
+        /// chọn preset có viền dày gần nhất trong thư mục font.
+        /// </summary>
+        public string material;
+        /// <summary>Viền chữ đo trên demo (px) — dùng để chọn material outline; 0 = không viền.</summary>
+        public float outlineWidth;
+        public string outlineColor;
 
         // ─── scroll ───
         /// <summary>vertical | horizontal. Con của node scroll nằm trong Content, xếp bằng LayoutGroup.</summary>

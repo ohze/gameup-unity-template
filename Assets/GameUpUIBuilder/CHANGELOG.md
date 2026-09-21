@@ -16,6 +16,10 @@
 - **Nhiều demo = nhiều tab**: phần chung dựng một lần, phần riêng vào `grp<Tab>` (tab đầu bật); tên item/nhóm theo nhãn tab; ảnh so sánh cho từng tab. Cửa sổ: *＋ Demo tab khác*, chọn demo xem trước.
 - Định vị mạnh hơn cho UI phức tạp: sprite một màu chốt bằng hình dáng (viền trong + vành ngoài tương phản ≥ 3/4 cạnh); ứng viên thêm theo nét và hình bóng (sprite bị chữ che gần hết); hàng lặp bị che nhiều được dò tiếp theo nhịp; 9-slice kiểm tra cả sprite sau kéo giãn; nhận tint (`Image.color`) và tách vật sau lớp dim (+ tự thêm `imgDim`); bỏ qua file `demo*`. Sửa lỗi viền sprite kín mép ảnh chỉ còn ở góc.
 - Chữ: model phát hiện chữ của OCR trên vùng UI (bỏ qua avatar/panel), gộp từ cùng dòng, bỏ chữ vẽ sẵn trong art, màu theo ruột nét.
+- **Viền chữ**: đo viền (màu, độ dày) quanh ruột chữ trên demo; builder gán material preset outline của chính font (cùng atlas, bỏ preset bóng đổ) có độ dày gần nhất, hoặc material chọn ở ô *Material viền chữ*. Chữ không viền giữ material hiện có.
+- Một sprite ở nhiều tỉ lệ (avatar 0.66 trong hàng, 0.78 trong cờ top): dò tới 3 nhóm tỉ lệ cách nhau ≥ 0.08.
+- Cột phần tử nằm trong hàng danh sách không còn bị tách thành danh sách thứ 2.
+- Bước 2 gọn lại: danh sách demo một dòng mỗi ảnh (nút Tab chọn ảnh xem trước), nhóm ẢNH DEMO / THƯ MỤC ART / ĐẦU RA, cảnh báo demo khác kích thước.
 - Venv dùng chung `~/.gameup/ui-builder/venv` (OpenCV + numpy), cài bằng một nút.
 - `UISpecBuilder`: spec JSON → prefab uGUI đúng pixel ở độ phân giải tham chiếu; prefab có sẵn thì cập nhật theo tên node, giữ object/component làm tay; gắn component root và tự gán field trùng tên node.
 - `UIPrefabRenderer`: render prefab trong PreviewScene (không đụng scene, không cần Play Mode) + ảnh so sánh demo | prefab | chồng 50%.

@@ -69,7 +69,7 @@ nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách th�
 | `kind` | `empty` (nhóm) · `image` · `button` (Image + Button) · `text` (TextMeshProUGUI) |
 | `anchor` | `auto` · `center` · `top` · `bottom` · `left` · `right` · `top-left` · `top-right` · `bottom-left` · `bottom-right` · `stretch` · `stretch-top` · `stretch-middle` · `stretch-bottom`. Chỉ ảnh hưởng co giãn trên màn khác tỉ lệ; ở độ phân giải tham chiếu vị trí luôn đúng. |
 | image/button | `sprite` (asset path), `sliced`, `preserveAspect`, `color` (#RRGGBB[AA]), `raycastTarget` |
-| text | `text` (hỗ trợ rich text: `<color=#FFE030>Grandpa</color> Win!`), `fontSize` (0 = tự khớp khung), `font` (asset path TMP_FontAsset — tìm font game đang dùng, rỗng = mặc định TMP), `color`, `align` (left/center/right), `bold` |
+| text | `outlineWidth`/`outlineColor` (viền đo từ demo → builder tự chọn material outline của font), `material` (asset path preset TMP, ghi đè lựa chọn tự động), `text` (hỗ trợ rich text: `<color=#FFE030>Grandpa</color> Win!`), `fontSize` (0 = tự khớp khung), `font` (asset path TMP_FontAsset — tìm font game đang dùng, rỗng = mặc định TMP), `color`, `align` (left/center/right), `bold` |
 | `active` | `false` cho biến thể ẩn (vd phần chỉ hiện khi thua) |
 | `kind: scroll` | ScrollRect + Viewport (RectMask2D) + Content (LayoutGroup + ContentSizeFitter). `direction` vertical/horizontal, `spacing`, `padding`. Con của node scroll nằm trong Content, layout tự xếp (x,y chỉ để lấy cỡ). |
 | `kind: instance` | Instance prefab lồng: `prefab` (asset path, thường là `templates[].output`), `overrides[]`: `{id, hide, sprite, setText, text}` — `id` = tên node trong item (`imgBg` = nền). |

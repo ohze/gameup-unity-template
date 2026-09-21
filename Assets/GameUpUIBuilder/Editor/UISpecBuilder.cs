@@ -369,6 +369,69 @@ namespace GameUp.UIBuilder.Editor
             }
 
             text.fontSize = node.fontSize > 0f ? node.fontSize : FitFontSize(text, node);
+            ApplyTextMaterial(text, node, report);
+        }
+
+        /// <summary>
+        /// Material chữ: 'material' trong spec nếu có; chữ có viền trên demo → preset outline của chính font (cùng atlas) có
+        /// độ dày gần nhất; chữ không viền → giữ nguyên.
+        /// </summary>
+        private static void ApplyTextMaterial(TextMeshProUGUI text, UISpecNode node, UIBuildReport report)
+        {
+            if (!string.IsNullOrEmpty(node.material))
+            {
+                var material = AssetDatabase.LoadAssetAtPath<Material>(node.material);
+                if (material != null) text.fontSharedMaterial = material;
+                else report.Warnings.Add($"{node.id}: không thấy material '{node.material}'.");
+                return;
+            }
+
+            if (node.outlineWidth <= 0f) return; // không viền → giữ material hiện có (mặc định của font, hoặc dev đã chỉnh)
+
+            var preset = FindOutlinePreset(text.font, node.outlineWidth, text.fontSize);
+            if (preset != null)
+            {
+                text.fontSharedMaterial = preset;
+                return;
+            }
+
+            text.fontSharedMaterial = text.font.material;
+            report.Warnings.Add($"{node.id}: demo có viền chữ {node.outlineWidth}px {node.outlineColor} nhưng font '{text.font.name}' "
+                                + "không có material preset outline cùng thư mục — tạo preset (Outline) rồi build lại.");
+        }
+
+        /// <summary>
+        /// Preset outline dùng chung atlas với font, ở thư mục chứa font. Độ dày ước lượng (px) ≈ _OutlineWidth × _GradientScale
+        /// × cỡ chữ / pointSize của atlas — chọn preset gần độ dày đo trên demo nhất.
+        /// </summary>
+        private static Material FindOutlinePreset(TMP_FontAsset font, float outlinePx, float fontSize)
+        {
+            var folder = Path.GetDirectoryName(AssetDatabase.GetAssetPath(font))?.Replace('\\', '/');
+            if (string.IsNullOrEmpty(folder)) return null;
+
+            var pointSize = Mathf.Max(1f, font.faceInfo.pointSize);
+            return AssetDatabase.FindAssets("t:Material", new[] { folder })
+                .Select(guid => AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid)))
+                .Where(m => m != null && IsOutlinePreset(m, font))
+                .OrderByDescending(m => m.name.ToLowerInvariant().Contains("outline"))
+                .ThenBy(m => Mathf.Abs(m.GetFloat(ShaderUtilities.ID_OutlineWidth) * GradientScale(m, font) * fontSize / pointSize - outlinePx))
+                .FirstOrDefault();
+        }
+
+        /// <summary>Preset có viền thấy được, dùng chung atlas với font, không phải preset bóng đổ (Underlay).</summary>
+        private static bool IsOutlinePreset(Material m, TMP_FontAsset font)
+        {
+            return m.HasProperty(ShaderUtilities.ID_OutlineWidth) && m.GetFloat(ShaderUtilities.ID_OutlineWidth) > 0f
+                   && m.HasProperty(ShaderUtilities.ID_OutlineColor) && m.GetColor(ShaderUtilities.ID_OutlineColor).a > 0f
+                   && !m.IsKeywordEnabled(ShaderUtilities.Keyword_Underlay)
+                   && m.HasProperty(ShaderUtilities.ID_MainTex) && m.GetTexture(ShaderUtilities.ID_MainTex) == font.atlasTexture;
+        }
+
+        private static float GradientScale(Material material, TMP_FontAsset font)
+        {
+            return material.HasProperty(ShaderUtilities.ID_GradientScale)
+                ? material.GetFloat(ShaderUtilities.ID_GradientScale)
+                : font.atlasPadding + 1f;
         }
 
         /// <summary>

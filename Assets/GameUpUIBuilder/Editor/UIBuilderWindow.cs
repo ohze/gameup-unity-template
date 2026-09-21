@@ -21,6 +21,7 @@ namespace GameUp.UIBuilder.Editor
         private const string LogTag = "UIBuilder";
         private const float MinLeftWidth = 440f;
         private const float MinPreviewWidth = 160f;
+        private const float RowLabelWidth = 72f;
 
         private UIBuilderPython _pythonSetup;
         private UIBuilderLocator _locator;
@@ -198,27 +199,27 @@ namespace GameUp.UIBuilder.Editor
             using (GUInstallerUI.BeginCard())
             {
                 GUInstallerUI.CardHeader("BƯỚC 2", "Ảnh demo và thư mục art", hasInput ? GUSetupState.Done : GUSetupState.Missing);
-                GUILayout.Label("Art cắt đúng tỉ lệ với demo (mặc định 1080×2160). Thêm cả thư mục art riêng của màn và thư mục dùng chung (_Shared).",
-                    GUInstallerUI.Desc);
 
                 EditorGUI.BeginChangeCheck();
                 var jobName = EditorGUILayout.TextField(new GUIContent("Tên UI", "Tên prefab và thư mục UIBuilder/<Tên>/"), Settings.jobName);
-                var demo = (Texture2D)EditorGUILayout.ObjectField("Ảnh demo", LoadAsset<Texture2D>(Settings.demoPath), typeof(Texture2D), false);
                 if (EditorGUI.EndChangeCheck())
                 {
                     Settings.jobName = SanitizeName(jobName);
-                    Settings.demoPath = demo != null ? AssetDatabase.GetAssetPath(demo) : null;
                     Settings.Save();
                     ReloadJob();
                 }
 
+                SubHeader("ẢNH DEMO", "Mỗi ảnh là một trạng thái/tab của cùng UI — phần giống nhau dựng một lần, phần riêng vào nhóm của tab.");
+                DrawDemoList();
                 if (texture != null) DrawDemoDetails(texture, previewShown);
-                DrawExtraDemos();
+
+                SubHeader("THƯ MỤC ART", "Thư mục art riêng của màn + thư mục dùng chung (_Shared, Avatar…). Art cắt đúng tỉ lệ với demo.");
                 DrawArtFolders();
 
+                SubHeader("ĐẦU RA");
                 EditorGUI.BeginChangeCheck();
-                Settings.includeSubfolders = EditorGUILayout.Toggle("Quét thư mục con", Settings.includeSubfolders);
-                var output = (DefaultAsset)EditorGUILayout.ObjectField("Thư mục prefab", LoadAsset<DefaultAsset>(Settings.outputFolder), typeof(DefaultAsset), false);
+                var output = (DefaultAsset)EditorGUILayout.ObjectField("Thư mục prefab", LoadAsset<DefaultAsset>(Settings.outputFolder),
+                    typeof(DefaultAsset), false);
                 if (EditorGUI.EndChangeCheck())
                 {
                     var path = output != null ? AssetDatabase.GetAssetPath(output) : null;
@@ -226,21 +227,102 @@ namespace GameUp.UIBuilder.Editor
                     Settings.Save();
                 }
 
-                GUInstallerUI.Hint($"Prefab: {OutputPrefab}   ·   Spec: {SpecPath}");
+                GUInstallerUI.Hint($"Prefab: {OutputPrefab}");
+                GUInstallerUI.Hint($"Spec: {SpecPath}");
             }
         }
 
-        /// <summary>Thông tin + tuỳ chọn hiển thị ảnh demo (ảnh nằm ở cột phải).</summary>
+        private static void SubHeader(string title, string hint = null)
+        {
+            EditorGUILayout.Space(6);
+            GUILayout.Label(title, EditorStyles.miniBoldLabel);
+            if (!string.IsNullOrEmpty(hint)) GUInstallerUI.Hint(hint);
+        }
+
+        /// <summary>
+        /// Danh sách demo gọn một dòng mỗi ảnh: nút "Tab k" chọn ảnh xem trước ở cột phải, ô chọn ảnh, nút xoá.
+        /// Ảnh 1 lưu ở <c>demoPath</c>, các ảnh sau ở <c>extraDemos</c>.
+        /// </summary>
+        private void DrawDemoList()
+        {
+            var slots = new List<string> { Settings.demoPath };
+            slots.AddRange(Settings.extraDemos);
+            if (string.IsNullOrEmpty(slots[0]) && slots.Count == 1) slots.Clear();
+            var line = GUILayout.Height(EditorGUIUtility.singleLineHeight);
+
+            for (var i = 0; i < slots.Count; i++)
+            {
+                EditorGUILayout.BeginHorizontal();
+                var selected = GUILayout.Toggle(i == _previewIndex, $"Tab {i + 1}", EditorStyles.miniButton, GUILayout.Width(RowLabelWidth));
+                if (selected && i != _previewIndex) SelectPreview(i);
+
+                EditorGUI.BeginChangeCheck();
+                var demo = (Texture2D)EditorGUILayout.ObjectField(LoadAsset<Texture2D>(slots[i]), typeof(Texture2D), false, line);
+                if (EditorGUI.EndChangeCheck() && demo != null) SetDemo(i, AssetDatabase.GetAssetPath(demo));
+
+                if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(22f)))
+                {
+                    RemoveDemo(i);
+                    GUIUtility.ExitGUI();
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(slots.Count == 0 ? "＋ Ảnh demo" : "＋ Thêm tab", EditorStyles.miniLabel, GUILayout.Width(RowLabelWidth + 4f));
+            var added = (Texture2D)EditorGUILayout.ObjectField(null, typeof(Texture2D), false, line);
+            if (added != null) SetDemo(slots.Count, AssetDatabase.GetAssetPath(added));
+            GUILayout.Space(26f);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void SetDemo(int index, string path)
+        {
+            if (index == 0 || string.IsNullOrEmpty(Settings.demoPath)) Settings.demoPath = path;
+            else if (index - 1 < Settings.extraDemos.Count) Settings.extraDemos[index - 1] = path;
+            else Settings.extraDemos.Add(path);
+            Settings.Save();
+            ReloadJob();
+        }
+
+        private void RemoveDemo(int index)
+        {
+            if (index == 0)
+            {
+                Settings.demoPath = Settings.extraDemos.Count > 0 ? Settings.extraDemos[0] : null;
+                if (Settings.extraDemos.Count > 0) Settings.extraDemos.RemoveAt(0);
+            }
+            else
+            {
+                Settings.extraDemos.RemoveAt(index - 1);
+            }
+
+            _previewIndex = 0;
+            Settings.Save();
+            ReloadJob();
+        }
+
+        private void SelectPreview(int index)
+        {
+            _previewIndex = index;
+            _locate = index < _locates.Count ? _locates[index] : null;
+            if (UIMockupOverlay.Enabled) UIMockupOverlay.Show(PreviewDemo);
+        }
+
+        /// <summary>Kích thước/tỉ lệ ảnh đang xem + tuỳ chọn hiển thị (ảnh nằm ở cột phải).</summary>
         private void DrawDemoDetails(Texture2D texture, bool previewShown)
         {
             var ratio = (float)texture.height / texture.width;
             var isReference = texture.width == 1080 && texture.height == 2160;
-            GUInstallerUI.Hint($"Kích thước gốc {texture.width}×{texture.height} · tỉ lệ 1:{ratio:0.##}"
-                               + (isReference ? string.Empty : " · khác 1080×2160 mặc định"));
+            var mismatch = Demos.Select(DemoSize).Distinct().Count() > 1;
+            GUInstallerUI.Hint($"Tab {_previewIndex + 1}: {texture.width}×{texture.height} · tỉ lệ 1:{ratio:0.##}"
+                               + (isReference ? string.Empty : " · khác 1080×2160 mặc định")
+                               + (mismatch ? " · ⚠ các demo khác kích thước nhau" : string.Empty));
 
             EditorGUI.BeginChangeCheck();
             EditorGUILayout.BeginHorizontal();
-            Settings.showDemoPreview = GUILayout.Toggle(Settings.showDemoPreview, "Hiện ảnh demo", GUILayout.Width(110f));
+            Settings.showDemoPreview = GUILayout.Toggle(Settings.showDemoPreview, "Hiện ảnh bên phải", GUILayout.Width(130f));
             using (new EditorGUI.DisabledScope(_locate == null || !Settings.showDemoPreview))
                 Settings.showMatchRects = GUILayout.Toggle(Settings.showMatchRects, "Khung sprite đã dò", GUILayout.Width(140f));
             GUILayout.FlexibleSpace();
@@ -255,68 +337,26 @@ namespace GameUp.UIBuilder.Editor
                 GUInstallerUI.Hint("Khung trên ảnh: xanh = khớp · cam = 9-slice · vàng = đang chọn (bấm khung để chọn).");
         }
 
-        /// <summary>Demo các trạng thái khác (tab 2…): phần giống demo 1 dựng một lần, phần riêng vào nhóm của tab.</summary>
-        private void DrawExtraDemos()
+        private static Vector2Int DemoSize(string assetPath)
         {
-            if (!HasDemo()) return;
-            var extras = Settings.extraDemos;
-            for (var i = 0; i < extras.Count; i++)
+            if (AssetImporter.GetAtPath(assetPath) is TextureImporter importer)
             {
-                EditorGUILayout.BeginHorizontal();
-                EditorGUI.BeginChangeCheck();
-                var demo = (Texture2D)EditorGUILayout.ObjectField($"Demo {i + 2} (tab {i + 2})", LoadAsset<Texture2D>(extras[i]), typeof(Texture2D), false);
-                if (EditorGUI.EndChangeCheck() && demo != null)
-                {
-                    extras[i] = AssetDatabase.GetAssetPath(demo);
-                    Settings.Save();
-                    ReloadJob();
-                }
-
-                if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(22f)))
-                {
-                    extras.RemoveAt(i);
-                    Settings.Save();
-                    ReloadJob();
-                    GUIUtility.ExitGUI();
-                }
-
-                EditorGUILayout.EndHorizontal();
+                importer.GetSourceTextureWidthAndHeight(out var width, out var height);
+                return new Vector2Int(width, height);
             }
 
-            var added = (Texture2D)EditorGUILayout.ObjectField(new GUIContent("＋ Demo tab khác",
-                "Cùng UI ở trạng thái khác (tab 2…): tool dựng phần chung một lần, phần riêng vào nhóm của từng tab."), null, typeof(Texture2D), false);
-            if (added != null)
-            {
-                extras.Add(AssetDatabase.GetAssetPath(added));
-                Settings.Save();
-                ReloadJob();
-            }
-
-            var demos = Demos;
-            if (demos.Count < 2) return;
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Xem trước", GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
-            var selected = GUILayout.Toolbar(Mathf.Clamp(_previewIndex, 0, demos.Count - 1),
-                demos.Select((_, i) => $"Demo {i + 1}").ToArray(), EditorStyles.miniButton);
-            if (selected != _previewIndex)
-            {
-                _previewIndex = selected;
-                _locate = selected < _locates.Count ? _locates[selected] : null;
-                if (UIMockupOverlay.Enabled) UIMockupOverlay.Show(PreviewDemo);
-            }
-
-            EditorGUILayout.EndHorizontal();
+            return Vector2Int.zero;
         }
 
         private void DrawArtFolders()
         {
-            EditorGUILayout.LabelField("Thư mục art");
             var folders = Settings.artFolders;
+            var line = GUILayout.Height(EditorGUIUtility.singleLineHeight);
             for (var i = 0; i < folders.Count; i++)
             {
                 EditorGUILayout.BeginHorizontal();
                 EditorGUI.BeginChangeCheck();
-                var folder = (DefaultAsset)EditorGUILayout.ObjectField(LoadAsset<DefaultAsset>(folders[i]), typeof(DefaultAsset), false);
+                var folder = (DefaultAsset)EditorGUILayout.ObjectField(LoadAsset<DefaultAsset>(folders[i]), typeof(DefaultAsset), false, line);
                 if (EditorGUI.EndChangeCheck() && folder != null && AssetDatabase.IsValidFolder(AssetDatabase.GetAssetPath(folder)))
                 {
                     folders[i] = AssetDatabase.GetAssetPath(folder);
@@ -334,12 +374,17 @@ namespace GameUp.UIBuilder.Editor
             }
 
             EditorGUILayout.BeginHorizontal();
-            var dropped = (DefaultAsset)EditorGUILayout.ObjectField("＋ Thêm", null, typeof(DefaultAsset), false);
+            GUILayout.Label("＋ Thêm", EditorStyles.miniLabel, GUILayout.Width(RowLabelWidth + 4f));
+            var dropped = (DefaultAsset)EditorGUILayout.ObjectField(null, typeof(DefaultAsset), false, line);
             if (dropped != null) AddArtFolder(AssetDatabase.GetAssetPath(dropped));
             var demoFolder = HasDemo() ? Path.GetDirectoryName(Settings.demoPath)?.Replace('\\', '/') : null;
             if (GUInstallerUI.MiniButton("Thư mục chứa demo", demoFolder != null && !folders.Contains(demoFolder), 130f))
                 AddArtFolder(demoFolder);
             EditorGUILayout.EndHorizontal();
+
+            EditorGUI.BeginChangeCheck();
+            Settings.includeSubfolders = EditorGUILayout.ToggleLeft("Quét cả thư mục con", Settings.includeSubfolders);
+            if (EditorGUI.EndChangeCheck()) Settings.Save();
         }
 
         private static void AddArtFolder(string path)
@@ -451,9 +496,13 @@ namespace GameUp.UIBuilder.Editor
                 var font = (TMP_FontAsset)EditorGUILayout.ObjectField(
                     new GUIContent("Font cho text", "Font TMP gán cho các dòng chữ tìm được trên demo; trống = font mặc định TMP."),
                     LoadAsset<TMP_FontAsset>(Settings.textFont), typeof(TMP_FontAsset), false);
+                var outline = (Material)EditorGUILayout.ObjectField(
+                    new GUIContent("Material viền chữ", "Gán cho chữ có viền trên demo. Trống = tự chọn preset outline (cùng atlas) trong thư mục font có độ dày gần nhất."),
+                    LoadAsset<Material>(Settings.textOutlineMaterial), typeof(Material), false);
                 if (EditorGUI.EndChangeCheck())
                 {
                     Settings.textFont = font != null ? AssetDatabase.GetAssetPath(font) : null;
+                    Settings.textOutlineMaterial = outline != null ? AssetDatabase.GetAssetPath(outline) : null;
                     Settings.Save();
                 }
 
@@ -503,7 +552,8 @@ namespace GameUp.UIBuilder.Editor
                 return;
             }
 
-            UISpecFile.Save(UISpecGenerator.Generate(_locates, Settings.jobName, demos, OutputPrefab, Settings.textFont), SpecPath);
+            UISpecFile.Save(UISpecGenerator.Generate(_locates, Settings.jobName, demos, OutputPrefab, Settings.textFont,
+                Settings.textOutlineMaterial), SpecPath);
             ReloadJob();
         }
 

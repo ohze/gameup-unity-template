@@ -204,6 +204,27 @@ namespace GameUp.UIBuilder.Tests
             Assert.IsTrue(scroll.content.Find("RankItem_1/imgCrown").gameObject.activeSelf);
         }
 
+        [Test]
+        public void Build_TextWithOutline_UsesOutlinePresetOfFont_PlainTextKeepsDefault()
+        {
+            var outlined = Node("txtTitle", "", 290, 400, 500, 60, "center");
+            outlined.kind = UISpecNode.KindText;
+            outlined.text = "Title";
+            outlined.outlineWidth = 3;
+            var plain = Node("txtBody", "", 290, 600, 500, 60, "center");
+            plain.kind = UISpecNode.KindText;
+            plain.text = "Body";
+
+            var spec = CreateSpec(outlined, plain);
+            Assert.IsTrue(UISpecBuilder.Build(spec).Success);
+
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+            var title = prefab.transform.Find("txtTitle").GetComponent<TextMeshProUGUI>();
+            var body = prefab.transform.Find("txtBody").GetComponent<TextMeshProUGUI>();
+            StringAssert.Contains("Outline", title.fontSharedMaterial.name, "font mặc định TMP có preset 'LiberationSans SDF - Outline'");
+            Assert.AreSame(body.font.material, body.fontSharedMaterial);
+        }
+
         private static RectTransform BuildAndFind(UISpec spec, string path)
         {
             var report = UISpecBuilder.Build(spec);

@@ -379,30 +379,36 @@ def _search(t, max_instances):
 
 # ─── Scale đều ───────────────────────────────────────────────────────────────
 
+SCALE_GROUPS = 3             # cùng sprite có thể xuất hiện ở vài tỉ lệ (avatar 0.66 trong hàng, 0.77 trong cờ top)
+SCALE_GAP = 0.08             # 2 tỉ lệ cách nhau ≥ 0.08 mới coi là 2 nhóm khác nhau
+
+
 def _find_uniform(sprite):
-    """Thử 1:1 trước (art bàn giao 1:1). Chưa chắc thì chọn tỉ lệ bằng điểm dò thô, tinh chỉnh ±0.04.
+    """[(template, hits)] theo từng tỉ lệ tìm thấy. Thử 1:1 trước (art bàn giao 1:1); chưa chắc thì chọn tới 3 tỉ lệ
+    tốt nhất theo điểm dò thô (cách nhau ≥ 0.08), tinh chỉnh ±0.04 quanh mỗi tỉ lệ rồi dò mịn.
     Sprite một màu không dò scale — ở tỉ lệ khác nó khớp với mọi mảng cùng màu."""
     base = _Template(sprite, 1.0)
     found = _search(base, MAX_INSTANCES)
     if base.low_texture or (found and _is_strong(found[0])):
-        return base, found
+        return [(base, found)]
 
     ranked = sorted(((_coarse_best(_Template(sprite, s)), s) for s in COARSE_SCALES))
-    best_s = ranked[0][1]
-    fine = [(ranked[0][0], best_s)]
-    for d in (-0.04, -0.02, 0.02, 0.04):
-        s = round(best_s + d, 2)
-        if s > 0:
-            fine.append((_coarse_best(_Template(sprite, s)), s))
-    fine.sort()
+    seeds = []
+    for _, s in ranked:
+        if all(abs(s - other) >= SCALE_GAP for other in seeds):
+            seeds.append(s)
+        if len(seeds) >= SCALE_GROUPS:
+            break
 
-    best_t, best_found = (base, found) if found else (None, [])
-    for _, s in fine[:2]:
-        t = _Template(sprite, s)
-        f2 = _search(t, MAX_INSTANCES)
-        if f2 and (not best_found or max(f2[0][3], f2[0][4]) > max(best_found[0][3], best_found[0][4])):
-            best_t, best_found = t, f2
-    return best_t, best_found
+    groups = [(base, found)] if found else []
+    for seed in seeds:
+        local = [(_coarse_best(_Template(sprite, round(seed + d, 2))), round(seed + d, 2))
+                 for d in (-0.04, -0.02, 0.0, 0.02, 0.04) if seed + d > 0]
+        t = _Template(sprite, min(local)[1])
+        hits = _search(t, MAX_INSTANCES)
+        if hits:
+            groups.append((t, hits))
+    return groups
 
 
 def _is_strong(hit):
@@ -565,8 +571,10 @@ def _locate_sprite(sprite_path):
     if int(np.count_nonzero(sprite[:, :, 3] > ALPHA_OPAQUE)) < MIN_OPAQUE_PIXELS:
         return {**base, "status": "unmatched", "reason": "soft-alpha"}
 
-    t, found = _find_uniform(sprite)
-    matches = [_match_entry(x, y, t.w, t.h, t.scale, False, d, z, i, *extra) for x, y, d, z, i, *extra in found]
+    groups = _find_uniform(sprite)
+    matches = [_match_entry(x, y, t.w, t.h, t.scale, False, d, z, i, *extra)
+               for t, found in groups for x, y, d, z, i, *extra in found]
+    found = [hit for _, hits in groups for hit in hits]
     low_texture = _Template(sprite, 1.0).low_texture
 
     border = _estimate_border(sprite)
@@ -913,6 +921,8 @@ OCR_COLOR_TOLERANCE = 60    # pixel gần màu chữ → đen, còn lại trắn
 OCR_DET_LIMIT = 1600         # cạnh dài tối đa khi phát hiện chữ — đủ giữ chữ nhỏ trên ảnh 1080x2160
 OCR_MIN_COVER = 0.5          # dòng chữ phải nằm ≥ 50% trên sprite đã khớp (bỏ chữ của nền gameplay phía sau)
 OCR_MIN_RESIDUAL = 0.08      # chữ trùng pixel sprite (logo "ADS" vẽ sẵn trong art) → không phải text cần dựng
+OUTLINE_MAX = 8             # dải cùng màu quanh chữ dày hơn 8 px = nền (ô điểm tối), không phải viền chữ
+OUTLINE_UNIFORM = 0.6       # ≥ 60% dải quanh ruột chữ cùng một màu, khác hẳn màu chữ → có viền
 OCR_TRUSTED = 0.9            # kết quả phát hiện+nhận dạng ≥ 0.9 thì giữ — đọc lại theo màu làm mất số khác màu trong dòng
 
 
@@ -966,8 +976,10 @@ def _detect_texts_ocr(engine, covered, diff):
         pixels = _demo[by:by + bh, bx:bx + bw][region] if region.sum() >= 10 else _demo[by:by + bh, bx:bx + bw].reshape(-1, 3)
         color = _dominant_color(pixels)
         x, y, w, h = _ink_box(bx, by, bw, bh, color)
-        texts.append({"x": x, "y": y, "w": w, "h": h, "color": color,
-                      "text": line["text"], "confidence": round(line["confidence"], 3)})
+        entry = {"x": x, "y": y, "w": w, "h": h, "color": color,
+                 "text": line["text"], "confidence": round(line["confidence"], 3)}
+        entry.update(_text_outline(x, y, w, h, color))
+        texts.append(entry)
     texts.sort(key=lambda t: (t["y"], t["x"]))
     return texts
 
@@ -989,6 +1001,38 @@ def _merge_ocr_words(words):
         else:
             lines.append(dict(word))
     return lines
+
+
+def _text_outline(x, y, w, h, hex_color):
+    """{"outlineColor", "outlineWidth"} nếu chữ có viền (font game hay dùng chữ trắng viền đen), rỗng nếu không.
+    Viền = các dải pixel ngay quanh ruột chữ cùng một màu khác hẳn màu chữ; dày quá OUTLINE_MAX px là nền chứ không phải viền."""
+    pad = OUTLINE_MAX + 2
+    H, W = _demo.shape[:2]
+    x0, y0, x1, y1 = max(0, x - pad), max(0, y - pad), min(W, x + w + pad), min(H, y + h + pad)
+    region = _demo[y0:y1, x0:x1].astype(np.int16)
+    fill_bgr = np.array([int(hex_color[5:7], 16), int(hex_color[3:5], 16), int(hex_color[1:3], 16)])
+    fill = (np.abs(region - fill_bgr).max(axis=2) < OCR_COLOR_TOLERANCE).astype(np.uint8)
+    if fill.sum() < 20:
+        return {}
+
+    ring = (cv2.dilate(fill, np.ones((3, 3), np.uint8)) > 0) & (fill == 0)
+    if ring.sum() < 20:
+        return {}
+    outline = np.median(region[ring], axis=0)
+    if np.abs(outline - fill_bgr).max() < 80:
+        return {}
+
+    width, inner = 0, fill
+    for k in range(1, OUTLINE_MAX + 2):
+        outer = (cv2.dilate(fill, np.ones((2 * k + 1, 2 * k + 1), np.uint8)) > 0).astype(np.uint8)
+        band = (outer > 0) & (inner == 0)
+        if band.sum() == 0 or float((np.abs(region[band] - outline).max(axis=1) < 40).mean()) < OUTLINE_UNIFORM:
+            break
+        width, inner = k, outer
+    if width == 0 or width > OUTLINE_MAX:
+        return {}
+    b, g, r = outline.astype(int)
+    return {"outlineColor": "#{:02X}{:02X}{:02X}".format(r, g, b), "outlineWidth": width}
 
 
 def _ink_box(bx, by, bw, bh, hex_color):

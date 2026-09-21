@@ -16,5 +16,11 @@ namespace GameUp.UIBuilder.Editor
         public string color;
         public string text;
         public float confidence;
+
+        /// <summary>Màu viền chữ đo trên demo ("#RRGGBB"); rỗng = chữ không viền.</summary>
+        public string outlineColor;
+
+        /// <summary>Độ dày viền (px ở độ phân giải demo).</summary>
+        public float outlineWidth;
     }
 }
