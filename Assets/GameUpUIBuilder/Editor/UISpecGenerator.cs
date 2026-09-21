@@ -13,8 +13,12 @@ namespace GameUp.UIBuilder.Editor
     public static class UISpecGenerator
     {
         private const int ContainTolerance = 2;
+        private const int AlignTolerance = 3;
 
-        public static UISpec Generate(LocateResult locate, string name, string demoAssetPath, string outputPrefabPath)
+        public const string PlaceholderText = "Text";
+
+        /// <param name="fontPath">TMP_FontAsset cho các node text tìm được; rỗng = font mặc định TMP.</param>
+        public static UISpec Generate(LocateResult locate, string name, string demoAssetPath, string outputPrefabPath, string fontPath)
         {
             var spec = new UISpec
             {
@@ -26,7 +30,9 @@ namespace GameUp.UIBuilder.Editor
             };
 
             var nodes = CreateNodes(locate, spec.notes);
+            nodes.AddRange(CreateTextNodes(locate, fontPath, spec.notes));
             AssignParents(nodes);
+            AssignTextAlignment(nodes, locate.demoWidth);
             spec.nodes = OrderForDrawing(nodes);
             AddUnmatchedNotes(locate, spec.notes);
             return spec;
@@ -71,6 +77,30 @@ namespace GameUp.UIBuilder.Editor
             return nodes;
         }
 
+        /// <summary>
+        /// Mỗi dòng chữ tìm được → node text đúng khung + màu, cỡ chữ để builder tự tính (0). Nội dung chưa đọc được
+        /// từ ảnh nên là chữ giữ chỗ — Claude (/gu-ui) điền, hoặc sửa tay.
+        /// </summary>
+        private static IEnumerable<UISpecNode> CreateTextNodes(LocateResult locate, string fontPath, List<string> notes)
+        {
+            if (locate.texts == null || locate.texts.Count == 0) return Enumerable.Empty<UISpecNode>();
+
+            notes.Add($"{locate.texts.Count} dòng chữ: vị trí, màu, cỡ đã theo demo; nội dung đang là \"{PlaceholderText}\" — "
+                      + "bấm Copy prompt cho Claude để điền, hoặc sửa 'text' trong spec.");
+            return locate.texts.Select((t, i) => new UISpecNode
+            {
+                id = $"txt_{i + 1}",
+                kind = UISpecNode.KindText,
+                x = t.x,
+                y = t.y,
+                w = t.w,
+                h = t.h,
+                text = PlaceholderText,
+                color = t.color,
+                font = fontPath
+            });
+        }
+
         /// <summary>Cha = node nhỏ nhất chứa trọn node này (không tính chính nó).</summary>
         private static void AssignParents(List<UISpecNode> nodes)
         {
@@ -84,6 +114,37 @@ namespace GameUp.UIBuilder.Editor
                 }
 
                 node.parent = best != null ? best.id : string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Căn lề chữ — quan trọng khi nội dung đổi dài/ngắn so với demo: các dòng cùng cha thẳng mép trái (danh sách
+        /// cạnh icon) → trái, thẳng mép phải → phải; hai lề cân nhau → giữa; còn lại theo phía gần hơn.
+        /// </summary>
+        private static void AssignTextAlignment(List<UISpecNode> nodes, int rootWidth)
+        {
+            var texts = nodes.Where(n => n.kind == UISpecNode.KindText).ToList();
+            foreach (var node in texts)
+            {
+                var siblings = texts.Where(t => t != node && t.parent == node.parent).ToList();
+                if (siblings.Any(t => Mathf.Abs(t.x - node.x) <= AlignTolerance))
+                {
+                    node.align = "left";
+                    continue;
+                }
+
+                if (siblings.Any(t => Mathf.Abs(t.x + t.w - (node.x + node.w)) <= AlignTolerance))
+                {
+                    node.align = "right";
+                    continue;
+                }
+
+                var parent = nodes.FirstOrDefault(n => n.id == node.parent);
+                float left = parent?.x ?? 0, width = parent?.w ?? rootWidth;
+                var leftMargin = node.x - left;
+                var rightMargin = left + width - (node.x + node.w);
+                node.align = Mathf.Abs(leftMargin - rightMargin) < width * 0.04f ? "center"
+                    : leftMargin < rightMargin ? "left" : "right";
             }
         }
 
@@ -117,7 +178,7 @@ namespace GameUp.UIBuilder.Editor
             var soft = locate.sprites.Where(s => s.reason == "soft-alpha").Select(s => s.name).ToList();
             if (soft.Count > 0)
                 notes.Add($"Glow/bán trong suốt, không dò được bằng hình — ước lượng vị trí từ demo: {string.Join(", ", soft)}.");
-            notes.Add("Chưa có: text (TMP), vùng art thiếu, phần nền gameplay phía sau (không thuộc prefab) — bổ sung khi review spec.");
+            notes.Add("Chưa có: vùng art thiếu, chữ nằm ngoài sprite đã khớp, phần nền gameplay phía sau (không thuộc prefab) — bổ sung khi review spec.");
         }
 
         private static string UniqueId(string baseId, HashSet<string> used)

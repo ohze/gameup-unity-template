@@ -31,7 +31,7 @@ from concurrent.futures import ProcessPoolExecutor
 import cv2
 import numpy as np
 
-ALGO_VERSION = "3"
+ALGO_VERSION = "4"
 ALPHA_OPAQUE = 200          # pixel có alpha > ngưỡng mới dùng để so khớp
 MIN_OPAQUE_PIXELS = 64      # sprite gần như trong suốt (glow/vfx) → không dò được bằng hình
 ROBUST_KEEP = 0.75          # sai lệch màu tính trên 75% pixel khớp nhất → chịu được bị che ~25%
@@ -40,6 +40,13 @@ ACCEPT_DIFF = 16.0          # sai lệch màu tối đa (0-255) trên phần kh�
 STRONG_ZNCC = 0.95          # khớp gần tuyệt đối ở 1:1 → bỏ qua dò scale / 9-slice
 LOW_TEXTURE_STD = 6.0       # template gần như một màu → ZNCC vô nghĩa
 LOW_TEXTURE_DIFF = 3.0      # ... nên chỉ nhận khi trùng gần tuyệt đối, và chỉ ở tỉ lệ 1:1
+EXACT_TOLERANCE = 6         # pixel "trùng tuyệt đối" (demo ghép từ chính art này) — sai lệch màu ≤ ngưỡng
+OCCLUDED_INLIER = 0.50      # sprite lớn bị che nhiều (nền popup dưới chữ/icon/nút): ≥ 50% pixel trùng tuyệt đối...
+OCCLUDED_MIN_PIXELS = 5000  # ... và đủ nhiều pixel để không thể trùng ngẫu nhiên
+LOW_TEXTURE_INLIER = 0.70   # sprite một màu bị che: ≥ 70% pixel trùng + mép tương phản với xung quanh
+OCCLUDED_EDGE_INLIER = 0.85 # ... và viền ngoài của sprite phải lộ ra gần đủ (khúc giữa của nút kéo giãn không có viền)
+EDGE_RING = 4               # độ dày vành kiểm tra quanh mép sprite (px)
+EDGE_CONTRAST = 0.60        # tỉ lệ pixel vành khác màu sprite tối thiểu
 COARSE_SCALES = [0.9, 0.8, 0.75, 0.7, 0.6, 0.5, 1.1, 1.25, 1.5]
 MAX_INSTANCES = 12
 PEAK_CANDIDATES = 16
@@ -113,6 +120,8 @@ class _Template:
         m = self.mask > 0
         self.gray_masked = self.gray.astype(np.float32)[m]
         self.texture_std = float(self.gray_masked.std()) if self.opaque else 0.0
+        eroded = cv2.erode(self.mask, np.ones((7, 7), np.uint8))
+        self.boundary = (self.mask > 0) & (eroded == 0)
 
         self.f = _coarse_factor(self.w, self.h)
         if self.f < 1.0:
@@ -180,32 +189,63 @@ def _coarse_best(t):
 
 
 def _verify(x, y, t):
-    """(diff, zncc) tại (x, y) ở độ phân giải gốc.
+    """(diff, zncc, inlier) tại (x, y) ở độ phân giải gốc — None nếu không được nhận.
     diff: sai lệch màu trung bình — bản thường với sprite một màu, bản bỏ 25% pixel tệ nhất (bị che) với sprite có hoạ tiết.
-    zncc: tương quan cấu trúc trên ảnh xám, bất biến với độ sáng — tách khớp thật khỏi vùng cùng màu."""
+    zncc: tương quan cấu trúc trên ảnh xám, bất biến với độ sáng — tách khớp thật khỏi vùng cùng màu.
+    inlier: tỉ lệ pixel trùng tuyệt đối — bằng chứng cho sprite bị che nhiều (zncc tụt vì phần che)."""
     patch = _demo[y:y + t.h, x:x + t.w]
     if patch.shape[:2] != (t.h, t.w):
-        return 255.0, 0.0
+        return None
     m = t.mask > 0
-    diff = np.abs(patch.astype(np.int16) - t.bgr.astype(np.int16)).mean(axis=2)[m]
+    diff2d = np.abs(patch.astype(np.int16) - t.bgr.astype(np.int16)).mean(axis=2)
+    diff = diff2d[m]
+    exact = diff <= EXACT_TOLERANCE
+    inlier = float(exact.mean())
+
     if t.low_texture:
-        return float(diff.mean()), 0.0
+        mean = float(diff.mean())
+        if t.scale != 1.0:
+            return None
+        if mean <= LOW_TEXTURE_DIFF:
+            return mean, 0.0, inlier
+        if inlier >= LOW_TEXTURE_INLIER and exact.sum() >= OCCLUDED_MIN_PIXELS and _edge_contrast(x, y, t):
+            return mean, 0.0, inlier
+        return None
+
     keep = max(1, int(diff.size * ROBUST_KEEP))
     robust = float(np.partition(diff, keep - 1)[:keep].mean())
     g = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY).astype(np.float32)[m]
     a, b = g - g.mean(), t.gray_masked - t.gray_masked.mean()
     denom = float(np.sqrt((a * a).sum() * (b * b).sum()))
-    return robust, float((a * b).sum() / denom) if denom > 0 else 0.0
+    zncc = float((a * b).sum() / denom) if denom > 0 else 0.0
+    if zncc >= ACCEPT_ZNCC and robust <= ACCEPT_DIFF:
+        return robust, zncc, inlier
+    # Bị che nhiều: phần lộ ra vẫn trùng tuyệt đối, có hoạ tiết (không phải mảng một màu trùng ngẫu nhiên),
+    # và viền ngoài lộ gần đủ — loại các khúc của sprite khác trùng pixel một phần (nút kéo giãn, dải ruy băng).
+    if (inlier >= OCCLUDED_INLIER and exact.sum() >= OCCLUDED_MIN_PIXELS
+            and t.gray_masked[exact].std() >= LOW_TEXTURE_STD
+            and float((diff2d[t.boundary] <= EXACT_TOLERANCE).mean()) >= OCCLUDED_EDGE_INLIER):
+        return robust, zncc, inlier
+    return None
 
 
-def _accepted(t, diff, zncc):
-    if t.low_texture:
-        return t.scale == 1.0 and diff <= LOW_TEXTURE_DIFF
-    return zncc >= ACCEPT_ZNCC and diff <= ACCEPT_DIFF
+def _edge_contrast(x, y, t):
+    """Vành ngay ngoài mép sprite trên demo phải khác màu sprite — chốt đúng vị trí của mảng một màu."""
+    r = EDGE_RING
+    H, W = _demo.shape[:2]
+    x0, y0, x1, y1 = max(0, x - r), max(0, y - r), min(W, x + t.w + r), min(H, y + t.h + r)
+    padded = np.zeros((y1 - y0, x1 - x0), np.uint8)
+    padded[y - y0:y - y0 + t.h, x - x0:x - x0 + t.w] = t.mask
+    ring = (cv2.dilate(padded, np.ones((2 * r + 1, 2 * r + 1), np.uint8)) > 0) & (padded == 0)
+    if ring.sum() < 16:
+        return False
+    color = t.bgr[t.mask > 0].mean(axis=0)
+    ring_diff = np.abs(_demo[y0:y1, x0:x1][ring].astype(np.float32) - color).mean(axis=1)
+    return float((ring_diff > 20).mean()) >= EDGE_CONTRAST
 
 
 def _search(t, max_instances):
-    """Dò thô → dò mịn quanh ứng viên. Trả về [(x, y, robust_diff, zncc)] đã lọc, tốt nhất trước."""
+    """Dò thô → dò mịn quanh ứng viên. Trả về [(x, y, diff, zncc, inlier)] đã lọc, tốt nhất trước."""
     if not t.fits(_demo):
         return []
     img = _gray_at(t.f)
@@ -227,11 +267,11 @@ def _search(t, max_instances):
         fine = _masked_score_map(window, t.bgr, t.mask)
         _, _, loc, _ = cv2.minMaxLoc(fine)
         x, y = x0 + loc[0], y0 + loc[1]
-        diff, zncc = _verify(x, y, t)
-        if _accepted(t, diff, zncc):
-            results.append((x, y, diff, zncc))
+        verdict = _verify(x, y, t)
+        if verdict is not None:
+            results.append((x, y) + verdict)
 
-    results.sort(key=lambda r: (-r[3], r[2]))
+    results.sort(key=lambda r: (-max(r[3], r[4]), r[2]))
     kept = []
     for r in results:
         if all(abs(r[0] - k[0]) > t.w * 0.5 or abs(r[1] - k[1]) > t.h * 0.5 for k in kept):
@@ -262,12 +302,13 @@ def _find_uniform(sprite):
     for _, s in fine[:2]:
         t = _Template(sprite, s)
         f2 = _search(t, MAX_INSTANCES)
-        if f2 and (not best_found or f2[0][3] > best_found[0][3]):
+        if f2 and (not best_found or max(f2[0][3], f2[0][4]) > max(best_found[0][3], best_found[0][4])):
             best_t, best_found = t, f2
     return best_t, best_found
 
 
 def _is_strong(hit):
+    """Khớp chắc ở 1:1 → bỏ qua dò scale/9-slice."""
     return hit[3] >= STRONG_ZNCC or (hit[3] == 0.0 and hit[2] <= LOW_TEXTURE_DIFF)
 
 
@@ -326,9 +367,11 @@ def _find_sliced(sprite, border):
         rw, rh = tr[0] + cw - tl[0], bl[1] + ch - tl[1]
         if abs(rw - w) <= 1 and abs(rh - h) <= 1:
             continue  # đúng kích thước gốc → nhánh scale đều đã xử lý
-        diff = float(np.mean([tl[2], tr[2], bl[2], brs[0][2]]))
-        zncc = float(np.mean([tl[3], tr[3], bl[3], brs[0][3]]))
-        rects.append((tl[0], tl[1], rw, rh, diff, zncc))
+        corners = (tl, tr, bl, brs[0])
+        diff = float(np.mean([c[2] for c in corners]))
+        zncc = float(np.mean([c[3] for c in corners]))
+        inlier = float(np.mean([c[4] for c in corners]))
+        rects.append((tl[0], tl[1], rw, rh, diff, zncc, inlier))
     return rects
 
 
@@ -340,9 +383,9 @@ def _cache_key(demo_hash, sprite_path):
     return hashlib.sha1(f"{ALGO_VERSION}|{demo_hash}|{sprite_hash}".encode()).hexdigest()
 
 
-def _match_entry(x, y, w, h, scale, sliced, diff, zncc):
+def _match_entry(x, y, w, h, scale, sliced, diff, zncc, inlier):
     return {"x": int(x), "y": int(y), "w": int(w), "h": int(h), "scale": scale, "sliced": sliced,
-            "diff": round(float(diff), 1), "zncc": round(float(zncc), 3)}
+            "diff": round(float(diff), 1), "zncc": round(float(zncc), 3), "inlier": round(float(inlier), 3)}
 
 
 def _locate_sprite(sprite_path):
@@ -358,12 +401,12 @@ def _locate_sprite(sprite_path):
         return {**base, "status": "unmatched", "reason": "soft-alpha"}
 
     t, found = _find_uniform(sprite)
-    matches = [_match_entry(x, y, t.w, t.h, t.scale, False, d, z) for x, y, d, z in found]
+    matches = [_match_entry(x, y, t.w, t.h, t.scale, False, d, z, i) for x, y, d, z, i in found]
     low_texture = _Template(sprite, 1.0).low_texture
 
     border = _estimate_border(sprite)
     if border is not None and not (found and _is_strong(found[0])):
-        matches += [_match_entry(x, y, rw, rh, 1.0, True, d, z) for x, y, rw, rh, d, z in _find_sliced(sprite, border)]
+        matches += [_match_entry(x, y, rw, rh, 1.0, True, d, z, i) for x, y, rw, rh, d, z, i in _find_sliced(sprite, border)]
 
     matches = _dedupe_matches(matches)
     if not matches:
@@ -375,8 +418,10 @@ def _locate_sprite(sprite_path):
 
 
 def _dedupe_matches(matches):
-    """Một vị trí chỉ giữ 1 kết quả (ưu tiên cấu trúc giống nhất)."""
-    matches.sort(key=lambda m: (-m["zncc"], m["diff"]))
+    """Một vị trí chỉ giữ 1 kết quả (ưu tiên cấu trúc giống nhất); bỏ bản thường nằm trong bản 9-slice của chính nó."""
+    sliced = [m for m in matches if m["sliced"]]
+    matches = [m for m in matches if m["sliced"] or not any(_contains(k, m) for k in sliced)]
+    matches.sort(key=lambda m: (-max(m["zncc"], m["inlier"]), m["diff"]))
     kept = []
     for m in matches:
         cx, cy = m["x"] + m["w"] / 2, m["y"] + m["h"] / 2
@@ -385,6 +430,12 @@ def _dedupe_matches(matches):
             kept.append(m)
     kept.sort(key=lambda m: (m["y"], m["x"]))
     return kept
+
+
+def _contains(outer, inner, tolerance=2):
+    return (inner["x"] >= outer["x"] - tolerance and inner["y"] >= outer["y"] - tolerance
+            and inner["x"] + inner["w"] <= outer["x"] + outer["w"] + tolerance
+            and inner["y"] + inner["h"] <= outer["y"] + outer["h"] + tolerance)
 
 
 # ─── Lọc chéo giữa các sprite ───────────────────────────────────────────────
@@ -415,7 +466,7 @@ def _filter_explained(results):
         if r.get("status") != "matched" or r.get("lowTexture"):
             continue
         for m in r["matches"]:
-            if not m["sliced"] and m["zncc"] >= ACCEPT_ZNCC and m["diff"] <= 1.0:
+            if not m["sliced"] and (m["zncc"] >= ACCEPT_ZNCC and m["diff"] <= 1.0 or m["inlier"] >= OCCLUDED_INLIER):
                 anchors.append((r, m))
     if not anchors:
         return
@@ -441,6 +492,134 @@ def _filter_explained(results):
             r.pop("matches", None)
         else:
             r["matches"] = kept
+
+
+# ─── Tìm vùng chữ ───────────────────────────────────────────────────────────
+
+TEXT_RESIDUAL = 60          # chênh lệch màu (0-255) giữa demo và ảnh ghép lại từ sprite → pixel "lạ"
+TEXT_MIN_HEIGHT = 10
+TEXT_MAX_HEIGHT = 200
+TEXT_MIN_WIDTH = 16
+TEXT_MIN_DENSITY = 0.40     # chữ là khối dày đặc (đo được ≥ 0.53); viền lệch do designer vẽ khác art chỉ 0.1–0.39
+TEXT_WORD_GAP = 1.4         # nối 2 khung cùng dòng nếu khoảng trống ≤ 1.4 × chiều cao chữ ("Remove" + "Ads")
+
+
+def _render_match(sprite, match, border):
+    """Sprite như nó xuất hiện trên demo: scale đều, hoặc kéo giãn 9-slice theo border ước lượng."""
+    w, h = match["w"], match["h"]
+    if not match["sliced"]:
+        if match["scale"] == 1.0:
+            return sprite
+        interp = cv2.INTER_AREA if match["scale"] < 1.0 else cv2.INTER_NEAREST
+        return cv2.resize(sprite, (w, h), interpolation=interp)
+
+    sh, sw = sprite.shape[:2]
+    l, r = min(border["left"], w // 2), min(border["right"], w - w // 2)
+    t, b = min(border["top"], h // 2), min(border["bottom"], h - h // 2)
+    src_x, dst_x = [0, l, sw - r, sw], [0, l, w - r, w]
+    src_y, dst_y = [0, t, sh - b, sh], [0, t, h - b, h]
+    out = np.zeros((h, w, 4), np.uint8)
+    for i in range(3):
+        for j in range(3):
+            piece = sprite[src_y[i]:src_y[i + 1], src_x[j]:src_x[j + 1]]
+            size = (dst_x[j + 1] - dst_x[j], dst_y[i + 1] - dst_y[i])
+            if piece.size and size[0] > 0 and size[1] > 0:
+                out[dst_y[i]:dst_y[i + 1], dst_x[j]:dst_x[j + 1]] = cv2.resize(piece, size, interpolation=cv2.INTER_NEAREST)
+    return out
+
+
+def _compose(results):
+    """Ghép lại demo từ các sprite đã khớp (lớn vẽ trước) → (ảnh dự đoán, vùng được sprite phủ)."""
+    H, W = _demo.shape[:2]
+    predicted = _demo.astype(np.float32)
+    covered = np.zeros((H, W), bool)
+    items = []
+    for r in results:
+        if r.get("status") != "matched":
+            continue
+        sprite = _load_rgba(r["sprite"])
+        border = r.get("suggestedBorder") or _estimate_border(sprite)
+        items += [(m["w"] * m["h"], sprite, m, border) for m in r["matches"]]
+
+    for _, sprite, m, border in sorted(items, key=lambda it: -it[0]):
+        img = _render_match(sprite, m, border)
+        x0, y0 = max(0, m["x"]), max(0, m["y"])
+        x1, y1 = min(W, m["x"] + img.shape[1]), min(H, m["y"] + img.shape[0])
+        if x1 <= x0 or y1 <= y0:
+            continue
+        part = img[y0 - m["y"]:y1 - m["y"], x0 - m["x"]:x1 - m["x"]].astype(np.float32)
+        alpha = part[:, :, 3:4] / 255.0
+        predicted[y0:y1, x0:x1] = part[:, :, :3] * alpha + predicted[y0:y1, x0:x1] * (1 - alpha)
+        covered[y0:y1, x0:x1] |= part[:, :, 3] > ALPHA_OPAQUE
+    return predicted, covered
+
+
+def _detect_texts(results):
+    """Vùng nằm trên sprite đã khớp nhưng pixel khác sprite → gần như chắc chắn là chữ vẽ đè.
+    Gom chữ cái thành dòng, trả về khung + màu chữ chủ đạo. Nội dung chữ để AI/người điền."""
+    predicted, covered = _compose(results)
+    residual = (np.abs(_demo.astype(np.float32) - predicted).max(axis=2) > TEXT_RESIDUAL) & covered
+    if not residual.any():
+        return []
+
+    raw = residual.astype(np.uint8)
+    lines = cv2.dilate(raw, np.ones((5, 21), np.uint8))  # nối chữ cái/từ trên cùng dòng, không nối các dòng
+    count, labels = cv2.connectedComponents(lines)
+    H, W = raw.shape
+    texts = []
+    for label in range(1, count):
+        ys, xs = np.nonzero((labels == label) & (raw > 0))
+        if len(xs) < 40:
+            continue
+        x, y = int(xs.min()), int(ys.min())
+        w, h = int(xs.max()) - x + 1, int(ys.max()) - y + 1
+        if not (TEXT_MIN_HEIGHT <= h <= TEXT_MAX_HEIGHT) or w < TEXT_MIN_WIDTH or w * h > W * H * 0.2:
+            continue
+        if len(xs) / float(w * h) < TEXT_MIN_DENSITY:
+            continue
+        texts.append({"x": x, "y": y, "w": w, "h": h, "pixels": (ys, xs)})
+    texts = _merge_words(texts)
+    for t in texts:
+        ys, xs = t.pop("pixels")
+        t["color"] = _dominant_color(_demo[ys, xs])
+    texts.sort(key=lambda t: (t["y"], t["x"]))
+    return texts
+
+
+def _merge_words(boxes):
+    """Nối các khung cùng dòng (chồng dọc ≥ 60%) và sát nhau thành một nhãn."""
+    boxes.sort(key=lambda b: b["x"])
+    merged = True
+    while merged:
+        merged = False
+        for i, a in enumerate(boxes):
+            for b in boxes[i + 1:]:
+                overlap = min(a["y"] + a["h"], b["y"] + b["h"]) - max(a["y"], b["y"])
+                gap = max(a["x"], b["x"]) - min(a["x"] + a["w"], b["x"] + b["w"])
+                if overlap < 0.6 * min(a["h"], b["h"]) or gap > TEXT_WORD_GAP * max(a["h"], b["h"]):
+                    continue
+                x, y = min(a["x"], b["x"]), min(a["y"], b["y"])
+                a.update(x=x, y=y, w=max(a["x"] + a["w"], b["x"] + b["w"]) - x, h=max(a["y"] + a["h"], b["y"] + b["h"]) - y,
+                         pixels=(np.concatenate([a["pixels"][0], b["pixels"][0]]),
+                                 np.concatenate([a["pixels"][1], b["pixels"][1]])))
+                boxes.remove(b)
+                merged = True
+                break
+            if merged:
+                break
+    return boxes
+
+
+def _dominant_color(pixels):
+    """Màu chữ: màu phổ biến nhất sau khi lượng tử hoá, bỏ viền tối nếu phần sáng đủ nhiều."""
+    bright = pixels[pixels.astype(np.int32).sum(axis=1) >= 150]
+    if len(bright) >= len(pixels) * 0.3:
+        pixels = bright
+    keys = (pixels // 32).astype(np.int32)
+    codes = keys[:, 0] * 64 + keys[:, 1] * 8 + keys[:, 2]
+    mode = np.bincount(codes).argmax()
+    b, g, r = pixels[codes == mode].mean(axis=0)
+    return "#{:02X}{:02X}{:02X}".format(int(r), int(g), int(b))
 
 
 # ─── Main ───────────────────────────────────────────────────────────────────
@@ -515,6 +694,7 @@ def main():
     ordered = [results[p] for p in sprites]
     _init_worker(args.demo)
     _filter_explained(ordered)
+    texts = _detect_texts(ordered)
     out = {
         "version": 1,
         "demo": args.demo,
@@ -523,12 +703,13 @@ def main():
         "elapsedMs": int((time.time() - started) * 1000),
         "cachedCount": len(sprites) - len(pending),
         "sprites": ordered,
+        "texts": texts,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
     matched = sum(1 for r in ordered if r["status"] == "matched")
-    print(f"DONE {matched}/{len(ordered)} sprite khớp trong {out['elapsedMs']} ms → {args.out}", flush=True)
+    print(f"DONE {matched}/{len(ordered)} sprite khớp, {len(texts)} vùng chữ trong {out['elapsedMs']} ms → {args.out}", flush=True)
 
 
 if __name__ == "__main__":

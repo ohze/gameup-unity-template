@@ -109,6 +109,33 @@ namespace GameUp.UIBuilder.Tests
         }
 
         [Test]
+        public void Build_TextWithoutFontSize_FitsCapHeightToBox()
+        {
+            var node = Node("txtTitle", "", 290, 400, 500, 60, "center");
+            node.kind = UISpecNode.KindText;
+            node.text = "VICTORY";
+
+            var text = BuildAndFind(CreateSpec(node), "txtTitle").GetComponent<TextMeshProUGUI>();
+
+            var face = text.font.faceInfo;
+            var capHeight = text.fontSize * face.capLine / face.pointSize;
+            Assert.IsFalse(text.enableAutoSizing);
+            Assert.That(capHeight, Is.EqualTo(60f).Within(1.5f));
+        }
+
+        [Test]
+        public void Build_LongTextWithoutFontSize_ShrinksToFitWidth()
+        {
+            var node = Node("txtLong", "", 440, 1000, 200, 60, "center");
+            node.kind = UISpecNode.KindText;
+            node.text = "A very long label that cannot fit";
+
+            var text = BuildAndFind(CreateSpec(node), "txtLong").GetComponent<TextMeshProUGUI>();
+
+            Assert.That(text.GetPreferredValues(text.text).x, Is.LessThanOrEqualTo(200f));
+        }
+
+        [Test]
         public void Build_ButtonKind_WiresTargetGraphic()
         {
             var node = Node("btnPlay", "", 0, 0, 300, 100, "center");

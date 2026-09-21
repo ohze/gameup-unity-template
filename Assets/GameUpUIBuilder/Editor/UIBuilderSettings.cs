@@ -13,6 +13,7 @@ namespace GameUp.UIBuilder.Editor
         public bool includeSubfolders;
         public string outputFolder = "Assets/_MainProject/Prefabs/UI/Popups";
         public float overlayOpacity = 0.5f;
+        public string textFont;
         public bool showDemoPreview = true;
         public bool showMatchRects = true;
 

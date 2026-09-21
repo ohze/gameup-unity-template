@@ -257,7 +257,7 @@ namespace GameUp.UIBuilder.Editor
         {
             var text = GetOrAdd<TextMeshProUGUI>(go);
             text.text = node.text ?? string.Empty;
-            if (node.fontSize > 0f) text.fontSize = node.fontSize;
+            text.enableAutoSizing = false;
             text.color = ParseColor(node.color, Color.white, node.id, report);
             text.fontStyle = node.bold ? FontStyles.Bold : FontStyles.Normal;
             text.textWrappingMode = TextWrappingModes.NoWrap;
@@ -277,7 +277,37 @@ namespace GameUp.UIBuilder.Editor
             }
 
             if (text.font == null)
+            {
                 report.Warnings.Add($"{node.id}: chưa có font TMP (set 'font' trong spec hoặc Default Font trong TMP Settings).");
+                return;
+            }
+
+            text.fontSize = node.fontSize > 0f ? node.fontSize : FitFontSize(text, node);
+        }
+
+        /// <summary>
+        /// Cỡ chữ để chữ hoa cao bằng khung chữ đo trên demo (khung bao nét chữ, không gồm khoảng đệm dòng), rồi thu nhỏ
+        /// nếu nội dung tràn chiều ngang. Tính một lần lúc dựng — không bật Auto Size nên không tốn chi phí lúc chạy.
+        /// </summary>
+        private static float FitFontSize(TextMeshProUGUI text, UISpecNode node)
+        {
+            var face = text.font.faceInfo;
+            var capRatio = face.pointSize > 0 && face.capLine > 0 ? face.capLine / face.pointSize : 0.7f;
+            var size = node.h / capRatio;
+
+            text.fontSize = Mathf.Max(1f, Mathf.Round(size));
+            var width = PreferredWidth(text);
+            if (width <= node.w) return text.fontSize;
+
+            // Độ rộng không tỉ lệ tuyến tính với cỡ chữ (kerning, làm tròn glyph) → co theo tỉ lệ rồi giảm dần tới khi vừa.
+            text.fontSize = Mathf.Max(1f, Mathf.Floor(text.fontSize * node.w / width));
+            for (var i = 0; i < 20 && text.fontSize > 1f && PreferredWidth(text) > node.w; i++) text.fontSize -= 1f;
+            return text.fontSize;
+        }
+
+        private static float PreferredWidth(TMP_Text text)
+        {
+            return text.GetPreferredValues(text.text, float.PositiveInfinity, float.PositiveInfinity).x;
         }
 
         private static Sprite LoadSprite(UISpecNode node, UIBuildReport report)

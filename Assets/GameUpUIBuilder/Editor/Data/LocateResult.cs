@@ -14,5 +14,6 @@ namespace GameUp.UIBuilder.Editor
         public int elapsedMs;
         public int cachedCount;
         public List<LocateSprite> sprites = new List<LocateSprite>();
+        public List<LocateText> texts = new List<LocateText>();
     }
 }

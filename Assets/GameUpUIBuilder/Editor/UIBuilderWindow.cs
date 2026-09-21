@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using GameUp.Core;
 using GameUp.Core.Editor;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -355,6 +356,16 @@ namespace GameUp.UIBuilder.Editor
                 GUILayout.Label("Spec nháp có đủ sprite đã định vị. Text, nhóm, anchor, glow, art thiếu: nhờ Claude hoàn thiện (skill /gu-ui) hoặc sửa tay.",
                     GUInstallerUI.Desc);
 
+                EditorGUI.BeginChangeCheck();
+                var font = (TMP_FontAsset)EditorGUILayout.ObjectField(
+                    new GUIContent("Font cho text", "Font TMP gán cho các dòng chữ tìm được trên demo; trống = font mặc định TMP."),
+                    LoadAsset<TMP_FontAsset>(Settings.textFont), typeof(TMP_FontAsset), false);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Settings.textFont = font != null ? AssetDatabase.GetAssetPath(font) : null;
+                    Settings.Save();
+                }
+
                 EditorGUILayout.BeginHorizontal();
                 if (GUInstallerUI.MiniButton(_spec != null ? "Sinh lại spec nháp" : "Tạo spec nháp", _locate != null, 140f))
                     GenerateSpec();
@@ -394,7 +405,7 @@ namespace GameUp.UIBuilder.Editor
                     $"{SpecPath} đã có (có thể đã được Claude/bạn chỉnh). Sinh lại sẽ ghi đè toàn bộ.", "Ghi đè", "Huỷ"))
                 return;
 
-            UISpecFile.Save(UISpecGenerator.Generate(_locate, Settings.jobName, Settings.demoPath, OutputPrefab), SpecPath);
+            UISpecFile.Save(UISpecGenerator.Generate(_locate, Settings.jobName, Settings.demoPath, OutputPrefab, Settings.textFont), SpecPath);
             ReloadJob();
         }
 

@@ -47,6 +47,7 @@ namespace GameUp.UIBuilder.Editor
 
         // ─── text ───
         public string text;
+        /// <summary>Cỡ chữ; 0 = builder tự tính để chữ cao đúng bằng khung <see cref="h"/> (và không tràn <see cref="w"/>).</summary>
         public float fontSize;
         /// <summary>Asset path TMP_FontAsset; rỗng = font mặc định của TMP Settings.</summary>
         public string font;

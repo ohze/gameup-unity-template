@@ -26,8 +26,8 @@ Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-
 1. **Môi trường Python**: cài một lần.
 2. **Đầu vào**: tên UI, ảnh demo, các thư mục art (thư mục riêng của màn + `_Shared`), thư mục prefab.
 3. **Chạy định vị**: danh sách sprite khớp (vị trí, scale, 9-slice) và sprite không khớp kèm lý do. Sprite dùng dạng 9-slice mà chưa có border sẽ có nhãn **CẦN BORDER** và gợi ý giá trị; set trong Sprite Editor.
-4. **Spec**: *Tạo spec nháp* gồm mọi sprite đã định vị, lồng theo quan hệ chứa nhau. Sau đó chọn một trong hai cách:
-   - *Copy prompt cho Claude* rồi dán vào Claude Code (đã *Cài skill* `/gu-ui`). Claude thêm text, gom nhóm, đặt anchor, ước lượng glow/art thiếu, tự dựng và đối chiếu qua Unity MCP.
+4. **Spec**: chọn *Font cho text* (font TMP của game) rồi bấm *Tạo spec nháp*. Spec gồm mọi sprite đã định vị (lồng theo quan hệ chứa nhau) và mọi dòng chữ tìm được: đúng vị trí, màu, cỡ, căn lề, nhưng nội dung tạm là "Text" vì tool không đọc chữ. Sau đó chọn một trong hai cách:
+   - *Copy prompt cho Claude* rồi dán vào Claude Code (đã *Cài skill* `/gu-ui`). Claude điền nội dung chữ, đặt tên node, gom nhóm, đặt anchor, ước lượng glow/art thiếu, tự dựng và đối chiếu qua Unity MCP.
    - Sửa tay `UIBuilder/<Tên>/spec.json`.
 5. **Dựng prefab từ spec**: dựng xong tự render `compare.png`. Nếu prefab đã có, builder chỉ cập nhật node theo tên, giữ nguyên phần làm tay.
 
@@ -38,7 +38,9 @@ Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-
 - Demo và art **cùng tỉ lệ** (mặc định 1080×2160). Art bị scale trên demo vẫn dò được, nhưng 1:1 là nhanh và chắc nhất.
 - Tên file ảnh demo bắt đầu bằng `_demo` (vd `_demo_win.png`) để tool không coi demo là sprite.
 - Nút, khung kéo giãn: cắt ở kích thước gốc. Tool tự nhận ra dạng 9-slice trên demo.
+- Nền popup bị chữ/icon/nút che vẫn dò được, miễn phần lộ ra trùng pixel với art và viền ngoài còn thấy.
 - Glow, vfx bán trong suốt không dò được bằng hình; AI hoặc người đặt theo mắt.
+- Chữ chỉ tìm được khi nằm **trên** một sprite đã khớp; chữ nằm thẳng trên nền gameplay thì AI hoặc người thêm.
 
 ## Thư mục làm việc
 

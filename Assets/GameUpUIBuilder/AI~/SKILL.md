@@ -22,13 +22,15 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json`, `spec.j
    - `soft-alpha` — glow/vfx bán trong suốt → ước lượng tâm + kích thước từ demo (thường giữ kích thước gốc `spriteWidth/Height`).
    - `no-match` — không có trên demo, hoặc demo vẽ khác art (vd khung bị che nhiều) → nhìn demo, nếu thấy thì ước lượng rect.
    - `explained-by-other` — trùng pixel sprite khác → bỏ qua.
+
+   `texts[]`: các dòng chữ máy tìm được (nằm trên sprite đã khớp nhưng khác pixel sprite) — `x,y,w,h` là khung bao nét chữ, `color` là màu chữ chủ đạo. Máy **không đọc nội dung**: spec nháp có node `txt_N` với `text: "Text"` — việc của AI là đọc chữ trên demo và điền, đổi `id` cho có nghĩa (`txtTitle`, `txtPrice`), giữ nguyên `x,y,w,h,color,align`. Chữ nằm ngoài mọi sprite (vd "Tap to continue" trên nền) máy không thấy → AI tự thêm.
 3. **Viết `spec.json`** (schema bên dưới). Có bản nháp do tool sinh → giữ nguyên tọa độ node đã có, chỉ đổi `id`, `kind`, `parent`, `anchor` và thêm node mới.
 4. **Dựng + đối chiếu** qua Unity MCP `eval` (ghi tên đầy đủ, eval không nhận `using`):
    ```csharp
    return GameUp.UIBuilder.Editor.UIBuilderApi.BuildAndCompare("<Tên>");
    ```
    Trả về báo cáo + đường dẫn `compare.png` (demo | prefab | chồng 50%). **Read `compare.png`**, tìm chỗ lệch (bóng đôi ở khung chồng = sai vị trí; thiếu phần tử; text sai cỡ) → sửa spec → chạy lại. Tối đa 3 vòng, sau đó báo phần còn lệch.
-   - **Cỡ chữ**: vòng 1 đặt `fontSize` ≈ chiều cao box text. Mỗi font có tỉ lệ riêng → sau vòng 1 đo chiều rộng dòng chữ trên demo và trên render (khung 1 và 2 của `compare.png`), nhân `fontSize` với tỉ lệ demo/render. Các text cùng font thường lệch cùng một tỉ lệ.
+   - **Cỡ chữ**: để `fontSize: 0` — builder tự tính theo font để chữ hoa cao bằng `h` và không tràn `w` (tính lúc dựng, không bật Auto Size). Chỉ đặt số cụ thể khi render vẫn lệch rõ (vd dòng toàn chữ thường), đo tỉ lệ chiều rộng demo/render rồi nhân.
    - **Glow/vfx** sáng hơn demo → giảm alpha qua `color` (vd `#FFFFFFB0`), không đổi sprite.
 5. **Script (nếu cần)**: popup/screen kế thừa `UIPopup`/`UIScreen` của GameUp Core (tra skill `gameup-core-api`), namespace riêng của game, field `[SerializeField] private` tên **trùng `id` node** (vd `btnReward`) → set `rootComponent` = tên class, build lại: builder tự gắn component và gán các field còn trống.
 6. **Báo cáo**: node đã dựng, phần ước lượng (không phải máy dò), art thiếu, sprite cần set border 9-slice (người dùng tự set trong Sprite Editor — không sửa `.meta`), phần designer để sót đã bỏ.
@@ -62,7 +64,7 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json`, `spec.j
 | `kind` | `empty` (nhóm) · `image` · `button` (Image + Button) · `text` (TextMeshProUGUI) |
 | `anchor` | `auto` · `center` · `top` · `bottom` · `left` · `right` · `top-left` · `top-right` · `bottom-left` · `bottom-right` · `stretch` · `stretch-top` · `stretch-middle` · `stretch-bottom`. Chỉ ảnh hưởng co giãn trên màn khác tỉ lệ; ở độ phân giải tham chiếu vị trí luôn đúng. |
 | image/button | `sprite` (asset path), `sliced`, `preserveAspect`, `color` (#RRGGBB[AA]), `raycastTarget` |
-| text | `text` (hỗ trợ rich text: `<color=#FFE030>Grandpa</color> Win!`), `fontSize`, `font` (asset path TMP_FontAsset — tìm font game đang dùng, rỗng = mặc định TMP), `color`, `align` (left/center/right), `bold` |
+| text | `text` (hỗ trợ rich text: `<color=#FFE030>Grandpa</color> Win!`), `fontSize` (0 = tự khớp khung), `font` (asset path TMP_FontAsset — tìm font game đang dùng, rỗng = mặc định TMP), `color`, `align` (left/center/right), `bold` |
 | `active` | `false` cho biến thể ẩn (vd phần chỉ hiện khi thua) |
 
 ## Luật đặt tên & cấu trúc
