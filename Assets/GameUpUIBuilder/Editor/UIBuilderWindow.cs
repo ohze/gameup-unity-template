@@ -131,20 +131,23 @@ namespace GameUp.UIBuilder.Editor
         {
             var busy = _pythonSetup != null && _pythonSetup.IsRunning;
             var ready = UIBuilderPython.IsReady;
-            var state = busy ? GUSetupState.Busy : ready ? GUSetupState.Done : GUSetupState.Missing;
+            var outdated = ready && UIBuilderPython.IsOutdated;
+            var state = busy ? GUSetupState.Busy : ready && !outdated ? GUSetupState.Done : GUSetupState.Missing;
 
             using (GUInstallerUI.BeginCard())
             {
-                GUInstallerUI.CardHeader("BƯỚC 1", "Môi trường Python + OpenCV", state);
-                GUILayout.Label("Định vị sprite chạy bằng OpenCV (nhanh, song song nhiều nhân). Cài một lần cho mọi project trên máy.",
+                GUInstallerUI.CardHeader("BƯỚC 1", "Môi trường Python (OpenCV + OCR)", state);
+                GUILayout.Label("Định vị sprite bằng OpenCV, đọc chữ bằng RapidOCR — chạy trên máy, không cần mạng. Cài một lần cho mọi project trên máy.",
                     GUInstallerUI.Desc);
 
                 GUInstallerUI.StatusRow("Python hệ thống", _systemPython != null ? GUSetupState.Done : GUSetupState.Missing,
                     _systemPython ?? "không tìm thấy — cài Python 3.9+");
-                GUInstallerUI.StatusRow("Venv OpenCV", ready ? GUSetupState.Done : GUSetupState.Missing, UIBuilderPaths.VenvFolder);
+                GUInstallerUI.StatusRow("Venv", ready && !outdated ? GUSetupState.Done : GUSetupState.Missing,
+                    outdated ? "bản cũ — bấm Cập nhật để có OCR đọc chữ" : UIBuilderPaths.VenvFolder);
 
                 EditorGUILayout.BeginHorizontal();
-                if (GUInstallerUI.MiniButton(ready ? "Cài lại" : "Cài môi trường", !busy && _systemPython != null, 140f))
+                var setupLabel = outdated ? "Cập nhật" : ready ? "Cài lại" : "Cài môi trường";
+                if (GUInstallerUI.MiniButton(setupLabel, !busy && _systemPython != null, 140f))
                 {
                     _pythonSetup = new UIBuilderPython();
                     _pythonSetup.StartSetup(_systemPython);

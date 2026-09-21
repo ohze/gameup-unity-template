@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 
@@ -14,6 +16,8 @@ namespace GameUp.UIBuilder.Editor
     {
         private const int ContainTolerance = 2;
         private const int AlignTolerance = 3;
+        private const float LowOcrConfidence = 0.9f;
+        private const int MaxIdWords = 4;
 
         public const string PlaceholderText = "Text";
 
@@ -30,7 +34,7 @@ namespace GameUp.UIBuilder.Editor
             };
 
             var nodes = CreateNodes(locate, spec.notes);
-            nodes.AddRange(CreateTextNodes(locate, fontPath, spec.notes));
+            nodes.AddRange(CreateTextNodes(locate, fontPath, spec.notes, new HashSet<string>(nodes.Select(n => n.id))));
             AssignParents(nodes);
             AssignTextAlignment(nodes, locate.demoWidth);
             spec.nodes = OrderForDrawing(nodes);
@@ -78,27 +82,64 @@ namespace GameUp.UIBuilder.Editor
         }
 
         /// <summary>
-        /// Mỗi dòng chữ tìm được → node text đúng khung + màu, cỡ chữ để builder tự tính (0). Nội dung chưa đọc được
-        /// từ ảnh nên là chữ giữ chỗ — Claude (/gu-ui) điền, hoặc sửa tay.
+        /// Mỗi dòng chữ tìm được → node text đúng khung + màu, cỡ chữ để builder tự tính (0), nội dung từ OCR và id theo
+        /// nội dung (<c>txtRemoveAds</c>). OCR không có/không đọc được → chữ giữ chỗ để Claude (/gu-ui) hoặc người điền.
         /// </summary>
-        private static IEnumerable<UISpecNode> CreateTextNodes(LocateResult locate, string fontPath, List<string> notes)
+        private static List<UISpecNode> CreateTextNodes(LocateResult locate, string fontPath, List<string> notes, HashSet<string> usedIds)
         {
-            if (locate.texts == null || locate.texts.Count == 0) return Enumerable.Empty<UISpecNode>();
+            var nodes = new List<UISpecNode>();
+            if (locate.texts == null || locate.texts.Count == 0) return nodes;
 
-            notes.Add($"{locate.texts.Count} dòng chữ: vị trí, màu, cỡ đã theo demo; nội dung đang là \"{PlaceholderText}\" — "
-                      + "bấm Copy prompt cho Claude để điền, hoặc sửa 'text' trong spec.");
-            return locate.texts.Select((t, i) => new UISpecNode
+            var unsure = new List<string>();
+            foreach (var t in locate.texts)
             {
-                id = $"txt_{i + 1}",
-                kind = UISpecNode.KindText,
-                x = t.x,
-                y = t.y,
-                w = t.w,
-                h = t.h,
-                text = PlaceholderText,
-                color = t.color,
-                font = fontPath
-            });
+                var hasText = !string.IsNullOrWhiteSpace(t.text);
+                var node = new UISpecNode
+                {
+                    id = UniqueId(hasText ? TextId(t.text) : $"txt_{nodes.Count + 1}", usedIds),
+                    kind = UISpecNode.KindText,
+                    x = t.x,
+                    y = t.y,
+                    w = t.w,
+                    h = t.h,
+                    text = hasText ? t.text : PlaceholderText,
+                    color = t.color,
+                    font = fontPath
+                };
+                nodes.Add(node);
+                if (!hasText || t.confidence < LowOcrConfidence) unsure.Add($"{node.id} (\"{node.text}\")");
+            }
+
+            notes.Add(locate.ocr == "ok"
+                ? $"{nodes.Count} dòng chữ: vị trí, màu, cỡ theo demo, nội dung đọc bằng OCR — soát lại ký hiệu đặc biệt (₫, ×, icon trong chữ)."
+                : $"{nodes.Count} dòng chữ: vị trí, màu, cỡ theo demo; nội dung đang là \"{PlaceholderText}\" vì venv chưa có OCR "
+                  + "(Bước 1 → Cập nhật) — hoặc Copy prompt cho Claude để điền.");
+            if (unsure.Count > 0) notes.Add($"OCR không chắc, cần kiểm tra: {string.Join(", ", unsure)}.");
+            return nodes;
+        }
+
+        /// <summary>"Remove Ads" → txtRemoveAds; "2,000 coins" → txt2000Coins (tối đa 4 từ, bỏ dấu tiếng Việt).</summary>
+        public static string TextId(string text)
+        {
+            var normalized = text.Replace('đ', 'd').Replace('Đ', 'D').Normalize(NormalizationForm.FormD);
+            var words = new List<string>();
+            var current = new StringBuilder();
+            foreach (var c in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark) continue;
+                if (c < 128 && char.IsLetterOrDigit(c)) current.Append(c);
+                else if (c == ' ' || c == '-' || c == '_') FlushWord(current, words);
+            }
+
+            FlushWord(current, words);
+            var id = string.Concat(words.Take(MaxIdWords).Select(w => char.ToUpperInvariant(w[0]) + w.Substring(1).ToLowerInvariant()));
+            return id.Length > 0 ? $"txt{id}" : "txt";
+        }
+
+        private static void FlushWord(StringBuilder current, List<string> words)
+        {
+            if (current.Length > 0) words.Add(current.ToString());
+            current.Clear();
         }
 
         /// <summary>Cha = node nhỏ nhất chứa trọn node này (không tính chính nó).</summary>

@@ -1,2 +1,14 @@
+# Định vị sprite
 opencv-python-headless>=4.8
-numpy>=1.24
+numpy>=1.24,<3
+# Đọc chữ (OCR) — phụ thuộc của rapidocr, trừ opencv-python (đã có bản headless ở trên)
+onnxruntime>=1.17
+pyclipper>=1.2
+shapely>=1.7.1,!=2.0.4
+pyyaml
+pillow
+tqdm
+omegaconf!=2.2.1
+requests
+colorlog
+six>=1.15

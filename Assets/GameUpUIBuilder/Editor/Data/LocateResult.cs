@@ -15,5 +15,8 @@ namespace GameUp.UIBuilder.Editor
         public int cachedCount;
         public List<LocateSprite> sprites = new List<LocateSprite>();
         public List<LocateText> texts = new List<LocateText>();
+
+        /// <summary>ok | unavailable (venv chưa có OCR) | skipped | none (không có chữ).</summary>
+        public string ocr;
     }
 }

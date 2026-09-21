@@ -37,6 +37,9 @@ namespace GameUp.UIBuilder.Editor
 
         public static string Requirements => Path.Combine(PackageRoot, "Tools~", "requirements.txt");
 
+        /// <summary>Gói cài với --no-deps (rapidocr khai báo opencv-python bản GUI, trùng với bản headless).</summary>
+        public static string RequirementsNoDeps => Path.Combine(PackageRoot, "Tools~", "requirements-nodeps.txt");
+
         public static string SkillSource => Path.Combine(PackageRoot, "AI~", "SKILL.md");
 
         public static string CommandSource => Path.Combine(PackageRoot, "AI~", "gu-ui.md");

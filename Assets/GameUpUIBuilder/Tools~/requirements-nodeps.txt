@@ -1,0 +1,2 @@
+# Cài với --no-deps: rapidocr khai báo opencv-python (bản có GUI) → sẽ trùng/xung đột với opencv-python-headless.
+rapidocr>=3.4,<4

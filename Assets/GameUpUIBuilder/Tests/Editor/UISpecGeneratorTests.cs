@@ -76,6 +76,33 @@ namespace GameUp.UIBuilder.Tests
             CollectionAssert.AreEqual(new[] { "center", "left", "left", "left" }, byY.ConvertAll(n => n.align));
         }
 
+        [TestCase("Remove Ads", "txtRemoveAds")]
+        [TestCase("2,000 coins", "txt2000Coins")]
+        [TestCase("5 Random Fighter cards", "txt5RandomFighterCards")]
+        [TestCase("Phần thưởng đặc biệt hôm nay nè", "txtPhanThuongDacBiet")]
+        [TestCase("₫49,000", "txt49000")]
+        [TestCase("!!!", "txt")]
+        public void TextId_BuildsReadableAsciiId(string text, string expected)
+        {
+            Assert.AreEqual(expected, UISpecGenerator.TextId(text));
+        }
+
+        [Test]
+        public void Generate_OcrText_UsedAsContentAndId_LowConfidenceNoted()
+        {
+            var locate = Locate(Sprite("popup", Match(116, 413, 848, 1191, false)));
+            locate.ocr = "ok";
+            locate.texts.Add(new LocateText { x = 296, y = 473, w = 489, h = 60, text = "Remove Ads", confidence = 1f });
+            locate.texts.Add(new LocateText { x = 390, y = 1403, w = 301, h = 65, text = "49,000", confidence = 0.6f });
+
+            var spec = UISpecGenerator.Generate(locate, "Popup", "Assets/demo.png", "Assets/Popup.prefab", null);
+
+            var title = spec.nodes.Find(n => n.id == "txtRemoveAds");
+            Assert.IsNotNull(title);
+            Assert.AreEqual("Remove Ads", title.text);
+            StringAssert.Contains("txt49000", string.Join("\n", spec.notes));
+        }
+
         private static LocateResult Locate(params LocateSprite[] sprites)
         {
             return new LocateResult { demoWidth = 1080, demoHeight = 2160, sprites = new List<LocateSprite>(sprites) };

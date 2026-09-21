@@ -622,6 +622,50 @@ def _dominant_color(pixels):
     return "#{:02X}{:02X}{:02X}".format(int(r), int(g), int(b))
 
 
+# ─── Đọc chữ (OCR) ─────────────────────────────────────────────────────────
+
+OCR_COLOR_TOLERANCE = 60    # pixel gần màu chữ → đen, còn lại trắng: bỏ viền/nền để OCR đọc font pixel chuẩn hơn
+
+
+def _read_texts(texts):
+    """Điền nội dung cho từng dòng chữ bằng RapidOCR (chỉ bước nhận dạng — khung chữ đã có).
+    Thử ảnh tách theo màu chữ và ảnh gốc, mỗi loại 2 cỡ; giữ kết quả tin cậy nhất. Không có RapidOCR → bỏ qua."""
+    if not texts:
+        return "none"
+    try:
+        from rapidocr import RapidOCR
+    except ImportError:
+        return "unavailable"
+    try:
+        engine = RapidOCR(params={"Global.log_level": "critical"})
+    except Exception:  # bản rapidocr khác không nhận params
+        engine = RapidOCR()
+
+    for t in texts:
+        best_text, best_score = "", 0.0
+        for variant in _ocr_variants(t):
+            result = engine(variant, use_det=False, use_cls=False, use_rec=True)
+            if result.txts and float(result.scores[0]) > best_score:
+                best_text, best_score = result.txts[0].strip(), float(result.scores[0])
+        t["text"] = best_text
+        t["confidence"] = round(best_score, 3)
+    return "ok"
+
+
+def _ocr_variants(t):
+    pad = 6
+    H, W = _demo.shape[:2]
+    crop = _demo[max(0, t["y"] - pad):min(H, t["y"] + t["h"] + pad), max(0, t["x"] - pad):min(W, t["x"] + t["w"] + pad)]
+    hex_color = t["color"]
+    bgr = np.array([int(hex_color[5:7], 16), int(hex_color[3:5], 16), int(hex_color[1:3], 16)])
+    ink = np.abs(crop.astype(np.int16) - bgr).max(axis=2) < OCR_COLOR_TOLERANCE
+    binary = cv2.cvtColor(np.where(ink, 0, 255).astype(np.uint8), cv2.COLOR_GRAY2BGR)
+    for image in (binary, crop):
+        for scale in (1, 2):
+            v = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST) if scale > 1 else image
+            yield cv2.copyMakeBorder(v, 10, 10, 10, 10, cv2.BORDER_REPLICATE)
+
+
 # ─── Main ───────────────────────────────────────────────────────────────────
 
 def _collect_sprites(art_dirs, demo_path, recursive):
@@ -654,6 +698,7 @@ def main():
     ap.add_argument("--recursive", action="store_true", help="Quét cả thư mục con")
     ap.add_argument("--workers", type=int, default=0, help="Số process (0 = theo số nhân CPU)")
     ap.add_argument("--cache", default="", help="Thư mục cache (bỏ trống = không cache)")
+    ap.add_argument("--no-ocr", action="store_true", help="Không đọc nội dung chữ")
     args = ap.parse_args()
 
     started = time.time()
@@ -695,6 +740,7 @@ def main():
     _init_worker(args.demo)
     _filter_explained(ordered)
     texts = _detect_texts(ordered)
+    ocr_status = "skipped" if args.no_ocr else _read_texts(texts)
     out = {
         "version": 1,
         "demo": args.demo,
@@ -704,6 +750,7 @@ def main():
         "cachedCount": len(sprites) - len(pending),
         "sprites": ordered,
         "texts": texts,
+        "ocr": ocr_status,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:

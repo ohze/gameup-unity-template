@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using GameUp.Core.Editor;
 using UnityEngine;
@@ -9,7 +10,7 @@ namespace GameUp.UIBuilder.Editor
 {
     /// <summary>
     /// Môi trường Python cho bước định vị sprite: venv dùng chung theo user (<see cref="UIBuilderPaths.VenvFolder"/>)
-    /// cài sẵn OpenCV + numpy. Cài bất đồng bộ theo từng bước, gọi <see cref="Poll"/> mỗi frame.
+    /// cài sẵn OpenCV + numpy (định vị) và RapidOCR (đọc chữ). Cài bất đồng bộ theo từng bước, gọi <see cref="Poll"/> mỗi frame.
     /// </summary>
     public sealed class UIBuilderPython
     {
@@ -26,8 +27,11 @@ namespace GameUp.UIBuilder.Editor
 
         public string Log => _log.ToString();
 
-        /// <summary>Venv đã cài xong và kiểm tra import thành công.</summary>
+        /// <summary>Venv đã cài xong và kiểm tra import thành công (có thể là bản cài từ requirements cũ).</summary>
         public static bool IsReady => File.Exists(UIBuilderPaths.VenvPython) && File.Exists(UIBuilderPaths.VenvReadyMarker);
+
+        /// <summary>Venv cài từ requirements cũ hơn bản trong package (vd chưa có OCR) → cần bấm cập nhật.</summary>
+        public static bool IsOutdated => IsReady && File.ReadAllText(UIBuilderPaths.VenvReadyMarker).Trim() != RequirementsHash();
 
         /// <summary>Python hệ thống dùng để tạo venv; null nếu không tìm thấy.</summary>
         public static string FindSystemPython()
@@ -61,10 +65,12 @@ namespace GameUp.UIBuilder.Editor
                 _steps.Enqueue(("Tạo venv", systemPython, $"-m venv {Quote(UIBuilderPaths.VenvFolder)}"));
             }
 
-            _steps.Enqueue(("Cài OpenCV + numpy", venvPython,
+            _steps.Enqueue(("Cài OpenCV, numpy, onnxruntime", venvPython,
                 $"-m pip install --disable-pip-version-check -q -r {Quote(UIBuilderPaths.Requirements)}"));
+            _steps.Enqueue(("Cài OCR (rapidocr)", venvPython,
+                $"-m pip install --disable-pip-version-check -q --no-deps -r {Quote(UIBuilderPaths.RequirementsNoDeps)}"));
             _steps.Enqueue(("Kiểm tra", venvPython,
-                "-c \"import cv2, numpy; print('opencv', cv2.__version__, 'numpy', numpy.__version__)\""));
+                "-c \"import cv2, numpy, rapidocr, importlib.metadata as m; print('opencv', cv2.__version__, 'numpy', numpy.__version__, 'rapidocr', m.version('rapidocr'))\""));
             StartNext();
         }
 
@@ -89,7 +95,7 @@ namespace GameUp.UIBuilder.Editor
             _current = null;
             if (_steps.Count == 0)
             {
-                File.WriteAllText(UIBuilderPaths.VenvReadyMarker, DateTime.UtcNow.ToString("O"));
+                File.WriteAllText(UIBuilderPaths.VenvReadyMarker, RequirementsHash());
                 _log.AppendLine("✔ Môi trường sẵn sàng.");
                 return true;
             }
@@ -106,6 +112,15 @@ namespace GameUp.UIBuilder.Editor
         }
 
         public static string Quote(string path) => $"\"{path}\"";
+
+        private static string RequirementsHash()
+        {
+            using (var sha = SHA1.Create())
+            {
+                var content = File.ReadAllText(UIBuilderPaths.Requirements) + File.ReadAllText(UIBuilderPaths.RequirementsNoDeps);
+                return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(content))).Replace("-", string.Empty);
+            }
+        }
 
         private void StartNext()
         {

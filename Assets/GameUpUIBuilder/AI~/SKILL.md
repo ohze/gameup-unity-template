@@ -23,7 +23,7 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json`, `spec.j
    - `no-match` — không có trên demo, hoặc demo vẽ khác art (vd khung bị che nhiều) → nhìn demo, nếu thấy thì ước lượng rect.
    - `explained-by-other` — trùng pixel sprite khác → bỏ qua.
 
-   `texts[]`: các dòng chữ máy tìm được (nằm trên sprite đã khớp nhưng khác pixel sprite) — `x,y,w,h` là khung bao nét chữ, `color` là màu chữ chủ đạo. Máy **không đọc nội dung**: spec nháp có node `txt_N` với `text: "Text"` — việc của AI là đọc chữ trên demo và điền, đổi `id` cho có nghĩa (`txtTitle`, `txtPrice`), giữ nguyên `x,y,w,h,color,align`. Chữ nằm ngoài mọi sprite (vd "Tap to continue" trên nền) máy không thấy → AI tự thêm.
+   `texts[]`: các dòng chữ máy tìm được (nằm trên sprite đã khớp nhưng khác pixel sprite) — `x,y,w,h` là khung bao nét chữ, `color` là màu chữ chủ đạo, `text` + `confidence` là nội dung đọc bằng OCR (`ocr: "ok"`; `"unavailable"` = venv chưa có OCR → `text` rỗng). Spec nháp đã điền sẵn nội dung và đặt `id` theo nội dung (`txtRemoveAds`). Việc của AI: **soát** nội dung với demo — OCR hay bỏ ký hiệu đặc biệt (`₫`, `×`, icon chèn trong chữ) và đọc nhầm chữ khi `confidence` < 0.9 (có trong `notes`); đổi `id` cho đúng vai trò nếu cần (`txtPrice`); giữ nguyên `x,y,w,h,color,align`. Chữ nằm ngoài mọi sprite (vd "Tap to continue" trên nền) máy không thấy → AI tự thêm.
 3. **Viết `spec.json`** (schema bên dưới). Có bản nháp do tool sinh → giữ nguyên tọa độ node đã có, chỉ đổi `id`, `kind`, `parent`, `anchor` và thêm node mới.
 4. **Dựng + đối chiếu** qua Unity MCP `eval` (ghi tên đầy đủ, eval không nhận `using`):
    ```csharp
