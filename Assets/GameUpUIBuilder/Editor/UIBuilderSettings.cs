@@ -15,7 +15,6 @@ namespace GameUp.UIBuilder.Editor
         public float overlayOpacity = 0.5f;
         public bool showDemoPreview = true;
         public bool showMatchRects = true;
-        public float previewHeight = 640f;
 
         public void Save() => Save(true);
     }

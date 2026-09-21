@@ -18,9 +18,8 @@ namespace GameUp.UIBuilder.Editor
         private static GUIStyle _tag;
 
         /// <returns>Tên sprite đang được rê chuột, null nếu không có.</returns>
-        public static string Draw(Texture2D texture, float height, LocateResult locate, bool showMatches, string highlight)
+        public static string Draw(Rect area, Texture2D texture, LocateResult locate, bool showMatches, string highlight)
         {
-            var area = GUILayoutUtility.GetRect(10f, height, GUILayout.ExpandWidth(true));
             EditorGUI.DrawRect(area, Backdrop);
             if (texture == null) return null;
 

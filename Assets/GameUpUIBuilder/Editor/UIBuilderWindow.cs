@@ -18,6 +18,8 @@ namespace GameUp.UIBuilder.Editor
     {
         private const string MenuPath = "GameUp/UI/UI Builder (Demo → Prefab)";
         private const string LogTag = "UIBuilder";
+        private const float MinLeftWidth = 440f;
+        private const float MinPreviewWidth = 160f;
 
         private UIBuilderPython _pythonSetup;
         private UIBuilderLocator _locator;
@@ -46,9 +48,12 @@ namespace GameUp.UIBuilder.Editor
         [MenuItem(MenuPath)]
         public static void Open()
         {
+            var isNew = !HasOpenInstances<UIBuilderWindow>();
             var window = GetWindow<UIBuilderWindow>();
             window.titleContent = new GUIContent("UI Builder");
-            window.minSize = new Vector2(520f, 480f);
+            window.minSize = new Vector2(MinLeftWidth, 480f);
+            // Lần đầu mở: đủ rộng cho cột thông tin + cột ảnh demo tỉ lệ 1:2.
+            if (isNew) window.position = new Rect(window.position.x, window.position.y, 900f, 780f);
             window.Show();
         }
 
@@ -73,17 +78,50 @@ namespace GameUp.UIBuilder.Editor
             if (Event.current.type == EventType.MouseMove) Repaint();
             // locate.json / spec.json có thể bị Claude hoặc terminal ghi lại → tự tải lại khi file đổi.
             if (Event.current.type == EventType.Layout && JobStamp() != _jobStamp) ReloadJob();
+            var texture = HasDemo() ? UIDemoTexture.Get(Settings.demoPath) : null;
+            var previewWidth = PreviewWidth(texture);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical();
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             GUInstallerUI.SectionHeader("UI BUILDER", "Ảnh demo + art đã cắt → prefab uGUI đúng vị trí, kích thước.");
 
             DrawPythonStep();
-            DrawInputStep();
+            DrawInputStep(texture, previewWidth > 0f);
             DrawLocateStep();
             DrawSpecStep();
             DrawBuildStep();
             DrawCompareStep();
 
             EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+            if (previewWidth > 0f) DrawPreviewPanel(texture, previewWidth);
+            EditorGUILayout.EndHorizontal();
+        }
+
+        // ─── Cột phải — ảnh demo ────────────────────────────────────────────
+
+        /// <summary>Rộng vừa đủ để ảnh demo cao bằng cửa sổ; 0 nếu tắt, chưa có demo, hoặc cửa sổ quá hẹp.</summary>
+        private float PreviewWidth(Texture2D texture)
+        {
+            if (!Settings.showDemoPreview || texture == null) return 0f;
+            var ideal = (position.height - 8f) * texture.width / texture.height;
+            var width = Mathf.Floor(Mathf.Min(ideal, position.width - MinLeftWidth));
+            return width >= MinPreviewWidth ? width : 0f;
+        }
+
+        private void DrawPreviewPanel(Texture2D texture, float width)
+        {
+            EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.ExpandHeight(true));
+            var area = GUILayoutUtility.GetRect(width, width, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+            var hovered = UIDemoPreviewDrawer.Draw(area, texture, _locate, Settings.showMatchRects, _highlightSprite);
+            if (hovered != null && Event.current.type == EventType.MouseDown)
+            {
+                _highlightSprite = hovered;
+                Event.current.Use();
+            }
+
+            EditorGUILayout.EndVertical();
         }
 
         // ─── BƯỚC 1 — Python ────────────────────────────────────────────────
@@ -127,7 +165,7 @@ namespace GameUp.UIBuilder.Editor
 
         // ─── BƯỚC 2 — Đầu vào ───────────────────────────────────────────────
 
-        private void DrawInputStep()
+        private void DrawInputStep(Texture2D texture, bool previewShown)
         {
             var hasInput = HasDemo() && Settings.artFolders.Count > 0;
             using (GUInstallerUI.BeginCard())
@@ -147,7 +185,7 @@ namespace GameUp.UIBuilder.Editor
                     ReloadJob();
                 }
 
-                if (demo != null) DrawDemoPreview();
+                if (texture != null) DrawDemoDetails(texture, previewShown);
                 DrawArtFolders();
 
                 EditorGUI.BeginChangeCheck();
@@ -164,45 +202,29 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
-        /// <summary>
-        /// Preview ảnh demo đọc từ file gốc (không qua import settings nên không mờ, không méo), đúng tỉ lệ, chiều cao
-        /// chỉnh được; có kết quả định vị thì vẽ khung từng sprite lên trên.
-        /// </summary>
-        private void DrawDemoPreview()
+        /// <summary>Thông tin + tuỳ chọn hiển thị ảnh demo (ảnh nằm ở cột phải).</summary>
+        private void DrawDemoDetails(Texture2D texture, bool previewShown)
         {
-            var texture = UIDemoTexture.Get(Settings.demoPath);
-            EditorGUILayout.BeginHorizontal();
-            Settings.showDemoPreview = EditorGUILayout.Foldout(Settings.showDemoPreview, "Xem trước", true);
-            GUILayout.FlexibleSpace();
-            if (texture != null)
-            {
-                var ratio = (float)texture.height / texture.width;
-                var isReference = texture.width == 1080 && texture.height == 2160;
-                GUInstallerUI.Hint($"{texture.width}×{texture.height} · 1:{ratio:0.##}" + (isReference ? string.Empty : " · khác 1080×2160"));
-            }
-
-            if (GUInstallerUI.MiniButton("Mở ảnh gốc", texture != null, 80f))
-                EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(Settings.demoPath));
-            EditorGUILayout.EndHorizontal();
-            if (!Settings.showDemoPreview) return;
+            var ratio = (float)texture.height / texture.width;
+            var isReference = texture.width == 1080 && texture.height == 2160;
+            GUInstallerUI.Hint($"Kích thước gốc {texture.width}×{texture.height} · tỉ lệ 1:{ratio:0.##}"
+                               + (isReference ? string.Empty : " · khác 1080×2160 mặc định"));
 
             EditorGUI.BeginChangeCheck();
             EditorGUILayout.BeginHorizontal();
-            using (new EditorGUI.DisabledScope(_locate == null))
+            Settings.showDemoPreview = GUILayout.Toggle(Settings.showDemoPreview, "Hiện ảnh demo", GUILayout.Width(110f));
+            using (new EditorGUI.DisabledScope(_locate == null || !Settings.showDemoPreview))
                 Settings.showMatchRects = GUILayout.Toggle(Settings.showMatchRects, "Khung sprite đã dò", GUILayout.Width(140f));
-            Settings.previewHeight = EditorGUILayout.Slider(Settings.previewHeight, 240f, 1400f);
+            GUILayout.FlexibleSpace();
+            if (GUInstallerUI.MiniButton("Mở ảnh gốc", true, 90f))
+                EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(Settings.demoPath));
             EditorGUILayout.EndHorizontal();
             if (EditorGUI.EndChangeCheck()) Settings.Save();
 
-            var hovered = UIDemoPreviewDrawer.Draw(texture, Settings.previewHeight, _locate, Settings.showMatchRects, _highlightSprite);
-            if (hovered != null && Event.current.type == EventType.MouseDown)
-            {
-                _highlightSprite = hovered;
-                Event.current.Use();
-            }
-
-            if (_locate != null && Settings.showMatchRects)
-                GUInstallerUI.Hint("Xanh: khớp · Cam: 9-slice · Vàng: đang chọn — bấm vào khung để chọn.");
+            if (Settings.showDemoPreview && !previewShown)
+                GUInstallerUI.Hint("Cửa sổ hẹp — kéo rộng ra để hiện ảnh demo ở cột phải.");
+            else if (previewShown && _locate != null && Settings.showMatchRects)
+                GUInstallerUI.Hint("Khung trên ảnh: xanh = khớp · cam = 9-slice · vàng = đang chọn (bấm khung để chọn).");
         }
 
         private void DrawArtFolders()
