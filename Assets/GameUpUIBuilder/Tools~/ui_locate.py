@@ -33,7 +33,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import cv2
 import numpy as np
 
-ALGO_VERSION = "11"
+ALGO_VERSION = "13"
 ALPHA_OPAQUE = 200          # pixel có alpha > ngưỡng mới dùng để so khớp
 MIN_OPAQUE_PIXELS = 64      # sprite gần như trong suốt (glow/vfx) → không dò được bằng hình
 ROBUST_KEEP = 0.75          # sai lệch màu tính trên 75% pixel khớp nhất → chịu được bị che ~25%
@@ -53,6 +53,14 @@ LOW_TEXTURE_DIFF = 3.0      # ... nên chỉ nhận khi trùng gần tuyệt đ�
 EXACT_TOLERANCE = 6         # pixel "trùng tuyệt đối" (demo ghép từ chính art này) — sai lệch màu ≤ ngưỡng
 OCCLUDED_INLIER = 0.50      # sprite lớn bị che nhiều (nền popup dưới chữ/icon/nút): ≥ 50% pixel trùng tuyệt đối...
 OCCLUDED_MIN_PIXELS = 5000  # ... và đủ nhiều pixel để không thể trùng ngẫu nhiên
+INTERIOR_DIFF = 4.0         # ruột trùng gần tuyệt đối (75% pixel tốt nhất lệch ≤ 4) và ≥ 60% pixel trùng, đủ pixel, có
+INTERIOR_INLIER = 0.60      # hoạ tiết → nhận dù viền ngoài khác (vương miện hàng 3 Dungeon: designer thêm stroke — lệch 2.9,
+                            # trùng 62%, viền 33%, ZNCC 0.74 vì chữ số viền đen đè giữa). Chỉ ở 1:1: panel gần một màu
+INTERIOR_ZNCC = 0.60        # thu nhỏ vẫn trùng ruột ở chỗ sai (bench A: popup 0.5 / 0.77, ZNCC 0.35–0.55)
+SCALED_ZNCC = 0.83          # art thu nhỏ (< 0.9): resample làm lệch màu ở nét mảnh (khung avatar 0.53: lệch 16.6, ZNCC 0.84)
+SCALED_DIFF = 20.0          # → nới ngưỡng lệch màu khi tương quan đủ cao
+SCALED_STRONG_ZNCC = 0.86   # ... tương quan cao hơn nữa (khung avatar trên cờ top 0.62: ZNCC 0.87, lệch 22.5) → lệch ≤ 25
+SCALED_STRONG_DIFF = 25.0
 FLAT_BOUNDARY = 0.60        # sprite một màu: ≥ 60% dải viền trong trùng màu (phần còn lại có thể bị che)...
 FLAT_BOUNDARY_SHAPE = 0.85  # ... hình bóng không phải khối (lấp < 85% khung — icon cung, gậy phép trắng) khớp nhầm vào
 FLAT_SHAPE_FILL = 0.85      #     mũi tên trắng với 60–70% viền trùng
@@ -288,6 +296,12 @@ def _verify(x, y, t):
     denom = float(np.sqrt((a * a).sum() * (b * b).sum()))
     zncc = float((a * b).sum() / denom) if denom > 0 else 0.0
     if zncc >= ACCEPT_ZNCC and robust <= ACCEPT_DIFF and inlier >= MIN_INLIER:
+        return robust, zncc, inlier
+    if t.scale < 0.9 and inlier >= MIN_INLIER and (
+            (zncc >= SCALED_ZNCC and robust <= SCALED_DIFF) or (zncc >= SCALED_STRONG_ZNCC and robust <= SCALED_STRONG_DIFF)):
+        return robust, zncc, inlier
+    if (t.scale == 1.0 and zncc >= INTERIOR_ZNCC and robust <= INTERIOR_DIFF and inlier >= INTERIOR_INLIER
+            and exact.sum() >= OCCLUDED_MIN_PIXELS and t.gray_masked[exact].std() >= LOW_TEXTURE_STD):
         return robust, zncc, inlier
     # Bị che nhiều: phần lộ ra vẫn trùng tuyệt đối, có hoạ tiết (không phải mảng một màu trùng ngẫu nhiên),
     # và viền ngoài lộ gần đủ (hoặc đủ ở 3/4 cạnh) — loại các khúc của sprite khác trùng pixel một phần.
@@ -582,6 +596,12 @@ def _search(t, max_instances, gate=True):
 SCALE_GROUPS = 3             # cùng sprite có thể xuất hiện ở vài tỉ lệ (avatar 0.66 trong hàng, 0.77 trong cờ top)
 SCALE_GAP = 0.08             # 2 tỉ lệ cách nhau ≥ 0.08 mới coi là 2 nhóm khác nhau
 SEED_GATE_MARGIN = 0.05      # tỉ lệ ứng viên lệch tỉ lệ thật tới 0.04 → nét trùng kém hơn, nới cổng thêm chút
+NEAR_SCALES = (-0.02, 0.02)
+RING_FILL = 0.35             # sprite dạng viền: pixel đục < 35% khung — dò scale bằng quét dày
+RING_SCALES = (0.3, 1.6, 0.01)
+RING_MINIMA = 3              # tối đa 3 đáy cục bộ, mỗi đáy ≤ 1.3 lần đáy tốt nhất
+RING_MINIMA_RATIO = 1.3
+RING_FINE = (-0.015, -0.01, -0.005, 0.0, 0.005, 0.01, 0.015)  # hàng của mình 0.545 cạnh đáy 0.53
 
 
 def _find_uniform(sprite, try_scales=True):
@@ -593,16 +613,29 @@ def _find_uniform(sprite, try_scales=True):
     if base.low_texture or not try_scales or (found and _is_strong(found[0])):
         return [(base, found)]
 
-    ranked = sorted(((_coarse_best(_Template(sprite, s)), s) for s in COARSE_SCALES))
-    seeds = []
-    for _, s in ranked:
-        if all(abs(s - other) >= SCALE_GAP for other in seeds):
-            seeds.append(s)
-        if len(seeds) >= SCALE_GROUPS:
-            break
-
     groups = [(base, found)] if found else []
-    for seed in seeds:
+    if not found and (base.mask > 0).mean() < RING_FILL:  # khớp 1:1 rồi (panel rỗng ruột) thì giữ đường cũ
+        # Khung viền mảnh (khung avatar thu 0.53): điểm dò thô có đáy rất nhọn đúng tỉ lệ (0.53: 62, 0.52 / 0.54: 73), lưới
+        # thô ±0.02 bước qua mất và lệch 0.01 là viền không còn trùng → quét dày 0.01, dò thẳng ở các đáy tốt nhất.
+        # Mỗi đáy cục bộ của đường điểm là một nhóm tỉ lệ (hàng danh sách 0.53, bục top 3 0.62); viền chỉ trùng khi lệch
+        # ≤ 0.005 nên dò mịn quanh đáy theo bước 0.005 (hàng của mình 0.545 nằm giữa 2 bước quét).
+        scales = [round(float(s), 2) for s in np.arange(*RING_SCALES)]
+        curve = [_coarse_best(_Template(sprite, s)) for s in scales]
+        minima = sorted((curve[i], scales[i]) for i in range(1, len(scales) - 1)
+                        if curve[i] <= curve[i - 1] and curve[i] <= curve[i + 1] and np.isfinite(curve[i]))
+        best = minima[0][0] if minima else None
+        for value, s in minima[:RING_MINIMA]:
+            if value > best * RING_MINIMA_RATIO:
+                break
+            for d in RING_FINE:
+                t = _Template(sprite, round(s + d, 3))
+                hits = _search(t, MAX_INSTANCES)
+                if hits:
+                    groups.append((t, hits))
+        return groups
+
+    ranked = sorted(((_coarse_best(_Template(sprite, s)), s) for s in COARSE_SCALES))
+    for seed in _distinct_scales(ranked):
         seed_t = _Template(sprite, seed)
         if not _fits_coarse(seed_t) or _shape_maps(seed_t)[1] < PRESENCE_GATE - SEED_GATE_MARGIN:
             continue  # nét không có trên demo ở tỉ lệ này → khỏi tinh chỉnh
@@ -612,7 +645,24 @@ def _find_uniform(sprite, try_scales=True):
         hits = _search(t, MAX_INSTANCES)
         if hits:
             groups.append((t, hits))
+            # cùng art ở tỉ lệ lân cận (avatar hàng của mình 0.68 cạnh các hàng 0.66): chỉ dò khi tỉ lệ này đã có khớp
+            for d in NEAR_SCALES:
+                near = _Template(sprite, round(t.scale + d, 2))
+                near_hits = _search(near, MAX_INSTANCES)
+                if near_hits:
+                    groups.append((near, near_hits))
     return groups
+
+
+def _distinct_scales(ranked):
+    """Tới SCALE_GROUPS tỉ lệ tốt nhất (danh sách (điểm, tỉ lệ) đã sắp), cách nhau ≥ SCALE_GAP."""
+    picked = []
+    for _, s in ranked:
+        if all(abs(s - other) >= SCALE_GAP for other in picked):
+            picked.append(s)
+        if len(picked) >= SCALE_GROUPS:
+            break
+    return picked
 
 
 def _is_strong(hit):
@@ -842,9 +892,14 @@ def _apply_hints(results, hint_paths):
                     sprite = _load_rgba(r["sprite"])
                 border = hs.get("suggestedBorder") or _estimate_border(sprite)
                 inlier, edge = _pixel_agreement(_render_match(sprite, hm, border), hm["x"], hm["y"])
+                x, y = hm["x"], hm["y"]
                 if inlier < HINT_INLIER or edge < (HINT_EDGE_FLAT if hs.get("lowTexture") else HINT_EDGE):
-                    continue
-                entry = _match_entry(hm["x"], hm["y"], hm["w"], hm["h"], hm["scale"], hm["sliced"], 0.0, 0.0, inlier)
+                    # khung viền mảnh thu nhỏ (khung avatar 0.545): viền không bao giờ trùng tuyệt đối → kiểm như khi dò
+                    verified = None if hm["sliced"] or hs.get("lowTexture") else _verify_near(sprite, hm)
+                    if verified is None:
+                        continue
+                    x, y, inlier = verified
+                entry = _match_entry(x, y, hm["w"], hm["h"], hm["scale"], hm["sliced"], 0.0, 0.0, inlier)
                 if r.get("status") != "matched":
                     r.update(status="matched", lowTexture=bool(hs.get("lowTexture")), matches=[])
                     r.pop("reason", None)
@@ -855,6 +910,18 @@ def _apply_hints(results, hint_paths):
                 r["matches"].append(entry)
                 added += 1
     return added
+
+
+def _verify_near(sprite, hm):
+    """Kiểm tra đầy đủ (_verify) quanh vị trí gợi ý ±3 px ở đúng tỉ lệ của gợi ý → (x, y, inlier) hoặc None."""
+    t = _Template(sprite, hm["scale"])
+    best = None
+    for dy in range(-3, 4):
+        for dx in range(-3, 4):
+            v = _verify(hm["x"] + dx, hm["y"] + dy, t)
+            if v is not None and (best is None or v[1] > best[1]):
+                best = (v[1], hm["x"] + dx, hm["y"] + dy, v[2])
+    return None if best is None else best[1:]
 
 
 # ─── Xử lý 1 sprite ─────────────────────────────────────────────────────────
@@ -1536,7 +1603,72 @@ def _find_texts(results, use_ocr, ui_region):
         _emit("text-read", message=f"Đọc dòng {i + 1}/{len(texts)}", done=i, total=len(texts))
         _refine_text(engine, t)
         _emit("text", text=t, done=i + 1, total=len(texts))
+    for t in _complete_row_texts(engine, results, texts, diff):
+        texts.append(t)
+        _emit("text", text=t)
+    texts.sort(key=lambda t: (t["y"], t["x"]))
     return texts, ("ok" if texts else "none")
+
+
+ROW_TEXT_MIN_ROWS = 3        # sprite lặp ≥ 3 lần cùng cỡ = các hàng danh sách
+ROW_TEXT_SCORE = 0.90        # đọc thẳng (không qua bước phát hiện) nên đòi tin cậy cao
+
+
+def _complete_row_texts(engine, results, texts, diff):
+    """
+    Bộ phát hiện chữ của OCR bỏ sót chữ số đứng riêng (hạng "4" hàng 4 — "5" hàng 5 thì thấy). Hàng danh sách cùng bố
+    cục: chữ một hàng có ở vị trí nào thì đọc thẳng (bỏ bước phát hiện) cùng vị trí ở các hàng còn lại — chỉ nhận khi
+    ở đó có mực khác pixel sprite (không phải chữ vẽ sẵn trong art) và OCR đọc chắc.
+    """
+    added = []
+    for r in results:
+        if r.get("status") != "matched":
+            continue
+        rows = [m for m in r["matches"] if not m["sliced"]]
+        if len(rows) < ROW_TEXT_MIN_ROWS or len({(m["w"], m["h"]) for m in rows}) != 1:
+            continue
+        slots = []
+        for row in rows:
+            for t in texts + added:
+                if _contains(row, t, tolerance=0):
+                    slots.append((t["x"] - row["x"] + t["w"] / 2, t["y"] - row["y"] + t["h"] / 2, t["w"], t["h"]))
+        # sprite nhỏ hơn hàng (vương miện, icon…) — panel bao ngoài không tính
+        others = [m for o in results if o is not r and o.get("status") == "matched" for m in o["matches"]
+                  if m["w"] * m["h"] < rows[0]["w"] * rows[0]["h"]]
+        for cx, cy, w, h in slots:
+            for row in rows:
+                x, y = int(row["x"] + cx), int(row["y"] + cy)
+                if any(abs(t["x"] + t["w"] / 2 - x) <= max(w, t["w"]) / 2 and abs(t["y"] + t["h"] / 2 - y) <= h / 2
+                       for t in texts + added):
+                    continue
+                # chỉ vị trí nằm trên chính nền hàng — trên sprite khác (vương miện top 2/3) OCR đọc lẫn hình ("27")
+                if any(m["x"] <= x <= m["x"] + m["w"] and m["y"] <= y <= m["y"] + m["h"] for m in others):
+                    continue
+                entry = _read_at(engine, diff, x, y, w, h)
+                if entry is not None:
+                    added.append(entry)
+    return added
+
+
+def _read_at(engine, diff, cx, cy, w, h):
+    """Đọc thẳng vùng quanh tâm (cx, cy) cỡ gần (w, h) — nới ngang cho chữ dài hơn ("4-10" ở chỗ "1")."""
+    H, W = _demo.shape[:2]
+    bx0, bx1 = max(0, int(cx - w / 2 - h)), min(W, int(cx + w / 2 + h))
+    by0, by1 = max(0, int(cy - h * 0.6)), min(H, int(cy + h * 0.6))
+    if bx1 - bx0 < 4 or by1 - by0 < 4:
+        return None
+    ink = diff[by0:by1, bx0:bx1] > TEXT_COLOR_RESIDUAL
+    if ink.mean() < OCR_MIN_RESIDUAL:
+        return None
+    result = engine(_demo[by0:by1, bx0:bx1], use_det=False, use_cls=False, use_rec=True)
+    if not result.txts or not result.txts[0].strip() or float(result.scores[0]) < ROW_TEXT_SCORE:
+        return None
+    color = _dominant_color(_ink_pixels(bx0, by0, bx1 - bx0, by1 - by0, ink))
+    x, y, tw, th = _center_ink_box(bx0, by0, bx1 - bx0, by1 - by0, color, cx, cy, w, h)
+    entry = {"x": x, "y": y, "w": tw, "h": th, "color": color, "text": result.txts[0].strip(),
+             "confidence": round(float(result.scores[0]), 3)}
+    entry.update(_text_outline(x, y, tw, th, color))
+    return entry
 
 
 def _detect_texts_ocr(engine, covered, diff, ui_region, icons):
@@ -1776,6 +1908,21 @@ def _ink_box(bx, by, bw, bh, hex_color):
     ys, xs = np.nonzero(ink)
     if len(xs) < 10:
         return bx, by, bw, bh
+    return bx + int(xs.min()), by + int(ys.min()), int(xs.max() - xs.min()) + 1, int(ys.max() - ys.min()) + 1
+
+
+def _center_ink_box(bx, by, bw, bh, hex_color, cx, cy, w, h):
+    """Khung nét chữ chỉ gồm các mảng gần màu chữ chạm vùng tâm (w×h quanh cx, cy) — mép hình tròn sáng bên cạnh chữ
+    số hạng không kéo khung lệch sang một bên."""
+    bgr = np.array([int(hex_color[5:7], 16), int(hex_color[3:5], 16), int(hex_color[1:3], 16)])
+    ink = (np.abs(_demo[by:by + bh, bx:bx + bw].astype(np.int16) - bgr).max(axis=2) < OCR_COLOR_TOLERANCE).astype(np.uint8)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
+    x0, y0 = int(cx - w / 2) - bx, int(cy - h / 2) - by
+    core = labels[max(0, y0):max(0, y0 + int(h)), max(0, x0):max(0, x0 + int(w))]
+    keep = [i for i in np.unique(core) if i > 0 and stats[i, 4] >= 10]
+    if not keep:
+        return _ink_box(bx, by, bw, bh, hex_color)
+    ys, xs = np.nonzero(np.isin(labels, keep))
     return bx + int(xs.min()), by + int(ys.min()), int(xs.max() - xs.min()) + 1, int(ys.max() - ys.min()) + 1
 
 

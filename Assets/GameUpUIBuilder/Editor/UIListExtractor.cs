@@ -19,19 +19,29 @@ namespace GameUp.UIBuilder.Editor
 
         private const int MinRows = 3;
         private const int ColumnTolerance = 4;
+        private const int LooseTolerance = 10; // PSD: hàng vẽ bằng shape lệch khung vài px (162 / 163, stroke)
         private const int StepTolerance = 8;
         private const float SlotIou = 0.5f;
         private const float SimilarSize = 0.1f;
+        private const float SingleChildSize = 0.05f; // hàng chỉ 1 phần tử con: cỡ phải sát hơn (banner + tiêu đề ≠ hàng)
         private const float SimilarChildren = 0.6f;
 
         /// <summary>Tách danh sách trong <paramref name="nodes"/> (tọa độ tuyệt đối), thêm template vào <paramref name="templates"/>.</summary>
+        /// <param name="loose">
+        /// PSD: hàng không cần cùng sprite (top 1-3 nền màu khác, hàng dưới nền xám) — cùng cỡ/cột (lệch ≤ 10 px), cách đều;
+        /// instance ghi đè sprite + màu nền. Ảnh demo: cùng sprite, cùng cỡ tuyệt đối.
+        /// </param>
         public static void ExtractLists(List<UISpecNode> nodes, IList<string> templateNames, string folder,
-            List<UITemplateSpec> templates, HashSet<string> usedIds, List<string> notes)
+            List<UITemplateSpec> templates, HashSet<string> usedIds, List<string> notes, bool loose = false)
         {
-            var groups = nodes
+            var candidates = nodes
                 .Where(n => (n.kind == UISpecNode.KindImage || n.kind == UISpecNode.KindButton) && !string.IsNullOrEmpty(n.sprite))
-                .GroupBy(n => (n.sprite, n.w, n.h, column: Mathf.RoundToInt((float)n.x / ColumnTolerance)))
-                .Where(g => g.Count() >= MinRows)
+                .ToList();
+            var groups = (loose
+                    ? LooseRows(candidates)
+                    : candidates.GroupBy(n => (n.sprite, n.w, n.h, column: Mathf.RoundToInt((float)n.x / ColumnTolerance)))
+                        .Select(g => g.ToList()))
+                .Where(g => g.Count >= MinRows)
                 .Select(g => g.OrderBy(n => n.y).ToList())
                 .Where(IsEvenlySpaced)
                 .OrderByDescending(rows => (long)rows[0].w * rows[0].h) // hàng lớn trước: avatar xếp cột trong hàng không thành danh sách riêng
@@ -105,9 +115,10 @@ namespace GameUp.UIBuilder.Editor
 
                 UITemplateSpec best = null;
                 var bestScore = 0f;
-                foreach (var template in templates.Where(t => IsSimilarSize(row, t)))
+                var tolerance = children.Count == 1 ? SingleChildSize : SimilarSize;
+                foreach (var template in templates.Where(t => IsSimilarSize(row, t, tolerance)))
                 {
-                    var score = children.Count(c => FindSlot(template, Relative(c, row), c.kind) != null) / (float)children.Count;
+                    var score = children.Count(c => FindSlot(template, Relative(c, row), c.kind, null) != null) / (float)children.Count;
                     if (score > bestScore) (best, bestScore) = (template, score);
                 }
 
@@ -117,6 +128,23 @@ namespace GameUp.UIBuilder.Editor
                 nodes.Add(instance);
                 notes.Add($"{row.id}: bố cục giống {best.name} → instance của {best.name}, ghi đè nền.");
             }
+        }
+
+        /// <summary>Gom khung cùng cỡ, cùng cột (lệch ≤ <see cref="LooseTolerance"/> px) — không xét sprite.</summary>
+        private static List<List<UISpecNode>> LooseRows(List<UISpecNode> candidates)
+        {
+            var groups = new List<List<UISpecNode>>();
+            foreach (var node in candidates.OrderByDescending(n => (long)n.w * n.h))
+            {
+                var group = groups.FirstOrDefault(g => Mathf.Abs(g[0].w - node.w) <= LooseTolerance
+                                                       && Mathf.Abs(g[0].h - node.h) <= LooseTolerance
+                                                       && Mathf.Abs(g[0].x - node.x) <= LooseTolerance
+                                                       && g.All(r => Mathf.Abs(r.y - node.y) >= r.h / 2));
+                if (group != null) group.Add(node);
+                else groups.Add(new List<UISpecNode> { node });
+            }
+
+            return groups;
         }
 
         private static bool IsEvenlySpaced(List<UISpecNode> rows)
@@ -135,12 +163,25 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Phần tử của hàng chưa có chỗ trong template (theo loại + vị trí tương đối) → thêm slot mới.</summary>
         private static void AddSlots(UITemplateSpec template, UISpecNode row, List<UISpecNode> children)
         {
+            var taken = new HashSet<string>(); // mỗi slot một phần tử của hàng: khung avatar 125 px và avatar 120 px là 2 slot
             foreach (var child in children)
             {
                 var relative = Relative(child, row);
-                if (FindSlot(template, relative, child.kind) != null) continue;
-                relative.id = UniqueSlotId(template, child);
-                template.nodes.Add(relative);
+                var slot = FindSlot(template, relative, child.kind, taken);
+                if (slot != null) taken.Add(slot.id);
+                if (slot == null)
+                {
+                    relative.id = UniqueSlotId(template, child);
+                    template.nodes.Add(relative);
+                    taken.Add(relative.id);
+                }
+                else if (child.kind == UISpecNode.KindText && (relative.w != slot.w || relative.x != slot.x))
+                {
+                    // "1" ở hàng đầu, "4-10" ở hàng sau (cùng tâm): khung đủ rộng cho chữ dài nhất, căn giữa theo tâm chung
+                    Union(slot, relative);
+                    slot.align = "center";
+                    slot.alignFixed = true;
+                }
             }
         }
 
@@ -153,16 +194,22 @@ namespace GameUp.UIBuilder.Editor
                 x = row.x, y = row.y, w = row.w, h = row.h, anchor = row.anchor
             };
             var background = template.nodes[0];
-            if (row.sprite != background.sprite)
-                instance.overrides.Add(new UISpecOverride { id = BackgroundId, sprite = row.sprite });
+            if (row.sprite != background.sprite || row.color != background.color)
+                instance.overrides.Add(new UISpecOverride
+                {
+                    id = BackgroundId, sprite = row.sprite != background.sprite ? row.sprite : null,
+                    color = row.color != background.color ? ColorOrWhite(row.color) : null
+                });
 
             var filled = new HashSet<string>();
             foreach (var child in children)
             {
-                var slot = FindSlot(template, Relative(child, row), child.kind);
+                var slot = FindSlot(template, Relative(child, row), child.kind, filled);
                 if (slot == null || !filled.Add(slot.id)) continue;
-                if (!string.IsNullOrEmpty(child.sprite) && child.sprite != slot.sprite)
-                    instance.overrides.Add(new UISpecOverride { id = slot.id, sprite = child.sprite });
+                var sprite = !string.IsNullOrEmpty(child.sprite) && child.sprite != slot.sprite ? child.sprite : null;
+                var color = child.kind != UISpecNode.KindText && child.color != slot.color ? ColorOrWhite(child.color) : null;
+                if (sprite != null || color != null)
+                    instance.overrides.Add(new UISpecOverride { id = slot.id, sprite = sprite, color = color });
                 if (child.kind == UISpecNode.KindText && child.text != slot.text)
                     instance.overrides.Add(new UISpecOverride { id = slot.id, setText = true, text = child.text });
             }
@@ -172,6 +219,18 @@ namespace GameUp.UIBuilder.Editor
             return instance;
         }
 
+        private static void Union(UISpecNode slot, UISpecNode other)
+        {
+            var x1 = Mathf.Max(slot.x + slot.w, other.x + other.w);
+            var y1 = Mathf.Max(slot.y + slot.h, other.y + other.h);
+            slot.x = Mathf.Min(slot.x, other.x);
+            slot.y = Mathf.Min(slot.y, other.y);
+            slot.w = x1 - slot.x;
+            slot.h = y1 - slot.y;
+        }
+
+        private static string ColorOrWhite(string color) => string.IsNullOrEmpty(color) ? "#FFFFFFFF" : color;
+
         /// <summary>Nền đứng đầu, slot lớn vẽ trước; căn lề chữ theo cột như màn chính.</summary>
         private static void FinishTemplate(UITemplateSpec template)
         {
@@ -180,13 +239,23 @@ namespace GameUp.UIBuilder.Editor
             UISpecGenerator.AssignTextAlignment(template.nodes, template.width);
         }
 
-        /// <summary>Slot cùng loại ở cùng chỗ: ảnh theo độ chồng khung; chữ theo tâm ("4-10" và "11-20" dài ngắn khác nhau).</summary>
-        private static UISpecNode FindSlot(UITemplateSpec template, UISpecNode relative, string kind)
+        /// <summary>
+        /// Slot cùng loại ở cùng chỗ: ảnh theo độ chồng khung và cỡ gần bằng (khung avatar 124 px chứa avatar 104 px là 2 slot);
+        /// chữ theo tâm ("4-10" và "11-20" dài ngắn khác nhau).
+        /// </summary>
+        private static UISpecNode FindSlot(UITemplateSpec template, UISpecNode relative, string kind, HashSet<string> taken)
         {
             return template.nodes.Skip(1)
-                .Where(n => n.kind == kind && (kind == UISpecNode.KindText ? SameTextSpot(n, relative) : Iou(n, relative) >= SlotIou))
+                .Where(n => n.kind == kind && (taken == null || !taken.Contains(n.id)) && (kind == UISpecNode.KindText
+                    ? SameTextSpot(n, relative)
+                    : Iou(n, relative) >= SlotIou && CloseSize(n, relative)))
                 .OrderByDescending(n => Iou(n, relative))
                 .FirstOrDefault();
+        }
+
+        private static bool CloseSize(UISpecNode a, UISpecNode b)
+        {
+            return Mathf.Abs(a.w - b.w) <= Mathf.Max(4f, a.w * SimilarSize) && Mathf.Abs(a.h - b.h) <= Mathf.Max(4f, a.h * SimilarSize);
         }
 
         private static bool SameTextSpot(UISpecNode a, UISpecNode b)
@@ -203,23 +272,26 @@ namespace GameUp.UIBuilder.Editor
                 id = node.id, kind = node.kind, x = node.x - row.x, y = node.y - row.y, w = node.w, h = node.h,
                 sprite = node.sprite, sliced = node.sliced, color = node.color, raycastTarget = node.raycastTarget,
                 text = node.text, font = node.font, fontSize = node.fontSize, align = node.align, bold = node.bold,
-                material = node.material, outlineWidth = node.outlineWidth, outlineColor = node.outlineColor
+                material = node.material, outlineWidth = node.outlineWidth, outlineColor = node.outlineColor,
+                alignFixed = node.alignFixed
             };
         }
 
         private static string UniqueSlotId(UITemplateSpec template, UISpecNode child)
         {
+            // ảnh: theo id node bỏ số thứ tự ("imgFill_4" → imgFill, "crown_top1_2" → crown_top1) — tên file của sprite
+            // dùng chung (shape_round_30) không nói gì về vai trò
             var baseId = child.kind == UISpecNode.KindText
                 ? UISpecGenerator.TextId(child.text ?? string.Empty)
-                : System.IO.Path.GetFileNameWithoutExtension(child.sprite ?? child.id);
+                : System.Text.RegularExpressions.Regex.Replace(child.id, @"(_\d+)+$", string.Empty);
             var used = new HashSet<string>(template.nodes.Select(n => n.id));
             return UISpecGenerator.UniqueId(baseId, used);
         }
 
-        private static bool IsSimilarSize(UISpecNode row, UITemplateSpec template)
+        private static bool IsSimilarSize(UISpecNode row, UITemplateSpec template, float tolerance)
         {
-            return Mathf.Abs(row.w - template.width) <= template.width * SimilarSize
-                   && Mathf.Abs(row.h - template.height) <= template.height * SimilarSize;
+            return Mathf.Abs(row.w - template.width) <= template.width * tolerance
+                   && Mathf.Abs(row.h - template.height) <= template.height * tolerance;
         }
 
         private static void RemoveWithChildren(List<UISpecNode> nodes, List<UISpecNode> rows)

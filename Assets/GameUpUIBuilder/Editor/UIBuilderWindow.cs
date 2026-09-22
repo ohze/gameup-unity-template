@@ -1176,25 +1176,36 @@ namespace GameUp.UIBuilder.Editor
         {
             _lastProgress = _locator.Progress;
             _locator = null;
-            ImportExportedSprites(result.exported);
             ReloadJob();
+            ImportExportedSprites(_locates);
             _locateMessage = $"Đọc PSD xong: {result.states.Count} trạng thái, {result.sprites.Count(s => s.IsMatched)} art ở tab 1, "
                              + $"{result.exported.Count} PNG xuất từ layer · {result.elapsedMs / 1000f:0.#} s";
         }
 
-        /// <summary>PNG xuất từ PSD → texture type Sprite (không mipmap). Chỉ đổi file vừa xuất, không đụng art có sẵn.</summary>
-        private static void ImportExportedSprites(IEnumerable<string> files)
+        /// <summary>
+        /// PNG xuất từ PSD → texture type Sprite (không mipmap); sprite bo góc dùng chung kèm border 9-slice. Chỉ đổi file vừa
+        /// xuất, không đụng art có sẵn.
+        /// </summary>
+        internal static void ImportExportedSprites(IReadOnlyList<LocateResult> results)
         {
             AssetDatabase.Refresh();
-            foreach (var file in files)
+            var exported = new HashSet<string>(results.SelectMany(r => r.exported).Select(Path.GetFullPath));
+            var borders = results.SelectMany(r => r.sprites)
+                .Where(s => s.suggestedBorder != null && !s.suggestedBorder.IsEmpty && exported.Contains(Path.GetFullPath(s.sprite)))
+                .GroupBy(s => Path.GetFullPath(s.sprite))
+                .ToDictionary(g => g.Key, g => g.First().suggestedBorder);
+            foreach (var file in exported)
             {
                 var assetPath = UIBuilderPaths.ToAssetPath(file);
                 if (assetPath == null || !(AssetImporter.GetAtPath(assetPath) is TextureImporter importer)) continue;
-                if (importer.textureType == TextureImporterType.Sprite && importer.spriteImportMode == SpriteImportMode.Single) continue;
+                var border = borders.TryGetValue(file, out var b) ? new Vector4(b.left, b.bottom, b.right, b.top) : Vector4.zero;
+                if (importer.textureType == TextureImporterType.Sprite && importer.spriteImportMode == SpriteImportMode.Single
+                                                                    && importer.spriteBorder == border) continue;
                 importer.textureType = TextureImporterType.Sprite;
                 importer.spriteImportMode = SpriteImportMode.Single;
                 importer.mipmapEnabled = false;
                 importer.alphaIsTransparency = true;
+                importer.spriteBorder = border;
                 importer.SaveAndReimport();
             }
         }

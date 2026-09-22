@@ -19,5 +19,8 @@ namespace GameUp.UIBuilder.Editor
         public bool setText;
 
         public string text;
+
+        /// <summary>Màu Image thay thế (#RRGGBB / #RRGGBBAA) — hàng cùng sprite nền trắng nhưng khác màu; rỗng = giữ.</summary>
+        public string color;
     }
 }

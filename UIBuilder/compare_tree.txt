@@ -1,0 +1,164 @@
+Assets/_MainProject/Prefabs/UI/Test/RankingPsd.prefab
+RankingPsd
+  imgDim I:-
+  border_popup I:border_popup
+    grpRankingRewards
+      scrollRankingRewardsItem scroll
+        Viewport I:-
+          Content
+            RankingRewardsItem_1 [prefab RankingRewardsItem]
+            RankingRewardsItem_2 [prefab RankingRewardsItem]
+            RankingRewardsItem_3 [prefab RankingRewardsItem]
+            RankingRewardsItem_4 [prefab RankingRewardsItem]
+            RankingRewardsItem_5 [prefab RankingRewardsItem]
+    grpLeaderboard (off)
+      scrollLeaderboardItem scroll
+        Viewport I:-
+          Content
+            LeaderboardItem_1 [prefab LeaderboardItem]
+            LeaderboardItem_2 [prefab LeaderboardItem]
+            LeaderboardItem_3 [prefab LeaderboardItem]
+            LeaderboardItem_4 [prefab LeaderboardItem]
+            LeaderboardItem_5 [prefab LeaderboardItem]
+    LeaderboardItem_boder_playerrank [prefab LeaderboardItem]
+    flag_top1 I:flag_top1
+      avatar_001_2 I:avatar_001
+      txtHidepenguin_2 T"Hidepenguin"
+      txt99999b_2 T"999.99B"
+    flag_top2 I:flag_top2
+      avatar_001_1 I:avatar_001
+      txtHidepenguin T"Hidepenguin"
+      txt99999b T"999.99B"
+    flag_top3 I:flag_top3
+      avatar_001_3 I:avatar_001
+      txtHidepenguin_3 T"Hidepenguin"
+      txt99999b_3 T"999.99B"
+    txtTop10PromoteRank T"Top 10 Promote. Rank 11-30 stay. Bottom 15 Demote"
+    crown_top3 I:crown_top3
+    crown_top1_1 I:crown_top1
+    crown_top2_1 I:crown_top2
+  boder_btntab_1 I:boder_btntab
+  boder_btntab_2 I:boder_btntab
+  banner_title I:banner_title
+    txtSeasonRecoredLeaderboard T"Season Recored Leaderboard"
+  btn_red I:btn_red btn
+    txtBack T"Back"
+  btn_tab_1 I:btn_tab_1 btn
+    txtLeaderboard T"Leaderboard"
+  btn_tab_2 I:btn_tab_2 btn
+    txtRankingRewards T"Ranking Rewards"
+
+=====
+Assets/_UIBuilderTest/RankingPsd.prefab
+RankingPsd
+  imgDim I:-
+  border_popup I:border_popup
+    boder_slot I:boder_slot
+      boder_playerrank I:boder_playerrank
+        border_popup_copy_15 I:border_popup_copy_15
+        LeaderboardItem_knight_frame [prefab LeaderboardItem]
+        txtPlayerName T"Player Name"
+        txt99999b T"999.99B"
+        txt5 T"5"
+    flag_top1 I:flag_top1
+      border_popup_copy_15_2_2 I:border_popup_copy_15_2
+      knight_frame_2_2 I:knight_frame_2
+        avatar_001_6 I:avatar_001
+      txtHidepenguin_2 T"Hidepenguin"
+      txt99999b_6 T"999.99B"
+    flag_top2 I:flag_top2
+      border_popup_copy_15_2_3 I:border_popup_copy_15_2
+      knight_frame_2_3 I:knight_frame_2
+        avatar_001_7 I:avatar_001
+      txtHidepenguin_3 T"Hidepenguin"
+      txt99999b_7 T"999.99B"
+      group_42_2_2 I:group_42
+    flag_top3 I:flag_top3
+      border_popup_copy_15_2_1 I:border_popup_copy_15_2
+      knight_frame_2_1 I:knight_frame_2
+        avatar_001_5 I:avatar_001
+      txtHidepenguin T"Hidepenguin"
+      txt99999b_5 T"999.99B"
+      group_42_1 I:group_42
+    txtTop10PromoteRank T"Top <color=#37F352>10</color> Promote. Rank <color=#29DDFE>11-30</color> stay. Bottom <color=#FF7D50>15</color> Demote"
+    crown_top3_2 I:crown_top3
+      txt3_2 T"3"
+    crown_top1_2 I:crown_top1
+      txt1_2 T"1"
+    crown_top2_2 I:crown_top2
+      txt2_2 T"2"
+  boder_btntab_1 I:boder_btntab
+  boder_btntab_2 I:boder_btntab
+  grpRankingRewards (off)
+    scrollRankingRewardsItem scroll
+      Viewport I:-
+        Content
+          RankingRewardsItem_1 [prefab RankingRewardsItem]
+          RankingRewardsItem_2 [prefab RankingRewardsItem]
+          RankingRewardsItem_3 [prefab RankingRewardsItem]
+          RankingRewardsItem_4 [prefab RankingRewardsItem]
+          RankingRewardsItem_5 [prefab RankingRewardsItem]
+    group_31 I:group_31
+    btn_tab_2_tab2 I:btn_tab_2 btn
+      txtLeaderboard_tab2 T"Leaderboard"
+    btn_tab_1_tab2 I:btn_tab_1 btn
+      txtRankingRewards_tab2 T"Ranking Rewards"
+  grpLeaderboard
+    border_popup_copy_6 I:border_popup_copy_6
+      border_popup_copy_13 I:border_popup_copy_13
+        border_popup_copy_14 I:border_popup_copy_14
+          crown_top1_1 I:crown_top1
+            ellipse_1444 I:ellipse_1444
+            txt1 T"1"
+        border_popup_copy_15_3 I:border_popup_copy_15_3
+          txt99999b_2 T"999.99B"
+        txtPlayerName_2 T"Player Name"
+        group_42_2 I:group_42_2
+    ellipse_1444_copy I:ellipse_1444_copy
+      border_popup_copy_6_2 I:border_popup_copy_6_2
+      border_popup_copy_6_3 I:border_popup_copy_6_3
+      border_popup_copy_13_2 I:border_popup_copy_13_2
+      border_popup_copy_13_3 I:border_popup_copy_13_3
+      border_popup_copy_14_2 I:border_popup_copy_14_2
+      border_popup_copy_14_3 I:border_popup_copy_14_3
+      border_popup_copy_15_4_1 I:border_popup_copy_15_4
+      border_popup_copy_15_4_2 I:border_popup_copy_15_4
+      crown_top2_1 I:crown_top2
+        ellipse_1444_2 I:ellipse_1444_2
+        txt2 T"2"
+      crown_top3_1 I:crown_top3
+        ellipse_1444_3 I:ellipse_1444_3
+        txt3 T"3"
+      txtPlayerName_3 T"Player Name"
+      txtPlayerName_4 T"Player Name"
+      txt99999b_3 T"999.99B"
+      txt99999b_4 T"999.99B"
+      group_42_3_1 I:group_42_3
+      group_42_3_2 I:group_42_3
+      txt4 T"4"
+      txt5_2 T"5"
+    scrollLeaderboardItem scroll
+      Viewport I:-
+        Content
+          LeaderboardItem_1 [prefab LeaderboardItem]
+          LeaderboardItem_2 [prefab LeaderboardItem]
+          LeaderboardItem_3 [prefab LeaderboardItem]
+    btn_tab_2 I:btn_tab_2 btn
+      txtRankingRewards T"Ranking Rewards"
+    btn_tab_1 I:btn_tab_1 btn
+      txtLeaderboard T"Leaderboard"
+  banner_title I:banner_title
+    txtSeasonRecoredLeaderboard T"Season Recored Leaderboard"
+  btn_red I:btn_red btn
+    back_extra I:back_extra
+
+=====
+Assets/_UIBuilderTest/LeaderboardItem.prefab
+LeaderboardItem
+  imgBg I:knight_frame_3
+  avatar_001 I:avatar_001
+Assets/_UIBuilderTest/RankingRewardsItem.prefab
+RankingRewardsItem
+  imgBg I:boder_rankslot
+  crown_top1 I:crown_top1
+  txt1 T"1"

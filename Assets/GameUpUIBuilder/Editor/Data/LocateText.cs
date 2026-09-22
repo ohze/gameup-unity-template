@@ -29,5 +29,8 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>PSD: tên font và cỡ chữ (px) trong Photoshop — chỉ để tham khảo, builder vẫn tự khớp cỡ theo khung.</summary>
         public string font;
         public float fontSize;
+
+        /// <summary>PSD: đường dẫn nhóm layer chứa text layer.</summary>
+        public string group;
     }
 }

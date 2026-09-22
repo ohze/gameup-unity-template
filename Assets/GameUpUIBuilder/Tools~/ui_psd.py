@@ -74,6 +74,18 @@ SUB_MIN_AREA = 0.02         # dò art bên trong layer gộp (nhiều hàng flat
 SUB_MAX_INSTANCES = 12
 SUB_MAX_ARTS = 400          # thư mục art quá rộng → bỏ bước dò trong layer gộp (chậm, dễ khớp nhầm)
 MIN_EXPORT = 4              # layer nhỏ hơn 4 px mỗi chiều → bỏ, không xuất
+FLAT_SHAPE_STD = 4.0        # layer một màu (lệch ≤ 4) hình chữ nhật bo góc / tròn → sprite trắng 9-slice dùng chung + màu
+FLAT_SHAPE_MISS = 0.02      # hình bo góc vẽ lại lệch hình layer ≤ 2% diện tích (bỏ qua dải mép 1 px khử răng cưa)
+NEAR_DUPLICATE = 3.0        # PNG xuất lệch màu trung bình ≤ 3 với file đã xuất cùng cỡ = dùng chung file
+PART_DILATE = 2             # tách layer gộp: các mảng cách nhau > 2 px là phần tử riêng
+PART_MIN_PIXELS = 64
+TEXT_OCR_SCORE = 0.80       # chữ vẽ sẵn trong layer: OCR đọc được (≥ 0.8) → thành text TMP thay vì ảnh
+DECOMPOSE_MIN_AREA = 150 * 60  # mảng flatten lớn (cả hàng danh sách) → tách chữ / art / khối màu, còn lại mới là nền
+TEXT_INK_DIFF = 40          # pixel chữ = khác màu nền quanh khung chữ > 40
+SHAPE_MIN_PIXELS = 300      # khối một màu trong mảng flatten (vòng hạng, ô vuông, pill điểm) ≥ 300 px
+SHAPE_COLOR_TOL = 10
+SEEN_ZNCC = 0.80            # art đã khớp ở chỗ khác trong màn, tìm lại trong mảng flatten (khung avatar 0.83, lệch màu 17)
+SEEN_NEW_PIXELS = 0.25      # ... nhận nếu thêm ≥ 25% pixel chưa art nào phủ (khung ngoài avatar ~33%; art gần trùng ~0)
 
 
 def emit(phase, **data):
@@ -162,13 +174,14 @@ def pil_to_bgra(image):
 class Leaf:
     """Layer lá (pixel / shape / smart object / type) của một trạng thái, tọa độ theo khung màn (artboard)."""
 
-    def __init__(self, layer, order, box, opacity):
+    def __init__(self, layer, order, box, opacity, group):
         self.layer = layer
         self.order = order
         self.box = box  # (x0, y0, x1, y1), đã kẹp trong khung màn
         self.opacity = opacity
         self.name = layer.name
         self.kind = layer.kind
+        self.group = group  # đường dẫn nhóm layer PSD từ khung màn, "popup/top1-3/flag" — để đặt tên box
 
     @property
     def w(self):
@@ -278,17 +291,17 @@ def detect_states(root, canvas, names):
 def collect_leaves(root, canvas, visible_override):
     """Layer lá đang hiện theo thứ tự vẽ (dưới → trên); nhóm trạng thái bật/tắt theo visible_override."""
     leaves = []
-    _walk(root, 1.0, canvas, visible_override, leaves)
+    _walk(root, 1.0, canvas, visible_override, leaves, "")
     return leaves
 
 
-def _walk(group, opacity, canvas, visible_override, leaves):
+def _walk(group, opacity, canvas, visible_override, leaves, path):
     for layer in group:
         if not visible_override.get(id(layer), layer.visible):
             continue
         alpha = opacity * layer.opacity / 255.0
         if layer.is_group():
-            _walk(layer, alpha, canvas, visible_override, leaves)
+            _walk(layer, alpha, canvas, visible_override, leaves, f"{path}/{layer.name}" if path else layer.name)
             continue
         if getattr(layer, "clipping", False):
             continue  # layer clip vào layer dưới: là một phần hình của layer đó (ảnh trạng thái đã có)
@@ -297,7 +310,7 @@ def _walk(group, opacity, canvas, visible_override, leaves):
                min(b[2], canvas[2]) - canvas[0], min(b[3], canvas[3]) - canvas[1])
         if box[2] - box[0] <= 0 or box[3] - box[1] <= 0:
             continue
-        leaves.append(Leaf(layer, len(leaves), box, alpha))
+        leaves.append(Leaf(layer, len(leaves), box, alpha, path))
 
 
 def layer_raster(leaf, canvas):
@@ -483,16 +496,20 @@ class Match:
         self.sliced = sliced
         self.score = score
         self.trust = trust
+        self.color = None  # "#RRGGBBAA" cho sprite trắng dùng chung (shape phẳng)
 
     def entry(self):
-        tint = None
-        if self.leaf is not None and self.leaf.opacity < 0.995:
-            tint = "#FFFFFF%02X" % int(round(self.leaf.opacity * 255))
+        tint = self.color
+        opacity = self.leaf.opacity if self.leaf is not None else 1.0
+        if opacity < 0.995:
+            base = tint or "#FFFFFFFF"
+            tint = base[:7] + "%02X" % int(round(int(base[7:9], 16) * opacity))
         s = self.score
         return {
             "x": self.x, "y": self.y, "w": self.w, "h": self.h, "scale": round(self.scale, 4), "sliced": self.sliced,
             "diff": round(s.diff, 2), "zncc": round(s.zncc, 4), "inlier": round(max(s.inlier, s.band), 4), "tint": tint,
             "layer": self.leaf.name if self.leaf is not None else "",
+            "group": self.leaf.group if self.leaf is not None else "",
         }
 
 
@@ -805,7 +822,8 @@ def read_text(leaf):
     """Text layer → dict LocateText: nội dung (nhiều màu → rich text TMP), màu, font, cỡ, căn lề, viền."""
     layer = leaf.layer
     x0, y0, x1, y1 = leaf.box
-    entry = {"x": x0, "y": y0, "w": x1 - x0, "h": y1 - y0, "confidence": 1.0, "text": "", "color": "#FFFFFF"}
+    entry = {"x": x0, "y": y0, "w": x1 - x0, "h": y1 - y0, "confidence": 1.0, "text": "", "color": "#FFFFFF",
+             "group": leaf.group}
     try:
         engine = layer.engine_dict
         resource = layer.resource_dict
@@ -859,18 +877,43 @@ def safe_name(name):
 
 
 class Exporter:
-    """Ghi PNG cho layer không có art; layer trùng pixel dùng chung một file."""
+    """Ghi PNG cho layer không có art; layer trùng / gần trùng pixel dùng chung một file."""
 
     def __init__(self, folder):
         self.folder = folder
         self.by_hash = {}
         self.names = set()
         self.files = []
+        self.shapes = {}
 
     def export(self, name, raster):
         digest = hashlib.sha1(raster.tobytes() + bytes(str(raster.shape), "ascii")).hexdigest()
         if digest in self.by_hash:
             return self.by_hash[digest]
+        for art in self.by_hash.values():
+            if art.rgba.shape == raster.shape and np.abs(art.rgba.astype(np.int16) - raster).mean() <= NEAR_DUPLICATE:
+                self.by_hash[digest] = art
+                return art
+        art = Art(self._write(name, raster), raster)
+        self.by_hash[digest] = art
+        return art
+
+    def rounded(self, radius):
+        """Sprite trắng bo góc bán kính radius (0 = vuông), border 9-slice = radius + 1 — dùng chung cho mọi shape phẳng."""
+        near = [r for r in self.shapes if abs(r - radius) <= 2]
+        if near:
+            return self.shapes[near[0]]  # bán kính lệch ≤ 2 px (đo trên khung lệch 1 px) → cùng một sprite
+        if radius not in self.shapes:
+            size = 2 * radius + 3
+            rgba = np.zeros((size, size, 4), np.uint8)
+            rgba[:, :, :3] = 255
+            rgba[:, :, 3] = rounded_mask(size, size, radius)
+            art = Art(self._write(f"shape_round_{radius}", rgba), rgba)
+            art.border = (radius + 1,) * 4
+            self.shapes[radius] = art
+        return self.shapes[radius]
+
+    def _write(self, name, raster):
         base = safe_name(name)
         name, i = base, 2
         while name in self.names:
@@ -879,10 +922,166 @@ class Exporter:
         os.makedirs(self.folder, exist_ok=True)
         path = os.path.join(self.folder, f"{name}.png")
         cv2.imwrite(path, raster)
-        art = Art(path, raster)
-        self.by_hash[digest] = art
         self.files.append(path)
-        return art
+        return path
+
+
+def rounded_mask(w, h, radius):
+    """Alpha hình chữ nhật bo góc (khử răng cưa bằng vẽ 4× rồi thu nhỏ)."""
+    k = 4
+    big = np.zeros((h * k, w * k), np.uint8)
+    r = radius * k
+    if r <= 0:
+        big[:] = 255
+    else:
+        cv2.rectangle(big, (r, 0), (w * k - 1 - r, h * k - 1), 255, -1)
+        cv2.rectangle(big, (0, r), (w * k - 1, h * k - 1 - r), 255, -1)
+        for cx, cy in ((r, r), (w * k - 1 - r, r), (r, h * k - 1 - r), (w * k - 1 - r, h * k - 1 - r)):
+            cv2.circle(big, (cx, cy), r, 255, -1, lineType=cv2.LINE_AA)
+    return cv2.resize(big, (w, h), interpolation=cv2.INTER_AREA)
+
+
+def flat_shape(raster, ignore=None):
+    """
+    Layer một màu dạng chữ nhật bo góc / hình tròn → (màu '#RRGGBBAA', bán kính); None nếu không phải. Bán kính đo trên
+    đường chéo ở cả 4 góc (cung tròn bán kính r cắt đường chéo cách góc r·(1 − 1/√2) px). ignore = pixel bị khối khác đè
+    lên (không biết hình thật ở đó) — không tính vào sai số.
+    """
+    if raster is None:
+        return None
+    alpha = raster[:, :, 3]
+    solid = alpha > ALPHA_OPAQUE
+    h, w = alpha.shape
+    if solid.sum() < PART_MIN_PIXELS or w < MIN_EXPORT or h < MIN_EXPORT:
+        return None
+    rgb = raster[:, :, :3][solid].astype(np.float64)
+    if rgb.std(axis=0).max() > FLAT_SHAPE_STD:
+        return None
+    hidden = ignore if ignore is not None else np.zeros((h, w), bool)
+    guesses = []
+    for flip in ((slice(None), slice(None)), (slice(None), slice(None, None, -1)),
+                 (slice(None, None, -1), slice(None)), (slice(None, None, -1), slice(None, None, -1))):
+        corner, covered = alpha[flip], hidden[flip]
+        diag = [i for i in range(min(w, h)) if corner[i, i] > 127]
+        if diag and not covered[diag[0], diag[0]]:
+            guesses.append(int(round(diag[0] / (1 - 1 / math.sqrt(2)))))
+    if not guesses:
+        return None
+    shape = (alpha > 127).astype(np.uint8)
+    edge = (cv2.dilate(shape, np.ones((3, 3), np.uint8)) > 0) & ~(cv2.erode(shape, np.ones((3, 3), np.uint8)) > 0)
+    best = None
+    for radius in sorted({min(max(0, g + d), w // 2, h // 2) for g in guesses for d in range(-4, 5)}):
+        miss = ((rounded_mask(w, h, radius) > 127) ^ (shape > 0)) & ~edge & ~hidden
+        if best is None or miss.sum() < best[0]:
+            best = (int(miss.sum()), radius)
+    if best[0] > shape.sum() * FLAT_SHAPE_MISS:
+        return None
+    b, g, r = (int(np.clip(round(c), 0, 255)) for c in rgb.mean(axis=0))
+    a = int(np.clip(round(float(alpha[solid].mean())), 0, 255))
+    return "#%02X%02X%02X%02X" % (r, g, b, a), best[1]
+
+
+def split_parts(raster):
+    """Layer gộp nhiều phần tử rời nhau (ô vật phẩm, các hàng flatten) → [(pixel, x, y)] theo từng mảng; [] nếu chỉ 1 mảng."""
+    if raster is None:
+        return []
+    mask = (raster[:, :, 3] > 0).astype(np.uint8)
+    joined = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=PART_DILATE)
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(joined, connectivity=8)
+    parts = []
+    for i in range(1, count):
+        x, y, w, h, _ = stats[i]
+        own = (labels[y:y + h, x:x + w] == i) & (mask[y:y + h, x:x + w] > 0)
+        if own.sum() < PART_MIN_PIXELS:
+            continue
+        part = raster[y:y + h, x:x + w].copy()
+        part[~own, 3] = 0
+        parts.append((part, int(x), int(y)))
+    return parts if len(parts) > 1 else []
+
+
+class TextReader:
+    """OCR (RapidOCR trong venv) cho chữ vẽ sẵn trong pixel layer — nạp model lần đầu cần tới."""
+
+    def __init__(self):
+        self._engine = None
+        self._failed = False
+
+    def _ready(self):
+        if self._engine is None and not self._failed:
+            try:
+                from rapidocr import RapidOCR  # noqa: PLC0415 — nạp chậm (~1 s), chỉ khi có chữ vẽ sẵn
+                # tắt bộ xoay hướng chữ: chữ UI không lộn ngược, bật thì "999.99B" bị đọc ngược thành "866'666"
+                self._engine = RapidOCR(params={"Global.use_cls": False})
+            except Exception:  # noqa: BLE001 — venv chưa có OCR
+                self._failed = True
+        return self._engine is not None
+
+    def detect(self, bgr):
+        """Mọi dòng chữ trên ảnh BGR → [((x0, y0, x1, y1), nội dung, độ tin)]; [] nếu chưa cài OCR."""
+        if not self._ready():
+            return []
+        try:
+            result = self._engine(np.ascontiguousarray(bgr))
+        except Exception:  # noqa: BLE001
+            return []
+        boxes = getattr(result, "boxes", None)
+        if boxes is None:
+            return []
+        lines = []
+        for box, text, score in zip(boxes, result.txts or [], result.scores or []):
+            pts = np.asarray(box)
+            lines.append(((int(pts[:, 0].min()), int(pts[:, 1].min()), int(pts[:, 0].max()) + 1, int(pts[:, 1].max()) + 1),
+                          str(text).strip(), float(score)))
+        return lines
+
+    def read(self, rgba):
+        """Chữ trên ảnh BGRA → (nội dung, độ tin); None nếu không đọc được / chưa cài OCR."""
+        if not self._ready():
+            return None
+        h, w = rgba.shape[:2]
+        pad = max(8, h // 2)
+        canvas = np.full((h + 2 * pad, w + 2 * pad, 3), 128, np.uint8)
+        alpha = rgba[:, :, 3:4].astype(np.float32) / 255.0
+        region = canvas[pad:pad + h, pad:pad + w].astype(np.float32)
+        canvas[pad:pad + h, pad:pad + w] = (rgba[:, :, :3] * alpha + region * (1 - alpha)).astype(np.uint8)
+        try:
+            result = self._engine(canvas)
+        except Exception:  # noqa: BLE001
+            return None
+        texts = list(getattr(result, "txts", None) or [])
+        scores = list(getattr(result, "scores", None) or [])
+        if not texts:
+            return None
+        return " ".join(t.strip() for t in texts).strip(), float(min(scores)) if scores else 0.0
+
+
+def baked_text(rgba, x, y, reader):
+    """Phần dư là chữ (OCR đọc được) → dict LocateText: màu ruột nét, viền = màu dải mép (nếu tối hơn hẳn)."""
+    read = reader.read(rgba)
+    if read is None or not read[0] or read[1] < TEXT_OCR_SCORE:
+        return None
+    return text_entry(rgba, x, y, read[0], read[1], "center")
+
+
+def text_entry(rgba, x, y, text, score, align):
+    """Pixel một dòng chữ (alpha = nét chữ) → dict LocateText: màu ruột nét, viền tối (nếu có) và độ dày viền."""
+    solid = (rgba[:, :, 3] > ALPHA_OPAQUE).astype(np.uint8)
+    inner = cv2.erode(solid, np.ones((3, 3), np.uint8), iterations=2) > 0
+    core = rgba[:, :, :3][inner] if inner.any() else rgba[:, :, :3][solid > 0]
+    color = np.median(core, axis=0)
+    entry = {"x": x, "y": y, "w": rgba.shape[1], "h": rgba.shape[0], "text": text, "confidence": round(score, 3),
+             "color": "#%02X%02X%02X" % (int(color[2]), int(color[1]), int(color[0]))}
+    if align:
+        entry["align"] = align
+    # viền = pixel tối hẳn so với ruột (bỏ pixel lẫn màu nền phía sau ở mép); dày ≈ số px tối tính từ mép vào
+    dark = (rgba[:, :, :3].mean(axis=2) < color.mean() - 100) & (solid > 0)
+    if dark.sum() > solid.sum() * 0.15:
+        edge = np.median(rgba[:, :, :3][dark], axis=0)
+        entry["outlineColor"] = "#%02X%02X%02X" % (int(edge[2]), int(edge[1]), int(edge[0]))
+        depth = cv2.distanceTransform(solid, cv2.DIST_L2, 3)
+        entry["outlineWidth"] = round(float(np.median(depth[dark]) * 2), 1)
+    return entry
 
 
 # ─── Một trạng thái ─────────────────────────────────────────────────────────
@@ -927,6 +1126,7 @@ class Context:
         # (art, cỡ layer) → vị trí art so với khung layer, học trên ảnh ghép chuẩn: shape có hiệu ứng ở trạng thái
         # ghép lại (thiếu hiệu ứng) đặt art theo đó thay vì dò trên ảnh thiếu hiệu ứng
         self.offsets = {}
+        self.reader = TextReader()
 
 
 class Record:
@@ -940,6 +1140,7 @@ class Record:
         self.lost_fx = None
         self.flattened = None
         self.residual = False
+        self.texts = []  # chữ vẽ sẵn trong pixel layer, OCR đọc được
 
 
 def remembered_offset(ctx, leaf, image):
@@ -969,7 +1170,7 @@ def resolve_primary(ctx, leaf, image, exact):
     return resolve_leaf(view, leaf, ctx.arts, ctx.by_key, ctx.known)
 
 
-def resolve_rest(ctx, leaf, rec, image, exact, matches, cache, leaves):
+def resolve_rest(ctx, leaf, rec, image, exact, matches, cache, leaves, placed):
     """Layer chưa có art: đã vẽ sẵn trong art khác → bỏ; layer gộp → dò art bên trong; còn lại → xuất PNG."""
     raster = ctx.raster_of(leaf)
     if explained(leaf, raster, matches, cache) is not None:
@@ -985,7 +1186,8 @@ def resolve_rest(ctx, leaf, rec, image, exact, matches, cache, leaves):
         rec.matches.extend(inner)
         rec.flattened = f"'{leaf.name}' → {len(inner)}× {', '.join(sorted({m.art.name for m in inner}))}"
         if ctx.exporter is not None:
-            rec.residual = add_residual(leaf, raster, inner, ctx.exporter, rec.matches, cache, text_covers(leaves, leaf), fill)
+            rec.residual = add_residual(leaf, raster, inner, ctx.exporter, rec.matches, cache, text_covers(leaves, leaf), fill,
+                                        ctx.reader, rec.texts)
         return
     if raster is None or leaf.w < MIN_EXPORT or leaf.h < MIN_EXPORT or (raster[:, :, 3] > 0).sum() == 0:
         rec.drop = "psd-empty"
@@ -993,13 +1195,199 @@ def resolve_rest(ctx, leaf, rec, image, exact, matches, cache, leaves):
     if ctx.exporter is None:
         rec.drop = "psd-no-art"
         return
-    art = ctx.exporter.export(leaf.name, raster)
-    x0, y0, x1, y1 = leaf.box
-    rec.matches.append(Match(art, leaf, x0, y0, x1 - x0, y1 - y0, 1.0, False, Score(1.0, 0.0, 1.0), PLAIN))
+    parts = split_parts(raster) if leaf.kind in ("pixel", "smartobject") else []
+    if parts:
+        rec.flattened = f"'{leaf.name}' tách {len(parts)} phần tử rời"
+    # art đã khớp ở chỗ khác trong màn, đúng tỉ lệ đã gặp — để tìm lại trong mảng flatten (avatar 0.66 trong hàng)
+    seen = {(m.art.path, m.scale): (m.art, m.scale) for m in matches + placed() if not m.sliced}
+    decomposed = 0
+    for part, px, py in parts or [(raster, 0, 0)]:
+        x, y = leaf.box[0] + px, leaf.box[1] + py
+        split = decompose_part(ctx, leaf, part, x, y, list(seen.values())) if leaf.kind in ("pixel", "smartobject") else None
+        if split is None:
+            rec.matches.append(export_part(ctx.exporter, leaf, part, x, y))
+            continue
+        rec.matches.extend(split[0])
+        rec.texts.extend(split[1])
+        decomposed += 1
+    if decomposed:
+        rec.flattened = (rec.flattened or f"'{leaf.name}'") + f", phân rã {decomposed} mảng thành nền + chữ + art + khối màu"
     rec.exported = True
     fx = [n for n in effect_names(leaf.layer) if n != "ColorOverlay"]
     if leaf.kind == "shape" and fx:
         rec.lost_fx = f"{leaf.name} ({', '.join(fx)})"
+
+
+def ring_color(bgr, mask):
+    """Màu trung vị của dải 3 px ngay ngoài vùng mask — màu nền để lấp chỗ vừa tách phần tử ra."""
+    m8 = mask.astype(np.uint8)
+    ring = (cv2.dilate(m8, np.ones((3, 3), np.uint8), iterations=3) > 0) & ~mask
+    return np.median(bgr[ring], axis=0) if ring.any() else np.median(bgr.reshape(-1, 3), axis=0)
+
+
+def decompose_part(ctx, leaf, part, px, py, seen):
+    """
+    Mảng flatten lớn (cả hàng danh sách gộp một layer) → tách: chữ (OCR), art đã gặp trong màn (avatar, khung, icon ở
+    đúng tỉ lệ đã khớp), khối một màu (vòng hạng, ô vuông, pill điểm); phần còn lại là nền. None nếu không tách được
+    chữ hay art nào (ô vật phẩm, hình vẽ) — khi đó xuất nguyên mảng.
+    Trả về (matches, texts): nền trước, rồi khối màu, art; tọa độ theo khung màn.
+    """
+    h, w = part.shape[:2]
+    if w * h < DECOMPOSE_MIN_AREA:
+        return None
+    work = np.ascontiguousarray(part[:, :, :3].copy())
+    solid = part[:, :, 3] > ALPHA_OPAQUE
+    texts, arts = [], []
+
+    for (x0, y0, x1, y1), text, score in ctx.reader.detect(work):
+        if score < TEXT_OCR_SCORE or not text:
+            continue
+        x0, y0, x1, y1 = max(0, x0 - 3), max(0, y0 - 3), min(w, x1 + 3), min(h, y1 + 3)
+        crop = work[y0:y1, x0:x1]
+        edge = np.concatenate([crop[0], crop[-1], crop[:, 0], crop[:, -1]])
+        bg = np.median(edge, axis=0)
+        ink = (np.abs(crop.astype(np.int16) - bg).max(axis=2) > TEXT_INK_DIFF) & solid[y0:y1, x0:x1]
+        if ink.sum() < 20:
+            continue
+        ys, xs = np.nonzero(ink)
+        tx0, ty0, tx1, ty1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+        rgba = np.dstack([crop[ty0:ty1, tx0:tx1], np.where(ink[ty0:ty1, tx0:tx1], 255, 0).astype(np.uint8)])
+        entry = text_entry(rgba, px + x0 + int(tx0), py + y0 + int(ty0), text, score, None)
+        entry["group"] = leaf.group
+        texts.append(entry)
+        crop[cv2.dilate(ink.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2) > 0] = bg
+
+    # art đã gặp trong màn: dò hết trên cùng một ảnh (đã bỏ chữ) rồi mới lấp — khung avatar và avatar bên trong đều thấy
+    base = work.copy()
+    covered = np.zeros((h, w), bool)
+    found = []
+    for art, scale in sorted(seen, key=lambda a: a[0].w * a[0].h * a[1] * a[1]):
+        templ = scaled(art.rgba, scale)
+        th, tw = templ.shape[:2]
+        if tw > w or th > h:
+            continue
+        pos = best_position(base, templ, (0, 0, w, h))
+        if pos is None:
+            continue
+        score = score_at(base, templ, *pos)
+        if score.zncc < SEEN_ZNCC or score.diff > ACCEPT_DIFF:
+            continue
+        mask = np.zeros((h, w), bool)
+        mask[pos[1]:pos[1] + th, pos[0]:pos[0] + tw] = templ[:, :, 3] > ALPHA_TRIM
+        if (mask & ~covered).sum() < mask.sum() * SEEN_NEW_PIXELS:
+            continue  # art khác (gần giống) đã phủ gần hết chỗ này
+        arts.append(Match(art, leaf, px + pos[0], py + pos[1], tw, th, scale, False, score, KNOWN))
+        found.append(mask)
+        covered |= mask
+    for mask in found:
+        work[cv2.dilate(mask.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=3) > 0] = ring_color(base, covered)
+
+    if not texts and not arts:
+        return None
+
+    shapes = split_flat_shapes(ctx.exporter, leaf, work, solid, px, py)
+    background = np.dstack([work, part[:, :, 3]])
+    return [export_part(ctx.exporter, leaf, background, px, py)] + shapes + arts, texts
+
+
+def part_of_background(x, y, w, h, shape):
+    """Khối rộng gần hết mảng hoặc chạm ≥ 2 mép (viền, vạch sáng của chính nền hàng) → để lại trong nền, không tách."""
+    ph, pw = shape[:2]
+    edges = (x <= 8) + (y <= 8) + (x + w >= pw - 8) + (y + h >= ph - 8)
+    return w >= pw * 0.9 or h >= ph * 0.9 or edges >= 2
+
+
+def split_flat_shapes(exporter, leaf, work, solid, px, py):
+    """
+    Khối một màu khác màu nền trong mảng flatten → sprite bo góc dùng chung + màu; lấp chỗ đó bằng màu nền. Lượt 2 thử
+    lại khối bị khối đã tách đè lên (pill điểm bị ô vuông che đầu trái): phần bị che coi là không biết, khung nới tới mép
+    khối che.
+    """
+    pixels = work[solid]
+    if len(pixels) == 0:
+        return []
+    codes = (work // 8).astype(np.int32) @ np.array([1, 32, 1024])
+    keys, counts = np.unique(codes[solid], return_counts=True)
+    bg_key = keys[counts.argmax()]
+    bg = np.median(work[solid & (codes == bg_key)], axis=0)
+    accepted = np.zeros(work.shape[:2], bool)
+    shapes, pending = [], []
+    for key in keys[np.argsort(-counts)]:
+        if key == bg_key:
+            continue
+        color = np.array([key % 32, key // 32 % 32, key // 1024], np.float64) * 8 + 4
+        if np.abs(color - bg).max() <= SHAPE_COLOR_TOL * 2:
+            continue  # màu nền rơi sang bin lượng tử bên cạnh
+        near = solid & (np.abs(work.astype(np.int16) - color).max(axis=2) <= SHAPE_COLOR_TOL)
+        if near.sum() < SHAPE_MIN_PIXELS:
+            continue
+        count, labels, stats, _ = cv2.connectedComponentsWithStats(near.astype(np.uint8), connectivity=8)
+        for i in range(1, count):
+            x, y, bw, bh, area = stats[i]
+            if area >= SHAPE_MIN_PIXELS and not part_of_background(x, y, bw, bh, work.shape):
+                pending.append(labels == i)
+    for _ in range(2):
+        retry = []
+        for own in pending:
+            if (own & accepted).sum() > own.sum() * 0.5:
+                continue
+            match = fit_flat(exporter, leaf, work, own, accepted, px, py)
+            if match is None:
+                retry.append(own)
+                continue
+            accepted |= own
+            box = (match.x, match.y, match.x + match.w, match.y + match.h)
+            if any(iou(box, (s.x, s.y, s.x + s.w, s.y + s.h)) > 0.8 for s in shapes):
+                continue  # mảnh viền khử răng cưa (màu lệch một bin) của khối vừa tách
+            shapes.append(match)
+        pending = retry
+    work[cv2.dilate(accepted.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0] = bg
+    shapes.sort(key=lambda m: -m.w * m.h)  # khối lớn vẽ trước (ô vuông rồi mới tới vòng hạng bên trong)
+    return shapes
+
+
+def fit_flat(exporter, leaf, work, own, accepted, px, py):
+    """Một khối cùng màu → Match sprite bo góc + màu, hoặc None. Khối đã tách chạm vào nó = vùng bị che (không biết)."""
+    ys, xs = np.nonzero(own)
+    x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+    vx0, vx1 = x0, x1  # phần lộ ra
+    touching = accepted & (cv2.dilate(own.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0)
+    touching[:y0] = False
+    touching[y1:] = False  # chỉ nới theo chiều ngang trong dải của khối (pill bị ô vuông che đầu trái)
+    if touching.any():
+        tys, txs = np.nonzero(accepted & (np.arange(work.shape[0])[:, None] >= y0) & (np.arange(work.shape[0])[:, None] < y1)
+                              & (np.abs(np.arange(work.shape[1])[None, :] - (x0 + x1) / 2) <= (x1 - x0) / 2 + 100))
+        if len(txs):
+            x0, x1 = min(x0, txs.min()), max(x1, txs.max() + 1)
+    region = own[y0:y1, x0:x1]
+    hidden = accepted[y0:y1, x0:x1] & ~region
+    filled = (region | hidden).astype(np.uint8) * 255
+    flood = np.pad(255 - filled, 1, constant_values=255)  # lấp lỗ (vòng hạng trong ô vuông) để thử hình bo góc
+    cv2.floodFill(flood, None, (0, 0), 0)
+    filled = np.maximum(filled, flood[1:-1, 1:-1])
+    fill = np.median(work[y0:y1, x0:x1][region], axis=0)
+    rgba = np.dstack([np.broadcast_to(fill.astype(np.uint8), region.shape + (3,)), filled])
+    shape = flat_shape(rgba, hidden)
+    if shape is None or part_of_background(x0, y0, x1 - x0, y1 - y0, work.shape):
+        return None
+    # phần bị che: không biết khối kéo dài tới đâu → chỉ nới thêm đúng một bán kính bo góc (đủ cho đầu tròn khuất sau
+    # khối che), không kéo tới mép kia của khối che
+    x0, x1 = max(x0, vx0 - shape[1]), min(x1, vx1 + shape[1])
+    match = Match(exporter.rounded(shape[1]), leaf, px + x0, py + y0, x1 - x0, y1 - y0, 1.0, True, Score(1.0, 0.0, 1.0), PLAIN)
+    match.color = shape[0]
+    return match
+
+
+def export_part(exporter, leaf, raster, x, y):
+    """Một phần tử không có art: shape một màu → sprite trắng bo góc dùng chung + màu (9-slice); còn lại → PNG."""
+    h, w = raster.shape[:2]
+    shape = flat_shape(raster)
+    if shape is not None:
+        color, radius = shape
+        match = Match(exporter.rounded(radius), leaf, x, y, w, h, 1.0, True, Score(1.0, 0.0, 1.0), PLAIN)
+        match.color = color
+        return match
+    return Match(exporter.export(leaf.name, raster), leaf, x, y, w, h, 1.0, False, Score(1.0, 0.0, 1.0), PLAIN)
 
 
 def process_state(ctx, leaves, image, exact, emit_live):
@@ -1037,11 +1425,12 @@ def process_state(ctx, leaves, image, exact, emit_live):
     for leaf in fresh:
         rec = records[id(leaf.layer)]
         if not rec.matches:
-            resolve_rest(ctx, leaf, rec, image, exact, primary, cache, leaves)
+            resolve_rest(ctx, leaf, rec, image, exact, primary, cache, leaves,
+                         lambda: [m for r in records.values() for m in r.matches])
         elif ctx.exporter is not None and leaf.kind in ("pixel", "smartobject"):
             # đã khớp art nhưng layer còn phần art không có (chữ "Back" vẽ sẵn trên nút)
             rec.residual = add_residual(leaf, ctx.raster_of(leaf), list(rec.matches), ctx.exporter, rec.matches, cache,
-                                        text_covers(leaves, leaf), False)
+                                        text_covers(leaves, leaf), False, ctx.reader, rec.texts)
         ctx.layers[id(leaf.layer)] = rec
 
     for leaf in ui:
@@ -1056,15 +1445,20 @@ def process_state(ctx, leaves, image, exact, emit_live):
 
     recs = [records[id(l.layer)] for l in ui if l.kind != "type"]
     matches = [m for r in recs for m in r.matches]
+    baked = [t for r in recs for t in r.texts]
+    texts.extend(baked)
     notes = [r.note for r in recs if r.note]
     flattened = [r.flattened for r in recs if r.flattened]
     exported = [l.name for l in ui if l.kind != "type" and records[id(l.layer)].exported]
-    residuals = [l.name for l in ui if l.kind != "type" and records[id(l.layer)].residual]
+    residuals = [l.name for l in ui if l.kind != "type" and records[id(l.layer)].residual and not records[id(l.layer)].texts]
     lost_fx = [r.lost_fx for r in recs if r.lost_fx]
     if flattened:
         notes.append(f"Layer gộp nhiều phần (flatten) — đã dò art bên trong: {'; '.join(flattened)}.")
     if exported:
         notes.append(f"Xuất {len(exported)} layer không có art thành PNG: {', '.join(dict.fromkeys(exported))}.")
+    if baked:
+        notes.append(f"Chữ vẽ sẵn trong layer ảnh → OCR thành chữ TMP: {', '.join(repr(t['text']) for t in baked)} — "
+                     "nên để designer giữ dạng text layer.")
     if residuals:
         notes.append("Phần layer mà art không có (chữ vẽ sẵn, khung…) xuất thành PNG riêng đặt đè lên art: "
                      f"{', '.join(dict.fromkeys(residuals))} — chữ vẽ sẵn nên đổi thành text layer để dựng TMP.")
@@ -1079,7 +1473,8 @@ def process_state(ctx, leaves, image, exact, emit_live):
     for m in matches:
         s = sprites.setdefault(m.art.path, {
             "sprite": os.path.abspath(m.art.path), "name": m.art.name, "status": "matched", "reason": "",
-            "spriteWidth": m.art.w, "spriteHeight": m.art.h, "lowTexture": bool(m.art.flat), "matches": []})
+            "spriteWidth": m.art.w, "spriteHeight": m.art.h, "lowTexture": bool(m.art.flat), "matches": [],
+            "suggestedBorder": border_hint(m.art)})
         box = (m.x, m.y, m.x + m.w, m.y + m.h)
         if any(iou(box, (e["x"], e["y"], e["x"] + e["w"], e["y"] + e["h"])) > 0.9 for e in s["matches"]):
             continue  # hai layer cùng một art ở cùng chỗ (bản sao chồng lên nhau)
@@ -1094,16 +1489,32 @@ def process_state(ctx, leaves, image, exact, emit_live):
     }
 
 
-def add_residual(leaf, raster, inner, exporter, matches, cache, covers, fill):
-    """Xuất phần pixel của layer mà art đã khớp không có, đặt đúng chỗ; True nếu có xuất."""
+def add_residual(leaf, raster, inner, exporter, matches, cache, covers, fill, reader=None, texts=None):
+    """
+    Phần pixel của layer mà art đã khớp không có, đặt đúng chỗ; True nếu có. Chữ vẽ sẵn (OCR đọc được) → thêm vào
+    texts thành chữ TMP; còn lại xuất PNG.
+    """
     part = residual(raster, inner, leaf.box, cache, covers, fill)
     if part is None:
         return False
     rgba, ox, oy = part
+    if not fill and reader is not None and texts is not None:
+        entry = baked_text(rgba, leaf.box[0] + ox, leaf.box[1] + oy, reader)
+        if entry is not None:
+            texts.append(entry)
+            return True
     art = exporter.export(f"{leaf.name}_frame" if fill else f"{leaf.name}_extra", rgba)
     h, w = rgba.shape[:2]
     matches.append(Match(art, leaf, leaf.box[0] + ox, leaf.box[1] + oy, w, h, 1.0, False, Score(1.0, 0.0, 1.0), PLAIN))
     return True
+
+
+def border_hint(art):
+    """Border 9-slice của sprite xuất ra (hình bo góc dùng chung) để Unity set khi import; None nếu không có."""
+    if art.border is None:
+        return None
+    left, top, right, bottom = art.border
+    return {"left": left, "right": right, "top": top, "bottom": bottom}
 
 
 def drop(leaf, reason):

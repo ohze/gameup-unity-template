@@ -196,20 +196,19 @@ namespace GameUp.UIBuilder.Tests
         }
 
         [Test]
-        public void Generate_SharedLabelOnSwappedTabButtons_CopiedIntoEachTabUnderButton()
+        public void Generate_SharedLabelOnStateOnlyImages_CopiedIntoEachTabAboveImage()
         {
-            // PSD Dungeon ranking: nhãn tab ở cùng chỗ trong 2 tab, nhưng nút tab đổi art (btn_tab_1 / btn_tab_2) → nút là phần
-            // riêng từng tab, vẽ sau phần chung. Nhãn để chung sẽ bị nút che.
-            var tab1 = Locate(Sprite("btn_tab_1", Match(138, 1768, 376, 91, false)));
+            // Chữ giống nhau ở 2 tab nằm trên ảnh riêng của từng tab (không phải nút) → ảnh vẽ sau phần chung sẽ che chữ.
+            var tab1 = Locate(Sprite("tab_bg_1", Match(138, 1768, 376, 91, false)));
             tab1.texts.Add(new LocateText { x = 231, y = 1801, w = 202, h = 27, text = "Leaderboard", confidence = 1f });
-            var tab2 = Locate(Sprite("btn_tab_2", Match(138, 1768, 376, 91, false)));
+            var tab2 = Locate(Sprite("tab_bg_2", Match(138, 1768, 376, 91, false)));
             tab2.texts.Add(new LocateText { x = 231, y = 1801, w = 202, h = 27, text = "Leaderboard", confidence = 1f });
 
             var spec = UISpecGenerator.Generate(new[] { tab1, tab2 }, "Popup", new[] { "Assets/d1.png", "Assets/d2.png" }, "Assets/Popup.prefab", null);
 
             var labels = spec.nodes.Where(n => n.text == "Leaderboard").ToList();
             Assert.AreEqual(2, labels.Count, "mỗi tab một nhãn");
-            CollectionAssert.AreEquivalent(new[] { "btn_tab_1", "btn_tab_2" }, labels.Select(n => n.parent));
+            CollectionAssert.AreEquivalent(new[] { "tab_bg_1", "tab_bg_2" }, labels.Select(n => n.parent));
             foreach (var label in labels)
                 Assert.Greater(spec.nodes.IndexOf(label), spec.nodes.FindIndex(n => n.id == label.parent), "nhãn vẽ sau nút");
         }
@@ -236,6 +235,54 @@ namespace GameUp.UIBuilder.Tests
             var notes = string.Join("\n", spec.notes);
             StringAssert.Contains("Pusia-Bold", notes);
             StringAssert.DoesNotContain("OCR", notes);
+        }
+
+        [Test]
+        public void Generate_PsdPanel_ChildrenInSameBandGroupedIntoBoxNamedByLayerGroup()
+        {
+            var locate = Psd(
+                Sprite("border_popup", Match(24, 131, 1032, 1656, false)),
+                Sprite("flag_top2", Grouped(Match(39, 236, 312, 376, false), "popup/top1-3/flag")),
+                Sprite("flag_top1", Grouped(Match(368, 228, 344, 400, false), "popup/top1-3/flag")),
+                Sprite("crown_top1", Grouped(Match(474, 192, 132, 132, false), "popup/top1-3/name_avatar/Group 34")),
+                Sprite("boder_slot", Grouped(Match(39, 630, 1002, 1078, false), "popup/ranking/Group 195 copy")));
+
+            var spec = UISpecGenerator.Generate(locate, "Popup", "Assets/demo.png", "Assets/Popup.prefab", null);
+
+            var box = spec.nodes.Single(n => n.id == "boxTop13");
+            Assert.AreEqual(UISpecNode.KindEmpty, box.kind);
+            Assert.AreEqual("border_popup", box.parent);
+            CollectionAssert.AreEquivalent(new[] { "flag_top1", "flag_top2", "crown_top1" },
+                spec.nodes.Where(n => n.parent == box.id).Select(n => n.id));
+            Assert.AreEqual("border_popup", spec.nodes.Single(n => n.id == "boder_slot").parent, "dải chỉ 1 phần tử không bọc box");
+            Assert.Less(spec.nodes.IndexOf(box), spec.nodes.FindIndex(n => n.id == "flag_top1"));
+        }
+
+        [Test]
+        public void Generate_TabButtonsSwapSpritesBetweenTabs_OneSharedButtonEach()
+        {
+            var tab1 = Locate(Sprite("btn_tab_1", Match(138, 1768, 376, 91, false)), Sprite("btn_tab_2", Match(566, 1768, 376, 91, false)));
+            var tab2 = Locate(Sprite("btn_tab_2", Match(138, 1768, 376, 91, false)), Sprite("btn_tab_1", Match(566, 1768, 376, 91, false)));
+
+            var spec = UISpecGenerator.Generate(new[] { tab1, tab2 }, "Popup", new[] { "Assets/d1.png", "Assets/d2.png" }, "Assets/Popup.prefab", null);
+
+            Assert.AreEqual(2, spec.nodes.Count(n => n.kind == UISpecNode.KindButton), "không nhân đôi nút vào từng nhóm tab");
+            Assert.IsTrue(spec.nodes.Where(n => n.kind == UISpecNode.KindButton).All(n => string.IsNullOrEmpty(n.parent)));
+            Assert.IsEmpty(spec.stateGroups.Where(g => !string.IsNullOrEmpty(g)), "2 tab không còn phần riêng");
+            StringAssert.Contains("đổi sprite theo tab", string.Join("\n", spec.notes));
+        }
+
+        private static LocateResult Psd(params LocateSprite[] sprites)
+        {
+            var locate = Locate(sprites);
+            locate.source = LocateResult.SourcePsd;
+            return locate;
+        }
+
+        private static LocateMatch Grouped(LocateMatch match, string group)
+        {
+            match.group = group;
+            return match;
         }
 
         private static LocateResult Locate(params LocateSprite[] sprites)

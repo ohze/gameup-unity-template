@@ -1,0 +1,88 @@
+Assets/_UIBuilderTest/RankingPsd.prefab: tạo 76, cập nhật 0 node, gán 0 field, 0 cảnh báo.
+Ảnh so sánh (demo | prefab | chồng 50%), mỗi trạng thái/tab một ảnh: UIBuilder/RankingPsd/compare.png, UIBuilder/RankingPsd/compare_2.png
+RankingPsd
+  imgDim I:-
+  border_popup I:border_popup
+    boder_slot_1 I:shape_round_20
+      grpRankingRewards (off)
+        scrollRankingRewardsItem
+          Viewport I:-
+            Content
+              RankingRewardsItem_1 [prefab]
+              RankingRewardsItem_2 [prefab]
+              RankingRewardsItem_3 [prefab]
+              RankingRewardsItem_4 [prefab]
+              RankingRewardsItem_5 [prefab]
+      grpLeaderboard
+        scrollLeaderboardItem
+          Viewport I:-
+            Content
+              LeaderboardItem_1 [prefab]
+              LeaderboardItem_2 [prefab]
+              LeaderboardItem_3 [prefab]
+              LeaderboardItem_4 [prefab]
+              LeaderboardItem_5 [prefab]
+      LeaderboardItem_boder_playerrank [prefab]
+    boxTop13
+      flag_top1 I:flag_top1
+        imgFill_4 I:shape_round_20
+        imgPart_2 I:knight_frame_2
+          avatar_001_6 I:avatar_001
+        txtHidepenguin_2 T"Hidepenguin"
+        txt99999b_6 T"999.99B"
+      flag_top2 I:flag_top2
+        imgFill_5 I:shape_round_20
+        imgPart_3 I:knight_frame_2
+          avatar_001_7 I:avatar_001
+        txtHidepenguin_3 T"Hidepenguin"
+        txt99999b_7 T"999.99B"
+        imgIcon_2_2 I:group_42
+      flag_top3 I:flag_top3
+        imgFill_3 I:shape_round_20
+        knight_frame_2_1 I:knight_frame_2
+          avatar_001_5 I:avatar_001
+        txtHidepenguin T"Hidepenguin"
+        txt99999b_5 T"999.99B"
+        imgIcon_1_3 I:group_42
+      crown_top3_2 I:crown_top3
+        txt3_2 T"3"
+      crown_top1_2 I:crown_top1
+        txt1_2 T"1"
+      crown_top2_2 I:crown_top2
+        txt2_2 T"2"
+    txtTop10PromoteRank T"Top <color=#37F352>10</color> Promote. Rank <color=#29DDFE>11-30</color> stay. Bottom <color=#FF7D50>15</color> Demote"
+  boder_btntab_1 I:boder_btntab
+  boder_btntab_2 I:boder_btntab
+  banner_title I:banner_title
+    txtSeasonRecoredLeaderboard T"Season Recored Leaderboard"
+  btn_red I:btn_red
+    txtBack T"Back"
+  btn_tab_2 I:btn_tab_2
+    txtRankingRewards T"Ranking Rewards"
+  btn_tab_1 I:btn_tab_1
+    txtLeaderboard T"Leaderboard"
+== 61 node
+LeaderboardItem
+  imgBg I:shape_round_20
+  imgFill I:shape_round_30
+  imgFill_2 I:shape_round_30
+  knight_frame I:knight_frame_3
+  imgFill_4 I:shape_round_61
+  imgFill_3 I:shape_round_30
+  avatar I:avatar_001
+  txtPlayerName T"Player Name"
+  txt99999b T"999.99B"
+  imgIcon I:group_42_2
+  txt1 T"1"
+== 12 node
+RankingRewardsItem
+  imgBg I:boder_rankslot
+  crown_top1 I:crown_top1
+  imgPart_2 I:group_31_2
+  imgPart_3 I:group_31_3
+  imgPart_4 I:group_31_4
+  imgPart_5 I:group_31_5
+  imgPart I:group_31
+  imgPart_6 I:group_31_6
+  txt1 T"1"
+== 10 node

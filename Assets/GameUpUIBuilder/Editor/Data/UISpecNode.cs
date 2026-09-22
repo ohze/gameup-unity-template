@@ -84,5 +84,8 @@ namespace GameUp.UIBuilder.Editor
 
         /// <summary>Căn lề lấy từ nguồn (text layer PSD) — lúc sinh spec không đoán lại theo vị trí.</summary>
         [NonSerialized] public bool alignFixed;
+
+        /// <summary>PSD: đường dẫn nhóm layer — lúc sinh spec dùng đặt tên box theo vùng.</summary>
+        [NonSerialized] public string group;
     }
 }

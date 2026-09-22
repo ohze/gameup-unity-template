@@ -10,9 +10,36 @@
   lệ khác); text layer → chữ TMP đúng nội dung / rich text nhiều màu / căn lề / viền; lớp dim → `imgDim`; layer không có
   art xuất PNG (tự import Sprite), tách chữ vẽ sẵn (`*_extra`) và khung avatar (`*_frame`). Ảnh demo tuỳ chọn để so sánh,
   báo khi demo khác PSD. `locate.json` thêm `source`, `state(s)`, `exported`, `notes`, `matches[].layer`, `texts[].align/font/fontSize`.
-- Generator: chữ dùng chung nằm trên nút riêng của từng tab (nút đổi chỗ giữa 2 tab) → nhân vào từng tab làm con của nút.
+- Generator: chữ dùng chung nằm trên ảnh riêng từng tab → nhân vào từng tab.
+- **PSD dựng gọn như dò ảnh** (Dungeon ranking: 101 → 61 node, PNG shape rời → sprite dùng chung):
+  - shape một màu (chữ nhật bo góc / tròn) → sprite trắng 9-slice dùng chung `shape_round_<r>` + `Image.color`
+    (border tự set khi import); PNG gần trùng dùng chung file;
+  - layer flatten tách theo mảng rời (ô vật phẩm, các hàng) thay vì một ảnh lớn làm cha mọi thứ; mảng lớn (cả hàng
+    danh sách gộp một layer) **phân rã** thành chữ (OCR), art đã gặp trong màn (khung, avatar đúng tỉ lệ), khối một màu
+    (vòng hạng, ô vuông, pill — kể cả khi bị khối khác che một đầu); phần còn lại mới là nền sạch;
+  - chữ vẽ sẵn trong pixel layer → OCR thành chữ TMP (đo màu + viền);
+  - danh sách nhận hàng khác nền / màu (top 1-3 màu riêng) → override `sprite` + `color` (`UISpecOverride.color` mới);
+    slot chữ nới theo chữ dài nhất ("1" / "4-10"), chữ ghi đè tự co theo khung;
+  - nút cùng chỗ đổi sprite giữa các tab → một nút dùng chung (không nhân vào từng nhóm tab);
+  - con của panel lớn chia **box theo dải dọc**, tên theo nhóm layer PSD chung (`top1-3` → `boxTop13`);
+  - tên node theo vai trò khi layer vô danh: `imgFill` (shape), `imgIcon` (≤ 96 px), `imgPart`.
 
 ### Fixed
+- **Dò sprite (ảnh demo) thiếu phần tử** — màn Dungeon ranking (`ALGO_VERSION` 13):
+  - khung viền mảnh thu nhỏ (khung avatar `card_list_frame` 0.53 / 0.545 / 0.62): sprite dạng viền (đục < 35%) chưa
+    khớp 1:1 → quét tỉ lệ dày 0.01 lấy các đáy cục bộ, dò mịn ±0.015 bước 0.005; khớp thu nhỏ nới lệch màu (ZNCC ≥ 0.83
+    → ≤ 20, ZNCC ≥ 0.86 → ≤ 25);
+  - art 1:1 có viền khác demo (vương miện hàng 3, designer thêm stroke): nhận khi ruột trùng gần tuyệt đối (lệch ≤ 4,
+    trùng ≥ 60%, ZNCC ≥ 0.6);
+  - cùng art ở tỉ lệ lân cận (avatar hàng của mình 0.68 cạnh các hàng 0.66): dò thêm ±0.02 quanh tỉ lệ đã khớp;
+  - gợi ý chéo giữa các tab kiểm thêm bằng `_verify` ±3 px khi viền mảnh không trùng tuyệt đối;
+  - chữ số đứng riêng bị bộ phát hiện chữ bỏ sót (hạng "4") → hàng danh sách có chữ ở vị trí nào thì đọc thẳng cùng
+    vị trí ở hàng khác (chỉ trên nền hàng, có mực khác sprite, OCR ≥ 0.9).
+  Bench không đổi (A 9/9 · B 9/9 · C 5/5 · D 9/9 · E 18/22 · F 8/9 · G 7/9, 0 khớp thừa).
+- Danh sách: khung avatar chứa avatar bị gộp chung một slot — slot ảnh phải cùng cỡ (±10%) và mỗi slot chỉ nhận một
+  phần tử của hàng (khung 125 px + avatar 120 px cùng góc là 2 slot);
+- OCR đọc ngược chữ ("999.99B" → "866'666") — tắt bộ xoay hướng chữ của RapidOCR;
+  item trong ScrollRect xếp theo thứ tự hàng (trước theo diện tích).
 - Chữ trong nhóm tab đang tắt không co theo bề ngang khung (TMP không đo được object inactive) — builder bật node trong
   lúc dựng, tắt lại sau.
 

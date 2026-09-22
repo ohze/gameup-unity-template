@@ -24,6 +24,11 @@ namespace GameUp.UIBuilder.Editor
         public const string PlaceholderText = "Text";
 
         private const int SameTolerance = 4;
+        private const float PanelArea = 0.3f; // panel ≥ 30% màn → con của nó chia box theo dải dọc (PSD)
+        private const string SharedShapePrefix = "shape_round_";
+        private const int IconSize = 96; // PNG xuất từ layer vô danh ≤ 96 px → imgIcon, lớn hơn → imgPart
+        private static readonly Regex GenericLayerName =
+            new Regex(@"(^(group|layer|rounded rectangle|rectangle|ellipse|shape|mode)\b)|\bcopy\b|^\d", RegexOptions.IgnoreCase);
         private const float SkipInside = 0.6f;
         private const float FullScreen = 0.95f;
 
@@ -85,13 +90,15 @@ namespace GameUp.UIBuilder.Editor
             var folder = Path.GetDirectoryName(outputPrefabPath)?.Replace('\\', '/');
             var usedIds = new HashSet<string>(perState.SelectMany(n => n).Select(n => n.id));
             for (var k = 0; k < states.Count; k++)
-                UIListExtractor.ExtractLists(perState[k], TemplateNames(labels, k, states.Count, name), folder, spec.templates, usedIds, spec.notes);
+                UIListExtractor.ExtractLists(perState[k], TemplateNames(labels, k, states.Count, name), folder, spec.templates, usedIds,
+                    spec.notes, states[k].IsPsd);
             foreach (var nodes in perState)
                 UIListExtractor.ExtractSimilarRows(nodes, spec.templates, usedIds, spec.notes);
 
             var merged = states.Count == 1 ? perState[0] : MergeStates(perState, labels, spec.notes, spec.stateGroups);
             if (states.Count == 1) AssignParents(merged, merged, string.Empty);
             UnparentFromBackground(merged, spec.referenceWidth, spec.referenceHeight);
+            if (states[0].IsPsd) GroupIntoBoxes(merged, spec.referenceWidth, spec.referenceHeight, usedIds, spec.notes);
             AddDim(merged, states[0], spec.notes); // sau khi gán cha — lớp phủ kín màn không được làm cha của mọi thứ
             AssignTextAlignment(merged, states[0].demoWidth);
             spec.nodes = OrderForDrawing(merged);
@@ -192,6 +199,7 @@ namespace GameUp.UIBuilder.Editor
         {
             var shared = perState[0].Where(a => perState.Skip(1).All(other => other.Any(b => Same(a, b, perState[0], other)))).ToList();
             var owns = perState.Select((nodes, k) => nodes.Where(n => !shared.Any(s => Same(s, n, perState[0], nodes))).ToList()).ToList();
+            ShareSwappedSprites(shared, owns, notes);
             MoveCoveredTexts(shared, owns);
             var result = new List<UISpecNode>(shared);
             AssignParents(shared, shared, string.Empty);
@@ -225,6 +233,31 @@ namespace GameUp.UIBuilder.Editor
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Nút cùng chỗ ở mọi tab nhưng khác sprite (nút tab chọn / chưa chọn đổi art cho nhau) → một node dùng chung
+        /// (sprite của tab 1), ghi chú để script đổi sprite khi chọn tab — không nhân đôi nút vào từng nhóm tab. Chỉ nút:
+        /// ảnh khác nhau giữa các tab (vương miện top 1 / top 2) là nội dung riêng của tab.
+        /// </summary>
+        internal static void ShareSwappedSprites(List<UISpecNode> shared, List<List<UISpecNode>> owns, List<string> notes)
+        {
+            foreach (var node in owns[0].Where(n => n.kind == UISpecNode.KindButton && !string.IsNullOrEmpty(n.sprite)).ToList())
+            {
+                var twins = owns.Skip(1).Select(own => own.FirstOrDefault(o => o.kind == node.kind && SameRect(o, node))).ToList();
+                if (twins.Any(t => t == null)) continue;
+                owns[0].Remove(node);
+                for (var k = 0; k < twins.Count; k++) owns[k + 1].Remove(twins[k]);
+                shared.Add(node);
+                var sprites = new[] { node.sprite }.Concat(twins.Select(t => t.sprite)).Select(Path.GetFileNameWithoutExtension);
+                notes.Add($"{node.id}: cùng chỗ ở mọi tab, đổi sprite theo tab ({string.Join(" / ", sprites)}) → một node, script đổi sprite khi chọn tab.");
+            }
+        }
+
+        private static bool SameRect(UISpecNode a, UISpecNode b)
+        {
+            return Mathf.Abs(a.x - b.x) <= SameTolerance && Mathf.Abs(a.y - b.y) <= SameTolerance
+                   && Mathf.Abs(a.w - b.w) <= SameTolerance && Mathf.Abs(a.h - b.h) <= SameTolerance;
         }
 
         /// <summary>
@@ -270,7 +303,8 @@ namespace GameUp.UIBuilder.Editor
         /// </summary>
         private static bool Same(UISpecNode a, UISpecNode b, List<UISpecNode> nodesA, List<UISpecNode> nodesB)
         {
-            if (a.kind != b.kind || a.sprite != b.sprite || a.text != b.text || a.prefab != b.prefab || OverridesKey(a) != OverridesKey(b))
+            if (a.kind != b.kind || a.sprite != b.sprite || a.text != b.text || a.prefab != b.prefab || OverridesKey(a) != OverridesKey(b)
+                || (a.kind != UISpecNode.KindText && a.color != b.color))
                 return false;
             if (a.kind == UISpecNode.KindText)
                 return Mathf.Abs(a.x + a.w / 2f - (b.x + b.w / 2f)) <= SameTolerance * 2
@@ -288,13 +322,14 @@ namespace GameUp.UIBuilder.Editor
 
         private static string OverridesKey(UISpecNode node)
         {
-            return string.Join("|", node.overrides.Select(o => $"{o.id}:{o.hide}:{o.sprite}:{o.setText}:{o.text}"));
+            return string.Join("|", node.overrides.Select(o => $"{o.id}:{o.hide}:{o.sprite}:{o.setText}:{o.text}:{o.color}"));
         }
 
         private static List<UISpecNode> CreateNodes(LocateResult locate, List<string> notes)
         {
             var nodes = new List<UISpecNode>();
             var usedIds = new HashSet<string>();
+            var exported = new HashSet<string>(locate.exported.Select(Path.GetFullPath));
             foreach (var sprite in locate.sprites.Where(s => s.IsMatched))
             {
                 var assetPath = UIBuilderPaths.ToAssetPath(sprite.sprite);
@@ -308,7 +343,8 @@ namespace GameUp.UIBuilder.Editor
                 for (var i = 0; i < sprite.matches.Count; i++)
                 {
                     var match = sprite.matches[i];
-                    var id = UniqueId(sprite.matches.Count > 1 ? $"{sprite.name}_{i + 1}" : sprite.name, usedIds);
+                    var baseName = NodeName(sprite, match, exported.Contains(Path.GetFullPath(sprite.sprite)));
+                    var id = UniqueId(sprite.matches.Count > 1 || baseName != sprite.name ? $"{baseName}_{i + 1}" : baseName, usedIds);
                     nodes.Add(new UISpecNode
                     {
                         id = id,
@@ -321,7 +357,8 @@ namespace GameUp.UIBuilder.Editor
                         sprite = assetPath,
                         sliced = match.sliced,
                         color = match.tint,
-                        raycastTarget = isButton
+                        raycastTarget = isButton,
+                        group = match.group
                     });
                 }
 
@@ -359,7 +396,8 @@ namespace GameUp.UIBuilder.Editor
                     outlineWidth = t.outlineWidth,
                     outlineColor = t.outlineColor,
                     align = string.IsNullOrEmpty(t.align) ? "center" : t.align,
-                    alignFixed = !string.IsNullOrEmpty(t.align)
+                    alignFixed = !string.IsNullOrEmpty(t.align),
+                    group = t.group
                 };
                 nodes.Add(node);
                 if (!hasText || t.confidence < LowOcrConfidence) unsure.Add($"{node.id} (\"{node.text}\")");
@@ -377,6 +415,79 @@ namespace GameUp.UIBuilder.Editor
                   + "(Bước 1 → Cập nhật) — hoặc Copy prompt cho Claude để điền.");
             if (unsure.Count > 0) notes.Add($"OCR không chắc, cần kiểm tra: {string.Join(", ", unsure)}.");
             return nodes;
+        }
+
+        /// <summary>
+        /// Tên node của một sprite: art thật → tên art; PNG xuất từ PSD → tên layer nếu có nghĩa ("boder_slot"), không thì
+        /// theo vai trò: shape một màu <c>imgFill</c>, ô nhỏ <c>imgIcon</c>, còn lại <c>imgPart</c> (tên kiểu
+        /// "border_popup copy 13", "Group 31" là rác của designer).
+        /// </summary>
+        private static string NodeName(LocateSprite sprite, LocateMatch match, bool exported)
+        {
+            if (!exported) return sprite.name;
+            var layer = match.layer?.Trim();
+            if (!string.IsNullOrEmpty(layer) && !GenericLayerName.IsMatch(layer))
+                return sprite.name.StartsWith(SharedShapePrefix) ? Regex.Replace(layer, @"[^\w]+", "_").Trim('_') : sprite.name;
+            if (sprite.name.StartsWith(SharedShapePrefix)) return "imgFill";
+            return match.w <= IconSize && match.h <= IconSize ? "imgIcon" : "imgPart";
+        }
+
+        /// <summary>
+        /// PSD: con của một panel lớn (≥ 30% màn) chia thành box theo dải dọc không chồng nhau — header, bục top 3, danh sách,
+        /// hàng của mình… Mỗi dải ≥ 2 phần tử thành một node rỗng (anchor tự tính theo vị trí), tên theo nhóm layer PSD chung.
+        /// </summary>
+        internal static void GroupIntoBoxes(List<UISpecNode> nodes, int width, int height, HashSet<string> used, List<string> notes)
+        {
+            var panels = nodes.Where(n => (n.kind == UISpecNode.KindImage || n.kind == UISpecNode.KindButton) && n.anchor != "stretch"
+                                          && (long)n.w * n.h >= width * height * PanelArea).ToList();
+            foreach (var panel in panels)
+            {
+                var bands = new List<List<UISpecNode>>();
+                var bottom = int.MinValue;
+                foreach (var child in nodes.Where(n => n.parent == panel.id).OrderBy(n => n.y))
+                {
+                    if (bands.Count == 0 || child.y >= bottom) bands.Add(new List<UISpecNode>());
+                    bands[bands.Count - 1].Add(child);
+                    bottom = Mathf.Max(bottom, child.y + child.h);
+                }
+
+                if (bands.Count < 2) continue;
+                // dải chỉ gồm các nhóm tab chồng nhau (grpLeaderboard + grpRankingRewards) không cần box bọc thêm
+                foreach (var band in bands.Where(b => b.Count >= 2 && b.Any(n => n.kind != UISpecNode.KindEmpty)))
+                {
+                    var x0 = band.Min(n => n.x);
+                    var y0 = band.Min(n => n.y);
+                    var box = new UISpecNode
+                    {
+                        id = UniqueId(BoxName(band), used), kind = UISpecNode.KindEmpty, parent = panel.id,
+                        x = x0, y = y0, w = band.Max(n => n.x + n.w) - x0, h = band.Max(n => n.y + n.h) - y0
+                    };
+                    foreach (var member in band) member.parent = box.id;
+                    nodes.Add(box);
+                    notes.Add($"{box.id}: box gom {band.Count} phần tử cùng dải trong {panel.id} ({string.Join(", ", band.Select(n => n.id))}).");
+                }
+            }
+        }
+
+        /// <summary>Tên box: nhóm layer PSD sâu nhất chung cho cả dải mà có nghĩa ("top1-3" → boxTop13), không thì theo phần tử lớn nhất.</summary>
+        private static string BoxName(List<UISpecNode> band)
+        {
+            var paths = band.Where(n => !string.IsNullOrEmpty(n.group)).Select(n => n.group.Split('/')).ToList();
+            if (paths.Count == band.Count(n => n.kind != UISpecNode.KindEmpty) && paths.Count > 0)
+            {
+                var common = paths[0].TakeWhile((segment, i) => paths.All(p => p.Length > i && p[i] == segment)).ToList();
+                for (var i = common.Count - 1; i >= 0; i--)
+                    if (!GenericLayerName.IsMatch(common[i])) return $"box{Pascal(common[i])}";
+            }
+
+            var largest = band.OrderByDescending(n => (long)n.w * n.h).First();
+            return $"box{Pascal(Regex.Replace(largest.id, @"_\d+$", string.Empty))}";
+        }
+
+        private static string Pascal(string text)
+        {
+            return string.Concat(Regex.Split(text, @"[^A-Za-z0-9]+").Where(w => w.Length > 0)
+                .Select(w => char.ToUpperInvariant(w[0]) + w.Substring(1)));
         }
 
         /// <summary>Bỏ thẻ rich text TMP (<c>&lt;color=#..&gt;</c>…) — để đặt id theo chữ hiện ra.</summary>
@@ -477,6 +588,18 @@ namespace GameUp.UIBuilder.Editor
 
         private static void AppendChildren(string parentId, List<UISpecNode> nodes, List<UISpecNode> result)
         {
+            // item trong ScrollRect: thứ tự con = thứ tự hàng trên màn (LayoutGroup xếp theo thứ tự sibling)
+            if (nodes.Any(n => n.id == parentId && n.kind == UISpecNode.KindScroll))
+            {
+                foreach (var item in nodes.Where(n => n.parent == parentId).OrderBy(n => n.y).ThenBy(n => n.x))
+                {
+                    result.Add(item);
+                    AppendChildren(item.id, nodes, result);
+                }
+
+                return;
+            }
+
             // Nền/lớp phủ kín màn (stretch) vẽ dưới cùng, rồi sprite phẳng, rồi lớn trước nhỏ.
             foreach (var child in nodes.Where(n => n.parent == parentId).OrderByDescending(n => n.anchor == "stretch")
                          .ThenByDescending(n => n.flat).ThenByDescending(Area).ThenBy(n => n.y))

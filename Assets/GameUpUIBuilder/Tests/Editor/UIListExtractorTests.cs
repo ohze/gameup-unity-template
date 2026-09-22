@@ -91,6 +91,73 @@ namespace GameUp.UIBuilder.Tests
             Assert.IsFalse(nodes.Any(n => n.kind == UISpecNode.KindScroll));
         }
 
+        [Test]
+        public void ExtractLists_LoosePsdRows_DifferentBackgroundsBecomeSpriteAndColorOverrides()
+        {
+            // PSD Dungeon leaderboard: top 1-3 = shape trắng bo góc tô màu (962×162/163, x 59), hàng 4-5 = PNG xuất (968×172, x 56)
+            const string shape = "Assets/out/shape_round_20.png";
+            const string flatten = "Assets/out/imgPart.png";
+            var nodes = new List<UISpecNode>
+            {
+                Tinted("row1", shape, 59, 650, 962, 162, "#FFFBC1FF"),
+                Tinted("row2", shape, 59, 821, 962, 163, "#A8F2FFFF"),
+                Tinted("row3", shape, 59, 997, 962, 163, "#C4FF98FF"),
+                Image("row4", flatten, 56, 1169, 968, 172),
+                Image("row5", flatten, 56, 1345, 968, 170)
+            };
+            var templates = new List<UITemplateSpec>();
+
+            UIListExtractor.ExtractLists(nodes, new[] { "RankItem" }, "Assets/Out", templates, new HashSet<string>(), new List<string>(), true);
+
+            var instances = nodes.Where(n => n.kind == UISpecNode.KindInstance).OrderBy(n => n.y).ToList();
+            Assert.AreEqual(5, instances.Count, "khác sprite nền vẫn là một danh sách");
+            Assert.IsFalse(instances[0].overrides.Any(), "hàng mẫu không ghi đè");
+            Assert.IsTrue(instances[1].overrides.Any(o => o.id == UIListExtractor.BackgroundId && o.color == "#A8F2FFFF" && string.IsNullOrEmpty(o.sprite)));
+            Assert.IsTrue(instances[3].overrides.Any(o => o.id == UIListExtractor.BackgroundId && o.sprite == flatten && o.color == "#FFFFFFFF"));
+        }
+
+        [Test]
+        public void ExtractLists_ShortAndLongRankTexts_ShareSlotWideEnoughForLongest()
+        {
+            var nodes = Rows(4);
+            nodes.Add(Text("rank1", "1", 118, 707, 36, 54));
+            nodes.Add(Text("rank4", "4-10", 80, 1235, 112, 39)); // hàng 4 (y 1175)
+            var templates = new List<UITemplateSpec>();
+
+            UIListExtractor.ExtractLists(nodes, new[] { "RankItem" }, "Assets/Out", templates, new HashSet<string>(), new List<string>());
+
+            var slot = templates.Single().nodes.Single(n => n.kind == UISpecNode.KindText);
+            Assert.GreaterOrEqual(slot.w, 112, "khung chữ đủ cho '4-10', không chỉ '1'");
+            Assert.AreEqual("center", slot.align, "khung đã nới: căn giữa theo tâm chung, không lệch trái");
+        }
+
+        [Test]
+        public void ExtractLists_FrameAndAvatarAtSameSpot_AreTwoSlots()
+        {
+            // PSD Dungeon: khung card_list_frame 125 px và avatar 120 px cùng góc trong mỗi hàng — cỡ gần bằng, chồng > 50%
+            var nodes = Rows(3);
+            foreach (var row in nodes.ToList())
+            {
+                nodes.Add(Image($"frame_{row.id}", "Assets/art/card_list_frame.png", row.x + 173, row.y + 20, 125, 125));
+                nodes.Add(Image($"avatar_{row.id}", "Assets/art/avatar_001.png", row.x + 173, row.y + 20, 120, 120));
+            }
+            var templates = new List<UITemplateSpec>();
+
+            UIListExtractor.ExtractLists(nodes, new[] { "RankItem" }, "Assets/Out", templates, new HashSet<string>(), new List<string>());
+
+            var slots = templates.Single().nodes.Skip(1).ToList();
+            Assert.AreEqual(2, slots.Count, "khung và avatar là 2 slot, không gộp một");
+            CollectionAssert.AreEquivalent(new[] { "Assets/art/card_list_frame.png", "Assets/art/avatar_001.png" }, slots.Select(s => s.sprite));
+            Assert.IsFalse(nodes.Where(n => n.kind == UISpecNode.KindInstance).SelectMany(n => n.overrides).Any(o => o.hide));
+        }
+
+        private static UISpecNode Tinted(string id, string sprite, int x, int y, int w, int h, string color)
+        {
+            var node = Image(id, sprite, x, y, w, h);
+            node.color = color;
+            return node;
+        }
+
         private static List<UISpecNode> Rows(int count)
         {
             return Enumerable.Range(0, count).Select(i => Image($"row{i + 1}", Row, 56, 647 + i * 176, 968, 168)).ToList();

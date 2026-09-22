@@ -461,6 +461,17 @@ namespace GameUp.UIBuilder.Editor
             return text.fontSize;
         }
 
+        /// <summary>Chữ ghi đè dài hơn khung (cỡ chữ tính theo chữ mẫu của item) → giảm cỡ tới khi vừa bề ngang.</summary>
+        private static void ShrinkToWidth(TMP_Text text)
+        {
+            var width = ((RectTransform)text.transform).rect.width;
+            if (text.font == null || width <= 0f) return;
+            var preferred = PreferredWidth(text);
+            if (preferred <= width) return;
+            text.fontSize = Mathf.Max(1f, Mathf.Floor(text.fontSize * width / preferred));
+            for (var i = 0; i < 20 && text.fontSize > 1f && PreferredWidth(text) > width; i++) text.fontSize -= 1f;
+        }
+
         private static float PreferredWidth(TMP_Text text)
         {
             return text.GetPreferredValues(text.text, float.PositiveInfinity, float.PositiveInfinity).x;
@@ -537,10 +548,18 @@ namespace GameUp.UIBuilder.Editor
                 }
 
                 if (target != instance.transform) target.gameObject.SetActive(!o.hide);
-                if (!string.IsNullOrEmpty(o.sprite) && target.TryGetComponent<Image>(out var image))
-                    image.sprite = LoadSprite(new UISpecNode { id = $"{node.id}/{o.id}", sprite = o.sprite }, report);
+                if (target.TryGetComponent<Image>(out var image))
+                {
+                    if (!string.IsNullOrEmpty(o.sprite))
+                        image.sprite = LoadSprite(new UISpecNode { id = $"{node.id}/{o.id}", sprite = o.sprite }, report);
+                    if (!string.IsNullOrEmpty(o.color)) image.color = ParseColor(o.color, image.color, $"{node.id}/{o.id}", report);
+                }
+
                 if (o.setText && target.TryGetComponent<TMP_Text>(out var text))
+                {
                     text.text = o.text ?? string.Empty;
+                    ShrinkToWidth(text); // "4-10" dài hơn chữ mẫu "1" của item
+                }
             }
         }
 

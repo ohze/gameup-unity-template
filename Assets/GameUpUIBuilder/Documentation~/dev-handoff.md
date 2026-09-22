@@ -37,6 +37,12 @@ art của shape có hiệu ứng (`Context.offsets`) dùng lại cho tab còn l�
 - So art trên **ảnh demo** sai khi demo là bản cũ (Dungeon ranking: PSD hàng top 1-3 có màu, `demo_1.png` xám) → so trên
   ảnh từ PSD; pixel layer / smart object so trên chính pixel của layer (không bị che, đúng vị trí tuyệt đối).
 
+Làm sạch cây (so với bản dò ảnh `Prefabs/UI/Test/RankingPsd.prefab`, 47 node): shape một màu → `shape_round_<r>` +
+màu, layer flatten → tách mảng rời (`split_parts`), chữ vẽ sẵn → OCR (`TextReader`, `baked_text`), generator PSD:
+`ExtractLists(loose)`, `ShareSwappedSprites` (chỉ nút), `GroupIntoBoxes` (dải dọc trong panel ≥ 30% màn, tên theo
+`LocateMatch.group`), `NodeName`. Kết quả ranking: 61 node chính + LeaderboardItem 12 + RankingRewardsItem 10.
+Chưa làm: thư viện prefab chung giữa các màn (`Prefabs/UI/Common`, Prefab Variant) và bước duyệt cây module trong cửa sổ.
+
 Test thật: `~/Downloads/bossscreen_DuyLV.psd` (Dungeon popup_ranking, 2 tab) + art `UI_v2/Challenge Mode/popup_ranking`
 + `_Shared` → ~30 s, prefab 99 node, 2 item prefab; tab ranking trùng khít demo.
 
@@ -89,7 +95,8 @@ lớp dim + tint + bị che + chữ viền, danh sách lặp, JPEG, sprite gần
 ~/.gameup/ui-builder/venv/Scripts/python Tools~/bench/evaluate.py <thư mục tạm> [A B …]
 ```
 
-Kết quả hiện tại (2026-09-21): A 9/9 · B 9/9 · C 5/5 · D 9/9 · E 18/22 · F 8/9 · G 7/9, **0 khớp thừa** ở mọi case.
+Kết quả hiện tại (2026-09-22, `ALGO_VERSION` 13 — thêm khung viền mảnh, ruột trùng 1:1, tỉ lệ lân cận, chữ theo hàng):
+recall không đổi, 0 khớp thừa; thời gian tăng ~10–40% (dao động). Trước đó (2026-09-21): A 9/9 · B 9/9 · C 5/5 · D 9/9 · E 18/22 · F 8/9 · G 7/9, **0 khớp thừa** ở mọi case.
 Hụt còn lại là giới hạn đã biết: ô bị icon che gần hết (E), avatar vừa bị chữ viền đè vừa nén JPEG (F), icon art 2048 px
 thu nhỏ ~0.07 (G — chưa hỗ trợ tỉ lệ < 0.5). Thư mục art cả UI_v2 (842 sprite) cho demo ranking: 240 s → ~60–100 s lần
 đầu (12 process; dao động theo máy), 1.3 s khi có cache (cache cả kết quả OCR thô), khớp đúng 15 sprite của màn.

@@ -19,6 +19,17 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json` (+ `loca
 **Nhiều demo = nhiều trạng thái (tab) của cùng UI.** Spec nháp đã: dựng phần giống nhau một lần; phần riêng của demo k
 nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách thành `scroll` + item prefab trong `templates`.
 
+**Nguồn PSD** (`locate*.json` có `"source": "psd"`, sinh bởi `Tools~/ui_psd.py`): tọa độ lấy từ layer PSD, **PSD là chuẩn**.
+- Mỗi trạng thái = một nhóm layer ẩn/hiện trong PSD (`state`, `states[]`); `demo` = ảnh demo người dùng đưa (chỉ để so)
+  hoặc `psd_state_k.png` ghép từ PSD. `notes[]` báo demo khác PSD (demo cũ) → dựng theo PSD, báo lại người dùng.
+- `matches[].layer` = tên layer PSD. Sprite nằm trong thư mục xuất (`exported[]`) là PNG lấy thẳng từ layer không có art;
+  `*_extra` = phần layer mà art không có (chữ vẽ sẵn trên nút), `*_frame` = khung còn lại sau khi tách art bên trong (avatar).
+- `texts[]` lấy từ text layer: nội dung chính xác (nhiều màu → rich text `<color>`), `align`, `font`/`fontSize` của
+  Photoshop (tham khảo — giữ `fontSize: 0` để builder tự khớp), `outlineColor/Width` từ Stroke. Không cần soát OCR.
+- Sprite `shape_round_<r>` = shape một màu dùng chung (trắng, 9-slice) → màu nằm ở `color` của node/override.
+  Node `box*` = box theo vùng (dải dọc trong panel) — giữ khi sửa spec; đổi tên theo vai trò nếu cần (`boxPodium`).
+- Không chạy lại `ui_locate.py` cho job PSD — chạy lệnh "Đọc lại PSD" trong prompt.
+
 ## Quy trình
 
 1. **Xem demo** (Read file PNG). Tách 3 lớp: *phần thuộc UI này* · *nền gameplay/HUD phía sau* (thường bị làm mờ, KHÔNG đưa vào prefab) · *phần designer để sót* (ô xám, chữ ghost, layer thừa) → liệt kê, hỏi nếu không chắc.
@@ -72,7 +83,7 @@ nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách th�
 | text | `outlineWidth`/`outlineColor` (viền đo từ demo → builder tự chọn material outline của font), `material` (asset path preset TMP, ghi đè lựa chọn tự động), `text` (hỗ trợ rich text: `<color=#FFE030>Grandpa</color> Win!`), `fontSize` (0 = tự khớp khung), `font` (asset path TMP_FontAsset — tìm font game đang dùng, rỗng = mặc định TMP), `color`, `align` (left/center/right), `bold` |
 | `active` | `false` cho biến thể ẩn (vd phần chỉ hiện khi thua) |
 | `kind: scroll` | ScrollRect + Viewport (RectMask2D) + Content (LayoutGroup + ContentSizeFitter). `direction` vertical/horizontal, `spacing`, `padding`. Con của node scroll nằm trong Content, layout tự xếp (x,y chỉ để lấy cỡ). |
-| `kind: instance` | Instance prefab lồng: `prefab` (asset path, thường là `templates[].output`), `overrides[]`: `{id, hide, sprite, setText, text}` — `id` = tên node trong item (`imgBg` = nền). |
+| `kind: instance` | Instance prefab lồng: `prefab` (asset path, thường là `templates[].output`), `overrides[]`: `{id, hide, sprite, color, setText, text}` — `id` = tên node trong item (`imgBg` = nền); `color` = màu Image (#RRGGBB[AA]); chữ ghi đè dài hơn khung tự co. |
 | `templates[]` | Item prefab dựng trước prefab chính: `{name, output, width, height, nodes}` — tọa độ node **tương đối góc trên-trái item**; node `imgBg` là nền. |
 | `stateGroups` | id nhóm của từng demo/tab theo thứ tự `demo`, `extraDemos` — renderer bật đúng nhóm khi render `compare_k.png`. |
 
