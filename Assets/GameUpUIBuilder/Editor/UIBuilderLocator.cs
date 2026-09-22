@@ -9,8 +9,9 @@ using UnityEngine;
 namespace GameUp.UIBuilder.Editor
 {
     /// <summary>
-    /// Chạy <c>Tools~/ui_locate.py</c> trong venv, không chặn Editor. Gọi <see cref="Poll"/> mỗi frame; trong lúc chạy
-    /// <see cref="Progress"/> cập nhật theo từng dòng sự kiện script in ra.
+    /// Chạy <c>Tools~/ui_locate.py</c> (dò sprite trên một demo) hoặc <c>Tools~/ui_psd.py</c> (đọc PSD, mọi tab một lượt)
+    /// trong venv, không chặn Editor. Gọi <see cref="Poll"/> mỗi frame; trong lúc chạy <see cref="Progress"/> cập nhật theo
+    /// từng dòng sự kiện script in ra.
     /// </summary>
     public sealed class UIBuilderLocator
     {
@@ -45,6 +46,26 @@ namespace GameUp.UIBuilder.Editor
             var args = BuildArguments(demoPath, artPaths, recursive, outPath, hints);
             var command = GUExternalCommand.Start(UIBuilderPaths.VenvPython, args, UIBuilderPaths.ProjectRoot, Timeout);
             return new UIBuilderLocator(command, outPath);
+        }
+
+        /// <summary>
+        /// Đọc PSD: ghi <c>locate.json</c>, <c>locate_2.json</c>… (mỗi trạng thái/tab một file) vào thư mục job;
+        /// <see cref="Result"/> là trạng thái đầu.
+        /// </summary>
+        /// <param name="demos">Ảnh demo theo thứ tự tab — chỉ để so sánh; tab chưa có demo dùng ảnh ghép từ PSD.</param>
+        /// <param name="exportFolder">Thư mục (trong Assets) ghi PNG cho layer không có art; rỗng = không xuất.</param>
+        public static UIBuilderLocator StartPsd(string psdPath, IEnumerable<string> artPaths, bool recursive, string jobName,
+            IEnumerable<string> demos, string exportFolder)
+        {
+            var args = BuildPsdArguments(psdPath, artPaths, recursive, jobName, demos, exportFolder);
+            var command = GUExternalCommand.Start(UIBuilderPaths.VenvPython, args, UIBuilderPaths.ProjectRoot, Timeout);
+            return new UIBuilderLocator(command, UIBuilderPaths.LocatePath(jobName));
+        }
+
+        public static string BuildPsdCommandLine(string psdPath, IEnumerable<string> artPaths, bool recursive, string jobName,
+            IEnumerable<string> demos, string exportFolder)
+        {
+            return $"{UIBuilderPython.Quote(UIBuilderPaths.VenvPython)} {BuildPsdArguments(psdPath, artPaths, recursive, jobName, demos, exportFolder)}";
         }
 
         /// <summary>Dòng lệnh đầy đủ — để hiện cho người dùng / đưa vào prompt cho AI chạy lại.</summary>
@@ -120,6 +141,24 @@ namespace GameUp.UIBuilder.Editor
                 sb.Append(" --hint ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(hint)));
             var workers = UIBuilderSettings.instance.locateWorkers;
             if (workers > 0) sb.Append(" --workers ").Append(workers);
+            return sb.ToString();
+        }
+
+        private static string BuildPsdArguments(string psdPath, IEnumerable<string> artPaths, bool recursive, string jobName,
+            IEnumerable<string> demos, string exportFolder)
+        {
+            var sb = new StringBuilder();
+            sb.Append(UIBuilderPython.Quote(UIBuilderPaths.PsdScript));
+            sb.Append(" --psd ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(psdPath)));
+            foreach (var art in artPaths)
+                sb.Append(" --art ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(art)));
+            if (recursive) sb.Append(" --recursive");
+            sb.Append(" --out-dir ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(UIBuilderPaths.JobFolder(jobName))));
+            // giữ đúng vị trí tab: tab chưa có demo truyền chuỗi rỗng
+            foreach (var demo in demos)
+                sb.Append(" --demo ").Append(UIBuilderPython.Quote(string.IsNullOrEmpty(demo) ? string.Empty : UIBuilderPaths.ToAbsolute(demo)));
+            if (!string.IsNullOrEmpty(exportFolder))
+                sb.Append(" --export ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(exportFolder)));
             return sb.ToString();
         }
 

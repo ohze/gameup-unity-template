@@ -1,6 +1,8 @@
 # Định vị sprite
 opencv-python-headless>=4.8
 numpy>=1.24,<3
+# Đọc file PSD (layer, text layer, smart object) — thuần Python, không cần Photoshop
+psd-tools>=1.9,<2
 # Đọc chữ (OCR) — phụ thuộc của rapidocr, trừ opencv-python (đã có bản headless ở trên)
 onnxruntime>=1.17
 pyclipper>=1.2

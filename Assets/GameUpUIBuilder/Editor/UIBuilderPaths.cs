@@ -35,6 +35,8 @@ namespace GameUp.UIBuilder.Editor
 
         public static string LocateScript => Path.Combine(PackageRoot, "Tools~", "ui_locate.py");
 
+        public static string PsdScript => Path.Combine(PackageRoot, "Tools~", "ui_psd.py");
+
         public static string Requirements => Path.Combine(PackageRoot, "Tools~", "requirements.txt");
 
         /// <summary>Gói cài với --no-deps (rapidocr khai báo opencv-python bản GUI, trùng với bản headless).</summary>

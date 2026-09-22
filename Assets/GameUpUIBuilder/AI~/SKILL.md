@@ -19,6 +19,15 @@ Thư mục job: `UIBuilder/<Tên>/` ở gốc project — `locate.json` (+ `loca
 **Nhiều demo = nhiều trạng thái (tab) của cùng UI.** Spec nháp đã: dựng phần giống nhau một lần; phần riêng của demo k
 nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách thành `scroll` + item prefab trong `templates`.
 
+**Nguồn PSD** (`locate*.json` có `"source": "psd"`, sinh bởi `Tools~/ui_psd.py`): tọa độ lấy từ layer PSD, **PSD là chuẩn**.
+- Mỗi trạng thái = một nhóm layer ẩn/hiện trong PSD (`state`, `states[]`); `demo` = ảnh demo người dùng đưa (chỉ để so)
+  hoặc `psd_state_k.png` ghép từ PSD. `notes[]` báo demo khác PSD (demo cũ) → dựng theo PSD, báo lại người dùng.
+- `matches[].layer` = tên layer PSD. Sprite nằm trong thư mục xuất (`exported[]`) là PNG lấy thẳng từ layer không có art;
+  `*_extra` = phần layer mà art không có (chữ vẽ sẵn trên nút), `*_frame` = khung còn lại sau khi tách art bên trong (avatar).
+- `texts[]` lấy từ text layer: nội dung chính xác (nhiều màu → rich text `<color>`), `align`, `font`/`fontSize` của
+  Photoshop (tham khảo — giữ `fontSize: 0` để builder tự khớp), `outlineColor/Width` từ Stroke. Không cần soát OCR.
+- Không chạy lại `ui_locate.py` cho job PSD — chạy lệnh "Đọc lại PSD" trong prompt.
+
 ## Quy trình
 
 1. **Xem demo** (Read file PNG). Tách 3 lớp: *phần thuộc UI này* · *nền gameplay/HUD phía sau* (thường bị làm mờ, KHÔNG đưa vào prefab) · *phần designer để sót* (ô xám, chữ ghost, layer thừa) → liệt kê, hỏi nếu không chắc.

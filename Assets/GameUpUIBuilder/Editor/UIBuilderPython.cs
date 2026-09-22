@@ -10,7 +10,8 @@ namespace GameUp.UIBuilder.Editor
 {
     /// <summary>
     /// Môi trường Python cho bước định vị sprite: venv dùng chung theo user (<see cref="UIBuilderPaths.VenvFolder"/>)
-    /// cài sẵn OpenCV + numpy (định vị) và RapidOCR (đọc chữ). Cài bất đồng bộ theo từng bước, gọi <see cref="Poll"/> mỗi frame.
+    /// cài sẵn OpenCV + numpy (định vị), RapidOCR (đọc chữ) và psd-tools (đọc PSD). Cài bất đồng bộ theo từng bước, gọi
+    /// <see cref="Poll"/> mỗi frame.
     /// </summary>
     public sealed class UIBuilderPython
     {
@@ -65,12 +66,12 @@ namespace GameUp.UIBuilder.Editor
                 _steps.Enqueue(("Tạo venv", systemPython, $"-m venv {Quote(UIBuilderPaths.VenvFolder)}"));
             }
 
-            _steps.Enqueue(("Cài OpenCV, numpy, onnxruntime", venvPython,
+            _steps.Enqueue(("Cài OpenCV, numpy, onnxruntime, psd-tools", venvPython,
                 $"-m pip install --disable-pip-version-check -q -r {Quote(UIBuilderPaths.Requirements)}"));
             _steps.Enqueue(("Cài OCR (rapidocr)", venvPython,
                 $"-m pip install --disable-pip-version-check -q --no-deps -r {Quote(UIBuilderPaths.RequirementsNoDeps)}"));
             _steps.Enqueue(("Kiểm tra", venvPython,
-                "-c \"import cv2, numpy, rapidocr, importlib.metadata as m; print('opencv', cv2.__version__, 'numpy', numpy.__version__, 'rapidocr', m.version('rapidocr'))\""));
+                "-c \"import cv2, numpy, rapidocr, psd_tools, importlib.metadata as m; print('opencv', cv2.__version__, 'numpy', numpy.__version__, 'rapidocr', m.version('rapidocr'), 'psd-tools', psd_tools.__version__)\""));
             StartNext();
         }
 

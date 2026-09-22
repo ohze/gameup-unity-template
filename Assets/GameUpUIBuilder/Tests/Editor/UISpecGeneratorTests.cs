@@ -195,6 +195,49 @@ namespace GameUp.UIBuilder.Tests
             CollectionAssert.AreEqual(new[] { "Assets/d2.png" }, spec.extraDemos);
         }
 
+        [Test]
+        public void Generate_SharedLabelOnSwappedTabButtons_CopiedIntoEachTabUnderButton()
+        {
+            // PSD Dungeon ranking: nhãn tab ở cùng chỗ trong 2 tab, nhưng nút tab đổi art (btn_tab_1 / btn_tab_2) → nút là phần
+            // riêng từng tab, vẽ sau phần chung. Nhãn để chung sẽ bị nút che.
+            var tab1 = Locate(Sprite("btn_tab_1", Match(138, 1768, 376, 91, false)));
+            tab1.texts.Add(new LocateText { x = 231, y = 1801, w = 202, h = 27, text = "Leaderboard", confidence = 1f });
+            var tab2 = Locate(Sprite("btn_tab_2", Match(138, 1768, 376, 91, false)));
+            tab2.texts.Add(new LocateText { x = 231, y = 1801, w = 202, h = 27, text = "Leaderboard", confidence = 1f });
+
+            var spec = UISpecGenerator.Generate(new[] { tab1, tab2 }, "Popup", new[] { "Assets/d1.png", "Assets/d2.png" }, "Assets/Popup.prefab", null);
+
+            var labels = spec.nodes.Where(n => n.text == "Leaderboard").ToList();
+            Assert.AreEqual(2, labels.Count, "mỗi tab một nhãn");
+            CollectionAssert.AreEquivalent(new[] { "btn_tab_1", "btn_tab_2" }, labels.Select(n => n.parent));
+            foreach (var label in labels)
+                Assert.Greater(spec.nodes.IndexOf(label), spec.nodes.FindIndex(n => n.id == label.parent), "nhãn vẽ sau nút");
+        }
+
+        [Test]
+        public void Generate_PsdText_KeepsLayerAlignmentAndIdIgnoresRichTextTags()
+        {
+            var locate = Locate(Sprite("border_popup", Match(24, 131, 1032, 1656, false)));
+            locate.source = LocateResult.SourcePsd;
+            locate.ocr = "psd";
+            locate.notes.Add("Font trong PSD: Pusia-Bold");
+            // căn giữa theo lề thì đoán "center" — text layer ghi "left" phải được giữ
+            locate.texts.Add(new LocateText
+            {
+                x = 182, y = 1731, w = 716, h = 28, text = "Top <color=#37F352>10</color> Promote", align = "left", confidence = 1f
+            });
+
+            var spec = UISpecGenerator.Generate(locate, "Popup", "Assets/demo.png", "Assets/Popup.prefab", null);
+
+            var text = spec.nodes.Single(n => n.kind == UISpecNode.KindText);
+            Assert.AreEqual("txtTop10Promote", text.id);
+            Assert.AreEqual("left", text.align);
+            Assert.AreEqual("Top <color=#37F352>10</color> Promote", text.text);
+            var notes = string.Join("\n", spec.notes);
+            StringAssert.Contains("Pusia-Bold", notes);
+            StringAssert.DoesNotContain("OCR", notes);
+        }
+
         private static LocateResult Locate(params LocateSprite[] sprites)
         {
             return new LocateResult { demoWidth = 1080, demoHeight = 2160, sprites = new List<LocateSprite>(sprites) };

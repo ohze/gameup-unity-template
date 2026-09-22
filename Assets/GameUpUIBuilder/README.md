@@ -12,12 +12,31 @@ demo.png + thư mục art ──► ① định vị (Python/OpenCV) ──► l
                           ③ dựng / cập nhật prefab ──► ④ render so sánh (demo | prefab | chồng 50%)
 ```
 
+### Nguồn PSD (thay cho dò sprite)
+
+Bước 2 → *Nguồn tọa độ* → **Đọc file PSD**. PSD có sẵn tọa độ từng layer nên không phải dò, không lệch pixel:
+
+- **Tab / trạng thái** = các nhóm layer ẩn/hiện chồng khít nhau (vd `leaderboard` / `ranking`) → mỗi nhóm một `locate*.json`.
+- **Art**: layer nối với art đã cắt — cùng tên (bỏ hậu tố `copy N`) rồi theo kích thước + pixel, kể cả art nằm bên trong
+  layer đã flatten (nhiều hàng gộp một layer, avatar trong khung). Art đã khớp theo tên ở tab này được dùng lại ở tab khác.
+- **Chữ** lấy từ text layer: nội dung chính xác (nhiều màu → rich text TMP), căn lề, màu, viền (Stroke). Không cần OCR.
+- **Layer không có art** → xuất PNG (bật *Xuất PNG*, mặc định `Assets/_MainProject/Art/UIBuilderExport/<Tên UI>/`), tự
+  import thành Sprite. Chữ vẽ sẵn trong pixel layer (nút "Back") tách thành `*_extra.png`; khung còn lại sau khi tách
+  avatar thành `*_frame.png`.
+- **Lớp dim** (layer đen phủ màn) → `imgDim`; layer nằm dưới nó (gameplay phía sau) bị bỏ.
+- **Ảnh demo** vẫn dùng được (tuỳ chọn, theo thứ tự tab) để so sánh; demo khác PSD → ghi chú trong spec. Tab không có demo
+  dùng ảnh ghép từ PSD.
+
+Giới hạn: shape có hiệu ứng layer (Stroke, Inner/Drop Shadow) mà không có art cắt sẵn thì PNG xuất ra **thiếu hiệu ứng**
+(psd-tools không vẽ lại được) — designer *Convert to Smart Object* hoặc cắt art. Font Photoshop không map tự động: chọn TMP
+font ở Bước 4. Không cần cài Photoshop.
+
 ## Cài đặt
 
 - **Qua GameUp Core:** `GameUp → Project → GameUpCore Installer` → mục *Tùy chọn* → **GameUpUIBuilder** → *Cài qua Git UPM*.
 - **Thủ công:** Package Manager → *Add package from git URL* → `https://github.com/ohze/gameup-unity-template.git?path=Assets/GameUpUIBuilder`
 
-Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-venv`). Lần đầu mở cửa sổ, bấm *Cài môi trường*: tool tạo venv dùng chung `~/.gameup/ui-builder/venv` (khoảng 390 MB) và cài OpenCV, numpy cùng RapidOCR để đọc chữ. Chỉ cần cài một lần cho mọi project. Khi package cập nhật thư viện, Bước 1 hiện nút *Cập nhật*.
+Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-venv`). Lần đầu mở cửa sổ, bấm *Cài môi trường*: tool tạo venv dùng chung `~/.gameup/ui-builder/venv` (khoảng 390 MB) và cài OpenCV, numpy, RapidOCR để đọc chữ và psd-tools để đọc PSD. Chỉ cần cài một lần cho mọi project. Khi package cập nhật thư viện, Bước 1 hiện nút *Cập nhật*.
 
 ## Dùng
 

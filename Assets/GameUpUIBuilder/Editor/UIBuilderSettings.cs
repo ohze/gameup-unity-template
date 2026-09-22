@@ -8,6 +8,13 @@ namespace GameUp.UIBuilder.Editor
     public sealed class UIBuilderSettings : ScriptableSingleton<UIBuilderSettings>
     {
         public string jobName = "NewUI";
+        /// <summary>Nguồn tọa độ: dò sprite trên ảnh demo, hay đọc file PSD.</summary>
+        public UIBuilderSource source = UIBuilderSource.Demo;
+        /// <summary>File PSD/PSB (đường dẫn tuyệt đối hoặc tương đối gốc project — thường nằm ngoài Assets).</summary>
+        public string psdPath;
+        /// <summary>Xuất PNG từ layer PSD không có art đã cắt (vào <see cref="psdExportFolder"/>/&lt;Tên UI&gt;).</summary>
+        public bool psdExportMissing = true;
+        public string psdExportFolder = "Assets/_MainProject/Art/UIBuilderExport";
         public string demoPath;
         /// <summary>Demo các trạng thái khác của cùng UI (tab 2, 3…).</summary>
         public List<string> extraDemos = new List<string>();

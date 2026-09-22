@@ -22,11 +22,30 @@ demo*.png + art ──► Tools~/ui_locate.py (OpenCV + RapidOCR) ──► UIBu
                  ──► UIPrefabRenderer ──► compare.png (demo | prefab | chồng 50%) mỗi tab
 ```
 
+## Nguồn PSD (2026-09-22)
+
+`Tools~/ui_psd.py` ghi cùng định dạng `locate*.json` (`source: "psd"`) nên generator/builder dùng chung. Luồng: tìm nhóm
+trạng thái → ảnh so khớp **từ PSD** (ảnh ghép Photoshop cho trạng thái đang hiện trong file; trạng thái khác tự ghép từ
+pixel layer, thiếu hiệu ứng) → lượt 1 art khớp theo tên (mọi tab) → xử lý tab ghép chuẩn trước, layer dùng chung + vị trí
+art của shape có hiệu ứng (`Context.offsets`) dùng lại cho tab còn lại → layer chưa có art: `explained` / `sub_search`
+(art 1:1 trong layer gộp) / `inner_search` (art ở tỉ lệ khác trong layer cỡ avatar) / xuất PNG → phần dư (`residual`).
+
+Đã đo, đừng làm lại:
+- `layer.composite()` của psd-tools trả ảnh **trong suốt** cho layer trong nhóm đang ẩn → dùng `topil()` + tự áp mask.
+- `psd.composite(force=True)` cần scikit-image (~290 MB) cho hiệu ứng, aggdraw cho vector → không dùng; `topil()` của shape
+  đã đúng màu fill.
+- So art trên **ảnh demo** sai khi demo là bản cũ (Dungeon ranking: PSD hàng top 1-3 có màu, `demo_1.png` xám) → so trên
+  ảnh từ PSD; pixel layer / smart object so trên chính pixel của layer (không bị che, đúng vị trí tuyệt đối).
+
+Test thật: `~/Downloads/bossscreen_DuyLV.psd` (Dungeon popup_ranking, 2 tab) + art `UI_v2/Challenge Mode/popup_ranking`
++ `_Shared` → ~30 s, prefab 99 node, 2 item prefab; tab ranking trùng khít demo.
+
 ## Bản đồ code
 
 | File | Vai trò |
 |---|---|
 | `Tools~/ui_locate.py` | Định vị sprite, tìm + đọc chữ, đo viền chữ, tint, lớp dim. `ALGO_VERSION` đổi → cache cũ tự bỏ. |
+| `Tools~/ui_psd.py` | Đọc PSD → `locate*.json` mọi tab một lượt, nối layer ↔ art, xuất PNG layer thiếu art. |
 | `Tools~/bench/` | Bộ sinh case khó có đáp án + bộ chấm (xem mục bên dưới). |
 | `Editor/LocateProgress.cs` | Đọc dòng `@progress {json}` của script → giai đoạn, nhật ký, kết quả tạm cho preview khi đang chạy. |
 | `Tools~/requirements*.txt` | venv `~/.gameup/ui-builder/venv`; `rapidocr` cài `--no-deps` (tránh `opencv-python` trùng bản headless). |
@@ -106,6 +125,11 @@ Cách test nhanh (trong template): chép tạm art vào `Assets/_UIBuilderTest/`
 7. Icon art độ phân giải lớn (Store 2048 px) dùng thu nhỏ ~0.07: thêm thang tỉ lệ theo cạnh đích (64–400 px) cho sprite
    lớn hơn demo, thay vì báo `too-large`.
 8. Panel trắng một màu + `Image.color` (tint panel phẳng) — hiện nhánh một màu so khớp theo màu nên chưa nhận.
+
+11. **PSD**: cỡ chữ trong item prefab lấy theo hàng mẫu ("1") → hàng ghi đè chữ dài hơn ("4-10") tràn khung — builder
+    cần co lại chữ khi override `text`. Map font Photoshop (`texts[].font`) → TMP font asset theo tên. Chưa có cache
+    (~30 s/lần với 78 art); thư mục art rộng > 400 PNG bỏ bước dò trong layer gộp. Chưa hỗ trợ Figma (cùng định dạng
+    locate — chỉ cần script đọc REST API).
 
 Chờ phản hồi người dùng sau khi test bản `f9b0e4a` ở dự án dungeon.
 

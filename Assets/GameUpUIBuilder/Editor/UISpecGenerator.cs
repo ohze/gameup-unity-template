@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -75,6 +76,7 @@ namespace GameUp.UIBuilder.Editor
                 var notes = k == 0 ? spec.notes : new List<string>();
                 var nodes = CreateNodes(states[k], notes);
                 nodes.AddRange(CreateTextNodes(states[k], fontPath, notes, new HashSet<string>(nodes.Select(n => n.id))));
+                spec.notes.AddRange(states[k].notes);
                 RemoveSkipped(nodes, skips, k == 0 ? spec.notes : null);
                 perState.Add(nodes);
             }
@@ -189,13 +191,15 @@ namespace GameUp.UIBuilder.Editor
             List<string> stateGroups)
         {
             var shared = perState[0].Where(a => perState.Skip(1).All(other => other.Any(b => Same(a, b, perState[0], other)))).ToList();
+            var owns = perState.Select((nodes, k) => nodes.Where(n => !shared.Any(s => Same(s, n, perState[0], nodes))).ToList()).ToList();
+            MoveCoveredTexts(shared, owns);
             var result = new List<UISpecNode>(shared);
             AssignParents(shared, shared, string.Empty);
             var used = new HashSet<string>(shared.Select(n => n.id));
 
             for (var k = 0; k < perState.Count; k++)
             {
-                var own = perState[k].Where(n => !shared.Any(s => Same(s, n, perState[0], perState[k]))).ToList();
+                var own = owns[k];
                 if (own.Count == 0)
                 {
                     stateGroups.Add(string.Empty);
@@ -221,6 +225,27 @@ namespace GameUp.UIBuilder.Editor
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Chữ giống nhau ở mọi tab nhưng ở tab nào cũng nằm trên một phần tử riêng của tab đó (nhãn "Leaderboard" trên nút
+        /// tab đổi chỗ giữa 2 tab) → nhóm tab vẽ sau sẽ che chữ nếu để chung. Nhân chữ vào từng tab để làm con của nút.
+        /// </summary>
+        internal static void MoveCoveredTexts(List<UISpecNode> shared, List<List<UISpecNode>> owns)
+        {
+            var covered = shared.Where(t => t.kind == UISpecNode.KindText
+                                            && owns.All(own => own.Any(o => o.kind != UISpecNode.KindText && Contains(o, t)))).ToList();
+            foreach (var text in covered)
+            {
+                shared.Remove(text);
+                foreach (var own in owns)
+                {
+                    var copy = JsonUtility.FromJson<UISpecNode>(JsonUtility.ToJson(text));
+                    copy.parent = null;
+                    copy.alignFixed = text.alignFixed;
+                    own.Add(copy);
+                }
+            }
         }
 
         /// <summary>id trùng với node đã có (vd "txtPlayerName" ở cả 2 tab) → thêm hậu tố, sửa luôn tham chiếu cha.</summary>
@@ -322,7 +347,7 @@ namespace GameUp.UIBuilder.Editor
                 var hasText = !string.IsNullOrWhiteSpace(t.text);
                 var node = new UISpecNode
                 {
-                    id = UniqueId(hasText ? TextId(t.text) : $"txt_{nodes.Count + 1}", usedIds),
+                    id = UniqueId(hasText ? TextId(StripRichText(t.text)) : $"txt_{nodes.Count + 1}", usedIds),
                     kind = UISpecNode.KindText,
                     x = t.x,
                     y = t.y,
@@ -332,10 +357,18 @@ namespace GameUp.UIBuilder.Editor
                     color = t.color,
                     font = fontPath,
                     outlineWidth = t.outlineWidth,
-                    outlineColor = t.outlineColor
+                    outlineColor = t.outlineColor,
+                    align = string.IsNullOrEmpty(t.align) ? "center" : t.align,
+                    alignFixed = !string.IsNullOrEmpty(t.align)
                 };
                 nodes.Add(node);
                 if (!hasText || t.confidence < LowOcrConfidence) unsure.Add($"{node.id} (\"{node.text}\")");
+            }
+
+            if (locate.IsPsd)
+            {
+                notes.Add($"{nodes.Count} dòng chữ lấy từ text layer của PSD: nội dung, màu (nhiều màu → rich text), căn lề, viền; cỡ chữ tự khớp theo khung.");
+                return nodes;
             }
 
             notes.Add(locate.ocr == "ok"
@@ -344,6 +377,12 @@ namespace GameUp.UIBuilder.Editor
                   + "(Bước 1 → Cập nhật) — hoặc Copy prompt cho Claude để điền.");
             if (unsure.Count > 0) notes.Add($"OCR không chắc, cần kiểm tra: {string.Join(", ", unsure)}.");
             return nodes;
+        }
+
+        /// <summary>Bỏ thẻ rich text TMP (<c>&lt;color=#..&gt;</c>…) — để đặt id theo chữ hiện ra.</summary>
+        internal static string StripRichText(string text)
+        {
+            return Regex.Replace(text, "<[^<>]+>", string.Empty);
         }
 
         /// <summary>"Remove Ads" → txtRemoveAds; "2,000 coins" → txt2000Coins (tối đa 4 từ, bỏ dấu tiếng Việt).</summary>
@@ -404,7 +443,7 @@ namespace GameUp.UIBuilder.Editor
         internal static void AssignTextAlignment(List<UISpecNode> nodes, int rootWidth)
         {
             var texts = nodes.Where(n => n.kind == UISpecNode.KindText).ToList();
-            foreach (var node in texts)
+            foreach (var node in texts.Where(n => !n.alignFixed))
             {
                 var siblings = texts.Where(t => t != node && t.parent == node.parent).ToList();
                 if (siblings.Any(t => Mathf.Abs(t.x - node.x) <= AlignTolerance))
@@ -457,6 +496,7 @@ namespace GameUp.UIBuilder.Editor
 
         private static void AddUnmatchedNotes(LocateResult locate, List<string> notes)
         {
+            if (locate.IsPsd) return; // ghi chú của bước đọc PSD đã chép từ locate.notes
             var soft = locate.sprites.Where(s => s.reason == "soft-alpha").Select(s => s.name).ToList();
             if (soft.Count > 0)
                 notes.Add($"Glow/bán trong suốt, không dò được bằng hình — ước lượng vị trí từ demo: {string.Join(", ", soft)}.");

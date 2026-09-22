@@ -22,5 +22,12 @@ namespace GameUp.UIBuilder.Editor
 
         /// <summary>Độ dày viền (px ở độ phân giải demo).</summary>
         public float outlineWidth;
+
+        /// <summary>PSD: căn lề của text layer (left | center | right); rỗng = đoán theo vị trí (OCR).</summary>
+        public string align;
+
+        /// <summary>PSD: tên font và cỡ chữ (px) trong Photoshop — chỉ để tham khảo, builder vẫn tự khớp cỡ theo khung.</summary>
+        public string font;
+        public float fontSize;
     }
 }

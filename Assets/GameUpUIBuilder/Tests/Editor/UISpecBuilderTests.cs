@@ -136,6 +136,27 @@ namespace GameUp.UIBuilder.Tests
         }
 
         [Test]
+        public void Build_LongTextInInactiveTabGroup_ShrinksLikeActiveOne()
+        {
+            // Tab 2 dựng trong nhóm tắt (active = false): TMP không đo chữ trên object inactive → trước đây giữ cỡ theo chiều cao.
+            var shown = Node("grpTab1", "", 0, 900, 1080, 300, "center");
+            shown.kind = UISpecNode.KindEmpty;
+            var hidden = Node("grpTab2", "", 0, 900, 1080, 300, "center");
+            hidden.kind = UISpecNode.KindEmpty;
+            hidden.active = false;
+            var a = Node("txtA", "grpTab1", 440, 1000, 200, 60, "center");
+            var b = Node("txtB", "grpTab2", 440, 1000, 200, 60, "center");
+            a.kind = b.kind = UISpecNode.KindText;
+            a.text = b.text = "A very long label that cannot fit";
+
+            var textB = BuildAndFind(CreateSpec(shown, hidden, a, b), "grpTab2/txtB").GetComponent<TextMeshProUGUI>();
+            var textA = textB.transform.root.Find("grpTab1/txtA").GetComponent<TextMeshProUGUI>();
+
+            Assert.AreEqual(textA.fontSize, textB.fontSize);
+            Assert.IsFalse(textB.transform.parent.gameObject.activeSelf, "nhóm tab 2 vẫn tắt sau khi dựng");
+        }
+
+        [Test]
         public void Build_ButtonKind_WiresTargetGraphic()
         {
             var node = Node("btnPlay", "", 0, 0, 300, 100, "center");

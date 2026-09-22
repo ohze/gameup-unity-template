@@ -81,5 +81,8 @@ namespace GameUp.UIBuilder.Editor
 
         /// <summary>Sprite một màu (panel/nền) — chỉ dùng lúc sinh spec để xếp thứ tự vẽ, không ghi ra JSON.</summary>
         [NonSerialized] public bool flat;
+
+        /// <summary>Căn lề lấy từ nguồn (text layer PSD) — lúc sinh spec không đoán lại theo vị trí.</summary>
+        [NonSerialized] public bool alignFixed;
     }
 }

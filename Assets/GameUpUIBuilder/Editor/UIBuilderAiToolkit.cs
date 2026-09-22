@@ -22,19 +22,24 @@ namespace GameUp.UIBuilder.Editor
             Copy(UIBuilderPaths.CommandSource, CommandTarget);
         }
 
+        /// <param name="psdCommandLine">Chế độ PSD: lệnh đọc lại PSD (ghi mọi locate*.json một lượt); null = dò sprite trên demo.</param>
         public static string BuildPrompt(string jobName, IReadOnlyList<string> demos, IReadOnlyList<string> artFolders, bool recursive,
-            string outputPrefab, IReadOnlyList<UISkipRegion> skipRegions)
+            string outputPrefab, IReadOnlyList<UISkipRegion> skipRegions, string psdCommandLine = null)
         {
             var specPath = UIBuilderPaths.SpecPath(jobName);
             var sb = new StringBuilder();
-            sb.AppendLine($"/gu-ui Dựng UI \"{jobName}\" từ ảnh demo bằng GameUp UI Builder.");
+            sb.AppendLine(psdCommandLine != null
+                ? $"/gu-ui Dựng UI \"{jobName}\" từ file PSD bằng GameUp UI Builder (tọa độ lấy từ layer PSD — locate*.json có source = \"psd\")."
+                : $"/gu-ui Dựng UI \"{jobName}\" từ ảnh demo bằng GameUp UI Builder.");
             if (demos.Count > 1) sb.AppendLine($"- {demos.Count} demo = {demos.Count} trạng thái (tab) của cùng UI, theo thứ tự:");
             sb.AppendLine($"- Art: {string.Join(", ", artFolders)}");
+            if (psdCommandLine != null) sb.AppendLine($"- Đọc lại PSD: {psdCommandLine}");
             for (var i = 0; i < demos.Count; i++)
             {
                 var locatePath = UIBuilderPaths.LocatePath(jobName, i);
                 sb.AppendLine($"- Demo {i + 1}: {demos[i]} → định vị: {locatePath}"
                               + (File.Exists(UIBuilderPaths.ToAbsolute(locatePath)) ? string.Empty : " (chưa chạy)"));
+                if (psdCommandLine != null) continue;
                 var hints = Enumerable.Range(0, demos.Count).Where(k => k != i).Select(k => UIBuilderPaths.LocatePath(jobName, k));
                 sb.AppendLine($"  Chạy lại: {UIBuilderLocator.BuildCommandLine(demos[i], artFolders, recursive, locatePath, hints)}");
             }

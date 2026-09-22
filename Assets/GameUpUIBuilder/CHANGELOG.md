@@ -5,6 +5,17 @@
 ## [Unreleased]
 
 ### Added
+- **Nguồn PSD** (`Tools~/ui_psd.py`, psd-tools): Bước 2 chọn *Dò sprite trên ảnh demo* hoặc *Đọc file PSD*. Tọa độ từ
+  layer; tab = nhóm layer ẩn/hiện; layer nối art đã cắt (tên → cỡ + pixel, dò art trong layer gộp, art trong khung ở tỉ
+  lệ khác); text layer → chữ TMP đúng nội dung / rich text nhiều màu / căn lề / viền; lớp dim → `imgDim`; layer không có
+  art xuất PNG (tự import Sprite), tách chữ vẽ sẵn (`*_extra`) và khung avatar (`*_frame`). Ảnh demo tuỳ chọn để so sánh,
+  báo khi demo khác PSD. `locate.json` thêm `source`, `state(s)`, `exported`, `notes`, `matches[].layer`, `texts[].align/font/fontSize`.
+- Generator: chữ dùng chung nằm trên nút riêng của từng tab (nút đổi chỗ giữa 2 tab) → nhân vào từng tab làm con của nút.
+
+### Fixed
+- Chữ trong nhóm tab đang tắt không co theo bề ngang khung (TMP không đo được object inactive) — builder bật node trong
+  lúc dựng, tắt lại sau.
+
 - **Bước 3 xem trực tiếp máy đang định vị gì**: các giai đoạn (Chuẩn bị → Dò sprite → Lọc chéo → Tìm & đọc chữ), thanh tiến độ, việc đang làm và nhật ký (sprite khớp thế nào, vị trí bị loại vì sao, dòng chữ OCR đọc được). Ảnh demo bên phải vẽ khung ngay khi dò được, tô vàng sprite vừa dò xong.
 - Preview bật/tắt 3 lớp: *Sprite* / *Chữ* / *Bị loại* (đỏ đứt). Rê chuột lên khung → tooltip: cách khớp (1:1, scale, 9-slice, tint, một màu), kích thước gốc, ZNCC / lệch màu / % pixel trùng; chữ: nội dung, độ tin cậy OCR, màu, viền.
 - Kết quả Bước 3 có dòng tóm tắt (dò → khớp → lọc bỏ → chữ, thời gian, lớp dim) và mục *Chữ tìm được*, *Bị lọc bỏ*.

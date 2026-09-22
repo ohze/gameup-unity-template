@@ -21,6 +21,9 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Màu tô (Image.color) ước lượng khi sprite bị tint trên demo, "#RRGGBB"; rỗng = không tint.</summary>
         public string tint;
 
+        /// <summary>PSD: tên layer đặt art này.</summary>
+        public string layer;
+
         /// <summary>Cách sprite xuất hiện trên demo: "1:1", "scale 0.75", "9-slice", kèm tint nếu có.</summary>
         public string MethodLabel
         {

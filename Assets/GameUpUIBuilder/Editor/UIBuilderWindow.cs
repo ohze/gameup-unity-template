@@ -12,7 +12,7 @@ using Object = UnityEngine.Object;
 namespace GameUp.UIBuilder.Editor
 {
     /// <summary>
-    /// GameUp → UI → UI Builder: ảnh demo + art → định vị sprite → spec → prefab → đối chiếu.
+    /// GameUp → UI → UI Builder: ảnh demo + art → định vị sprite (hoặc đọc file PSD) → spec → prefab → đối chiếu.
     /// Mỗi bước là một card có trạng thái và hướng dẫn; bước chạy lâu (cài Python, định vị) chạy nền, không chặn Editor.
     /// </summary>
     public sealed class UIBuilderWindow : EditorWindow
@@ -64,13 +64,20 @@ namespace GameUp.UIBuilder.Editor
 
         private static UIBuilderSettings Settings => UIBuilderSettings.instance;
 
+        private static bool IsPsdMode => Settings.source == UIBuilderSource.Psd;
+
         private string SpecPath => UIBuilderPaths.SpecPath(Settings.jobName);
 
-        /// <summary>Demo 1 + demo các trạng thái khác (tab 2…) còn tồn tại.</summary>
+        /// <summary>
+        /// Demo 1 + demo các trạng thái khác (tab 2…) còn tồn tại. Chế độ PSD sau khi đọc: mỗi trạng thái của PSD một ảnh —
+        /// demo người dùng đưa cho tab đó, không có thì ảnh ghép từ PSD.
+        /// </summary>
         private List<string> Demos
         {
             get
             {
+                if (IsPsdMode && _locates.Count > 0)
+                    return _locates.Select(l => ProjectPath(l.demo)).ToList();
                 var demos = new List<string>();
                 if (HasDemo()) demos.Add(Settings.demoPath);
                 demos.AddRange(Settings.extraDemos.Where(d => !string.IsNullOrEmpty(d) && File.Exists(UIBuilderPaths.ToAbsolute(d))));
@@ -128,7 +135,7 @@ namespace GameUp.UIBuilder.Editor
                 _lastStampCheck = EditorApplication.timeSinceStartup;
                 if (JobStamp() != _jobStamp) ReloadJob();
             }
-            var texture = HasDemo() ? UIDemoTexture.Get(PreviewDemo) : null;
+            var texture = PreviewDemo != null ? UIDemoTexture.Get(PreviewDemo) : null;
             var previewWidth = PreviewWidth(texture);
 
             EditorGUILayout.BeginHorizontal();
@@ -193,14 +200,14 @@ namespace GameUp.UIBuilder.Editor
 
             using (GUInstallerUI.BeginCard())
             {
-                GUInstallerUI.CardHeader("BƯỚC 1", "Môi trường Python (OpenCV + OCR)", state);
-                GUILayout.Label("Định vị sprite bằng OpenCV, đọc chữ bằng RapidOCR — chạy trên máy, không cần mạng. Cài một lần cho mọi project trên máy.",
+                GUInstallerUI.CardHeader("BƯỚC 1", "Môi trường Python (OpenCV + OCR + PSD)", state);
+                GUILayout.Label("Định vị sprite bằng OpenCV, đọc chữ bằng RapidOCR, đọc PSD bằng psd-tools — chạy trên máy, không cần mạng, không cần Photoshop. Cài một lần cho mọi project trên máy.",
                     GUInstallerUI.Desc);
 
                 GUInstallerUI.StatusRow("Python hệ thống", _systemPython != null ? GUSetupState.Done : GUSetupState.Missing,
                     _systemPython ?? "không tìm thấy — cài Python 3.9+");
                 GUInstallerUI.StatusRow("Venv", ready && !outdated ? GUSetupState.Done : GUSetupState.Missing,
-                    outdated ? "bản cũ — bấm Cập nhật để có OCR đọc chữ" : UIBuilderPaths.VenvFolder);
+                    outdated ? "bản cũ — bấm Cập nhật (thêm đọc PSD)" : UIBuilderPaths.VenvFolder);
 
                 EditorGUILayout.BeginHorizontal();
                 var setupLabel = outdated ? "Cập nhật" : ready ? "Cài lại" : "Cài môi trường";
@@ -228,10 +235,11 @@ namespace GameUp.UIBuilder.Editor
 
         private void DrawInputStep(Texture2D texture, bool previewShown)
         {
-            var hasInput = HasDemo() && Settings.artFolders.Count > 0;
+            var hasInput = IsPsdMode ? HasPsd() : HasDemo() && Settings.artFolders.Count > 0;
             using (GUInstallerUI.BeginCard())
             {
-                GUInstallerUI.CardHeader("BƯỚC 2", "Ảnh demo và thư mục art", hasInput ? GUSetupState.Done : GUSetupState.Missing);
+                GUInstallerUI.CardHeader("BƯỚC 2", IsPsdMode ? "File PSD, art và ảnh demo" : "Ảnh demo và thư mục art",
+                    hasInput ? GUSetupState.Done : GUSetupState.Missing);
 
                 EditorGUI.BeginChangeCheck();
                 var jobName = EditorGUILayout.TextField(new GUIContent("Tên UI", "Tên prefab và thư mục UIBuilder/<Tên>/"), Settings.jobName);
@@ -242,11 +250,19 @@ namespace GameUp.UIBuilder.Editor
                     ReloadJob();
                 }
 
-                SubHeader("ẢNH DEMO", "Mỗi ảnh là một trạng thái/tab của cùng UI — phần giống nhau dựng một lần, phần riêng vào nhóm của tab.");
+                DrawSourceToggle();
+                if (IsPsdMode) DrawPsdInput();
+
+                if (IsPsdMode)
+                    SubHeader("ẢNH DEMO — TUỲ CHỌN, ĐỂ SO SÁNH", "Theo thứ tự tab trong PSD (xem danh sách trạng thái ở trên). Tab không có demo dùng ảnh ghép từ PSD. Demo khác PSD → ghi chú trong spec.");
+                else
+                    SubHeader("ẢNH DEMO", "Mỗi ảnh là một trạng thái/tab của cùng UI — phần giống nhau dựng một lần, phần riêng vào nhóm của tab.");
                 DrawDemoList();
                 if (texture != null) DrawDemoDetails(texture, previewShown);
 
-                SubHeader("THƯ MỤC ART", "Thư mục art riêng của màn + thư mục dùng chung (_Shared, Avatar…). Art cắt đúng tỉ lệ với demo.");
+                SubHeader("THƯ MỤC ART", IsPsdMode
+                    ? "Art đã cắt để nối với layer (cùng tên trước, rồi theo pixel). Layer không có art → xuất PNG từ PSD (nếu bật)."
+                    : "Thư mục art riêng của màn + thư mục dùng chung (_Shared, Avatar…). Art cắt đúng tỉ lệ với demo.");
                 DrawArtFolders();
 
                 SubHeader("ĐẦU RA");
@@ -264,6 +280,73 @@ namespace GameUp.UIBuilder.Editor
                 GUInstallerUI.Hint($"Spec: {SpecPath}");
             }
         }
+
+        private void DrawSourceToggle()
+        {
+            SubHeader("NGUỒN TỌA ĐỘ");
+            EditorGUI.BeginChangeCheck();
+            var source = (UIBuilderSource)GUILayout.Toolbar((int)Settings.source,
+                new[] { "Dò sprite trên ảnh demo", "Đọc file PSD" }, GUILayout.Height(22f));
+            if (EditorGUI.EndChangeCheck())
+            {
+                Settings.source = source;
+                Settings.Save();
+                ReloadJob();
+            }
+
+            GUInstallerUI.Hint(IsPsdMode
+                ? "PSD có sẵn tọa độ từng layer, nội dung/màu/viền chữ, các tab (nhóm layer ẩn/hiện). Không cần OCR, không lệch pixel."
+                : "Máy tìm vị trí art đã cắt trên ảnh demo (OpenCV) và đọc chữ (OCR).");
+        }
+
+        /// <summary>File PSD + tuỳ chọn xuất PNG cho layer không có art; sau khi đọc: danh sách trạng thái (tab) tìm thấy.</summary>
+        private void DrawPsdInput()
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            var path = EditorGUILayout.TextField(new GUIContent("File PSD", "PSD/PSB — nằm ngoài Assets cũng được (không cần import vào Unity)."),
+                Settings.psdPath);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Settings.psdPath = path?.Trim();
+                Settings.Save();
+            }
+
+            if (GUILayout.Button("Chọn…", EditorStyles.miniButton, GUILayout.Width(60f)))
+            {
+                var folder = HasPsd() ? Path.GetDirectoryName(UIBuilderPaths.ToAbsolute(Settings.psdPath)) : string.Empty;
+                var picked = EditorUtility.OpenFilePanelWithFilters("Chọn file PSD", folder, new[] { "Photoshop", "psd,psb" });
+                if (!string.IsNullOrEmpty(picked))
+                {
+                    Settings.psdPath = UIBuilderPaths.ToAssetPath(picked) ?? picked;
+                    Settings.Save();
+                    GUIUtility.ExitGUI();
+                }
+            }
+
+            EditorGUILayout.EndHorizontal();
+            if (!string.IsNullOrEmpty(Settings.psdPath) && !HasPsd()) GUInstallerUI.Hint("⚠ Không thấy file.");
+
+            EditorGUI.BeginChangeCheck();
+            Settings.psdExportMissing = EditorGUILayout.ToggleLeft(
+                new GUIContent("Xuất PNG cho layer không có art", "Pixel layer / smart object xuất đúng hình; shape có hiệu ứng (stroke, bóng) xuất thiếu hiệu ứng — có ghi chú."),
+                Settings.psdExportMissing);
+            if (Settings.psdExportMissing)
+            {
+                var export = (DefaultAsset)EditorGUILayout.ObjectField("Thư mục xuất", LoadAsset<DefaultAsset>(Settings.psdExportFolder),
+                    typeof(DefaultAsset), false);
+                var exportPath = export != null ? AssetDatabase.GetAssetPath(export) : null;
+                if (exportPath != null && AssetDatabase.IsValidFolder(exportPath)) Settings.psdExportFolder = exportPath;
+                GUInstallerUI.Hint($"PNG ghi vào {PsdExportFolder}/ (import thành Sprite).");
+            }
+
+            if (EditorGUI.EndChangeCheck()) Settings.Save();
+
+            if (_locates.Count > 0)
+                GUInstallerUI.Hint($"Trạng thái trong PSD: {string.Join(" · ", _locates.Select((l, i) => $"Tab {i + 1} = '{l.state}'"))}");
+        }
+
+        private static string PsdExportFolder => $"{Settings.psdExportFolder.TrimEnd('/')}/{Settings.jobName}";
 
         private static void SubHeader(string title, string hint = null)
         {
@@ -348,8 +431,10 @@ namespace GameUp.UIBuilder.Editor
         {
             var ratio = (float)texture.height / texture.width;
             var isReference = texture.width == 1080 && texture.height == 2160;
-            var mismatch = Demos.Select(DemoSize).Distinct().Count() > 1;
-            GUInstallerUI.Hint($"Tab {_previewIndex + 1}: {texture.width}×{texture.height} · tỉ lệ 1:{ratio:0.##}"
+            var mismatch = !IsPsdMode && Demos.Select(DemoSize).Distinct().Count() > 1;
+            var source = IsPsdMode && _locates.Count > 0 && ProjectPath(_locate?.demo) == PreviewDemo && !IsUserDemo(PreviewDemo)
+                ? " · ảnh ghép từ PSD" : string.Empty;
+            GUInstallerUI.Hint($"Tab {_previewIndex + 1}: {texture.width}×{texture.height} · tỉ lệ 1:{ratio:0.##}{source}"
                                + (isReference ? string.Empty : " · khác 1080×2160 mặc định")
                                + (mismatch ? " · ⚠ các demo khác kích thước nhau" : string.Empty));
 
@@ -450,18 +535,28 @@ namespace GameUp.UIBuilder.Editor
         private void DrawLocateStep()
         {
             var busy = _locator != null;
-            var canRun = UIBuilderPython.IsReady && HasDemo() && Settings.artFolders.Count > 0 && !busy;
+            var canRun = MissingForLocate() == null && !busy;
             var state = busy ? GUSetupState.Busy : _locate != null ? GUSetupState.Done : canRun ? GUSetupState.Missing : GUSetupState.Blocked;
 
             using (GUInstallerUI.BeginCard())
             {
-                GUInstallerUI.CardHeader("BƯỚC 3", "Định vị sprite trên demo", state);
-                GUILayout.Label("Tìm vị trí chính xác từng sprite: đúng tỉ lệ, bị scale, kéo giãn 9-slice, lặp nhiều lần, bị che một phần. Kết quả cache theo hash file.",
-                    GUInstallerUI.Desc);
-                DrawWorkersOption(busy);
+                if (IsPsdMode)
+                {
+                    GUInstallerUI.CardHeader("BƯỚC 3", "Đọc PSD → tọa độ layer + art", state);
+                    GUILayout.Label("Mỗi trạng thái (tab) một kết quả. Layer nối với art đã cắt (cùng tên / cùng pixel, cả art nằm trong layer gộp); "
+                                    + "text layer thành chữ TMP; lớp dim đen thành imgDim; layer không có art xuất PNG.", GUInstallerUI.Desc);
+                }
+                else
+                {
+                    GUInstallerUI.CardHeader("BƯỚC 3", "Định vị sprite trên demo", state);
+                    GUILayout.Label("Tìm vị trí chính xác từng sprite: đúng tỉ lệ, bị scale, kéo giãn 9-slice, lặp nhiều lần, bị che một phần. Kết quả cache theo hash file.",
+                        GUInstallerUI.Desc);
+                    DrawWorkersOption(busy);
+                }
 
                 EditorGUILayout.BeginHorizontal();
-                if (GUInstallerUI.PrimaryButton(busy ? "Đang định vị…" : "Chạy định vị", canRun, 26f)) StartLocate();
+                var runLabel = IsPsdMode ? busy ? "Đang đọc PSD…" : "Đọc PSD" : busy ? "Đang định vị…" : "Chạy định vị";
+                if (GUInstallerUI.PrimaryButton(runLabel, canRun, 26f)) StartLocate();
                 if (busy && GUILayout.Button("Huỷ", GUILayout.Width(60f), GUILayout.Height(26f))) CancelLocate();
                 EditorGUILayout.EndHorizontal();
 
@@ -470,7 +565,7 @@ namespace GameUp.UIBuilder.Editor
                 if (!busy && missing != null) GUInstallerUI.Hint($"Cần: {missing}.");
                 if (Demos.Count > 1) DrawLocateTabs();
                 if (!string.IsNullOrEmpty(_locateMessage)) GUInstallerUI.Hint(_locateMessage);
-                if (_locateError != null) EditorGUILayout.HelpBox(_locateError, MessageType.Error);
+                if (!string.IsNullOrEmpty(_locateError)) EditorGUILayout.HelpBox(_locateError, MessageType.Error);
                 if (busy) DrawLocateProgress(_locator.Progress);
                 if (busy || _locate != null) DrawPreviewLayers();
                 if (!busy && _locate != null) DrawLocateResult();
@@ -506,6 +601,14 @@ namespace GameUp.UIBuilder.Editor
         {
             var missing = new List<string>();
             if (!UIBuilderPython.IsReady) missing.Add("cài môi trường Python ở Bước 1");
+            else if (IsPsdMode && UIBuilderPython.IsOutdated) missing.Add("bấm Cập nhật ở Bước 1 (cài psd-tools)");
+            if (IsPsdMode)
+            {
+                if (!HasPsd()) missing.Add("chọn file PSD ở Bước 2");
+                if (Settings.artFolders.Count == 0 && !Settings.psdExportMissing) missing.Add("thêm thư mục art hoặc bật xuất PNG ở Bước 2");
+                return missing.Count == 0 ? null : string.Join(", ", missing);
+            }
+
             if (!HasDemo()) missing.Add("chọn ảnh demo ở Bước 2");
             if (Settings.artFolders.Count == 0) missing.Add("thêm thư mục art ở Bước 2");
             return missing.Count == 0 ? null : string.Join(", ", missing);
@@ -620,6 +723,17 @@ namespace GameUp.UIBuilder.Editor
             _locateQueue.Clear();
             _locateError = null;
             _crossCheckPass = false;
+            if (IsPsdMode)
+            {
+                // một process đọc mọi trạng thái; demo người dùng đưa theo thứ tự tab chỉ để so sánh
+                _locatingIndex = 0;
+                _locateMessage = "Đang đọc PSD…";
+                _locator = UIBuilderLocator.StartPsd(Settings.psdPath, Settings.artFolders, Settings.includeSubfolders, Settings.jobName,
+                    UserDemoSlots(), Settings.psdExportMissing ? PsdExportFolder : null);
+                StartTicking();
+                return;
+            }
+
             for (var i = 0; i < Demos.Count; i++) _locateQueue.Enqueue(i);
             StartNextLocate();
             StartTicking();
@@ -715,6 +829,7 @@ namespace GameUp.UIBuilder.Editor
                 case "unavailable": return "chưa cài OCR";
                 case "skipped": return "bỏ qua OCR";
                 case "none": return "không thấy chữ";
+                case "psd": return "từ text layer PSD";
                 default: return "OCR ?";
             }
         }
@@ -752,10 +867,14 @@ namespace GameUp.UIBuilder.Editor
                 if (GUInstallerUI.MiniButton("Mở spec", _spec != null, 80f))
                     EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(SpecPath));
                 if (GUInstallerUI.MiniButton("Tải lại", true, 70f)) ReloadJob();
-                if (GUInstallerUI.MiniButton("Copy prompt cho Claude", HasDemo(), 170f))
+                if (GUInstallerUI.MiniButton("Copy prompt cho Claude", PreviewDemo != null, 170f))
                 {
+                    var psdCommand = IsPsdMode && HasPsd()
+                        ? UIBuilderLocator.BuildPsdCommandLine(Settings.psdPath, Settings.artFolders, Settings.includeSubfolders,
+                            Settings.jobName, UserDemoSlots(), Settings.psdExportMissing ? PsdExportFolder : null)
+                        : null;
                     EditorGUIUtility.systemCopyBuffer = UIBuilderAiToolkit.BuildPrompt(
-                        Settings.jobName, Demos, Settings.artFolders, Settings.includeSubfolders, OutputPrefab, Settings.skipRegions);
+                        Settings.jobName, Demos, Settings.artFolders, Settings.includeSubfolders, OutputPrefab, Settings.skipRegions, psdCommand);
                     ShowNotification(new GUIContent("Đã copy prompt"));
                 }
 
@@ -771,7 +890,7 @@ namespace GameUp.UIBuilder.Editor
                     ShowNotification(new GUIContent("Đã cài skill /gu-ui"));
                 }
 
-                if (_specError != null) EditorGUILayout.HelpBox(_specError, MessageType.Error);
+                if (!string.IsNullOrEmpty(_specError)) EditorGUILayout.HelpBox(_specError, MessageType.Error);
                 if (_spec == null) return;
                 GUInstallerUI.Hint($"{_spec.nodes.Count} node · {SpecPath}");
                 foreach (var note in _spec.notes) GUInstallerUI.Hint($"• {note}");
@@ -813,7 +932,7 @@ namespace GameUp.UIBuilder.Editor
             }
 
             EditorGUILayout.BeginHorizontal();
-            var canDraw = HasDemo() && Settings.showDemoPreview;
+            var canDraw = PreviewDemo != null && Settings.showDemoPreview;
             var label = _drawingSkip ? "Đang chọn — kéo trên ảnh (Esc huỷ)" : "＋ Kéo khung trên ảnh demo";
             var drawing = GUILayout.Toggle(_drawingSkip, label, EditorStyles.miniButton, GUILayout.Width(220f));
             if (drawing != _drawingSkip && (canDraw || !drawing))
@@ -956,7 +1075,7 @@ namespace GameUp.UIBuilder.Editor
 
                 EditorGUILayout.BeginHorizontal();
                 var label = UIMockupOverlay.Enabled ? "Tắt overlay" : "Bật overlay";
-                if (GUInstallerUI.MiniButton(label, HasDemo(), 110f))
+                if (GUInstallerUI.MiniButton(label, PreviewDemo != null, 110f))
                 {
                     if (UIMockupOverlay.Enabled) UIMockupOverlay.Hide();
                     else UIMockupOverlay.Show(PreviewDemo);
@@ -998,6 +1117,14 @@ namespace GameUp.UIBuilder.Editor
                 if (_locator.Poll())
                 {
                     var result = _locator.Result;
+                    if (result != null && result.IsPsd)
+                    {
+                        FinishPsd(result);
+                        EditorApplication.update -= Tick;
+                        Repaint();
+                        return;
+                    }
+
                     while (_locates.Count <= _locatingIndex) _locates.Add(null);
                     _locates[_locatingIndex] = result;
                     _locate = _locates[Mathf.Clamp(_previewIndex, 0, _locates.Count - 1)];
@@ -1044,9 +1171,75 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
+        /// <summary>Đọc PSD xong: PNG xuất ra → import thành Sprite (để spec gán được), rồi nạp kết quả mọi trạng thái.</summary>
+        private void FinishPsd(LocateResult result)
+        {
+            _lastProgress = _locator.Progress;
+            _locator = null;
+            ImportExportedSprites(result.exported);
+            ReloadJob();
+            _locateMessage = $"Đọc PSD xong: {result.states.Count} trạng thái, {result.sprites.Count(s => s.IsMatched)} art ở tab 1, "
+                             + $"{result.exported.Count} PNG xuất từ layer · {result.elapsedMs / 1000f:0.#} s";
+        }
+
+        /// <summary>PNG xuất từ PSD → texture type Sprite (không mipmap). Chỉ đổi file vừa xuất, không đụng art có sẵn.</summary>
+        private static void ImportExportedSprites(IEnumerable<string> files)
+        {
+            AssetDatabase.Refresh();
+            foreach (var file in files)
+            {
+                var assetPath = UIBuilderPaths.ToAssetPath(file);
+                if (assetPath == null || !(AssetImporter.GetAtPath(assetPath) is TextureImporter importer)) continue;
+                if (importer.textureType == TextureImporterType.Sprite && importer.spriteImportMode == SpriteImportMode.Single) continue;
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.SaveAndReimport();
+            }
+        }
+
+        /// <summary>Kết quả định vị đã lưu: chế độ PSD = locate.json, locate_2.json… liền nhau do lần đọc PSD ghi.</summary>
+        private List<LocateResult> LoadLocates()
+        {
+            if (!IsPsdMode)
+                return Demos.Select((_, i) => UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i))).ToList();
+            var results = new List<LocateResult>();
+            for (var i = 0; ; i++)
+            {
+                var result = UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i));
+                if (result == null || !result.IsPsd) return results;
+                results.Add(result);
+            }
+        }
+
+        /// <summary>Ô demo người dùng chọn, theo thứ tự tab (ô trống giữ chỗ bằng chuỗi rỗng).</summary>
+        private static List<string> UserDemoSlots()
+        {
+            var slots = new List<string> { Settings.demoPath ?? string.Empty };
+            slots.AddRange(Settings.extraDemos.Select(d => d ?? string.Empty));
+            return slots;
+        }
+
+        private static bool IsUserDemo(string path)
+        {
+            return !string.IsNullOrEmpty(path) && UserDemoSlots().Any(d => !string.IsNullOrEmpty(d) && ProjectPath(d) == path);
+        }
+
+        /// <summary>Đường dẫn tuyệt đối → asset path (trong Assets) hoặc tương đối gốc project; giữ nguyên nếu nằm ngoài.</summary>
+        private static string ProjectPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            var asset = UIBuilderPaths.ToAssetPath(path);
+            if (asset != null) return asset;
+            var full = Path.GetFullPath(UIBuilderPaths.ToAbsolute(path)).Replace('\\', '/');
+            var root = Path.GetFullPath(UIBuilderPaths.ProjectRoot).Replace('\\', '/') + "/";
+            return full.StartsWith(root, StringComparison.Ordinal) ? full.Substring(root.Length) : full;
+        }
+
         private void ReloadJob()
         {
-            _locates = Demos.Select((_, i) => UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i))).ToList();
+            _locates = LoadLocates();
             _previewIndex = Mathf.Clamp(_previewIndex, 0, Mathf.Max(0, _locates.Count - 1));
             _locate = _locates.Count > 0 ? _locates[_previewIndex] : null;
             _spec = File.Exists(UIBuilderPaths.ToAbsolute(SpecPath)) ? UISpecFile.Load(SpecPath, out _specError) : null;
@@ -1070,6 +1263,8 @@ namespace GameUp.UIBuilder.Editor
         }
 
         private bool HasDemo() => !string.IsNullOrEmpty(Settings.demoPath) && File.Exists(UIBuilderPaths.ToAbsolute(Settings.demoPath));
+
+        private static bool HasPsd() => !string.IsNullOrEmpty(Settings.psdPath) && File.Exists(UIBuilderPaths.ToAbsolute(Settings.psdPath));
 
         private T LoadAsset<T>(string assetPath) where T : Object
         {

@@ -130,18 +130,21 @@ namespace GameUp.UIBuilder.Editor
                 if (rt == null) continue;
                 var nodeAbs = new RectInt(node.x, node.y, node.w, node.h);
                 ApplyRect(rt, nodeAbs, parentAbs, ResolveAnchor(node, hasParent, rootAbs, report));
+                // bật trong lúc dựng: TMP không đo được chữ trên object inactive (bề ngang = 0 → không co chữ theo khung)
+                if (!rt.gameObject.activeSelf) rt.gameObject.SetActive(true);
                 ApplyContent(rt.gameObject, node, report);
 
                 siblingIndex.TryGetValue(parent, out var index);
                 rt.SetSiblingIndex(index);
                 siblingIndex[parent] = index + 1;
-                if (rt.gameObject.activeSelf != node.active) rt.gameObject.SetActive(node.active);
 
                 built[node.id] = rt;
                 containers[node.id] = node.kind == UISpecNode.KindScroll ? ScrollContent(rt) : rt;
                 absolute[node.id] = nodeAbs;
             }
 
+            foreach (var node in nodes.Where(n => !n.active && built.ContainsKey(n.id)))
+                built[node.id].gameObject.SetActive(false);
             return built;
         }
 
