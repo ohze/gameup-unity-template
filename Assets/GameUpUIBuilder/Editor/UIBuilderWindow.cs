@@ -22,22 +22,41 @@ namespace GameUp.UIBuilder.Editor
         private const float MinLeftWidth = 440f;
         private const float MinPreviewWidth = 160f;
         private const float RowLabelWidth = 72f;
+        private const double RepaintInterval = 0.1;
+        private const double StampCheckInterval = 1.0;
+        private const int BroadArtWarning = 200;
+        private const int SkipSnap = 16; // px demo — cạnh vùng bỏ qua gần mép ảnh thì dính vào mép
+        private const int AutoWorkerCap = 12; // khớp MAX_WORKERS trong Tools~/ui_locate.py
 
         private UIBuilderPython _pythonSetup;
         private UIBuilderLocator _locator;
         private int _locatingIndex;
         private readonly Queue<int> _locateQueue = new Queue<int>();
+        private bool _crossCheckPass; // đang ở lượt đối chiếu phần chung giữa các tab
+        private bool _drawingSkip;    // đang kéo khung "phần đã có sẵn" trên ảnh demo
+        private Vector2? _dragStart;
+        private Vector2 _dragEnd;
         private List<LocateResult> _locates = new List<LocateResult>();
         private LocateResult _locate; // của demo đang xem trước
         private int _previewIndex;
         private string _locateMessage;
+        private string _locateError; // lỗi của lần định vị gần nhất — hiện bằng hộp lỗi, không lẫn vào gợi ý xám
         private UISpec _spec;
         private string _specError;
         private UIBuildReport _report;
         private string _comparePath;
         private string _systemPython;
         private Vector2 _scroll;
+        private LocateProgress _lastProgress; // nhật ký lần định vị gần nhất trong phiên
         private bool _showUnmatched;
+        private bool _showTexts;
+        private bool _showDropped;
+        private bool _showLocateLog = true;
+        private Vector2 _logScroll;
+        private double _lastRepaint;
+        private double _lastStampCheck;
+        private string _artCountKey; // thư mục art + cờ thư mục con lúc đếm — đếm lại khi đổi
+        private int _artCount;
         private bool _showPythonLog;
         private string _highlightSprite;
         private DateTime _jobStamp;
@@ -101,8 +120,14 @@ namespace GameUp.UIBuilder.Editor
         private void OnGUI()
         {
             if (Event.current.type == EventType.MouseMove) Repaint();
-            // locate.json / spec.json có thể bị Claude hoặc terminal ghi lại → tự tải lại khi file đổi.
-            if (Event.current.type == EventType.Layout && JobStamp() != _jobStamp) ReloadJob();
+            // locate.json / spec.json có thể bị Claude hoặc terminal ghi lại → tự tải lại khi file đổi. Kiểm tra tối đa
+            // mỗi giây một lần, và không kiểm khi đang định vị (script tự ghi locate.json, Tick nạp kết quả khi xong).
+            if (Event.current.type == EventType.Layout && _locator == null
+                && EditorApplication.timeSinceStartup - _lastStampCheck >= StampCheckInterval)
+            {
+                _lastStampCheck = EditorApplication.timeSinceStartup;
+                if (JobStamp() != _jobStamp) ReloadJob();
+            }
             var texture = HasDemo() ? UIDemoTexture.Get(PreviewDemo) : null;
             var previewWidth = PreviewWidth(texture);
 
@@ -139,8 +164,16 @@ namespace GameUp.UIBuilder.Editor
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.ExpandHeight(true));
             var area = GUILayoutUtility.GetRect(width, width, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-            var hovered = UIDemoPreviewDrawer.Draw(area, texture, _locate, Settings.showMatchRects, _highlightSprite);
-            if (hovered != null && Event.current.type == EventType.MouseDown)
+            // Đang định vị đúng demo đang xem → vẽ kết quả tạm, tô nổi sprite vừa dò xong.
+            var live = _locator != null && _locatingIndex == _previewIndex ? _locator.Progress : null;
+            var caption = live != null ? $"{LocateProgress.Stages[live.Stage]} · {live.Status}" : null;
+            var hovered = UIDemoPreviewDrawer.Draw(area, texture, live?.Snapshot ?? _locate, Settings.previewLayers, _highlightSprite,
+                live?.LatestSprite, caption);
+            var image = UIDemoPreviewDrawer.FitRect(area, texture.width, texture.height);
+            var scale = image.width / texture.width;
+            UIDemoPreviewDrawer.DrawSkipRegions(image, scale, Settings.skipRegions, _dragStart.HasValue ? DragRect() : (Rect?)null);
+            if (_drawingSkip) HandleSkipDrag(image, scale, texture);
+            else if (hovered != null && Event.current.type == EventType.MouseDown)
             {
                 _highlightSprite = hovered;
                 Event.current.Use();
@@ -323,8 +356,6 @@ namespace GameUp.UIBuilder.Editor
             EditorGUI.BeginChangeCheck();
             EditorGUILayout.BeginHorizontal();
             Settings.showDemoPreview = GUILayout.Toggle(Settings.showDemoPreview, "Hiện ảnh bên phải", GUILayout.Width(130f));
-            using (new EditorGUI.DisabledScope(_locate == null || !Settings.showDemoPreview))
-                Settings.showMatchRects = GUILayout.Toggle(Settings.showMatchRects, "Khung sprite đã dò", GUILayout.Width(140f));
             GUILayout.FlexibleSpace();
             if (GUInstallerUI.MiniButton("Mở ảnh gốc", true, 90f))
                 EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(PreviewDemo));
@@ -333,8 +364,6 @@ namespace GameUp.UIBuilder.Editor
 
             if (Settings.showDemoPreview && !previewShown)
                 GUInstallerUI.Hint("Cửa sổ hẹp — kéo rộng ra để hiện ảnh demo ở cột phải.");
-            else if (previewShown && _locate != null && Settings.showMatchRects)
-                GUInstallerUI.Hint("Khung trên ảnh: xanh = khớp · cam = 9-slice · vàng = đang chọn (bấm khung để chọn).");
         }
 
         private static Vector2Int DemoSize(string assetPath)
@@ -385,6 +414,28 @@ namespace GameUp.UIBuilder.Editor
             EditorGUI.BeginChangeCheck();
             Settings.includeSubfolders = EditorGUILayout.ToggleLeft("Quét cả thư mục con", Settings.includeSubfolders);
             if (EditorGUI.EndChangeCheck()) Settings.Save();
+
+            var count = ArtSpriteCount();
+            if (count >= BroadArtWarning)
+                EditorGUILayout.HelpBox($"{count} ảnh PNG — thư mục art rộng làm định vị chậm (vài phút lần đầu) và dễ khớp nhầm art "
+                                        + "của màn khác. Nên chọn thư mục của màn này + thư mục dùng chung (_Shared).", MessageType.Warning);
+            else if (count > 0)
+                GUInstallerUI.Hint($"{count} ảnh PNG sẽ được dò.");
+        }
+
+        /// <summary>Số PNG sẽ được dò (bỏ file demo*) — đếm lại chỉ khi danh sách thư mục hoặc cờ thư mục con đổi.</summary>
+        private int ArtSpriteCount()
+        {
+            var key = $"{Settings.includeSubfolders}|{string.Join("|", Settings.artFolders)}";
+            if (key == _artCountKey) return _artCount;
+            _artCountKey = key;
+            var option = Settings.includeSubfolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            _artCount = Settings.artFolders
+                .Select(UIBuilderPaths.ToAbsolute)
+                .Where(Directory.Exists)
+                .SelectMany(folder => Directory.EnumerateFiles(folder, "*.png", option))
+                .Count(file => !Path.GetFileName(file).TrimStart('_').StartsWith("demo", StringComparison.OrdinalIgnoreCase));
+            return _artCount;
         }
 
         private static void AddArtFolder(string path)
@@ -407,26 +458,168 @@ namespace GameUp.UIBuilder.Editor
                 GUInstallerUI.CardHeader("BƯỚC 3", "Định vị sprite trên demo", state);
                 GUILayout.Label("Tìm vị trí chính xác từng sprite: đúng tỉ lệ, bị scale, kéo giãn 9-slice, lặp nhiều lần, bị che một phần. Kết quả cache theo hash file.",
                     GUInstallerUI.Desc);
+                DrawWorkersOption(busy);
 
                 EditorGUILayout.BeginHorizontal();
                 if (GUInstallerUI.PrimaryButton(busy ? "Đang định vị…" : "Chạy định vị", canRun, 26f)) StartLocate();
-                if (busy && GUILayout.Button("Huỷ", GUILayout.Width(60f), GUILayout.Height(26f)))
-                {
-                    _locator.Cancel();
-                    _locator = null;
-                }
-
+                if (busy && GUILayout.Button("Huỷ", GUILayout.Width(60f), GUILayout.Height(26f))) CancelLocate();
                 EditorGUILayout.EndHorizontal();
 
+                busy = _locator != null;
+                var missing = MissingForLocate();
+                if (!busy && missing != null) GUInstallerUI.Hint($"Cần: {missing}.");
+                if (Demos.Count > 1) DrawLocateTabs();
                 if (!string.IsNullOrEmpty(_locateMessage)) GUInstallerUI.Hint(_locateMessage);
-                if (_locate != null) DrawLocateResult();
+                if (_locateError != null) EditorGUILayout.HelpBox(_locateError, MessageType.Error);
+                if (busy) DrawLocateProgress(_locator.Progress);
+                if (busy || _locate != null) DrawPreviewLayers();
+                if (!busy && _locate != null) DrawLocateResult();
+                if (!busy && _lastProgress != null) DrawLocateLog(_lastProgress, "Nhật ký lần chạy vừa rồi");
             }
+        }
+
+        /// <summary>Số process song song (0 = tự động). Nhiều hơn ~12 chỉ tranh cache/băng thông bộ nhớ, không nhanh hơn.</summary>
+        private void DrawWorkersOption(bool busy)
+        {
+            var logical = Environment.ProcessorCount;
+            var auto = Mathf.Clamp(logical - 1, 1, AutoWorkerCap);
+            using (new EditorGUI.DisabledScope(busy))
+            {
+                EditorGUI.BeginChangeCheck();
+                var workers = EditorGUILayout.IntSlider(
+                    new GUIContent("Process song song", $"0 = tự động ({auto} trên máy này). Chạy trên CPU; nhiều hơn ~{AutoWorkerCap} thường chậm hơn vì tranh bộ nhớ."),
+                    Settings.locateWorkers, 0, logical);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Settings.locateWorkers = workers;
+                    Settings.Save();
+                }
+            }
+
+            GUInstallerUI.Hint(Settings.locateWorkers == 0
+                ? $"Tự động: {auto} process / {logical} luồng CPU."
+                : $"{Settings.locateWorkers} process / {logical} luồng CPU.");
+        }
+
+        /// <summary>Lý do chưa chạy được định vị (hiện ngay dưới nút bị mờ); null nếu đủ điều kiện.</summary>
+        private string MissingForLocate()
+        {
+            var missing = new List<string>();
+            if (!UIBuilderPython.IsReady) missing.Add("cài môi trường Python ở Bước 1");
+            if (!HasDemo()) missing.Add("chọn ảnh demo ở Bước 2");
+            if (Settings.artFolders.Count == 0) missing.Add("thêm thư mục art ở Bước 2");
+            return missing.Count == 0 ? null : string.Join(", ", missing);
+        }
+
+        private void CancelLocate()
+        {
+            _locator.Cancel();
+            _lastProgress = _locator.Progress;
+            _locator = null;
+            _locateQueue.Clear();
+            _locateMessage = $"Đã huỷ định vị demo {_locatingIndex + 1}. Kết quả cũ (nếu có) giữ nguyên.";
+        }
+
+        /// <summary>Nhiều demo: trạng thái định vị từng tab (bấm để xem trên ảnh bên phải).</summary>
+        private void DrawLocateTabs()
+        {
+            var demos = Demos;
+            for (var i = 0; i < demos.Count; i++)
+            {
+                var result = i < _locates.Count ? _locates[i] : null;
+                var running = _locator != null && _locatingIndex == i;
+                var queued = _locator != null && _locateQueue.Contains(i);
+                var state = running ? GUSetupState.Busy : result != null ? GUSetupState.Done : GUSetupState.Missing;
+                var detail = running ? "đang định vị…" : queued ? "chờ tới lượt"
+                    : result != null ? $"{result.sprites.Count(s => s.IsMatched)} sprite khớp · {result.texts.Count} dòng chữ"
+                    : "chưa định vị";
+                if (GUInstallerUI.StatusRow($"Tab {i + 1} · {Path.GetFileName(demos[i])}", state, detail,
+                        i == _previewIndex ? "Đang xem" : "Xem", i != _previewIndex, 70f))
+                    SelectPreview(i);
+            }
+        }
+
+        /// <summary>Các giai đoạn (đã qua / đang chạy / chưa tới), thanh tiến độ, việc đang làm và nhật ký trực tiếp.</summary>
+        private void DrawLocateProgress(LocateProgress progress)
+        {
+            EditorGUILayout.Space(4);
+            EditorGUILayout.BeginHorizontal();
+            for (var i = 0; i < LocateProgress.Stages.Length; i++)
+            {
+                var color = i < progress.Stage ? GUInstallerUI.OkColor : i == progress.Stage ? GUInstallerUI.BusyColor : GUInstallerUI.MutedColor;
+                var mark = i < progress.Stage ? "✔ " : i == progress.Stage ? "● " : string.Empty;
+                GUInstallerUI.DrawBadge($"{mark}{LocateProgress.Stages[i]}", color, 90f);
+                if (i < LocateProgress.Stages.Length - 1) GUILayout.Label("→", EditorStyles.miniLabel, GUILayout.Width(14f));
+            }
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
+            if (progress.Total > 0) GUInstallerUI.ProgressBar(LocateProgress.Stages[progress.Stage], progress.Done, progress.Total, 18f);
+            GUInstallerUI.Hint(progress.Status);
+            var snapshot = progress.Snapshot;
+            GUInstallerUI.Hint($"Đến giờ: {snapshot.sprites.Count(s => s.IsMatched)} sprite khớp · {snapshot.dropped.Count} vị trí bị loại · {snapshot.texts.Count} dòng chữ");
+            DrawLocateLog(progress, "Nhật ký");
+        }
+
+        /// <summary>Nhật ký sự kiện của script định vị: sprite khớp thế nào, cái gì bị loại vì sao, chữ đọc được.</summary>
+        private void DrawLocateLog(LocateProgress progress, string title)
+        {
+            _showLocateLog = EditorGUILayout.Foldout(_showLocateLog, $"{title} ({progress.Events.Count})", true);
+            if (!_showLocateLog || progress.Events.Count == 0) return;
+
+            _logScroll = EditorGUILayout.BeginScrollView(_logScroll, EditorStyles.helpBox, GUILayout.Height(160f));
+            foreach (var line in progress.Events) GUILayout.Label(line, EditorStyles.miniLabel);
+            EditorGUILayout.EndScrollView();
+
+            // Đang chạy: luôn cuộn xuống dòng mới nhất.
+            if (_locator != null && Event.current.type == EventType.Repaint) _logScroll.y = float.MaxValue;
+            if (GUInstallerUI.MiniButton("Copy nhật ký", true, 100f))
+            {
+                EditorGUIUtility.systemCopyBuffer = string.Join("\n", progress.Events);
+                ShowNotification(new GUIContent("Đã copy nhật ký"));
+            }
+        }
+
+        /// <summary>Bật/tắt lớp khung trên ảnh demo + chú thích màu.</summary>
+        private void DrawPreviewLayers()
+        {
+            EditorGUILayout.Space(4);
+            using (new EditorGUI.DisabledScope(!Settings.showDemoPreview))
+            {
+                EditorGUI.BeginChangeCheck();
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("Hiện trên ảnh:", EditorStyles.miniLabel, GUILayout.Width(RowLabelWidth + 4f));
+                var layers = Settings.previewLayers;
+                layers = LayerToggle(layers, PreviewLayers.Sprites, "Sprite");
+                layers = LayerToggle(layers, PreviewLayers.Texts, "Chữ");
+                layers = LayerToggle(layers, PreviewLayers.Dropped, "Bị loại");
+                layers = LayerToggle(layers, PreviewLayers.UIRegion, "Vùng UI");
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Settings.previewLayers = layers;
+                    Settings.Save();
+                }
+            }
+
+            GUInstallerUI.Hint("Xanh lá = khớp · cam = 9-slice · xanh dương = chữ · đỏ đứt = bị loại · vàng = đang chọn / vừa dò · "
+                               + "phần tối = dưới lớp phủ (UI màn phía sau, bị bỏ). Rê chuột lên khung để xem máy khớp thế nào, bấm để chọn.");
+        }
+
+        private static PreviewLayers LayerToggle(PreviewLayers layers, PreviewLayers layer, string label)
+        {
+            var on = GUILayout.Toggle((layers & layer) != 0, label, EditorStyles.miniButton, GUILayout.Width(64f));
+            return on ? layers | layer : layers & ~layer;
         }
 
         /// <summary>Định vị lần lượt từng demo (mỗi demo một process song song nhiều nhân — chạy tuần tự để không tranh CPU).</summary>
         private void StartLocate()
         {
             _locateQueue.Clear();
+            _locateError = null;
+            _crossCheckPass = false;
             for (var i = 0; i < Demos.Count; i++) _locateQueue.Enqueue(i);
             StartNextLocate();
             StartTicking();
@@ -436,20 +629,34 @@ namespace GameUp.UIBuilder.Editor
         {
             _locatingIndex = _locateQueue.Dequeue();
             var demos = Demos;
-            _locateMessage = demos.Count > 1 ? $"Đang định vị demo {_locatingIndex + 1}/{demos.Count}…" : "Đang chạy…";
+            _locateMessage = demos.Count <= 1 ? null
+                : _crossCheckPass ? $"Đối chiếu phần chung giữa các tab — demo {_locatingIndex + 1}/{demos.Count}…"
+                : $"Đang định vị demo {_locatingIndex + 1}/{demos.Count}…";
+            SelectPreview(_locatingIndex); // xem trực tiếp demo đang được dò
+            var hints = Enumerable.Range(0, demos.Count).Where(k => k != _locatingIndex)
+                .Select(k => UIBuilderPaths.LocatePath(Settings.jobName, k))
+                .Where(p => File.Exists(UIBuilderPaths.ToAbsolute(p)));
             _locator = UIBuilderLocator.Start(demos[_locatingIndex], Settings.artFolders, Settings.includeSubfolders,
-                UIBuilderPaths.LocatePath(Settings.jobName, _locatingIndex));
+                UIBuilderPaths.LocatePath(Settings.jobName, _locatingIndex), hints);
         }
 
         private void DrawLocateResult()
         {
-            foreach (var sprite in _locate.sprites.Where(s => s.IsMatched))
+            var matched = _locate.sprites.Where(s => s.IsMatched).ToList();
+            EditorGUILayout.Space(4);
+            GUInstallerUI.Hint($"Dò {_locate.sprites.Count} sprite ({_locate.cachedCount} từ cache) → {matched.Count} khớp, "
+                               + $"{matched.Sum(s => s.matches.Count)} vị trí · lọc bỏ {_locate.dropped.Count} vị trí · "
+                               + $"{_locate.texts.Count} dòng chữ ({OcrLabel(_locate.ocr)}) · {_locate.elapsedMs / 1000f:0.#} s"
+                               + (_locate.dimAlpha > 0f ? $" · lớp dim {_locate.dimAlpha:P0}{(_locate.dimEstimated ? " (ước lượng)" : string.Empty)}" : string.Empty)
+                               + (_locate.uiRegions.Count > 0 ? $" · {_locate.uiRegions.Count} vùng UI chính, phần dưới lớp phủ bị bỏ" : string.Empty));
+
+            foreach (var sprite in matched)
             {
                 var assetPath = UIBuilderPaths.ToAssetPath(sprite.sprite);
                 var asset = LoadAsset<Sprite>(assetPath);
                 var first = sprite.matches[0];
-                var detail = $"{sprite.matches.Count}× · {first.w}×{first.h} @({first.x},{first.y})"
-                             + (first.sliced ? " · 9-slice" : first.scale != 1f ? $" · scale {first.scale:0.##}" : string.Empty);
+                var detail = $"{sprite.matches.Count}× · {first.w}×{first.h} @({first.x},{first.y}) · {first.MethodLabel}"
+                             + (sprite.lowTexture ? " · một màu" : string.Empty) + $" · {first.ScoreLabel}";
 
                 EditorGUILayout.BeginHorizontal();
                 var icon = asset != null ? AssetPreview.GetAssetPreview(asset) ?? AssetPreview.GetMiniThumbnail(asset) : null;
@@ -474,11 +681,42 @@ namespace GameUp.UIBuilder.Editor
                     GUInstallerUI.Hint($"   Mở Sprite Editor, set border — gợi ý {sprite.suggestedBorder}");
             }
 
+            _showTexts = EditorGUILayout.Foldout(_showTexts, $"Chữ tìm được ({_locate.texts.Count})", true);
+            if (_showTexts)
+            {
+                foreach (var text in _locate.texts)
+                {
+                    var content = string.IsNullOrEmpty(text.text) ? "(chưa đọc nội dung)" : $"“{text.text}” {text.confidence:P0}";
+                    var warn = !string.IsNullOrEmpty(text.text) && text.confidence < 0.8f ? "⚠ " : string.Empty;
+                    var outline = string.IsNullOrEmpty(text.outlineColor) ? string.Empty : $" · viền {text.outlineColor}";
+                    GUInstallerUI.Hint($"   {warn}{content} · {text.color}{outline} · {text.w}×{text.h} @({text.x},{text.y})");
+                }
+            }
+
+            _showDropped = EditorGUILayout.Foldout(_showDropped, $"Bị lọc bỏ ({_locate.dropped.Count})", true);
+            if (_showDropped)
+            {
+                foreach (var drop in _locate.dropped)
+                    GUInstallerUI.Hint($"   {drop.name} @({drop.x},{drop.y}) {drop.w}×{drop.h} — {drop.ReasonLabel}");
+            }
+
             var unmatched = _locate.sprites.Where(s => !s.IsMatched).ToList();
             _showUnmatched = EditorGUILayout.Foldout(_showUnmatched, $"Không khớp ({unmatched.Count})", true);
             if (!_showUnmatched) return;
             foreach (var sprite in unmatched)
                 GUInstallerUI.Hint($"   {sprite.name} — {sprite.ReasonLabel}");
+        }
+
+        private static string OcrLabel(string ocr)
+        {
+            switch (ocr)
+            {
+                case "ok": return "OCR đã đọc";
+                case "unavailable": return "chưa cài OCR";
+                case "skipped": return "bỏ qua OCR";
+                case "none": return "không thấy chữ";
+                default: return "OCR ?";
+            }
         }
 
         // ─── BƯỚC 4 — Spec ──────────────────────────────────────────────────
@@ -506,6 +744,8 @@ namespace GameUp.UIBuilder.Editor
                     Settings.Save();
                 }
 
+                DrawSkipRegions();
+
                 EditorGUILayout.BeginHorizontal();
                 if (GUInstallerUI.MiniButton(_spec != null ? "Sinh lại spec nháp" : "Tạo spec nháp", _locate != null, 140f))
                     GenerateSpec();
@@ -515,7 +755,7 @@ namespace GameUp.UIBuilder.Editor
                 if (GUInstallerUI.MiniButton("Copy prompt cho Claude", HasDemo(), 170f))
                 {
                     EditorGUIUtility.systemCopyBuffer = UIBuilderAiToolkit.BuildPrompt(
-                        Settings.jobName, Demos, Settings.artFolders, Settings.includeSubfolders, OutputPrefab);
+                        Settings.jobName, Demos, Settings.artFolders, Settings.includeSubfolders, OutputPrefab, Settings.skipRegions);
                     ShowNotification(new GUIContent("Đã copy prompt"));
                 }
 
@@ -538,6 +778,116 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
+        /// <summary>
+        /// Phần đã có sẵn (thanh điều hướng, thanh trên cùng…): kéo khung trên ảnh demo; mỗi vùng có tên và prefab thay thế
+        /// (tuỳ chọn). Áp dụng khi sinh spec — node nằm phần lớn trong vùng bị bỏ, vùng có prefab thành node instance.
+        /// </summary>
+        private void DrawSkipRegions()
+        {
+            SubHeader("PHẦN ĐÃ CÓ SẴN — KHÔNG DỰNG",
+                "Kéo khung trên ảnh demo quanh phần đã có prefab (thanh điều hướng, thanh trên…). Chọn prefab để đặt đúng chỗ, bỏ trống = không đặt gì.");
+            var regions = Settings.skipRegions;
+            var line = GUILayout.Height(EditorGUIUtility.singleLineHeight);
+            for (var i = 0; i < regions.Count; i++)
+            {
+                var region = regions[i];
+                EditorGUILayout.BeginHorizontal();
+                EditorGUI.BeginChangeCheck();
+                region.name = EditorGUILayout.TextField(region.name, GUILayout.Width(RowLabelWidth + 30f));
+                var prefab = (GameObject)EditorGUILayout.ObjectField(LoadAsset<GameObject>(region.prefab), typeof(GameObject), false, line);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    region.prefab = prefab != null ? AssetDatabase.GetAssetPath(prefab) : null;
+                    Settings.Save();
+                }
+
+                GUILayout.Label($"{region.w}×{region.h} @({region.x},{region.y})", EditorStyles.miniLabel, GUILayout.Width(130f));
+                if (GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(22f)))
+                {
+                    regions.RemoveAt(i);
+                    Settings.Save();
+                    GUIUtility.ExitGUI();
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            var canDraw = HasDemo() && Settings.showDemoPreview;
+            var label = _drawingSkip ? "Đang chọn — kéo trên ảnh (Esc huỷ)" : "＋ Kéo khung trên ảnh demo";
+            var drawing = GUILayout.Toggle(_drawingSkip, label, EditorStyles.miniButton, GUILayout.Width(220f));
+            if (drawing != _drawingSkip && (canDraw || !drawing))
+            {
+                _drawingSkip = drawing;
+                _dragStart = null;
+            }
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            if (!canDraw) GUInstallerUI.Hint("Bật 'Hiện ảnh bên phải' ở Bước 2 để kéo khung.");
+            if (regions.Count > 0 && _spec != null)
+                GUInstallerUI.Hint("Đổi vùng xong bấm 'Sinh lại spec nháp' để áp dụng.");
+        }
+
+        /// <summary>Kéo chuột trên ảnh demo tạo vùng đã có sẵn; cạnh cách mép ảnh ≤ 16 px thì dính vào mép.</summary>
+        private void HandleSkipDrag(Rect image, float scale, Texture2D texture)
+        {
+            var e = Event.current;
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            EditorGUIUtility.AddCursorRect(image, MouseCursor.ArrowPlus);
+            switch (e.GetTypeForControl(id))
+            {
+                case EventType.MouseDown when e.button == 0 && image.Contains(e.mousePosition):
+                    _dragStart = _dragEnd = e.mousePosition;
+                    GUIUtility.hotControl = id;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag when GUIUtility.hotControl == id:
+                    _dragEnd = e.mousePosition;
+                    Repaint();
+                    e.Use();
+                    break;
+                case EventType.MouseUp when GUIUtility.hotControl == id:
+                    GUIUtility.hotControl = 0;
+                    AddSkipRegion(DragRect(), image, scale, texture);
+                    _dragStart = null;
+                    _drawingSkip = false;
+                    e.Use();
+                    break;
+                case EventType.KeyDown when e.keyCode == KeyCode.Escape:
+                    _dragStart = null;
+                    _drawingSkip = false;
+                    e.Use();
+                    Repaint();
+                    break;
+            }
+        }
+
+        private Rect DragRect()
+        {
+            var a = _dragStart ?? Vector2.zero;
+            return Rect.MinMaxRect(Mathf.Min(a.x, _dragEnd.x), Mathf.Min(a.y, _dragEnd.y), Mathf.Max(a.x, _dragEnd.x), Mathf.Max(a.y, _dragEnd.y));
+        }
+
+        private static void AddSkipRegion(Rect screen, Rect image, float scale, Texture2D texture)
+        {
+            var x0 = ToDemoPixel(screen.xMin, image.x, scale, texture.width);
+            var y0 = ToDemoPixel(screen.yMin, image.y, scale, texture.height);
+            var x1 = ToDemoPixel(screen.xMax, image.x, scale, texture.width);
+            var y1 = ToDemoPixel(screen.yMax, image.y, scale, texture.height);
+            if (x1 - x0 < 8 || y1 - y0 < 8) return; // bấm nhầm, không phải kéo
+            var name = y1 == texture.height ? "NavBar" : y0 == 0 ? "TopBar" : $"Vung{Settings.skipRegions.Count + 1}";
+            Settings.skipRegions.Add(new UISkipRegion { name = name, x = x0, y = y0, w = x1 - x0, h = y1 - y0 });
+            Settings.Save();
+        }
+
+        /// <summary>Tọa độ màn hình → pixel demo, kẹp trong ảnh; cách mép ≤ <see cref="SkipSnap"/> px thì dính vào mép.</summary>
+        private static int ToDemoPixel(float screen, float origin, float scale, int size)
+        {
+            var value = Mathf.Clamp(Mathf.RoundToInt((screen - origin) / scale), 0, size);
+            return value <= SkipSnap ? 0 : value >= size - SkipSnap ? size : value;
+        }
+
         private void GenerateSpec()
         {
             var path = UIBuilderPaths.ToAbsolute(SpecPath);
@@ -553,7 +903,7 @@ namespace GameUp.UIBuilder.Editor
             }
 
             UISpecFile.Save(UISpecGenerator.Generate(_locates, Settings.jobName, demos, OutputPrefab, Settings.textFont,
-                Settings.textOutlineMaterial), SpecPath);
+                Settings.textOutlineMaterial, Settings.skipRegions), SpecPath);
             ReloadJob();
         }
 
@@ -654,9 +1004,19 @@ namespace GameUp.UIBuilder.Editor
                     var prefix = Demos.Count > 1 ? $"Demo {_locatingIndex + 1}: " : string.Empty;
                     _locateMessage = result != null
                         ? $"{prefix}{result.sprites.Count(s => s.IsMatched)}/{result.sprites.Count} sprite khớp, {result.texts.Count} dòng chữ · {result.elapsedMs} ms"
-                        : $"{prefix}Lỗi: {_locator.Error}";
+                        : null;
+                    if (result == null) _locateError = $"{prefix}Định vị thất bại: {_locator.Error}\nChi tiết đầy đủ trong Console.";
                     if (result == null) GULogger.Error(LogTag, $"Định vị thất bại:\n{_locator.Output}");
+                    _lastProgress = _locator.Progress;
                     _locator = null;
+                    // Nhiều tab: lượt 2 cho các demo chạy trước — lúc đó chưa có kết quả các tab sau để đối chiếu phần
+                    // chung (nhanh: sprite và OCR đã cache, chỉ còn kiểm tra tại chỗ + lọc).
+                    if (result != null && _locateQueue.Count == 0 && !_crossCheckPass && Demos.Count > 1)
+                    {
+                        _crossCheckPass = true;
+                        for (var i = 0; i < Demos.Count - 1; i++) _locateQueue.Enqueue(i);
+                    }
+
                     if (result != null && _locateQueue.Count > 0)
                     {
                         StartNextLocate();
@@ -675,7 +1035,13 @@ namespace GameUp.UIBuilder.Editor
             }
 
             if (!running) EditorApplication.update -= Tick;
-            Repaint();
+            // EditorApplication.update chạy hàng trăm lần/giây — vẽ lại tối đa ~10 lần/giây là đủ mượt cho tiến trình.
+            var now = EditorApplication.timeSinceStartup;
+            if (!running || now - _lastRepaint >= RepaintInterval)
+            {
+                _lastRepaint = now;
+                Repaint();
+            }
         }
 
         private void ReloadJob()

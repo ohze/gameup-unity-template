@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace GameUp.UIBuilder.Editor
@@ -21,7 +22,8 @@ namespace GameUp.UIBuilder.Editor
             Copy(UIBuilderPaths.CommandSource, CommandTarget);
         }
 
-        public static string BuildPrompt(string jobName, IReadOnlyList<string> demos, IReadOnlyList<string> artFolders, bool recursive, string outputPrefab)
+        public static string BuildPrompt(string jobName, IReadOnlyList<string> demos, IReadOnlyList<string> artFolders, bool recursive,
+            string outputPrefab, IReadOnlyList<UISkipRegion> skipRegions)
         {
             var specPath = UIBuilderPaths.SpecPath(jobName);
             var sb = new StringBuilder();
@@ -33,10 +35,14 @@ namespace GameUp.UIBuilder.Editor
                 var locatePath = UIBuilderPaths.LocatePath(jobName, i);
                 sb.AppendLine($"- Demo {i + 1}: {demos[i]} → định vị: {locatePath}"
                               + (File.Exists(UIBuilderPaths.ToAbsolute(locatePath)) ? string.Empty : " (chưa chạy)"));
-                sb.AppendLine($"  Chạy lại: {UIBuilderLocator.BuildCommandLine(demos[i], artFolders, recursive, locatePath)}");
+                var hints = Enumerable.Range(0, demos.Count).Where(k => k != i).Select(k => UIBuilderPaths.LocatePath(jobName, k));
+                sb.AppendLine($"  Chạy lại: {UIBuilderLocator.BuildCommandLine(demos[i], artFolders, recursive, locatePath, hints)}");
             }
             sb.AppendLine($"- Spec: {specPath}" + (File.Exists(UIBuilderPaths.ToAbsolute(specPath)) ? " (đã có bản nháp — hoàn thiện tiếp)" : " (chưa có — tạo mới)"));
             sb.AppendLine($"- Prefab đầu ra: {outputPrefab}");
+            foreach (var r in skipRegions)
+                sb.AppendLine($"- Đã có sẵn, KHÔNG dựng: '{r.name}' ({r.x},{r.y} {r.w}×{r.h} px trên demo)"
+                              + (string.IsNullOrEmpty(r.prefab) ? " — bỏ trống." : $" — đặt instance {r.prefab} (spec nháp đã có node instance)."));
             return sb.ToString();
         }
 

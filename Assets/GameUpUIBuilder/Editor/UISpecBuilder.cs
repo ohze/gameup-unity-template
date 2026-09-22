@@ -418,10 +418,14 @@ namespace GameUp.UIBuilder.Editor
                 .FirstOrDefault();
         }
 
-        /// <summary>Preset có viền thấy được, dùng chung atlas với font, không phải preset bóng đổ (Underlay).</summary>
+        /// <summary>
+        /// Preset có viền thấy được, dùng chung atlas với font, không phải preset bóng đổ (Underlay), và dùng shader cho UI —
+        /// shader "(Surface)" là shader 3D, gán cho chữ trong Canvas thì chữ biến mất.
+        /// </summary>
         private static bool IsOutlinePreset(Material m, TMP_FontAsset font)
         {
-            return m.HasProperty(ShaderUtilities.ID_OutlineWidth) && m.GetFloat(ShaderUtilities.ID_OutlineWidth) > 0f
+            return m.shader != null && !m.shader.name.Contains("Surface")
+                   && m.HasProperty(ShaderUtilities.ID_OutlineWidth) && m.GetFloat(ShaderUtilities.ID_OutlineWidth) > 0f
                    && m.HasProperty(ShaderUtilities.ID_OutlineColor) && m.GetColor(ShaderUtilities.ID_OutlineColor).a > 0f
                    && !m.IsKeywordEnabled(ShaderUtilities.Keyword_Underlay)
                    && m.HasProperty(ShaderUtilities.ID_MainTex) && m.GetTexture(ShaderUtilities.ID_MainTex) == font.atlasTexture;

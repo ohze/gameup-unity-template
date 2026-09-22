@@ -24,6 +24,74 @@ namespace GameUp.UIBuilder.Tests
         }
 
         [Test]
+        public void Generate_DimAlpha_AddsFullScreenDimDrawnFirst()
+        {
+            var locate = Locate(Sprite("popup", Match(24, 250, 1032, 1656, false)));
+            locate.dimAlpha = 0.45f;
+            locate.dimEstimated = true;
+
+            var spec = UISpecGenerator.Generate(locate, "Popup", "Assets/demo.png", "Assets/Popup.prefab", null);
+
+            var dim = spec.nodes[0];
+            Assert.AreEqual("imgDim", dim.id);
+            Assert.AreEqual(string.Empty, dim.parent);
+            Assert.AreEqual("stretch", dim.anchor);
+            Assert.AreEqual("#00000073", dim.color);
+            StringAssert.Contains("ước lượng", string.Join("\n", spec.notes));
+        }
+
+        [Test]
+        public void Generate_SkipRegion_DropsNodesInsideAndPlacesPrefabInstance()
+        {
+            var locate = Locate(
+                Sprite("btn_upgrade", Match(278, 1714, 440, 120, false)),
+                Sprite("bottom_tab", Match(0, 1946, 200, 214, false), Match(480, 1946, 200, 214, false)),
+                Sprite("icon_feature_store", Match(39, 1991, 123, 134, false)));
+            var skips = new[] { new UISkipRegion { name = "NavBar", x = 0, y = 1930, w = 1080, h = 230, prefab = "Assets/UI/NavBar.prefab" } };
+
+            var spec = UISpecGenerator.Generate(new[] { locate }, "Party", new[] { "Assets/demo.png" }, "Assets/Party.prefab", null, null, skips);
+
+            CollectionAssert.AreEqual(new[] { "btn_upgrade", "NavBar" }, spec.nodes.ConvertAll(n => n.id));
+            var nav = spec.nodes[1];
+            Assert.AreEqual(UISpecNode.KindInstance, nav.kind);
+            Assert.AreEqual("Assets/UI/NavBar.prefab", nav.prefab);
+            Assert.AreEqual(1930, nav.y);
+            Assert.AreEqual(1, spec.skipRegions.Count);
+        }
+
+        [Test]
+        public void Generate_SkipRegionWithoutPrefab_JustDropsNodes()
+        {
+            var locate = Locate(Sprite("bottom_tab", Match(0, 1946, 200, 214, false)), Sprite("btn_upgrade", Match(278, 1714, 440, 120, false)));
+            var skips = new[] { new UISkipRegion { name = "NavBar", x = 0, y = 1930, w = 1080, h = 230 } };
+
+            var spec = UISpecGenerator.Generate(new[] { locate }, "Party", new[] { "Assets/demo.png" }, "Assets/Party.prefab", null, null, skips);
+
+            CollectionAssert.AreEqual(new[] { "btn_upgrade" }, spec.nodes.ConvertAll(n => n.id));
+            StringAssert.Contains("NavBar", string.Join("\n", spec.notes));
+        }
+
+        [Test]
+        public void Generate_FullScreenBackground_IsNotParentOfEverything()
+        {
+            var locate = Locate(
+                Sprite("bg", Match(0, 0, 1080, 2160, false)),
+                Sprite("btn_back", Match(40, 40, 140, 150, false)),
+                Sprite("icon_back", Match(73, 70, 72, 66, false)));
+            var tray = Sprite("bottom_tray", Match(0, 912, 1080, 1034, false));
+            tray.lowTexture = true; // panel phẳng — vẫn phải vẽ trên nền
+            locate.sprites.Add(tray);
+
+            var spec = UISpecGenerator.Generate(locate, "Party", "Assets/demo.png", "Assets/Party.prefab", null);
+
+            Assert.AreEqual("bg", spec.nodes[0].id);
+            Assert.AreEqual("stretch", spec.nodes[0].anchor);
+            Assert.AreEqual(string.Empty, spec.nodes.Find(n => n.id == "bottom_tray").parent);
+            Assert.AreEqual(string.Empty, spec.nodes.Find(n => n.id == "btn_back").parent);
+            Assert.AreEqual("btn_back", spec.nodes.Find(n => n.id == "icon_back").parent);
+        }
+
+        [Test]
         public void Generate_RepeatedSprite_GetsNumberedUniqueIds()
         {
             var locate = Locate(Sprite("icon_coin", Match(363, 1390, 103, 103, false), Match(612, 1390, 103, 103, false)));

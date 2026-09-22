@@ -22,19 +22,6 @@ namespace GameUp.UIBuilder.Editor
         public bool IsMatched => status == StatusMatched && matches != null && matches.Count > 0;
 
         /// <summary>Lý do không khớp, diễn giải cho người đọc.</summary>
-        public string ReasonLabel
-        {
-            get
-            {
-                switch (reason)
-                {
-                    case "soft-alpha": return "glow / bán trong suốt — ước lượng bằng mắt";
-                    case "too-large": return "lớn hơn demo";
-                    case "explained-by-other": return "trùng pixel của sprite khác";
-                    case "no-match": return "không có trên demo";
-                    default: return reason;
-                }
-            }
-        }
+        public string ReasonLabel => LocateReason.Label(reason);
     }
 }

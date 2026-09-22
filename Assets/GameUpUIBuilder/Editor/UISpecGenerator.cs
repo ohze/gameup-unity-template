@@ -23,6 +23,8 @@ namespace GameUp.UIBuilder.Editor
         public const string PlaceholderText = "Text";
 
         private const int SameTolerance = 4;
+        private const float SkipInside = 0.6f;
+        private const float FullScreen = 0.95f;
 
         /// <param name="fontPath">TMP_FontAsset cho các node text tìm được; rỗng = font mặc định TMP.</param>
         public static UISpec Generate(LocateResult locate, string name, string demoAssetPath, string outputPrefabPath, string fontPath)
@@ -31,10 +33,11 @@ namespace GameUp.UIBuilder.Editor
         }
 
         /// <param name="outlineMaterialPath">Material cho chữ có viền; rỗng = builder tự chọn preset outline của font.</param>
+        /// <param name="skipRegions">Phần đã có sẵn (thanh điều hướng…): không dựng, có prefab thì đặt instance.</param>
         public static UISpec Generate(IReadOnlyList<LocateResult> states, string name, IReadOnlyList<string> demoAssetPaths,
-            string outputPrefabPath, string fontPath, string outlineMaterialPath)
+            string outputPrefabPath, string fontPath, string outlineMaterialPath, IReadOnlyList<UISkipRegion> skipRegions = null)
         {
-            var spec = Generate(states, name, demoAssetPaths, outputPrefabPath, fontPath);
+            var spec = GenerateCore(states, name, demoAssetPaths, outputPrefabPath, fontPath, skipRegions);
             if (string.IsNullOrEmpty(outlineMaterialPath)) return spec;
             foreach (var node in spec.nodes.Concat(spec.templates.SelectMany(t => t.nodes)))
                 if (node.kind == UISpecNode.KindText && node.outlineWidth > 0f) node.material = outlineMaterialPath;
@@ -49,6 +52,13 @@ namespace GameUp.UIBuilder.Editor
         public static UISpec Generate(IReadOnlyList<LocateResult> states, string name, IReadOnlyList<string> demoAssetPaths,
             string outputPrefabPath, string fontPath)
         {
+            return GenerateCore(states, name, demoAssetPaths, outputPrefabPath, fontPath, null);
+        }
+
+        private static UISpec GenerateCore(IReadOnlyList<LocateResult> states, string name, IReadOnlyList<string> demoAssetPaths,
+            string outputPrefabPath, string fontPath, IReadOnlyList<UISkipRegion> skipRegions)
+        {
+            var skips = skipRegions?.Where(r => r.w > 0 && r.h > 0).ToList() ?? new List<UISkipRegion>();
             var spec = new UISpec
             {
                 name = name,
@@ -65,6 +75,7 @@ namespace GameUp.UIBuilder.Editor
                 var notes = k == 0 ? spec.notes : new List<string>();
                 var nodes = CreateNodes(states[k], notes);
                 nodes.AddRange(CreateTextNodes(states[k], fontPath, notes, new HashSet<string>(nodes.Select(n => n.id))));
+                RemoveSkipped(nodes, skips, k == 0 ? spec.notes : null);
                 perState.Add(nodes);
             }
 
@@ -78,12 +89,64 @@ namespace GameUp.UIBuilder.Editor
 
             var merged = states.Count == 1 ? perState[0] : MergeStates(perState, labels, spec.notes, spec.stateGroups);
             if (states.Count == 1) AssignParents(merged, merged, string.Empty);
+            UnparentFromBackground(merged, spec.referenceWidth, spec.referenceHeight);
             AddDim(merged, states[0], spec.notes); // sau khi gán cha — lớp phủ kín màn không được làm cha của mọi thứ
             AssignTextAlignment(merged, states[0].demoWidth);
             spec.nodes = OrderForDrawing(merged);
+            AddSkipInstances(spec, skips, usedIds);
             AddUnmatchedNotes(states[0], spec.notes);
             spec.notes = spec.notes.Distinct().ToList();
             return spec;
+        }
+
+        /// <summary>
+        /// Ảnh nền cả màn (≥ 95% khung tham chiếu) chứa mọi thứ nên thành cha của cả UI — đổi nền là kéo theo toàn bộ cây.
+        /// Đưa con của nó lên cùng cấp; nền đặt anchor stretch → vẽ dưới cùng (kể cả dưới panel phẳng).
+        /// </summary>
+        private static void UnparentFromBackground(List<UISpecNode> nodes, int width, int height)
+        {
+            var backgrounds = nodes.Where(n => n.kind == UISpecNode.KindImage && n.w >= width * FullScreen && n.h >= height * FullScreen)
+                .ToDictionary(n => n.id, n => n.parent);
+            foreach (var node in nodes.Where(n => backgrounds.ContainsKey(n.id)))
+                node.anchor = "stretch"; // phủ kín màn ở mọi tỉ lệ màn hình; vẽ trước mọi node cùng cấp
+            foreach (var node in nodes)
+                while (node.parent != null && backgrounds.TryGetValue(node.parent, out var grand))
+                    node.parent = grand;
+        }
+
+        /// <summary>Bỏ node nằm phần lớn (≥ 60% diện tích) trong vùng đã có sẵn; ghi chú số node bỏ theo từng vùng.</summary>
+        private static void RemoveSkipped(List<UISpecNode> nodes, List<UISkipRegion> skips, List<string> notes)
+        {
+            foreach (var region in skips)
+            {
+                var removed = nodes.RemoveAll(n => InsideRatio(n, region) >= SkipInside);
+                if (notes != null && removed > 0)
+                    notes.Add($"Vùng bỏ qua '{region.name}': bỏ {removed} node"
+                              + (string.IsNullOrEmpty(region.prefab) ? " (không đặt gì)." : $", thay bằng prefab {region.prefab}."));
+            }
+        }
+
+        /// <summary>Vùng có prefab → node instance đúng khung, vẽ trên cùng (thanh điều hướng nằm trên nội dung).</summary>
+        private static void AddSkipInstances(UISpec spec, List<UISkipRegion> skips, HashSet<string> usedIds)
+        {
+            foreach (var region in skips.Where(r => !string.IsNullOrEmpty(r.prefab)))
+            {
+                var id = UniqueId(string.IsNullOrEmpty(region.name) ? Path.GetFileNameWithoutExtension(region.prefab) : region.name, usedIds);
+                spec.nodes.Add(new UISpecNode
+                {
+                    id = id, kind = UISpecNode.KindInstance, parent = string.Empty, prefab = region.prefab,
+                    x = region.x, y = region.y, w = region.w, h = region.h
+                });
+            }
+
+            spec.skipRegions = skips;
+        }
+
+        private static float InsideRatio(UISpecNode node, UISkipRegion region)
+        {
+            var ix = Mathf.Max(0, Mathf.Min(node.x + node.w, region.x + region.w) - Mathf.Max(node.x, region.x));
+            var iy = Mathf.Max(0, Mathf.Min(node.y + node.h, region.y + region.h) - Mathf.Max(node.y, region.y));
+            return node.w * node.h > 0 ? ix * iy / (float)(node.w * node.h) : 0f;
         }
 
         /// <summary>Gameplay phía sau bị tối đều (đo từ icon HUD bị tint xám) → lớp dim đen phủ màn, vẽ dưới cùng.</summary>
@@ -94,10 +157,13 @@ namespace GameUp.UIBuilder.Editor
             nodes.Insert(0, new UISpecNode
             {
                 id = UniqueId("imgDim", new HashSet<string>(nodes.Select(n => n.id))), kind = UISpecNode.KindImage,
+                parent = string.Empty, // gốc — OrderForDrawing chỉ duyệt từ cha rỗng, null thì node bị rơi mất
                 w = locate.demoWidth, h = locate.demoHeight, anchor = "stretch", color = $"#000000{alpha:X2}",
                 raycastTarget = true, flat = true
             });
-            notes.Add($"imgDim: lớp dim đen {locate.dimAlpha:P0} đo từ gameplay bị làm tối phía sau.");
+            notes.Add(locate.dimEstimated
+                ? $"imgDim: lớp dim đen {locate.dimAlpha:P0} ước lượng từ điểm sáng nhất của phần bị phủ (cận trên) — so với demo và chỉnh alpha nếu cần."
+                : $"imgDim: lớp dim đen {locate.dimAlpha:P0} đo từ gameplay bị làm tối phía sau.");
         }
 
         // ─── Nhiều trạng thái (tab) ──────────────────────────────────────────
@@ -372,7 +438,9 @@ namespace GameUp.UIBuilder.Editor
 
         private static void AppendChildren(string parentId, List<UISpecNode> nodes, List<UISpecNode> result)
         {
-            foreach (var child in nodes.Where(n => n.parent == parentId).OrderByDescending(n => n.flat).ThenByDescending(Area).ThenBy(n => n.y))
+            // Nền/lớp phủ kín màn (stretch) vẽ dưới cùng, rồi sprite phẳng, rồi lớn trước nhỏ.
+            foreach (var child in nodes.Where(n => n.parent == parentId).OrderByDescending(n => n.anchor == "stretch")
+                         .ThenByDescending(n => n.flat).ThenByDescending(Area).ThenBy(n => n.y))
             {
                 result.Add(child);
                 AppendChildren(child.id, nodes, result);

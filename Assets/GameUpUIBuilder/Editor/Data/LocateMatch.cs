@@ -15,7 +15,23 @@ namespace GameUp.UIBuilder.Editor
         public float diff;
         public float zncc;
 
+        /// <summary>Tỉ lệ pixel trùng gần tuyệt đối với sprite (0-1) — cao dù ZNCC thấp = sprite bị che một phần.</summary>
+        public float inlier;
+
         /// <summary>Màu tô (Image.color) ước lượng khi sprite bị tint trên demo, "#RRGGBB"; rỗng = không tint.</summary>
         public string tint;
+
+        /// <summary>Cách sprite xuất hiện trên demo: "1:1", "scale 0.75", "9-slice", kèm tint nếu có.</summary>
+        public string MethodLabel
+        {
+            get
+            {
+                var method = sliced ? "9-slice" : Math.Abs(scale - 1f) < 0.001f ? "1:1" : $"scale {scale:0.##}";
+                return string.IsNullOrEmpty(tint) ? method : $"{method} · tint {tint}";
+            }
+        }
+
+        /// <summary>Độ tin cậy: tương quan cấu trúc, lệch màu trung bình (0-255), tỉ lệ pixel trùng.</summary>
+        public string ScoreLabel => $"ZNCC {zncc:0.00} · lệch màu {diff:0.#} · trùng {inlier:P0}";
     }
 }

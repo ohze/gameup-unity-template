@@ -1,0 +1,2615 @@
+{
+ "version": 1,
+ "demo": "Assets/_MainProject/Art/UI_v2/Party/demo_upgrade.png",
+ "demoWidth": 1080,
+ "demoHeight": 2160,
+ "elapsedMs": 1188,
+ "cachedCount": 224,
+ "sprites": [
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_earth.png",
+   "name": "card_list_earth",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_fire.png",
+   "name": "card_list_fire",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_frame.png",
+   "name": "card_list_frame",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_lightning.png",
+   "name": "card_list_lightning",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_nature.png",
+   "name": "card_list_nature",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_selected.png",
+   "name": "card_list_selected",
+   "spriteWidth": 285,
+   "spriteHeight": 285,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_list_water.png",
+   "name": "card_list_water",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_party_earth.png",
+   "name": "card_party_earth",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_party_fire.png",
+   "name": "card_party_fire",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_party_frame.png",
+   "name": "card_party_frame",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_party_lightning.png",
+   "name": "card_party_lightning",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_party_nature.png",
+   "name": "card_party_nature",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\card_party_water.png",
+   "name": "card_party_water",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\frame_level.png",
+   "name": "frame_level",
+   "spriteWidth": 339,
+   "spriteHeight": 93,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\icon_locked.png",
+   "name": "icon_locked",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\v1\\card_list_add.png",
+   "name": "card_list_add",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "soft-alpha"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\v1\\card_list_selected.png",
+   "name": "card_list_selected",
+   "spriteWidth": 285,
+   "spriteHeight": 285,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\v2\\card_list_A.png",
+   "name": "card_list_A",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\v2\\card_list_S.png",
+   "name": "card_list_S",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\v2\\card_party_A.png",
+   "name": "card_party_A",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Base\\v2\\card_party_S.png",
+   "name": "card_party_S",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Skill\\skill_description.png",
+   "name": "skill_description",
+   "spriteWidth": 609,
+   "spriteHeight": 137,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Skill\\table_body.png",
+   "name": "table_body",
+   "spriteWidth": 948,
+   "spriteHeight": 140,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Skill\\table_header.png",
+   "name": "table_header",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Skill\\tag_skill_type.png",
+   "name": "tag_skill_type",
+   "spriteWidth": 200,
+   "spriteHeight": 48,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Stats\\table_body_1.png",
+   "name": "table_body_1",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Stats\\table_body_2.png",
+   "name": "table_body_2",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Stats\\table_footer_2.png",
+   "name": "table_footer_2",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Stats\\table_header.png",
+   "name": "table_header",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\Gravion\\gravion_boder_stackskill.png",
+   "name": "gravion_boder_stackskill",
+   "spriteWidth": 136,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\Gravion\\gravion_detail_stackskill.png",
+   "name": "gravion_detail_stackskill",
+   "spriteWidth": 136,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\Gravion\\gravion_line_stackskill.png",
+   "name": "gravion_line_stackskill",
+   "spriteWidth": 136,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\Voltari\\voltari_line_stack.png",
+   "name": "voltari_line_stack",
+   "spriteWidth": 54,
+   "spriteHeight": 96,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\Voltari\\voltatri_boder_stack.png",
+   "name": "voltatri_boder_stack",
+   "spriteWidth": 54,
+   "spriteHeight": 96,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\btn_back.png",
+   "name": "btn_back",
+   "spriteWidth": 84,
+   "spriteHeight": 161,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 44,
+     "y": 454,
+     "w": 67,
+     "h": 129,
+     "scale": 0.8,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.826,
+     "inlier": 0.805
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\btn_info.png",
+   "name": "btn_info",
+   "spriteWidth": 98,
+   "spriteHeight": 110,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 941,
+     "y": 1068,
+     "w": 98,
+     "h": 110,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.743,
+     "inlier": 0.86
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\btn_next.png",
+   "name": "btn_next",
+   "spriteWidth": 84,
+   "spriteHeight": 161,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 956,
+     "y": 444,
+     "w": 84,
+     "h": 161,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.986
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\frame_class_icon.png",
+   "name": "frame_class_icon",
+   "spriteWidth": 68,
+   "spriteHeight": 60,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 786,
+     "y": 135,
+     "w": 68,
+     "h": 60,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.984
+    }
+   ],
+   "flatColor": [
+    88,
+    40,
+    30
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\frame_class_name.png",
+   "name": "frame_class_name",
+   "spriteWidth": 186,
+   "spriteHeight": 60,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 854,
+     "y": 135,
+     "w": 186,
+     "h": 60,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.992
+    },
+    {
+     "x": 514,
+     "y": 804,
+     "w": 186,
+     "h": 60,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.633
+    }
+   ],
+   "flatColor": [
+    147,
+    78,
+    53
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\frame_price.png",
+   "name": "frame_price",
+   "spriteWidth": 348,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\frame_stat.png",
+   "name": "frame_stat",
+   "spriteWidth": 232,
+   "spriteHeight": 68,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 80,
+     "y": 1086,
+     "w": 232,
+     "h": 68,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.783
+    },
+    {
+     "x": 385,
+     "y": 1086,
+     "w": 232,
+     "h": 68,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.79
+    },
+    {
+     "x": 687,
+     "y": 1086,
+     "w": 232,
+     "h": 68,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.804
+    }
+   ],
+   "flatColor": [
+    107,
+    74,
+    60
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\frame_upgrade.png",
+   "name": "frame_upgrade",
+   "spriteWidth": 1014,
+   "spriteHeight": 418,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_back.png",
+   "name": "icon_back",
+   "spriteWidth": 72,
+   "spriteHeight": 66,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 73,
+     "y": 70,
+     "w": 72,
+     "h": 66,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.988
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_class_guardian.png",
+   "name": "icon_class_guardian",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_class_hunter.png",
+   "name": "icon_class_hunter",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_class_knight.png",
+   "name": "icon_class_knight",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_class_support.png",
+   "name": "icon_class_support",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_class_wizard.png",
+   "name": "icon_class_wizard",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\Unit\\icon_info.png",
+   "name": "icon_info",
+   "spriteWidth": 20,
+   "spriteHeight": 54,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 980,
+     "y": 1087,
+     "w": 20,
+     "h": 54,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.986
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_DoTDMGbonus.png",
+   "name": "icon_stat_DoTDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_DoTDMGresistance.png",
+   "name": "icon_stat_DoTDMGresistance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_atk.png",
+   "name": "icon_stat_atk",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_basicATKDMGbonus.png",
+   "name": "icon_stat_basicATKDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_controldebufresistance.png",
+   "name": "icon_stat_controldebufresistance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_crd.png",
+   "name": "icon_stat_crd",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_crit.png",
+   "name": "icon_stat_crit",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_def.png",
+   "name": "icon_stat_def",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_defIgnorance.png",
+   "name": "icon_stat_defIgnorance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_dmgReduction.png",
+   "name": "icon_stat_dmgReduction",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_evasion.png",
+   "name": "icon_stat_evasion",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_evolve.png",
+   "name": "icon_stat_evolve",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_extraDMGbonus.png",
+   "name": "icon_stat_extraDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_healingeffect.png",
+   "name": "icon_stat_healingeffect",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_hp.png",
+   "name": "icon_stat_hp",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_skillDMGbonus.png",
+   "name": "icon_stat_skillDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_weaknessDMGbonus.png",
+   "name": "icon_stat_weaknessDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\Stat\\icon_stat_weaknessDMGresistance.png",
+   "name": "icon_stat_weaknessDMGresistance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\bottom_header.png",
+   "name": "bottom_header",
+   "spriteWidth": 1080,
+   "spriteHeight": 186,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\bottom_tray.png",
+   "name": "bottom_tray",
+   "spriteWidth": 1080,
+   "spriteHeight": 1034,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 0,
+     "y": 912,
+     "w": 1080,
+     "h": 1034,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.409
+    }
+   ],
+   "flatColor": [
+    46,
+    32,
+    32
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\divider.png",
+   "name": "divider",
+   "spriteWidth": 980,
+   "spriteHeight": 6,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_arrow.png",
+   "name": "icon_arrow",
+   "spriteWidth": 104,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_check.png",
+   "name": "icon_check",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_rarity_A.png",
+   "name": "icon_rarity_A",
+   "spriteWidth": 174,
+   "spriteHeight": 174,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 634,
+     "y": 39,
+     "w": 84,
+     "h": 84,
+     "scale": 0.48,
+     "sliced": false,
+     "diff": 1.2,
+     "zncc": 0.934,
+     "inlier": 0.7
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_rarity_B.png",
+   "name": "icon_rarity_B",
+   "spriteWidth": 176,
+   "spriteHeight": 176,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_rarity_S.png",
+   "name": "icon_rarity_S",
+   "spriteWidth": 174,
+   "spriteHeight": 174,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 536,
+     "y": 38,
+     "w": 87,
+     "h": 87,
+     "scale": 0.5,
+     "sliced": false,
+     "diff": 0.7,
+     "zncc": 0.975,
+     "inlier": 0.745
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_rarity_SS.png",
+   "name": "icon_rarity_SS",
+   "spriteWidth": 176,
+   "spriteHeight": 176,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_reset.png",
+   "name": "icon_reset",
+   "spriteWidth": 56,
+   "spriteHeight": 56,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 814,
+     "y": 789,
+     "w": 56,
+     "h": 56,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.967
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\icon_swap.png",
+   "name": "icon_swap",
+   "spriteWidth": 140,
+   "spriteHeight": 140,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\_Shared\\popup.png",
+   "name": "popup",
+   "spriteWidth": 1030,
+   "spriteHeight": 1163,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\boder_lv_equipment.png",
+   "name": "boder_lv_equipment",
+   "spriteWidth": 100,
+   "spriteHeight": 36,
+   "status": "unmatched",
+   "lowTexture": true,
+   "flatColor": [
+    255,
+    255,
+    255
+   ],
+   "suggestedBorder": {
+    "left": 4,
+    "right": 10,
+    "top": 4,
+    "bottom": 10
+   },
+   "reason": "inside-text"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\boder_slotequipment.png",
+   "name": "boder_slotequipment",
+   "spriteWidth": 260,
+   "spriteHeight": 260,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\decor_bg.png",
+   "name": "decor_bg",
+   "spriteWidth": 736,
+   "spriteHeight": 516,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Boot\\equipment_chronostep.png",
+   "name": "equipment_chronostep",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Boot\\equipment_royalboots.png",
+   "name": "equipment_royalboots",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Boot\\equipment_stormstep.png",
+   "name": "equipment_stormstep",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Boot\\equipment_swiftboots.png",
+   "name": "equipment_swiftboots",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Boot\\equipment_talaria.png",
+   "name": "equipment_talaria",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Helmet\\eq_AncientCrown.png",
+   "name": "eq_AncientCrown",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Helmet\\eq_Knight_Helm.png",
+   "name": "eq_Knight_Helm",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Helmet\\eq_NomadHelmet.png",
+   "name": "eq_NomadHelmet",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Helmet\\eq_Talos.png",
+   "name": "eq_Talos",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Helmet\\eq_WitchHat.png",
+   "name": "eq_WitchHat",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Neckless\\eq_CrystalHarmony.png",
+   "name": "eq_CrystalHarmony",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Neckless\\eq_ManaCharm.png",
+   "name": "eq_ManaCharm",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Neckless\\eq_Mara_Pendant.png",
+   "name": "eq_Mara_Pendant",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Neckless\\eq_PinnacleofAesthetics.png",
+   "name": "eq_PinnacleofAesthetics",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Neckless\\eq_RubyTalisman.png",
+   "name": "eq_RubyTalisman",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Ring\\equipment_dragonscaleprotection.png",
+   "name": "equipment_dragonscaleprotection",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Ring\\equipment_eaglering.png",
+   "name": "equipment_eaglering",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Ring\\equipment_flamering.png",
+   "name": "equipment_flamering",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Ring\\equipment_judgementring.png",
+   "name": "equipment_judgementring",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Ring\\equipment_shadowring.png",
+   "name": "equipment_shadowring",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Wear\\eq_Battle_Garb.png",
+   "name": "eq_Battle_Garb",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Wear\\eq_Hellfire_Robe.png",
+   "name": "eq_Hellfire_Robe",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Wear\\eq_Immortal_Golden.png",
+   "name": "eq_Immortal_Golden",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Wear\\eq_Iron_Chainmail.png",
+   "name": "eq_Iron_Chainmail",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\equipment\\Wear\\eq_Mystic_Cloak.png",
+   "name": "eq_Mystic_Cloak",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_armor.png",
+   "name": "icon_armor",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_boots.png",
+   "name": "icon_boots",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_designscroll.png",
+   "name": "icon_designscroll",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_enhancemagicstone.png",
+   "name": "icon_enhancemagicstone",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_hat.png",
+   "name": "icon_hat",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_necklace.png",
+   "name": "icon_necklace",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_refinehammer.png",
+   "name": "icon_refinehammer",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\icon_ring.png",
+   "name": "icon_ring",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\boder_bonusextra.png",
+   "name": "boder_bonusextra",
+   "spriteWidth": 1000,
+   "spriteHeight": 88,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\boder_stat.png",
+   "name": "boder_stat",
+   "spriteWidth": 720,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "lowTexture": true,
+   "flatColor": [
+    45,
+    29,
+    33
+   ],
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\border_inforbonus.png",
+   "name": "border_inforbonus",
+   "spriteWidth": 968,
+   "spriteHeight": 84,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_asension.png",
+   "name": "frame_asension",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_common.png",
+   "name": "frame_common",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_epic.png",
+   "name": "frame_epic",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_icon_asension.png",
+   "name": "frame_icon_asension",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_icon_common.png",
+   "name": "frame_icon_common",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_icon_epic.png",
+   "name": "frame_icon_epic",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_icon_legend.png",
+   "name": "frame_icon_legend",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_icon_mythic.png",
+   "name": "frame_icon_mythic",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_icon_rare.png",
+   "name": "frame_icon_rare",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_legend.png",
+   "name": "frame_legend",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_mythic.png",
+   "name": "frame_mythic",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_rare.png",
+   "name": "frame_rare",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\frame_uncommon.png",
+   "name": "frame_uncommon",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\icon_lock.png",
+   "name": "icon_lock",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\icon_tier_1.png",
+   "name": "icon_tier_1",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\icon_tier_2.png",
+   "name": "icon_tier_2",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\icon_tier_3.png",
+   "name": "icon_tier_3",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\icon_tier_4.png",
+   "name": "icon_tier_4",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\tier_asension.png",
+   "name": "tier_asension",
+   "spriteWidth": 93,
+   "spriteHeight": 92,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\tier_epic.png",
+   "name": "tier_epic",
+   "spriteWidth": 93,
+   "spriteHeight": 92,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_enhance\\tier_rare.png",
+   "name": "tier_rare",
+   "spriteWidth": 93,
+   "spriteHeight": 92,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_refine\\boder_extra.png",
+   "name": "boder_extra",
+   "spriteWidth": 1000,
+   "spriteHeight": 424,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_refine\\boder_popup_tips.png",
+   "name": "boder_popup_tips",
+   "spriteWidth": 916,
+   "spriteHeight": 516,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_refine\\border_descripextra.png",
+   "name": "border_descripextra",
+   "spriteWidth": 968,
+   "spriteHeight": 84,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_refine\\icon_change.png",
+   "name": "icon_change",
+   "spriteWidth": 76,
+   "spriteHeight": 76,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_refine\\icon_keep.png",
+   "name": "icon_keep",
+   "spriteWidth": 76,
+   "spriteHeight": 76,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_refine\\icon_unlock.png",
+   "name": "icon_unlock",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_switch-sellect\\boder_chooseequip.png",
+   "name": "boder_chooseequip",
+   "spriteWidth": 1000,
+   "spriteHeight": 704,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_switch-sellect\\icon_arrow.png",
+   "name": "icon_arrow",
+   "spriteWidth": 36,
+   "spriteHeight": 64,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\equipment\\popup_switch-sellect\\icon_tick.png",
+   "name": "icon_tick",
+   "spriteWidth": 112,
+   "spriteHeight": 88,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\bg_evole_1.png",
+   "name": "bg_evole_1",
+   "spriteWidth": 1080,
+   "spriteHeight": 1660,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\bg_evole_2.png",
+   "name": "bg_evole_2",
+   "spriteWidth": 1080,
+   "spriteHeight": 1660,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\bode_inforskill.png",
+   "name": "bode_inforskill",
+   "spriteWidth": 852,
+   "spriteHeight": 272,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\boder_description_.png",
+   "name": "boder_description_",
+   "spriteWidth": 684,
+   "spriteHeight": 160,
+   "status": "unmatched",
+   "lowTexture": true,
+   "flatColor": [
+    46,
+    32,
+    32
+   ],
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\boder_starupgrade.png",
+   "name": "boder_starupgrade",
+   "spriteWidth": 1020,
+   "spriteHeight": 140,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\icon_arrow.png",
+   "name": "icon_arrow",
+   "spriteWidth": 88,
+   "spriteHeight": 88,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\icon_star.png",
+   "name": "icon_star",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\icon_star0.png",
+   "name": "icon_star0",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\icon_star1.png",
+   "name": "icon_star1",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\light_evolve_1.png",
+   "name": "light_evolve_1",
+   "spriteWidth": 1000,
+   "spriteHeight": 1000,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/Party\\evolve\\light_evolve_2.png",
+   "name": "light_evolve_2",
+   "spriteWidth": 1000,
+   "spriteHeight": 1000,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_001.png",
+   "name": "avatar_001",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_002.png",
+   "name": "avatar_002",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_003.png",
+   "name": "avatar_003",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_004.png",
+   "name": "avatar_004",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_005.png",
+   "name": "avatar_005",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_006.png",
+   "name": "avatar_006",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_007.png",
+   "name": "avatar_007",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_008.png",
+   "name": "avatar_008",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_009.png",
+   "name": "avatar_009",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_010.png",
+   "name": "avatar_010",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_011.png",
+   "name": "avatar_011",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_012.png",
+   "name": "avatar_012",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_013.png",
+   "name": "avatar_013",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_014.png",
+   "name": "avatar_014",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_015.png",
+   "name": "avatar_015",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_016.png",
+   "name": "avatar_016",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_017.png",
+   "name": "avatar_017",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_018.png",
+   "name": "avatar_018",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_019.png",
+   "name": "avatar_019",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_020.png",
+   "name": "avatar_020",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_021.png",
+   "name": "avatar_021",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\enemy\\avatar_022.png",
+   "name": "avatar_022",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_001.png",
+   "name": "avatar_001",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_002.png",
+   "name": "avatar_002",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_003.png",
+   "name": "avatar_003",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_004.png",
+   "name": "avatar_004",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_005.png",
+   "name": "avatar_005",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_006.png",
+   "name": "avatar_006",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_007.png",
+   "name": "avatar_007",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_008.png",
+   "name": "avatar_008",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_009.png",
+   "name": "avatar_009",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\Avatar\\hero\\avatar_010.png",
+   "name": "avatar_010",
+   "spriteWidth": 156,
+   "spriteHeight": 156,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\avatar_element_earth.png",
+   "name": "avatar_element_earth",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\avatar_frame.png",
+   "name": "avatar_frame",
+   "spriteWidth": 144,
+   "spriteHeight": 144,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\avatar_placeholder.png",
+   "name": "avatar_placeholder",
+   "spriteWidth": 144,
+   "spriteHeight": 144,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\bg.png",
+   "name": "bg",
+   "spriteWidth": 1080,
+   "spriteHeight": 2160,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1080,
+     "h": 2160,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.288
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\bg_pattern.png",
+   "name": "bg_pattern",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "soft-alpha"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\bottom_tab.png",
+   "name": "bottom_tab",
+   "spriteWidth": 200,
+   "spriteHeight": 214,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 0,
+     "y": 1946,
+     "w": 200,
+     "h": 214,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 1.1,
+     "zncc": 0.521,
+     "inlier": 0.723
+    },
+    {
+     "x": 680,
+     "y": 1946,
+     "w": 200,
+     "h": 214,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.755
+    },
+    {
+     "x": 880,
+     "y": 1946,
+     "w": 200,
+     "h": 214,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.746
+    },
+    {
+     "x": 480,
+     "y": 1946,
+     "w": 200,
+     "h": 214,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.732
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\bottom_tab_selected.png",
+   "name": "bottom_tab_selected",
+   "spriteWidth": 280,
+   "spriteHeight": 214,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 200,
+     "y": 1946,
+     "w": 280,
+     "h": 214,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.579
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_UEE_2.png",
+   "name": "btn_UEE_2",
+   "spriteWidth": 348,
+   "spriteHeight": 152,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 14,
+     "y": 907,
+     "w": 348,
+     "h": 152,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.185,
+     "inlier": 0.798
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_blue 1.png",
+   "name": "btn_blue 1",
+   "spriteWidth": 180,
+   "spriteHeight": 192,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_blue.png",
+   "name": "btn_blue",
+   "spriteWidth": 512,
+   "spriteHeight": 190,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 883,
+     "y": 1240,
+     "w": 157,
+     "h": 266,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 0.996,
+     "inlier": 0.82
+    }
+   ],
+   "suggestedBorder": {
+    "left": 36,
+    "right": 36,
+    "top": 36,
+    "bottom": 48
+   }
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_currentstat.png",
+   "name": "btn_currentstat",
+   "spriteWidth": 280,
+   "spriteHeight": 76,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_gray.png",
+   "name": "btn_gray",
+   "spriteWidth": 512,
+   "spriteHeight": 190,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_gray2.png",
+   "name": "btn_gray2",
+   "spriteWidth": 180,
+   "spriteHeight": 192,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_green.png",
+   "name": "btn_green",
+   "spriteWidth": 512,
+   "spriteHeight": 190,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_newstat.png",
+   "name": "btn_newstat",
+   "spriteWidth": 280,
+   "spriteHeight": 76,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_red.png",
+   "name": "btn_red",
+   "spriteWidth": 512,
+   "spriteHeight": 190,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\btn_yellow.png",
+   "name": "btn_yellow",
+   "spriteWidth": 512,
+   "spriteHeight": 190,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 40,
+     "y": 40,
+     "w": 140,
+     "h": 150,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 0.999,
+     "inlier": 0.831
+    },
+    {
+     "x": 284,
+     "y": 1642,
+     "w": 512,
+     "h": 190,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.723,
+     "inlier": 0.842
+    }
+   ],
+   "suggestedBorder": {
+    "left": 36,
+    "right": 36,
+    "top": 36,
+    "bottom": 48
+   }
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\frame.png",
+   "name": "frame",
+   "spriteWidth": 286,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\frame_skill.png",
+   "name": "frame_skill",
+   "spriteWidth": 536,
+   "spriteHeight": 536,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_combatPower.png",
+   "name": "icon_combatPower",
+   "spriteWidth": 94,
+   "spriteHeight": 99,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 341,
+     "y": 772,
+     "w": 94,
+     "h": 99,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.988
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_currency.png",
+   "name": "icon_currency",
+   "spriteWidth": 516,
+   "spriteHeight": 172,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_feature_artifact.png",
+   "name": "icon_feature_artifact",
+   "spriteWidth": 220,
+   "spriteHeight": 240,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 717,
+     "y": 1997,
+     "w": 123,
+     "h": 134,
+     "scale": 0.56,
+     "sliced": false,
+     "diff": 0.8,
+     "zncc": 0.968,
+     "inlier": 0.729
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_feature_battle.png",
+   "name": "icon_feature_battle",
+   "spriteWidth": 220,
+   "spriteHeight": 240,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 516,
+     "y": 1995,
+     "w": 123,
+     "h": 134,
+     "scale": 0.56,
+     "sliced": false,
+     "diff": 0.3,
+     "zncc": 0.961,
+     "inlier": 0.8
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_feature_locked.png",
+   "name": "icon_feature_locked",
+   "spriteWidth": 220,
+   "spriteHeight": 240,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 923,
+     "y": 1995,
+     "w": 123,
+     "h": 134,
+     "scale": 0.56,
+     "sliced": false,
+     "diff": 0.1,
+     "zncc": 0.984,
+     "inlier": 0.797
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_feature_party.png",
+   "name": "icon_feature_party",
+   "spriteWidth": 220,
+   "spriteHeight": 240,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 231,
+     "y": 1857,
+     "w": 220,
+     "h": 240,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.985,
+     "inlier": 0.792
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\icon_feature_store.png",
+   "name": "icon_feature_store",
+   "spriteWidth": 220,
+   "spriteHeight": 240,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 39,
+     "y": 1991,
+     "w": 123,
+     "h": 134,
+     "scale": 0.56,
+     "sliced": false,
+     "diff": 0.6,
+     "zncc": 0.994,
+     "inlier": 0.769
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\noti.png",
+   "name": "noti",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\top_bar.png",
+   "name": "top_bar",
+   "spriteWidth": 1080,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\unit_element_earth.png",
+   "name": "unit_element_earth",
+   "spriteWidth": 80,
+   "spriteHeight": 80,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\unit_element_fire.png",
+   "name": "unit_element_fire",
+   "spriteWidth": 80,
+   "spriteHeight": 80,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 960,
+     "y": 41,
+     "w": 80,
+     "h": 80,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.987
+    }
+   ]
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\unit_element_lightning.png",
+   "name": "unit_element_lightning",
+   "spriteWidth": 80,
+   "spriteHeight": 80,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\unit_element_nature.png",
+   "name": "unit_element_nature",
+   "spriteWidth": 80,
+   "spriteHeight": 80,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "Assets/_MainProject/Art/UI_v2/_Shared\\unit_element_water.png",
+   "name": "unit_element_water",
+   "spriteWidth": 80,
+   "spriteHeight": 80,
+   "status": "unmatched",
+   "reason": "no-match"
+  }
+ ],
+ "dropped": [
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 311,
+   "y": 1414,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 0,
+   "y": 1529,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 0,
+   "y": 1582,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 360,
+   "y": 1886,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 0,
+   "y": 1470,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 0,
+   "y": 1841,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_description_",
+   "reason": "flat-nested",
+   "x": 199,
+   "y": 1311,
+   "w": 684,
+   "h": 160
+  },
+  {
+   "name": "boder_description_",
+   "reason": "flat-nested",
+   "x": 252,
+   "y": 1613,
+   "w": 684,
+   "h": 160
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 543,
+   "y": 806,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 471,
+   "y": 808,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "inside-text",
+   "x": 852,
+   "y": 67,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "inside-text",
+   "x": 115,
+   "y": 977,
+   "w": 62,
+   "h": 40
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "inside-text",
+   "x": 490,
+   "y": 1104,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "inside-text",
+   "x": 760,
+   "y": 1104,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "inside-text",
+   "x": 534,
+   "y": 1710,
+   "w": 100,
+   "h": 36
+  }
+ ],
+ "texts": [
+  {
+   "x": 741,
+   "y": 49,
+   "w": 208,
+   "h": 60,
+   "color": "#FDFDFD",
+   "text": "Julius",
+   "confidence": 0.929,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 882,
+   "y": 148,
+   "w": 122,
+   "h": 40,
+   "color": "#FDFDFE",
+   "text": "Knight",
+   "confidence": 1.0
+  },
+  {
+   "x": 463,
+   "y": 727,
+   "w": 155,
+   "h": 33,
+   "color": "#FEEA5B",
+   "text": "Lv. 100",
+   "confidence": 0.976
+  },
+  {
+   "x": 476,
+   "y": 800,
+   "w": 169,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "99999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 898,
+   "y": 802,
+   "w": 97,
+   "h": 28,
+   "color": "#FEFEFE",
+   "text": "Reset",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 77,
+   "y": 964,
+   "w": 223,
+   "h": 54,
+   "color": "#FEFEFE",
+   "text": "Upgrade",
+   "confidence": 1.0
+  },
+  {
+   "x": 747,
+   "y": 975,
+   "w": 289,
+   "h": 57,
+   "color": "#808080",
+   "text": "Equipment",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 6
+  },
+  {
+   "x": 452,
+   "y": 982,
+   "w": 177,
+   "h": 44,
+   "color": "#808080",
+   "text": "Evolve",
+   "confidence": 1.0
+  },
+  {
+   "x": 451,
+   "y": 1096,
+   "w": 141,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 757,
+   "y": 1096,
+   "w": 141,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 160,
+   "y": 1099,
+   "w": 125,
+   "h": 41,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 331,
+   "y": 1260,
+   "w": 374,
+   "h": 39,
+   "color": "#FEFD3E",
+   "text": "Chapter 7: The End",
+   "confidence": 0.978
+  },
+  {
+   "x": 908,
+   "y": 1320,
+   "w": 107,
+   "h": 45,
+   "color": "#FEFEFE",
+   "text": "Perks",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 333,
+   "y": 1324,
+   "w": 493,
+   "h": 25,
+   "color": "#FEFEFE",
+   "text": "Marks an enemy. Can only target the",
+   "confidence": 0.998
+  },
+  {
+   "x": 334,
+   "y": 1356,
+   "w": 492,
+   "h": 26,
+   "color": "#FEFEFE",
+   "text": "marked enemy for 2 turns or until the",
+   "confidence": 0.996
+  },
+  {
+   "x": 920,
+   "y": 1360,
+   "w": 88,
+   "h": 31,
+   "color": "#FEFEFE",
+   "text": "Deck",
+   "confidence": 1.0
+  },
+  {
+   "x": 330,
+   "y": 1390,
+   "w": 496,
+   "h": 26,
+   "color": "#FEFEFE",
+   "text": "target is defeated. Extra DMG dealt to",
+   "confidence": 0.991
+  },
+  {
+   "x": 330,
+   "y": 1423,
+   "w": 339,
+   "h": 26,
+   "color": "#FEFEFE",
+   "text": "the marked target +100%.",
+   "confidence": 1.0
+  },
+  {
+   "x": 381,
+   "y": 1558,
+   "w": 137,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "1234/9999",
+   "confidence": 1.0
+  },
+  {
+   "x": 772,
+   "y": 1558,
+   "w": 150,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "12.1K/10.5K",
+   "confidence": 1.0
+  },
+  {
+   "x": 406,
+   "y": 1695,
+   "w": 267,
+   "h": 66,
+   "color": "#FEFEFE",
+   "text": "Upgrade",
+   "confidence": 1.0
+  },
+  {
+   "x": 152,
+   "y": 1698,
+   "w": 62,
+   "h": 49,
+   "color": "#FEFEFE",
+   "text": "x1",
+   "confidence": 0.996,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 278,
+   "y": 2102,
+   "w": 122,
+   "h": 46,
+   "color": "#FEFEFE",
+   "text": "Party",
+   "confidence": 1.0,
+   "outlineColor": "#262626",
+   "outlineWidth": 4
+  }
+ ],
+ "ocr": "ok",
+ "dimAlpha": null,
+ "dimEstimated": false,
+ "uiRegions": []
+}

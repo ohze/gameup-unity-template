@@ -2,6 +2,60 @@
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), phiên bản theo [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Bước 3 xem trực tiếp máy đang định vị gì**: các giai đoạn (Chuẩn bị → Dò sprite → Lọc chéo → Tìm & đọc chữ), thanh tiến độ, việc đang làm và nhật ký (sprite khớp thế nào, vị trí bị loại vì sao, dòng chữ OCR đọc được). Ảnh demo bên phải vẽ khung ngay khi dò được, tô vàng sprite vừa dò xong.
+- Preview bật/tắt 3 lớp: *Sprite* / *Chữ* / *Bị loại* (đỏ đứt). Rê chuột lên khung → tooltip: cách khớp (1:1, scale, 9-slice, tint, một màu), kích thước gốc, ZNCC / lệch màu / % pixel trùng; chữ: nội dung, độ tin cậy OCR, màu, viền.
+- Kết quả Bước 3 có dòng tóm tắt (dò → khớp → lọc bỏ → chữ, thời gian, lớp dim) và mục *Chữ tìm được*, *Bị lọc bỏ*.
+- `ui_locate.py` in sự kiện `@progress {json}` và ghi `dropped` (vị trí bị bộ lọc chéo bỏ + lý do) vào `locate.json`.
+- Bước 3: nhiều demo có bảng trạng thái từng tab (đã/đang/chờ định vị, bấm để xem); nút mờ thì nói rõ còn thiếu gì; lỗi hiện bằng hộp lỗi. Bước 2 cảnh báo khi thư mục art quá rộng (≥ 200 PNG).
+- **9-slice cho panel một màu**: dò 4 góc theo hình dáng (2 cạnh ngoài mỗi góc), kiểm tra cả khung sau khi kéo giãn.
+- **Lọc khớp yếu từ màn khác** (`foreign-weak`) khi chọn thư mục art bao trùm nhiều màn (cả UI_v2): panel một màu / tint / 9-slice lỏng / scale sprite nhỏ từ thư mục không phải của màn (và không có sprite nào khớp chắc) → bỏ. Thư mục chứa demo và thư mục art không chứa demo (_Shared) luôn được tin — cách dùng thường không bị ảnh hưởng.
+- Chữ: đọc cả chữ không nằm trên sprite nào (popup nổi trên lớp dim, panel chưa có art) nếu không bị làm tối — chữ gameplay sau lớp dim vẫn bị bỏ; quét thêm theo dải để bắt chữ ngắn trên nút / huy hiệu một chữ cái; tách khung OCR trùm 2 nhãn cạnh nhau.
+
+- **Vùng UI chính**: tự nhận màn popup có lớp phủ tối (viền màn hình không có điểm nào sáng quá 170), khoanh vùng UI =
+  phần sáng hơn hẳn phần bị phủ + chỗ sprite đã khớp, lấp kín ruột popup. Chữ ngoài vùng (title, thanh điều hướng của màn
+  phía sau) bị bỏ; màn toàn màn hình (không lớp phủ) giữ nguyên. Preview có lớp *Vùng UI* (làm tối phần bị phủ).
+  `locate.json` thêm `uiRegions`, `dimEstimated`.
+- Độ đậm lớp phủ ước lượng từ điểm sáng nhất của phần bị phủ khi không đo được từ sprite gameplay (cả 6 demo thật trước
+  đây đều không đo được) → spec luôn có `imgDim` cho popup, ghi chú rõ là ước lượng (cận trên).
+
+- **Phần đã có sẵn — không dựng** (Bước 4): kéo khung trên ảnh demo quanh thanh điều hướng / thanh trên…; node nằm
+  ≥ 60% trong vùng bị bỏ khỏi spec, vùng có prefab → node `instance` đặt đúng khung. Spec ghi lại `skipRegions`; prompt
+  cho Claude liệt kê vùng không dựng.
+- **Nhiều tab của cùng màn**: đối chiếu chéo (`--hint`) — vị trí tìm thấy ở tab khác được kiểm tra tại chỗ trên tab này
+  (phần chung như navbar, nền không còn bị hiểu nhầm là phần riêng từng tab); cửa sổ tự chạy thêm lượt đối chiếu (có cache,
+  vài giây). Dò bổ sung ô xếp sát nhau (navbar, lưới) kể cả khi ô đang chọn rộng hơn chen giữa.
+- Ảnh nền cỡ cả màn bị che quá nửa: xét riêng tại (0,0); không làm cha của cả UI, anchor stretch, vẽ dưới cùng.
+- Hình bóng một màu được tô màu (icon trắng + `Image.color`, vd icon ô trang bị): tìm theo hình dáng, ghi màu tô.
+- Chữ: đọc khung từng ký tự, bỏ ký tự là icon đã khớp và khác màu chữ (icon hạng "S" "A" trước tên); màu chữ lấy ruột nét
+  sáng nhất, trừ màu nền đo ở viền khung (nút đỏ chưa có art không còn nhuộm đỏ chữ); sprite hình ký tự / hộp một màu nằm
+  trong dòng chữ bị bỏ (`inside-text`).
+
+### Changed
+- Định vị nhanh ~2× với thư mục art lớn: cổng "có mặt" rẻ trước khi dò kỹ — tương quan nét (mọi tỉ lệ) và tỉ lệ màu có trên demo (chỉ cho dò scale / 9-slice, vì tint đổi màu). Ngưỡng đặt từ đo đạc: khớp thật ≥ 0.38 / ≥ 0.88, cổng ở 0.25 / 0.6.
+- Cửa sổ vẽ lại tối đa ~10 lần/giây khi đang chạy, kiểm tra file đổi mỗi giây một lần (trước: mỗi editor update). Timeout định vị 5 → 30 phút.
+- Hai sprite khớp cùng chỗ: ưu tiên bản không tint, 1:1 hơn 9-slice, bản lớn hơn, rồi mới tới điểm khớp.
+- Số process mặc định tối đa 12 (trước: số luồng − 1): đo A/B trên i5-14600K, 842 sprite — 12 process ~62 s, 19 process ~94 s
+  (quá nhiều process chỉ tranh cache/băng thông bộ nhớ). Bước 3 có thanh *Process song song* (0 = tự động).
+- Dò mịn quanh ứng viên trên ảnh xám (bước kiểm tra vẫn so đủ màu); số ứng viên theo số bản đặt vừa ảnh (panel cỡ popup
+  không dò 32 ứng viên); sprite lớn chạy trước và nhận kết quả theo thứ tự xong — tiến trình trên Unity chạy đều.
+- Chạy lại có cache: cache cả kết quả OCR thô theo hash demo (842 sprite: 6.2 s → 1.3 s).
+
+### Fixed
+- Windows: định vị hỏng ở bước cuối với `UnicodeEncodeError: 'charmap' codec…` — stdout của script giờ luôn UTF-8.
+- Cửa sổ đọc `locate.json` đúng lúc script đang ghi → `IOException` làm vỡ layout cửa sổ.
+- Bấm *Huỷ* định vị → `NullReferenceException` trong cùng lần vẽ.
+- Khớp nhầm chỉ nhờ tương quan (ZNCC) khi gần như không có pixel trùng — thêm ngưỡng ≥ 30% pixel trùng (khớp thật đo được ≥ 60%).
+- Popup bị title / nút X đè mép trên bị bỏ sót — viền nay xét theo từng cạnh (đủ ở ≥ 3/4 cạnh).
+- Tint nhầm: sprite gần một màu nhân tint khớp vào nền phẳng — đòi hoạ tiết còn lại sau tô và chi tiết trùng.
+- 9-slice nhầm nhỏ hơn tổng border; panel một màu kéo giãn bằng cả màn hình; bản 9-slice "góc giả" dưới title thắng bản 1:1 đúng.
+- Chữ có viền biến mất khi font không có preset outline cho UI: builder chọn nhầm material shader 3D "(Surface)".
+- Sprite một màu dạng hình bóng (icon cung, gậy phép trắng) khớp nhầm vào mũi tên trắng; 9-slice một màu chỉ 10% cùng màu.
+- `imgDim` bị rơi khỏi spec: node tạo với `parent = null` nên bước sắp thứ tự vẽ (duyệt từ cha rỗng) bỏ qua.
+- Chữ trắng không viền trên nền sáng bị coi là chữ vẽ sẵn trong art; nhãn và giá trị cùng hàng bị gộp thành một dòng.
+
 ## [0.1.0] - 2026-09-21
 
 ### Added

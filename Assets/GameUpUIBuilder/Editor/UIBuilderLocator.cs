@@ -1,19 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using GameUp.Core.Editor;
 using UnityEngine;
 
 namespace GameUp.UIBuilder.Editor
 {
-    /// <summary>Chạy <c>Tools~/ui_locate.py</c> trong venv, không chặn Editor. Gọi <see cref="Poll"/> mỗi frame.</summary>
+    /// <summary>
+    /// Chạy <c>Tools~/ui_locate.py</c> trong venv, không chặn Editor. Gọi <see cref="Poll"/> mỗi frame; trong lúc chạy
+    /// <see cref="Progress"/> cập nhật theo từng dòng sự kiện script in ra.
+    /// </summary>
     public sealed class UIBuilderLocator
     {
-        private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(5);
+        // Thư mục art rộng (cả UI_v2, ~850 sprite) mất vài phút lần đầu; người dùng luôn huỷ được bằng nút Huỷ.
+        private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(30);
 
         private readonly GUExternalCommand _command;
         private readonly string _outPath;
+        private int _parsedLength;
+
+        public LocateProgress Progress { get; } = new LocateProgress();
 
         public LocateResult Result { get; private set; }
 
@@ -30,24 +38,29 @@ namespace GameUp.UIBuilder.Editor
         /// <param name="demoPath">Ảnh demo (asset path hoặc tuyệt đối).</param>
         /// <param name="artPaths">Thư mục art hoặc file PNG (asset path hoặc tuyệt đối).</param>
         /// <param name="outPath">File locate.json đầu ra (tương đối gốc project hoặc tuyệt đối).</param>
-        public static UIBuilderLocator Start(string demoPath, IEnumerable<string> artPaths, bool recursive, string outPath)
+        /// <param name="hints">locate.json của demo các tab khác cùng màn — đối chiếu phần chung (file chưa có thì bỏ qua).</param>
+        public static UIBuilderLocator Start(string demoPath, IEnumerable<string> artPaths, bool recursive, string outPath,
+            IEnumerable<string> hints)
         {
-            var args = BuildArguments(demoPath, artPaths, recursive, outPath);
+            var args = BuildArguments(demoPath, artPaths, recursive, outPath, hints);
             var command = GUExternalCommand.Start(UIBuilderPaths.VenvPython, args, UIBuilderPaths.ProjectRoot, Timeout);
             return new UIBuilderLocator(command, outPath);
         }
 
         /// <summary>Dòng lệnh đầy đủ — để hiện cho người dùng / đưa vào prompt cho AI chạy lại.</summary>
-        public static string BuildCommandLine(string demoPath, IEnumerable<string> artPaths, bool recursive, string outPath)
+        public static string BuildCommandLine(string demoPath, IEnumerable<string> artPaths, bool recursive, string outPath,
+            IEnumerable<string> hints)
         {
-            return $"{UIBuilderPython.Quote(UIBuilderPaths.VenvPython)} {BuildArguments(demoPath, artPaths, recursive, outPath)}";
+            return $"{UIBuilderPython.Quote(UIBuilderPaths.VenvPython)} {BuildArguments(demoPath, artPaths, recursive, outPath, hints)}";
         }
 
         /// <summary>Trả về true khi đã xong; khi đó <see cref="Result"/> hoặc <see cref="Error"/> có giá trị.</summary>
         public bool Poll()
         {
             if (Result != null || Error != null) return true;
-            if (!_command.Poll()) return false;
+            var finished = _command.Poll();
+            ReadProgress();
+            if (!finished) return false;
 
             if (!_command.Succeeded)
             {
@@ -75,9 +88,25 @@ namespace GameUp.UIBuilder.Editor
             {
                 return null;
             }
+            catch (IOException) // script đang ghi dở file → lần tải lại sau sẽ đọc được
+            {
+                return null;
+            }
         }
 
-        private static string BuildArguments(string demoPath, IEnumerable<string> artPaths, bool recursive, string outPath)
+        /// <summary>Áp các dòng stdout mới hoàn chỉnh (kết thúc bằng xuống dòng) vào <see cref="Progress"/>.</summary>
+        private void ReadProgress()
+        {
+            var output = Output;
+            var end = output.LastIndexOf('\n');
+            if (end < _parsedLength) return;
+            foreach (var line in output.Substring(_parsedLength, end - _parsedLength).Split('\n'))
+                Progress.ApplyLine(line.TrimEnd('\r'));
+            _parsedLength = end + 1;
+        }
+
+        private static string BuildArguments(string demoPath, IEnumerable<string> artPaths, bool recursive, string outPath,
+            IEnumerable<string> hints)
         {
             var sb = new StringBuilder();
             sb.Append(UIBuilderPython.Quote(UIBuilderPaths.LocateScript));
@@ -87,14 +116,18 @@ namespace GameUp.UIBuilder.Editor
             if (recursive) sb.Append(" --recursive");
             sb.Append(" --out ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(outPath)));
             sb.Append(" --cache ").Append(UIBuilderPython.Quote(UIBuilderPaths.CacheFolder));
+            foreach (var hint in hints)
+                sb.Append(" --hint ").Append(UIBuilderPython.Quote(UIBuilderPaths.ToAbsolute(hint)));
+            var workers = UIBuilderSettings.instance.locateWorkers;
+            if (workers > 0) sb.Append(" --workers ").Append(workers);
             return sb.ToString();
         }
 
         private static string LastLine(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
-            var lines = text.TrimEnd().Split('\n');
-            return lines[lines.Length - 1].Trim();
+            var last = text.TrimEnd().Split('\n').LastOrDefault(l => !l.StartsWith(LocateProgress.LinePrefix, StringComparison.Ordinal));
+            return last?.Trim();
         }
     }
 }

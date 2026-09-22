@@ -19,7 +19,12 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Material TMP gán cho chữ có viền trên demo; rỗng = tự chọn preset outline trong thư mục font.</summary>
         public string textOutlineMaterial;
         public bool showDemoPreview = true;
-        public bool showMatchRects = true;
+        /// <summary>Phần đã có sẵn trên demo (thanh điều hướng…) — không dựng; tọa độ pixel demo, dùng chung mọi tab.</summary>
+        public List<UISkipRegion> skipRegions = new List<UISkipRegion>();
+        /// <summary>Số process định vị song song; 0 = tự động (số luồng CPU − 1, tối đa 12).</summary>
+        public int locateWorkers;
+        /// <summary>Lớp khung vẽ đè lên ảnh demo (sprite khớp / chữ / vị trí bị loại).</summary>
+        public PreviewLayers previewLayers = PreviewLayers.Sprites | PreviewLayers.Texts | PreviewLayers.UIRegion;
 
         public void Save() => Save(true);
     }

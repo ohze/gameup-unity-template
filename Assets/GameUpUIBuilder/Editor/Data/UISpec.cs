@@ -34,6 +34,9 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Thứ tự trong danh sách = thứ tự vẽ: node sau nằm trên node trước cùng cha.</summary>
         public List<UISpecNode> nodes = new List<UISpecNode>();
 
+        /// <summary>Phần đã có sẵn, không dựng (ghi lại để người/AI biết vì sao thiếu node ở đó); vùng có prefab → node instance.</summary>
+        public List<UISkipRegion> skipRegions = new List<UISkipRegion>();
+
         /// <summary>Ghi chú cho người review (art thiếu, phần ước lượng, border cần set…) — builder bỏ qua.</summary>
         public List<string> notes = new List<string>();
     }
