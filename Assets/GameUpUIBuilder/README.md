@@ -48,7 +48,20 @@ Cần GameUp Core và **Python 3.9+** trên máy (Ubuntu/Debian: thêm `python3-
 4. **Spec**: chọn *Font cho text* (font TMP của game) rồi bấm *Tạo spec nháp*. Spec gồm mọi sprite đã định vị (lồng theo quan hệ chứa nhau) và mọi dòng chữ tìm được: đúng vị trí, màu, cỡ, căn lề, và nội dung đọc bằng OCR (RapidOCR, chạy trên máy); node chữ được đặt tên theo nội dung (`txtRemoveAds`). Dòng OCR không chắc được ghi trong phần ghi chú của spec. Sau đó chọn một trong hai cách:
    - *Copy prompt cho Claude* rồi dán vào Claude Code (đã *Cài skill* `/gu-ui`). Claude điền nội dung chữ, đặt tên node, gom nhóm, đặt anchor, ước lượng glow/art thiếu, tự dựng và đối chiếu qua Unity MCP.
    - Sửa tay `UIBuilder/<Tên>/spec.json`.
-5. **Dựng prefab từ spec**: dựng xong tự render `compare.png`. Nếu prefab đã có, builder chỉ cập nhật node theo tên, giữ nguyên phần làm tay.
+5. **Duyệt cây & chọn dựng gì** — ngay trong cửa sổ, ngay sau khi định vị xong (tool tự sinh spec nháp):
+   cột trái là **cây node đúng thứ sẽ ra prefab**, cột phải là ảnh demo có khung từng node.
+   - **bỏ tick** một node = không dựng (hàng xám, giữ nguyên dữ liệu; tick lại là dựng lại). Bỏ node cha thì cả nhánh theo.
+   - **chọn node → khung của nó sáng vàng trên ảnh demo**; **bấm khung trên ảnh → chọn node trong cây**. Rê chuột lên khung
+     để xem id, kind, cha, rect, anchor — đây là cách soi nhanh máy dò có đặt đúng chỗ không.
+   - **bấm đúp** (hoặc F2) để đổi tên node · **kéo thả** để đổi cha và đổi thứ tự vẽ · **▲▼** đổi chỗ với node anh em.
+   - chọn nhiều node (Ctrl/Shift) rồi **Gom lại** để tạo node cha `empty` có khung bao vừa đủ.
+   - Mọi thay đổi ghi thẳng vào `spec.json`, không cần bấm lưu.
+
+   Lớp *Node* trên ảnh bật/tắt ở ô **Hiện trên ảnh** của Bước 3 (tím = sẽ dựng, xám đứt = đã bỏ, vàng = đang chọn).
+
+   *Tuỳ chọn* — **Mở trong scene**: dựng cây thành object Unity thật trong một scene tạm (không tạo asset) khi cần
+   Inspector hoặc kéo rect bằng tay; xong bấm *Lấy cây từ scene* để ghi ngược vào spec.
+6. **Dựng prefab từ spec**: dựng xong tự render `compare.png`. Nếu prefab đã có, builder chỉ cập nhật node theo tên, giữ nguyên phần làm tay.
 
 *Đối chiếu*: bật overlay để phủ ảnh demo lên Scene View, khớp với prefab đang mở trong Prefab Mode.
 
@@ -90,6 +103,7 @@ Xem schema đầy đủ trong `AI~/SKILL.md`. Tóm tắt:
 - Node cha phải đứng trước node con trong mảng; thứ tự trong mảng là thứ tự vẽ.
 - `kind`: `empty` · `image` · `button` · `text` (TMP).
 - `anchor`: `auto` hoặc một trong 13 preset. Ở độ phân giải tham chiếu, vị trí luôn đúng pixel; anchor chỉ quyết định cách co giãn trên màn khác tỉ lệ.
+- `excluded`: node đã bỏ ở bước xem trước — builder không đọc, giữ để khôi phục và để lần sinh lại spec không dựng lại.
 - `rootComponent`: tên class (vd `PopupResult : UIPopup`). Builder gắn component này vào root và tự gán các field `[SerializeField]` còn trống có tên trùng `id` node.
 
 ## API cho AI / script

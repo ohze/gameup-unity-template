@@ -41,7 +41,8 @@ Làm sạch cây (so với bản dò ảnh `Prefabs/UI/Test/RankingPsd.prefab`, 
 màu, layer flatten → tách mảng rời (`split_parts`), chữ vẽ sẵn → OCR (`TextReader`, `baked_text`), generator PSD:
 `ExtractLists(loose)`, `ShareSwappedSprites` (chỉ nút), `GroupIntoBoxes` (dải dọc trong panel ≥ 30% màn, tên theo
 `LocateMatch.group`), `NodeName`. Kết quả ranking: 61 node chính + LeaderboardItem 12 + RankingRewardsItem 10.
-Chưa làm: thư viện prefab chung giữa các màn (`Prefabs/UI/Common`, Prefab Variant) và bước duyệt cây module trong cửa sổ.
+Chưa làm: thư viện prefab chung giữa các màn (`Prefabs/UI/Common`, Prefab Variant). Bước duyệt cây nay có ở Bước 5
+(xem mục bên dưới).
 
 Test thật: `~/Downloads/bossscreen_DuyLV.psd` (Dungeon popup_ranking, 2 tab) + art `UI_v2/Challenge Mode/popup_ranking`
 + `_Shared` → ~30 s, prefab 99 node, 2 item prefab; tab ranking trùng khít demo.
@@ -56,13 +57,56 @@ Test thật: `~/Downloads/bossscreen_DuyLV.psd` (Dungeon popup_ranking, 2 tab) +
 | `Editor/LocateProgress.cs` | Đọc dòng `@progress {json}` của script → giai đoạn, nhật ký, kết quả tạm cho preview khi đang chạy. |
 | `Tools~/requirements*.txt` | venv `~/.gameup/ui-builder/venv`; `rapidocr` cài `--no-deps` (tránh `opencv-python` trùng bản headless). |
 | `Editor/UIBuilderWindow.cs` | Cửa sổ 2 cột (các bước bên trái, ảnh demo bên phải), nhiều demo = nhiều tab. |
+| `Editor/UISpecTree.cs` | Bước 5: cây node trong cửa sổ (TreeView) — tick dựng/bỏ, đổi tên, kéo thả đổi cha/thứ tự. |
+| `Editor/UISpecEdit.cs` | Sửa cấu trúc spec: gom nhóm, đổi tên, đổi cha, đổi thứ tự vẽ, bỏ node, trải lại danh sách phẳng. |
+| `Editor/UIPreviewStage.cs` | Tuỳ chọn: scene tạm (additive) + Canvas world-space, mở/đóng/nhóm object đang chọn. |
+| `Editor/UIPreviewBuilder.cs` | spec → object thật trong scene tạm; `instance` bung thành nhóm chứa node của template. |
+| `Editor/UIPreviewSync.cs` | Cây trong scene → spec (xoá → `excluded`, nhóm mới → node `empty`, đổi tên/thứ tự/rect/active). |
+| `Editor/UIPreviewMap.cs` | Bảng object ↔ node (Unity không cho gắn MonoBehaviour của assembly Editor lên GameObject). |
+| `Editor/UISpecExclusions.cs` | Giữ quyết định "bỏ node" qua lần sinh lại spec; khôi phục lại được. |
 | `Editor/UISpecGenerator.cs` | locate → spec: node, cha/con theo chứa nhau, căn lề chữ, gộp nhiều trạng thái (`grp<Tab>`), `imgDim`. |
 | `Editor/UIListExtractor.cs` | Hàng lặp → `scroll` + item prefab (`templates`), instance + `overrides`; hàng lẻ cùng bố cục → instance. |
 | `Editor/UISpecBuilder.cs` | spec → prefab (cập nhật theo tên node, giữ phần làm tay), scroll/instance, cỡ chữ tự khớp, material outline. |
 | `Editor/UIPrefabRenderer.cs` | Render PreviewScene + ảnh so sánh từng tab. |
 | `Editor/UIBuilderApi.cs` | `BuildAndCompare(job)` cho AI qua MCP `eval`. |
 | `AI~/SKILL.md`, `AI~/gu-ui.md` | Skill Claude `/gu-ui` (cài vào `.claude/` của project dùng tool). |
-| `Tests/Editor/*` | 29 EditMode test (builder, generator, list extractor). |
+| `Tests/Editor/*` | 56 EditMode test (builder, generator, list extractor, sửa cây, preview sync, exclusions). |
+
+## Bước 5 — duyệt cây trong cửa sổ (2026-09-24)
+
+Định vị xong → tự sinh spec nháp → **cây node hiện ngay trong cửa sổ** (`UISpecTree`), đồng bộ hai chiều với ảnh demo ở
+cột phải (`PreviewLayers.Nodes`). Mọi thao tác ghi thẳng `spec.json` (`UISpecEdit` + `UISpecExclusions`).
+
+Đã đo, đừng làm lại:
+- `TreeView.SetSelection(ids, options)` **không** gọi `SelectionChanged` nếu thiếu cờ `FireSelectionChanged` → chọn node
+  từ ảnh demo sẽ không cập nhật phần tô sáng.
+- Ô tick vẽ trong `RowGUI` phải `Event.current.Use()` (không thì TreeView nuốt cú bấm thành chọn hàng), và **không gọi
+  `Reload()` ngay trong `RowGUI`** — đặt cờ, dựng lại ở đầu `OnGUI` lần sau.
+- Node vẽ sau sprite và thắng khi trùng khung: đang duyệt cây thì tooltip/cú bấm phải là của node, không phải sprite.
+
+### Xem trước trong scene (tuỳ chọn, giữ lại cho trường hợp cần Inspector)
+
+Nút *Mở trong scene* dựng cây thành object thật trong scene tạm `UIBuilder Preview — <Tên>`; *Lấy cây từ scene* đọc ngược
+về spec (`UIPreviewSync`).
+
+Đã đo, đừng làm lại:
+- **MonoBehaviour của assembly Editor không gắn được lên GameObject** ("Can't add script behaviour … because it is an
+  editor script"). Thẻ object ↔ node phải để ngoài, trong `UIPreviewMap`.
+- **`GetInstanceID` không dùng làm khoá được**: Unity cấp lại id của object/component vừa huỷ (`RemoveComponent` trong
+  `ApplyContent` huỷ component, id đó rơi vào GameObject dựng sau) → tra nhầm thẻ, node bị coi là đã xoá. Khoá hiện tại:
+  tham chiếu GameObject trong phiên, dự phòng theo đường dẫn lúc dựng rồi theo tên node.
+- **Rect của node trong ScrollRect** do LayoutGroup xếp, không phải vị trí đo trên demo → lúc đồng bộ giữ rect của spec,
+  không đọc lại (đọc lại làm lệch cả trăm px, và nhóm tab đang tắt thì layout chưa chạy).
+- **Anchor `auto`** được giữ nguyên nếu anchor hiện tại đúng bằng thứ builder tự chọn; sửa tay trong Inspector mới ghi
+  thành tên cụ thể.
+- Canvas world-space (1 px = 0.01 unit) thay vì overlay: overlay sẽ đè lên Game View của scene đang làm.
+
+Đã kiểm trên `UIBuilder/Ranking` (46 node, 2 tab, 11 instance, 2 scroll): mở preview 102 object không cảnh báo, đồng bộ
+ngược khớp 46/46 node (id, cha, kind, rect, anchor), 0 node bị bỏ nhầm; xoá + nhóm 3 lá cờ + đổi tên rồi dựng prefab →
+`compare.png` vẫn trùng demo, phần đã xoá đúng là phần thiếu.
+
+Chưa làm: sửa chính item prefab (`templates`) từ cây — mới chỉ xoá/ẩn phần tử thành `overrides[].hide` ở bản xem trước
+trong scene; cây trong cửa sổ chưa hiện node của `templates`. Cũng chưa kéo/sửa rect ngay trên ảnh demo (phải mở scene).
 
 ## Quyết định thiết kế đã chốt (đừng đổi ngược nếu không có lý do)
 

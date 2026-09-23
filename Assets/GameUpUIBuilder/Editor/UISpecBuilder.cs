@@ -44,6 +44,17 @@ namespace GameUp.UIBuilder.Editor
         }
 
         /// <summary>
+        /// Dựng node của spec vào một root có sẵn (object trong scene — bản xem trước), không tạo prefab. Root được kéo phủ
+        /// kín cha để tọa độ pixel của spec đúng như trên demo.
+        /// </summary>
+        public static Dictionary<string, RectTransform> BuildInto(RectTransform root, RectInt rootRect, List<UISpecNode> nodes,
+            UIBuildReport report, IUIBuildHook hook)
+        {
+            SetStretchFull(root);
+            return BuildNodes(nodes, root, rootRect, report, hook);
+        }
+
+        /// <summary>
         /// Dựng/cập nhật một prefab. <paramref name="fixedRoot"/>: root cố định cỡ (item danh sách) thay vì phủ kín cha
         /// (màn hình/popup). <paramref name="rootComponentSpec"/> null = không gắn component root.
         /// </summary>
@@ -61,7 +72,7 @@ namespace GameUp.UIBuilder.Editor
                 var rootTransform = (RectTransform)root.transform;
                 if (fixedRoot) SetFixedSize(rootTransform, rootRect);
                 else SetStretchFull(rootTransform);
-                var built = BuildNodes(nodes, rootTransform, rootRect, report);
+                var built = BuildNodes(nodes, rootTransform, rootRect, report, null);
                 if (rootComponentSpec != null) AttachRootComponent(rootComponentSpec, root, built, report);
 
                 PrefabUtility.SaveAsPrefabAsset(root, output, out var saved);
@@ -113,7 +124,7 @@ namespace GameUp.UIBuilder.Editor
         // ─── Dựng node ───────────────────────────────────────────────────────
 
         private static Dictionary<string, RectTransform> BuildNodes(List<UISpecNode> nodes, RectTransform root, RectInt rootAbs,
-            UIBuildReport report)
+            UIBuildReport report, IUIBuildHook hook)
         {
             var built = new Dictionary<string, RectTransform>();
             var containers = new Dictionary<string, RectTransform>(); // node scroll → Content (nơi đặt con)
@@ -123,10 +134,16 @@ namespace GameUp.UIBuilder.Editor
             foreach (var node in nodes)
             {
                 var hasParent = !string.IsNullOrEmpty(node.parent);
+                if (hasParent && !containers.ContainsKey(node.parent))
+                {
+                    report.Warnings.Add($"{node.id}: chưa dựng cha '{node.parent}' (thiếu hoặc khai báo sau) — bỏ node.");
+                    continue;
+                }
+
                 var parent = hasParent ? containers[node.parent] : root;
                 var parentAbs = hasParent ? absolute[node.parent] : rootAbs;
 
-                var rt = FindOrCreate(root, parent, node, report);
+                var rt = FindOrCreate(root, parent, node, report, hook);
                 if (rt == null) continue;
                 var nodeAbs = new RectInt(node.x, node.y, node.w, node.h);
                 ApplyRect(rt, nodeAbs, parentAbs, ResolveAnchor(node, hasParent, rootAbs, report));
@@ -141,6 +158,7 @@ namespace GameUp.UIBuilder.Editor
                 built[node.id] = rt;
                 containers[node.id] = node.kind == UISpecNode.KindScroll ? ScrollContent(rt) : rt;
                 absolute[node.id] = nodeAbs;
+                hook?.OnNodeBuilt(node, rt);
             }
 
             foreach (var node in nodes.Where(n => !n.active && built.ContainsKey(n.id)))
@@ -148,7 +166,8 @@ namespace GameUp.UIBuilder.Editor
             return built;
         }
 
-        private static RectTransform FindOrCreate(RectTransform root, RectTransform parent, UISpecNode node, UIBuildReport report)
+        private static RectTransform FindOrCreate(RectTransform root, RectTransform parent, UISpecNode node, UIBuildReport report,
+            IUIBuildHook hook)
         {
             var existing = parent.Find(node.id) as RectTransform;
             if (existing == null)
@@ -160,7 +179,15 @@ namespace GameUp.UIBuilder.Editor
             }
 
             if (node.kind == UISpecNode.KindInstance)
+            {
+                if (hook != null)
+                {
+                    if (existing != null) Object.DestroyImmediate(existing.gameObject);
+                    return hook.CreateInstance(parent, node, report);
+                }
+
                 return FindOrCreateInstance(parent, node, existing, report);
+            }
 
             if (existing != null)
             {
@@ -221,7 +248,7 @@ namespace GameUp.UIBuilder.Editor
             rt.localRotation = Quaternion.identity;
         }
 
-        private static void SetStretchFull(RectTransform rt)
+        public static void SetStretchFull(RectTransform rt)
         {
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
@@ -250,10 +277,16 @@ namespace GameUp.UIBuilder.Editor
             rt.offsetMax = new Vector2(right - anchor.max.x * parent.width, top - anchor.max.y * parent.height);
         }
 
+        /// <summary>Tên anchor mà <c>auto</c> quy ra cho node này — bước đồng bộ ngược dùng để biết có giữ được <c>auto</c> không.</summary>
+        public static string AutoAnchorName(UISpecNode node, bool hasParent, RectInt root)
+        {
+            return hasParent ? "center" : GuessAnchor(node, root);
+        }
+
         private static (Vector2 min, Vector2 max) ResolveAnchor(UISpecNode node, bool hasParent, RectInt root, UIBuildReport report)
         {
             var name = string.IsNullOrEmpty(node.anchor) ? "auto" : node.anchor.ToLowerInvariant();
-            if (name == "auto") name = hasParent ? "center" : GuessAnchor(node, root);
+            if (name == "auto") name = AutoAnchorName(node, hasParent, root);
 
             switch (name)
             {

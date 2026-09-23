@@ -24,6 +24,9 @@ namespace GameUp.UIBuilder.Editor
         private static readonly Color RegionColor = new Color(1f, 1f, 1f, 0.8f);
         private static readonly Color SkipFill = new Color(1f, 0.25f, 0.25f, 0.22f);
         private static readonly Color SkipColor = new Color(1f, 0.4f, 0.4f, 0.95f);
+        private static readonly Color NodeColor = new Color(0.65f, 0.55f, 1f, 0.85f);
+        private static readonly Color NodeSelected = new Color(1f, 0.92f, 0.20f, 1f);
+        private static readonly Color NodeExcluded = new Color(0.55f, 0.55f, 0.55f, 0.8f);
 
         private static GUIStyle _tag;
         private static GUIStyle _tooltip;
@@ -36,14 +39,16 @@ namespace GameUp.UIBuilder.Editor
             public string Info;
         }
 
+        /// <param name="spec">Cây sắp dựng — vẽ khung từng node (lớp <see cref="PreviewLayers.Nodes"/>); null = không vẽ.</param>
+        /// <param name="selectedNodes">id node đang chọn trong cây bên trái — tô nổi.</param>
         /// <param name="latest">Sprite vừa dò xong (khi đang chạy) — tô nổi như đang chọn.</param>
         /// <param name="caption">Dòng trạng thái vẽ trên đầu ảnh (khi đang chạy); null = không vẽ.</param>
-        /// <returns>Tên sprite đang được rê chuột, null nếu không có.</returns>
-        public static string Draw(Rect area, Texture2D texture, LocateResult locate, PreviewLayers layers, string highlight,
-            string latest = null, string caption = null)
+        /// <returns>Sprite và node đang được rê chuột.</returns>
+        public static UIDemoHover Draw(Rect area, Texture2D texture, LocateResult locate, PreviewLayers layers, string highlight,
+            UISpec spec = null, ICollection<string> selectedNodes = null, string latest = null, string caption = null)
         {
             EditorGUI.DrawRect(area, Backdrop);
-            if (texture == null) return null;
+            if (texture == null) return default;
 
             var image = FitRect(area, texture.width, texture.height);
             GUI.DrawTexture(image, texture, ScaleMode.StretchToFill, true);
@@ -60,9 +65,49 @@ namespace GameUp.UIBuilder.Editor
                 if ((layers & PreviewLayers.Texts) != 0) DrawTexts(image, scale, locate.texts, ref hover);
             }
 
+            var node = new Hover();
+            if (spec != null && spec.referenceWidth > 0 && (layers & PreviewLayers.Nodes) != 0)
+                DrawNodes(image, image.width / spec.referenceWidth, spec, selectedNodes, ref node);
+
             if (!string.IsNullOrEmpty(caption)) DrawCaption(image, caption);
-            if (hover.Info != null) DrawTooltip(hover, image);
-            return hover.Sprite;
+            // Node vẽ sau và thắng khi trùng khung: đang duyệt cây thì thông tin node là thứ cần xem.
+            var tooltip = node.Info != null ? node : hover;
+            if (tooltip.Info != null) DrawTooltip(tooltip, image);
+            return new UIDemoHover { Sprite = hover.Sprite, Node = node.Sprite };
+        }
+
+        /// <summary>Khung từng node của spec: tím = sẽ dựng, vàng = đang chọn trong cây, xám đứt = đã bỏ.</summary>
+        private static void DrawNodes(Rect image, float scale, UISpec spec, ICollection<string> selected, ref Hover hover)
+        {
+            foreach (var node in spec.nodes) DrawNode(image, scale, node, selected, false, ref hover);
+            foreach (var node in spec.excluded) DrawNode(image, scale, node, selected, true, ref hover);
+        }
+
+        private static void DrawNode(Rect image, float scale, UISpecNode node, ICollection<string> selected, bool excluded,
+            ref Hover hover)
+        {
+            if (node.w <= 0 || node.h <= 0) return;
+            var rect = ToScreen(image, scale, node.x, node.y, node.w, node.h);
+            var isSelected = selected != null && selected.Contains(node.id);
+
+            if (excluded && !isSelected) DrawDashedOutline(rect, NodeExcluded);
+            else
+            {
+                var color = isSelected ? NodeSelected : NodeColor;
+                if (isSelected) EditorGUI.DrawRect(rect, new Color(color.r, color.g, color.b, 0.16f));
+                DrawOutline(rect, color, isSelected ? 2f : 1f);
+            }
+
+            if (IsHovered(rect, hover))
+                hover = new Hover { Rect = rect, Sprite = node.id, Info = DescribeNode(node, excluded) };
+        }
+
+        private static string DescribeNode(UISpecNode node, bool excluded)
+        {
+            var parent = string.IsNullOrEmpty(node.parent) ? "gốc" : node.parent;
+            var content = node.kind == UISpecNode.KindText && !string.IsNullOrEmpty(node.text) ? $"\n“{node.text}”" : string.Empty;
+            return $"{(excluded ? "✕ " : string.Empty)}{node.id} · {node.kind}{(excluded ? " — đã bỏ, không dựng" : string.Empty)}"
+                   + $"\ncha: {parent} · {node.w}×{node.h} @({node.x},{node.y}) · anchor {node.anchor}{content}";
         }
 
         /// <summary>Rect lớn nhất có tỉ lệ w:h nằm trọn trong <paramref name="area"/>, căn giữa, làm tròn pixel để ảnh nét.</summary>

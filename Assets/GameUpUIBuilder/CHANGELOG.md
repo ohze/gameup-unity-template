@@ -5,6 +5,20 @@
 ## [Unreleased]
 
 ### Added
+- **Bước 5 — Duyệt cây & chọn dựng gì** (mới): định vị xong tool tự sinh spec nháp và hiện **cây node ngay trong cửa sổ**,
+  đồng bộ hai chiều với ảnh demo bên phải.
+  - bỏ tick một node = không dựng (`UISpec.excluded`, giữ nguyên dữ liệu, tick lại là dựng lại; bỏ node cha thì cả nhánh
+    theo); lần sinh lại spec từ cùng kết quả định vị giữ nguyên quyết định đã bỏ;
+  - chọn node → khung sáng vàng trên ảnh demo, bấm khung trên ảnh → chọn node trong cây; rê chuột lên khung xem id, kind,
+    cha, rect, anchor (lớp *Node* bật/tắt ở ô *Hiện trên ảnh*: tím = sẽ dựng, xám đứt = đã bỏ);
+  - bấm đúp / F2 đổi tên node (cập nhật luôn cha của con và `stateGroups`), kéo thả đổi cha và đổi thứ tự vẽ, ▲▼ đổi chỗ
+    với node anh em, *Gom lại* tạo node cha `empty` có khung bao vừa đủ cho các node đang chọn;
+  - mọi thay đổi ghi thẳng vào `spec.json`.
+- **Xem trước trong scene** (tuỳ chọn, nút *Mở trong scene*): dựng cây thành object Unity thật trong một scene phụ
+  (additive, Canvas world-space đúng độ phân giải tham chiếu, không tạo asset) khi cần Inspector hoặc kéo rect bằng tay;
+  xoá/nhóm/đổi tên/đổi thứ tự/tắt object trong Hierarchy rồi *Lấy cây từ scene* để ghi ngược vào spec. Node `instance`
+  bung thành nhóm chứa node của item prefab; xoá/tắt phần tử trong đó thành `overrides[].hide`.
+- `UISpec.excluded` trong spec JSON; `UISpecBuilder.BuildInto` dựng node vào một root có sẵn (dùng chung cho preview).
 - **Nguồn PSD** (`Tools~/ui_psd.py`, psd-tools): Bước 2 chọn *Dò sprite trên ảnh demo* hoặc *Đọc file PSD*. Tọa độ từ
   layer; tab = nhóm layer ẩn/hiện; layer nối art đã cắt (tên → cỡ + pixel, dò art trong layer gộp, art trong khung ở tỉ
   lệ khác); text layer → chữ TMP đúng nội dung / rich text nhiều màu / căn lề / viền; lớp dim → `imgDim`; layer không có

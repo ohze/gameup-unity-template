@@ -34,6 +34,12 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Thứ tự trong danh sách = thứ tự vẽ: node sau nằm trên node trước cùng cha.</summary>
         public List<UISpecNode> nodes = new List<UISpecNode>();
 
+        /// <summary>
+        /// Node người dùng đã loại ở bước xem trước (xoá trong cây preview). Giữ nguyên dữ liệu để khôi phục lại được, và
+        /// để lần sinh lại spec từ locate không dựng lại thứ đã bỏ. Builder không đọc danh sách này.
+        /// </summary>
+        public List<UISpecNode> excluded = new List<UISpecNode>();
+
         /// <summary>Phần đã có sẵn, không dựng (ghi lại để người/AI biết vì sao thiếu node ở đó); vùng có prefab → node instance.</summary>
         public List<UISkipRegion> skipRegions = new List<UISkipRegion>();
 

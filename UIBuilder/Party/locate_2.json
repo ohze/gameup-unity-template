@@ -1,0 +1,1863 @@
+{
+ "version": 1,
+ "demo": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\demo_evolve.png",
+ "demoWidth": 1080,
+ "demoHeight": 2160,
+ "elapsedMs": 157678,
+ "cachedCount": 1,
+ "sprites": [
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_earth.png",
+   "name": "card_list_earth",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_fire.png",
+   "name": "card_list_fire",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_frame.png",
+   "name": "card_list_frame",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_lightning.png",
+   "name": "card_list_lightning",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_nature.png",
+   "name": "card_list_nature",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_selected.png",
+   "name": "card_list_selected",
+   "spriteWidth": 285,
+   "spriteHeight": 285,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_list_water.png",
+   "name": "card_list_water",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_party_earth.png",
+   "name": "card_party_earth",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_party_fire.png",
+   "name": "card_party_fire",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_party_frame.png",
+   "name": "card_party_frame",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_party_lightning.png",
+   "name": "card_party_lightning",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_party_nature.png",
+   "name": "card_party_nature",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\card_party_water.png",
+   "name": "card_party_water",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\frame_level.png",
+   "name": "frame_level",
+   "spriteWidth": 339,
+   "spriteHeight": 93,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\icon_locked.png",
+   "name": "icon_locked",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\v1\\card_list_add.png",
+   "name": "card_list_add",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "soft-alpha"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\v1\\card_list_selected.png",
+   "name": "card_list_selected",
+   "spriteWidth": 285,
+   "spriteHeight": 285,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\v2\\card_list_A.png",
+   "name": "card_list_A",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\v2\\card_list_S.png",
+   "name": "card_list_S",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\v2\\card_party_A.png",
+   "name": "card_party_A",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Base\\v2\\card_party_S.png",
+   "name": "card_party_S",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Skill\\skill_description.png",
+   "name": "skill_description",
+   "spriteWidth": 609,
+   "spriteHeight": 137,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Skill\\table_body.png",
+   "name": "table_body",
+   "spriteWidth": 948,
+   "spriteHeight": 140,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Skill\\table_header.png",
+   "name": "table_header",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Skill\\tag_skill_type.png",
+   "name": "tag_skill_type",
+   "spriteWidth": 200,
+   "spriteHeight": 48,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Stats\\table_body_1.png",
+   "name": "table_body_1",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Stats\\table_body_2.png",
+   "name": "table_body_2",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Stats\\table_footer_2.png",
+   "name": "table_footer_2",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Stats\\table_header.png",
+   "name": "table_header",
+   "spriteWidth": 948,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\Gravion\\gravion_boder_stackskill.png",
+   "name": "gravion_boder_stackskill",
+   "spriteWidth": 136,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\Gravion\\gravion_detail_stackskill.png",
+   "name": "gravion_detail_stackskill",
+   "spriteWidth": 136,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\Gravion\\gravion_line_stackskill.png",
+   "name": "gravion_line_stackskill",
+   "spriteWidth": 136,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\Voltari\\voltari_line_stack.png",
+   "name": "voltari_line_stack",
+   "spriteWidth": 54,
+   "spriteHeight": 96,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\Voltari\\voltatri_boder_stack.png",
+   "name": "voltatri_boder_stack",
+   "spriteWidth": 54,
+   "spriteHeight": 96,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\btn_back.png",
+   "name": "btn_back",
+   "spriteWidth": 84,
+   "spriteHeight": 161,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 44,
+     "y": 453,
+     "w": 69,
+     "h": 132,
+     "scale": 0.82,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.836,
+     "inlier": 0.813
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\btn_info.png",
+   "name": "btn_info",
+   "spriteWidth": 98,
+   "spriteHeight": 110,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\btn_next.png",
+   "name": "btn_next",
+   "spriteWidth": 84,
+   "spriteHeight": 161,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 956,
+     "y": 444,
+     "w": 84,
+     "h": 161,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.986
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\frame_class_icon.png",
+   "name": "frame_class_icon",
+   "spriteWidth": 68,
+   "spriteHeight": 60,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 786,
+     "y": 135,
+     "w": 68,
+     "h": 60,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.984
+    }
+   ],
+   "flatColor": [
+    88,
+    40,
+    30
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\frame_class_name.png",
+   "name": "frame_class_name",
+   "spriteWidth": 186,
+   "spriteHeight": 60,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 854,
+     "y": 135,
+     "w": 186,
+     "h": 60,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.992
+    }
+   ],
+   "flatColor": [
+    147,
+    78,
+    53
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\frame_price.png",
+   "name": "frame_price",
+   "spriteWidth": 348,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\frame_stat.png",
+   "name": "frame_stat",
+   "spriteWidth": 232,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\frame_upgrade.png",
+   "name": "frame_upgrade",
+   "spriteWidth": 1014,
+   "spriteHeight": 418,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_back.png",
+   "name": "icon_back",
+   "spriteWidth": 72,
+   "spriteHeight": 66,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 73,
+     "y": 70,
+     "w": 72,
+     "h": 66,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.988
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_class_guardian.png",
+   "name": "icon_class_guardian",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_class_hunter.png",
+   "name": "icon_class_hunter",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_class_knight.png",
+   "name": "icon_class_knight",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_class_support.png",
+   "name": "icon_class_support",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_class_wizard.png",
+   "name": "icon_class_wizard",
+   "spriteWidth": 120,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\Unit\\icon_info.png",
+   "name": "icon_info",
+   "spriteWidth": 20,
+   "spriteHeight": 54,
+   "status": "unmatched",
+   "lowTexture": false,
+   "reason": "inside-text"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_DoTDMGbonus.png",
+   "name": "icon_stat_DoTDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_DoTDMGresistance.png",
+   "name": "icon_stat_DoTDMGresistance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_atk.png",
+   "name": "icon_stat_atk",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_basicATKDMGbonus.png",
+   "name": "icon_stat_basicATKDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_controldebufresistance.png",
+   "name": "icon_stat_controldebufresistance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_crd.png",
+   "name": "icon_stat_crd",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_crit.png",
+   "name": "icon_stat_crit",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_def.png",
+   "name": "icon_stat_def",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_defIgnorance.png",
+   "name": "icon_stat_defIgnorance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_dmgReduction.png",
+   "name": "icon_stat_dmgReduction",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_evasion.png",
+   "name": "icon_stat_evasion",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_evolve.png",
+   "name": "icon_stat_evolve",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_extraDMGbonus.png",
+   "name": "icon_stat_extraDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_healingeffect.png",
+   "name": "icon_stat_healingeffect",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_hp.png",
+   "name": "icon_stat_hp",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_skillDMGbonus.png",
+   "name": "icon_stat_skillDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_weaknessDMGbonus.png",
+   "name": "icon_stat_weaknessDMGbonus",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\Stat\\icon_stat_weaknessDMGresistance.png",
+   "name": "icon_stat_weaknessDMGresistance",
+   "spriteWidth": 512,
+   "spriteHeight": 512,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\bottom_header.png",
+   "name": "bottom_header",
+   "spriteWidth": 1080,
+   "spriteHeight": 186,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\bottom_tray.png",
+   "name": "bottom_tray",
+   "spriteWidth": 1080,
+   "spriteHeight": 1034,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 0,
+     "y": 912,
+     "w": 1080,
+     "h": 1034,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.636
+    }
+   ],
+   "flatColor": [
+    46,
+    32,
+    32
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\divider.png",
+   "name": "divider",
+   "spriteWidth": 980,
+   "spriteHeight": 6,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_arrow.png",
+   "name": "icon_arrow",
+   "spriteWidth": 104,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_check.png",
+   "name": "icon_check",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_rarity_A.png",
+   "name": "icon_rarity_A",
+   "spriteWidth": 174,
+   "spriteHeight": 174,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 632,
+     "y": 38,
+     "w": 87,
+     "h": 87,
+     "scale": 0.5,
+     "sliced": false,
+     "diff": 0.8,
+     "zncc": 0.968,
+     "inlier": 0.725
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_rarity_B.png",
+   "name": "icon_rarity_B",
+   "spriteWidth": 176,
+   "spriteHeight": 176,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_rarity_S.png",
+   "name": "icon_rarity_S",
+   "spriteWidth": 174,
+   "spriteHeight": 174,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 536,
+     "y": 38,
+     "w": 87,
+     "h": 87,
+     "scale": 0.5,
+     "sliced": false,
+     "diff": 0.7,
+     "zncc": 0.975,
+     "inlier": 0.745
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_rarity_SS.png",
+   "name": "icon_rarity_SS",
+   "spriteWidth": 176,
+   "spriteHeight": 176,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_reset.png",
+   "name": "icon_reset",
+   "spriteWidth": 56,
+   "spriteHeight": 56,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 814,
+     "y": 789,
+     "w": 56,
+     "h": 56,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.967
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\icon_swap.png",
+   "name": "icon_swap",
+   "spriteWidth": 140,
+   "spriteHeight": 140,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\_Shared\\popup.png",
+   "name": "popup",
+   "spriteWidth": 1030,
+   "spriteHeight": 1163,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\boder_lv_equipment.png",
+   "name": "boder_lv_equipment",
+   "spriteWidth": 100,
+   "spriteHeight": 36,
+   "status": "unmatched",
+   "lowTexture": true,
+   "flatColor": [
+    255,
+    255,
+    255
+   ],
+   "reason": "inside-text"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\boder_slotequipment.png",
+   "name": "boder_slotequipment",
+   "spriteWidth": 260,
+   "spriteHeight": 260,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\decor_bg.png",
+   "name": "decor_bg",
+   "spriteWidth": 736,
+   "spriteHeight": 516,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Boot\\equipment_chronostep.png",
+   "name": "equipment_chronostep",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Boot\\equipment_royalboots.png",
+   "name": "equipment_royalboots",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Boot\\equipment_stormstep.png",
+   "name": "equipment_stormstep",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Boot\\equipment_swiftboots.png",
+   "name": "equipment_swiftboots",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Boot\\equipment_talaria.png",
+   "name": "equipment_talaria",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Helmet\\eq_AncientCrown.png",
+   "name": "eq_AncientCrown",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Helmet\\eq_Knight_Helm.png",
+   "name": "eq_Knight_Helm",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Helmet\\eq_NomadHelmet.png",
+   "name": "eq_NomadHelmet",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Helmet\\eq_Talos.png",
+   "name": "eq_Talos",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Helmet\\eq_WitchHat.png",
+   "name": "eq_WitchHat",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Neckless\\eq_CrystalHarmony.png",
+   "name": "eq_CrystalHarmony",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Neckless\\eq_ManaCharm.png",
+   "name": "eq_ManaCharm",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Neckless\\eq_Mara_Pendant.png",
+   "name": "eq_Mara_Pendant",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Neckless\\eq_PinnacleofAesthetics.png",
+   "name": "eq_PinnacleofAesthetics",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Neckless\\eq_RubyTalisman.png",
+   "name": "eq_RubyTalisman",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Ring\\equipment_dragonscaleprotection.png",
+   "name": "equipment_dragonscaleprotection",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Ring\\equipment_eaglering.png",
+   "name": "equipment_eaglering",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Ring\\equipment_flamering.png",
+   "name": "equipment_flamering",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Ring\\equipment_judgementring.png",
+   "name": "equipment_judgementring",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Ring\\equipment_shadowring.png",
+   "name": "equipment_shadowring",
+   "spriteWidth": 320,
+   "spriteHeight": 320,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Wear\\eq_Battle_Garb.png",
+   "name": "eq_Battle_Garb",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Wear\\eq_Hellfire_Robe.png",
+   "name": "eq_Hellfire_Robe",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Wear\\eq_Immortal_Golden.png",
+   "name": "eq_Immortal_Golden",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Wear\\eq_Iron_Chainmail.png",
+   "name": "eq_Iron_Chainmail",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\equipment\\Wear\\eq_Mystic_Cloak.png",
+   "name": "eq_Mystic_Cloak",
+   "spriteWidth": 300,
+   "spriteHeight": 300,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_armor.png",
+   "name": "icon_armor",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_boots.png",
+   "name": "icon_boots",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_designscroll.png",
+   "name": "icon_designscroll",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_enhancemagicstone.png",
+   "name": "icon_enhancemagicstone",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_hat.png",
+   "name": "icon_hat",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_necklace.png",
+   "name": "icon_necklace",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_refinehammer.png",
+   "name": "icon_refinehammer",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\icon_ring.png",
+   "name": "icon_ring",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\boder_bonusextra.png",
+   "name": "boder_bonusextra",
+   "spriteWidth": 1000,
+   "spriteHeight": 88,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\boder_stat.png",
+   "name": "boder_stat",
+   "spriteWidth": 720,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "lowTexture": true,
+   "flatColor": [
+    45,
+    29,
+    33
+   ],
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\border_inforbonus.png",
+   "name": "border_inforbonus",
+   "spriteWidth": 968,
+   "spriteHeight": 84,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_asension.png",
+   "name": "frame_asension",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_common.png",
+   "name": "frame_common",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_epic.png",
+   "name": "frame_epic",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_icon_asension.png",
+   "name": "frame_icon_asension",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_icon_common.png",
+   "name": "frame_icon_common",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_icon_epic.png",
+   "name": "frame_icon_epic",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_icon_legend.png",
+   "name": "frame_icon_legend",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_icon_mythic.png",
+   "name": "frame_icon_mythic",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_icon_rare.png",
+   "name": "frame_icon_rare",
+   "spriteWidth": 68,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_legend.png",
+   "name": "frame_legend",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_mythic.png",
+   "name": "frame_mythic",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_rare.png",
+   "name": "frame_rare",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\frame_uncommon.png",
+   "name": "frame_uncommon",
+   "spriteWidth": 256,
+   "spriteHeight": 264,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\icon_lock.png",
+   "name": "icon_lock",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\icon_tier_1.png",
+   "name": "icon_tier_1",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\icon_tier_2.png",
+   "name": "icon_tier_2",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\icon_tier_3.png",
+   "name": "icon_tier_3",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\icon_tier_4.png",
+   "name": "icon_tier_4",
+   "spriteWidth": 72,
+   "spriteHeight": 72,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\tier_asension.png",
+   "name": "tier_asension",
+   "spriteWidth": 93,
+   "spriteHeight": 92,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\tier_epic.png",
+   "name": "tier_epic",
+   "spriteWidth": 93,
+   "spriteHeight": 92,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_enhance\\tier_rare.png",
+   "name": "tier_rare",
+   "spriteWidth": 93,
+   "spriteHeight": 92,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_refine\\boder_extra.png",
+   "name": "boder_extra",
+   "spriteWidth": 1000,
+   "spriteHeight": 424,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_refine\\boder_popup_tips.png",
+   "name": "boder_popup_tips",
+   "spriteWidth": 916,
+   "spriteHeight": 516,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_refine\\border_descripextra.png",
+   "name": "border_descripextra",
+   "spriteWidth": 968,
+   "spriteHeight": 84,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_refine\\icon_change.png",
+   "name": "icon_change",
+   "spriteWidth": 76,
+   "spriteHeight": 76,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_refine\\icon_keep.png",
+   "name": "icon_keep",
+   "spriteWidth": 76,
+   "spriteHeight": 76,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_refine\\icon_unlock.png",
+   "name": "icon_unlock",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_switch-sellect\\boder_chooseequip.png",
+   "name": "boder_chooseequip",
+   "spriteWidth": 1000,
+   "spriteHeight": 704,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_switch-sellect\\icon_arrow.png",
+   "name": "icon_arrow",
+   "spriteWidth": 36,
+   "spriteHeight": 64,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\equipment\\popup_switch-sellect\\icon_tick.png",
+   "name": "icon_tick",
+   "spriteWidth": 112,
+   "spriteHeight": 88,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\bg_evole_1.png",
+   "name": "bg_evole_1",
+   "spriteWidth": 1080,
+   "spriteHeight": 1660,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\bg_evole_2.png",
+   "name": "bg_evole_2",
+   "spriteWidth": 1080,
+   "spriteHeight": 1660,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\bode_inforskill.png",
+   "name": "bode_inforskill",
+   "spriteWidth": 852,
+   "spriteHeight": 272,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\boder_description_.png",
+   "name": "boder_description_",
+   "spriteWidth": 684,
+   "spriteHeight": 160,
+   "status": "unmatched",
+   "lowTexture": true,
+   "flatColor": [
+    46,
+    32,
+    32
+   ],
+   "suggestedBorder": {
+    "left": 8,
+    "right": 8,
+    "top": 8,
+    "bottom": 8
+   },
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\boder_starupgrade.png",
+   "name": "boder_starupgrade",
+   "spriteWidth": 1020,
+   "spriteHeight": 140,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 30,
+     "y": 1079,
+     "w": 1020,
+     "h": 140,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.102,
+     "inlier": 0.818
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\icon_arrow.png",
+   "name": "icon_arrow",
+   "spriteWidth": 88,
+   "spriteHeight": 88,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 490,
+     "y": 1107,
+     "w": 88,
+     "h": 88,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 1.0
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\icon_star.png",
+   "name": "icon_star",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 232,
+     "y": 1086,
+     "w": 120,
+     "h": 120,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.2,
+     "zncc": 0.979,
+     "inlier": 0.805
+    },
+    {
+     "x": 753,
+     "y": 1087,
+     "w": 120,
+     "h": 120,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.1,
+     "zncc": 0.981,
+     "inlier": 0.813
+    }
+   ]
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\icon_star0.png",
+   "name": "icon_star0",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\icon_star1.png",
+   "name": "icon_star1",
+   "spriteWidth": 120,
+   "spriteHeight": 120,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\light_evolve_1.png",
+   "name": "light_evolve_1",
+   "spriteWidth": 1000,
+   "spriteHeight": 1000,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "E:\\Job\\gameup-unity-template\\Assets\\_MainProject\\Art\\UI_v2\\Party\\evolve\\light_evolve_2.png",
+   "name": "light_evolve_2",
+   "spriteWidth": 1000,
+   "spriteHeight": 1000,
+   "status": "unmatched",
+   "reason": "no-match"
+  }
+ ],
+ "dropped": [
+  {
+   "name": "boder_description_",
+   "reason": "same-spot",
+   "x": 0,
+   "y": 1059,
+   "w": 1080,
+   "h": 887
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 275,
+   "y": 1314,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 275,
+   "y": 1414,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 360,
+   "y": 1886,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 275,
+   "y": 1468,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "boder_stat",
+   "reason": "flat-nested",
+   "x": 275,
+   "y": 1369,
+   "w": 720,
+   "h": 60
+  },
+  {
+   "name": "frame_class_name",
+   "reason": "ambiguous",
+   "x": 514,
+   "y": 804,
+   "w": 186,
+   "h": 60
+  },
+  {
+   "name": "frame_class_name",
+   "reason": "ambiguous",
+   "x": 410,
+   "y": 855,
+   "w": 186,
+   "h": 60
+  },
+  {
+   "name": "frame_class_name",
+   "reason": "ambiguous",
+   "x": 507,
+   "y": 855,
+   "w": 186,
+   "h": 60
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 543,
+   "y": 806,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 471,
+   "y": 808,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 396,
+   "y": 1710,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 462,
+   "y": 1710,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "ambiguous",
+   "x": 551,
+   "y": 1710,
+   "w": 100,
+   "h": 36
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 845,
+   "y": 44,
+   "w": 25,
+   "h": 68
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 546,
+   "y": 959,
+   "w": 20,
+   "h": 54
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 377,
+   "y": 1337,
+   "w": 9,
+   "h": 25
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 677,
+   "y": 1337,
+   "w": 9,
+   "h": 25
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 924,
+   "y": 1337,
+   "w": 9,
+   "h": 25
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 651,
+   "y": 1369,
+   "w": 10,
+   "h": 26
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 819,
+   "y": 1369,
+   "w": 10,
+   "h": 26
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 690,
+   "y": 1370,
+   "w": 9,
+   "h": 25
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 515,
+   "y": 1404,
+   "w": 9,
+   "h": 25
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 679,
+   "y": 1404,
+   "w": 9,
+   "h": 25
+  },
+  {
+   "name": "icon_info",
+   "reason": "inside-text",
+   "x": 590,
+   "y": 1688,
+   "w": 25,
+   "h": 66
+  },
+  {
+   "name": "boder_lv_equipment",
+   "reason": "inside-text",
+   "x": 852,
+   "y": 67,
+   "w": 100,
+   "h": 36
+  }
+ ],
+ "texts": [
+  {
+   "x": 739,
+   "y": 49,
+   "w": 210,
+   "h": 60,
+   "color": "#F3F3F3",
+   "text": "Julius",
+   "confidence": 0.991,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 882,
+   "y": 148,
+   "w": 122,
+   "h": 40,
+   "color": "#FDFDFE",
+   "text": "Knight",
+   "confidence": 1.0
+  },
+  {
+   "x": 463,
+   "y": 727,
+   "w": 155,
+   "h": 33,
+   "color": "#FEEA5B",
+   "text": "Lv. 100",
+   "confidence": 0.973
+  },
+  {
+   "x": 468,
+   "y": 800,
+   "w": 177,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "99999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 898,
+   "y": 802,
+   "w": 97,
+   "h": 28,
+   "color": "#FEFEFE",
+   "text": "Reset",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 452,
+   "y": 963,
+   "w": 177,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "Evolve",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 747,
+   "y": 975,
+   "w": 289,
+   "h": 57,
+   "color": "#808080",
+   "text": "Equipment",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 6
+  },
+  {
+   "x": 77,
+   "y": 978,
+   "w": 223,
+   "h": 54,
+   "color": "#808080",
+   "text": "Upgrade",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 7
+  },
+  {
+   "x": 330,
+   "y": 1266,
+   "w": 376,
+   "h": 39,
+   "color": "#FEFD3E",
+   "text": "Chapter 7: The End",
+   "confidence": 1.0
+  },
+  {
+   "x": 334,
+   "y": 1339,
+   "w": 635,
+   "h": 25,
+   "color": "#FEFEFE",
+   "text": "Marks an enemy. Can only target the marked",
+   "confidence": 0.985
+  },
+  {
+   "x": 333,
+   "y": 1371,
+   "w": 636,
+   "h": 26,
+   "color": "#FEFEFE",
+   "text": "enemy for 2 turns or until the target is defeated.",
+   "confidence": 0.995
+  },
+  {
+   "x": 330,
+   "y": 1405,
+   "w": 591,
+   "h": 26,
+   "color": "#FEFEFE",
+   "text": "Extra DMG dealt to the marked target +100%.",
+   "confidence": 0.976
+  },
+  {
+   "x": 578,
+   "y": 1558,
+   "w": 137,
+   "h": 44,
+   "color": "#FEFEFE",
+   "text": "1234/9999",
+   "confidence": 1.0
+  },
+  {
+   "x": 388,
+   "y": 1694,
+   "w": 304,
+   "h": 54,
+   "color": "#FEFEFE",
+   "text": "Evolution",
+   "confidence": 1.0
+  },
+  {
+   "x": 240,
+   "y": 1928,
+   "w": 100,
+   "h": 56,
+   "color": "#FEFEFD",
+   "text": "S",
+   "confidence": 0.818
+  },
+  {
+   "x": 278,
+   "y": 2102,
+   "w": 122,
+   "h": 46,
+   "color": "#FEFEFE",
+   "text": "Party",
+   "confidence": 1.0,
+   "outlineColor": "#262626",
+   "outlineWidth": 4
+  }
+ ],
+ "ocr": "ok",
+ "dimAlpha": null,
+ "dimEstimated": false,
+ "uiRegions": []
+}

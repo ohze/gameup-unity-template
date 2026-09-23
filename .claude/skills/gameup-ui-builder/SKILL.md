@@ -48,8 +48,12 @@ nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách th�
    Trả về báo cáo + đường dẫn `compare.png` (demo | prefab | chồng 50%). **Read `compare.png`**, tìm chỗ lệch (bóng đôi ở khung chồng = sai vị trí; thiếu phần tử; text sai cỡ) → sửa spec → chạy lại. Tối đa 3 vòng, sau đó báo phần còn lệch.
    - **Cỡ chữ**: để `fontSize: 0` — builder tự tính theo font để chữ hoa cao bằng `h` và không tràn `w` (tính lúc dựng, không bật Auto Size). Chỉ đặt số cụ thể khi render vẫn lệch rõ (vd dòng toàn chữ thường), đo tỉ lệ chiều rộng demo/render rồi nhân.
    - **Glow/vfx** sáng hơn demo → giảm alpha qua `color` (vd `#FFFFFFB0`), không đổi sprite.
-5. **Script (nếu cần)**: popup/screen kế thừa `UIPopup`/`UIScreen` của GameUp Core (tra skill `gameup-core-api`), namespace riêng của game, field `[SerializeField] private` tên **trùng `id` node** (vd `btnReward`) → set `rootComponent` = tên class, build lại: builder tự gắn component và gán các field còn trống.
-6. **Báo cáo**: node đã dựng, phần ước lượng (không phải máy dò), art thiếu, sprite cần set border 9-slice (người dùng tự set trong Sprite Editor — không sửa `.meta`), phần designer để sót đã bỏ.
+5. **Người dùng duyệt cây** (Bước 5 trong cửa sổ UI Builder): họ tick bỏ node, gom nhóm, đổi tên, đổi cha, đổi thứ tự vẽ
+   ngay trên cây trong cửa sổ, và mỗi thao tác **ghi thẳng vào `spec.json`**. Vì vậy: đọc lại `spec.json` trước mỗi lần
+   sửa, đừng giữ bản trong đầu. Node trong `excluded` là người dùng đã chủ động bỏ — **không tự thêm lại**, muốn dựng
+   lại thì hỏi.
+6. **Script (nếu cần)**: popup/screen kế thừa `UIPopup`/`UIScreen` của GameUp Core (tra skill `gameup-core-api`), namespace riêng của game, field `[SerializeField] private` tên **trùng `id` node** (vd `btnReward`) → set `rootComponent` = tên class, build lại: builder tự gắn component và gán các field còn trống.
+7. **Báo cáo**: node đã dựng, phần ước lượng (không phải máy dò), art thiếu, sprite cần set border 9-slice (người dùng tự set trong Sprite Editor — không sửa `.meta`), phần designer để sót đã bỏ.
 
 ## Schema `spec.json`
 
@@ -95,10 +99,12 @@ nằm trong nhóm `stateGroups[k]` (chỉ nhóm đầu `active`); danh sách th�
 - Phần lặp ít hơn 3 (2 ô thưởng) → gom vào node `empty` cha; builder không tự thêm Layout Group ngoài scroll.
 - Nhiều biến thể (win/lose) cùng bố cục → **một prefab**, phần khác nhau là node riêng, biến thể phụ đặt `active: false` + ghi chú; không dựng hai prefab gần giống nhau (CLAUDE.md §5 — dùng Prefab Variant nếu khác nhiều).
 - Nền gameplay/HUD phía sau popup không đưa vào. Lớp tối phủ màn hình (dim) nếu có → `image` `stretch`, không sprite, `color` `#000000B0`.
+- `excluded`: node người dùng đã bỏ ở bước xem trước. Builder không đọc; AI không được chuyển ngược sang `nodes`.
 - Prefab đã tồn tại: builder chỉ cập nhật node theo `id`, giữ nguyên object/component dev thêm tay — **không đổi `id` node đã có** (sẽ tạo node mới, node cũ vẫn còn).
 
 ## Không được
 
 - Không đoán lại tọa độ của sprite đã có trong `locate.json`.
 - Không sửa `.prefab`/`.meta` bằng text; không tự set border sprite — ghi vào báo cáo cho người dùng.
+- Không tự mở/đóng bản xem trước trong scene (`UIPreviewStage`) — đó là bước của người dùng.
 - Không đọc `Library/` (cache của tool nằm ở đó, không cần).

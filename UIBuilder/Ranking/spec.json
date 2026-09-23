@@ -77,28 +77,28 @@
                     "overrides": []
                 },
                 {
-                    "id": "txtPlayerName",
+                    "id": "card_list_frame",
                     "parent": "",
-                    "kind": "text",
-                    "x": 308,
-                    "y": 56,
-                    "w": 255,
-                    "h": 59,
+                    "kind": "image",
+                    "x": 172,
+                    "y": 19,
+                    "w": 126,
+                    "h": 126,
                     "anchor": "auto",
                     "active": true,
-                    "sprite": "",
+                    "sprite": "Assets/_MainProject/Art/UI_v2/Party/Base/card_list_frame.png",
                     "sliced": false,
                     "preserveAspect": false,
-                    "color": "#FEFEFE",
+                    "color": "",
                     "raycastTarget": false,
-                    "text": "Player Name",
+                    "text": "",
                     "fontSize": 0.0,
-                    "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
-                    "align": "left",
+                    "font": "",
+                    "align": "center",
                     "bold": false,
-                    "material": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
-                    "outlineWidth": 4.0,
-                    "outlineColor": "#000000",
+                    "material": "",
+                    "outlineWidth": 0.0,
+                    "outlineColor": "",
                     "direction": "vertical",
                     "spacing": 0.0,
                     "padding": 0,
@@ -106,7 +106,7 @@
                     "overrides": []
                 },
                 {
-                    "id": "avatar_001",
+                    "id": "avatar",
                     "parent": "",
                     "kind": "image",
                     "x": 187,
@@ -135,6 +135,35 @@
                     "overrides": []
                 },
                 {
+                    "id": "txtPlayerName",
+                    "parent": "",
+                    "kind": "text",
+                    "x": 320,
+                    "y": 66,
+                    "w": 235,
+                    "h": 45,
+                    "anchor": "auto",
+                    "active": true,
+                    "sprite": "",
+                    "sliced": false,
+                    "preserveAspect": false,
+                    "color": "#000000",
+                    "raycastTarget": false,
+                    "text": "Player Name",
+                    "fontSize": 0.0,
+                    "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
+                    "align": "center",
+                    "bold": false,
+                    "material": "",
+                    "outlineWidth": 0.0,
+                    "outlineColor": "",
+                    "direction": "vertical",
+                    "spacing": 0.0,
+                    "padding": 0,
+                    "prefab": "",
+                    "overrides": []
+                },
+                {
                     "id": "txt99999b",
                     "parent": "",
                     "kind": "text",
@@ -151,8 +180,8 @@
                     "raycastTarget": false,
                     "text": "999.99B",
                     "fontSize": 0.0,
-                    "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
-                    "align": "right",
+                    "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
+                    "align": "center",
                     "bold": false,
                     "material": "",
                     "outlineWidth": 0.0,
@@ -164,12 +193,12 @@
                     "overrides": []
                 },
                 {
-                    "id": "txt5",
+                    "id": "txt4",
                     "parent": "",
                     "kind": "text",
-                    "x": 61,
+                    "x": 58,
                     "y": 57,
-                    "w": 36,
+                    "w": 42,
                     "h": 54,
                     "anchor": "auto",
                     "active": true,
@@ -178,12 +207,12 @@
                     "preserveAspect": false,
                     "color": "#FEFEFE",
                     "raycastTarget": false,
-                    "text": "5",
+                    "text": "4",
                     "fontSize": 0.0,
-                    "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
-                    "align": "left",
+                    "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
+                    "align": "center",
                     "bold": false,
-                    "material": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+                    "material": "Assets/_MainProject/Art/Fonts/FONNTS Material-outline.mat",
                     "outlineWidth": 3.0,
                     "outlineColor": "#000000",
                     "direction": "vertical",
@@ -262,10 +291,10 @@
                     "id": "txt410",
                     "parent": "",
                     "kind": "text",
-                    "x": 25,
+                    "x": 20,
                     "y": 60,
-                    "w": 111,
-                    "h": 39,
+                    "w": 124,
+                    "h": 40,
                     "anchor": "auto",
                     "active": true,
                     "sprite": "",
@@ -275,10 +304,10 @@
                     "raycastTarget": false,
                     "text": "4-10",
                     "fontSize": 0.0,
-                    "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
-                    "align": "left",
+                    "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
+                    "align": "center",
                     "bold": false,
-                    "material": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+                    "material": "Assets/_MainProject/Art/Fonts/FONNTS Material-outline.mat",
                     "outlineWidth": 3.0,
                     "outlineColor": "#000000",
                     "direction": "vertical",
@@ -292,6 +321,35 @@
     ],
     "rootComponent": "",
     "nodes": [
+        {
+            "id": "imgDim",
+            "parent": "",
+            "kind": "image",
+            "x": 0,
+            "y": 0,
+            "w": 1080,
+            "h": 2160,
+            "anchor": "stretch",
+            "active": true,
+            "sprite": "",
+            "sliced": false,
+            "preserveAspect": false,
+            "color": "#000000CC",
+            "raycastTarget": true,
+            "text": "",
+            "fontSize": 0.0,
+            "font": "",
+            "align": "center",
+            "bold": false,
+            "material": "",
+            "outlineWidth": 0.0,
+            "outlineColor": "",
+            "direction": "vertical",
+            "spacing": 0.0,
+            "padding": 0,
+            "prefab": "",
+            "overrides": []
+        },
         {
             "id": "border_popup",
             "parent": "",
@@ -412,7 +470,8 @@
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -449,14 +508,16 @@
                     "hide": false,
                     "sprite": "Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top2.png",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 },
                 {
                     "id": "txt410",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -493,14 +554,16 @@
                     "hide": false,
                     "sprite": "Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top3.png",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 },
                 {
                     "id": "txt410",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -537,7 +600,8 @@
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -574,14 +638,16 @@
                     "hide": false,
                     "sprite": "",
                     "setText": true,
-                    "text": "11-20"
+                    "text": "11-20",
+                    "color": ""
                 },
                 {
                     "id": "crown_top1",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -672,11 +738,12 @@
             "prefab": "Assets/_MainProject/Prefabs/UI/Test/LeaderboardItem.prefab",
             "overrides": [
                 {
-                    "id": "txt5",
+                    "id": "txt4",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -713,14 +780,16 @@
                     "hide": false,
                     "sprite": "Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top2.png",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 },
                 {
-                    "id": "txt5",
+                    "id": "txt4",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -754,17 +823,19 @@
             "overrides": [
                 {
                     "id": "crown_top1",
-                    "hide": true,
-                    "sprite": "",
+                    "hide": false,
+                    "sprite": "Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top3.png",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 },
                 {
-                    "id": "txt5",
+                    "id": "txt4",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -801,14 +872,8 @@
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
-                },
-                {
-                    "id": "txt5",
-                    "hide": true,
-                    "sprite": "",
-                    "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -841,11 +906,20 @@
             "prefab": "Assets/_MainProject/Prefabs/UI/Test/LeaderboardItem.prefab",
             "overrides": [
                 {
+                    "id": "txt4",
+                    "hide": false,
+                    "sprite": "",
+                    "setText": true,
+                    "text": "5",
+                    "color": ""
+                },
+                {
                     "id": "crown_top1",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -882,21 +956,24 @@
                     "hide": false,
                     "sprite": "Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/boder_playerrank.png",
                     "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
+                },
+                {
+                    "id": "txt4",
+                    "hide": false,
+                    "sprite": "",
+                    "setText": true,
+                    "text": "5",
+                    "color": ""
                 },
                 {
                     "id": "crown_top1",
                     "hide": true,
                     "sprite": "",
                     "setText": false,
-                    "text": ""
-                },
-                {
-                    "id": "avatar_001",
-                    "hide": true,
-                    "sprite": "",
-                    "setText": false,
-                    "text": ""
+                    "text": "",
+                    "color": ""
                 }
             ]
         },
@@ -930,8 +1007,37 @@
             "overrides": []
         },
         {
-            "id": "avatar_001_2",
+            "id": "card_list_frame_2",
             "parent": "flag_top1",
+            "kind": "image",
+            "x": 467,
+            "y": 310,
+            "w": 146,
+            "h": 146,
+            "anchor": "auto",
+            "active": true,
+            "sprite": "Assets/_MainProject/Art/UI_v2/Party/Base/card_list_frame.png",
+            "sliced": false,
+            "preserveAspect": false,
+            "color": "",
+            "raycastTarget": false,
+            "text": "",
+            "fontSize": 0.0,
+            "font": "",
+            "align": "center",
+            "bold": false,
+            "material": "",
+            "outlineWidth": 0.0,
+            "outlineColor": "",
+            "direction": "vertical",
+            "spacing": 0.0,
+            "padding": 0,
+            "prefab": "",
+            "overrides": []
+        },
+        {
+            "id": "avatar_001_2",
+            "parent": "card_list_frame_2",
             "kind": "image",
             "x": 482,
             "y": 318,
@@ -965,7 +1071,7 @@
             "x": 458,
             "y": 472,
             "w": 169,
-            "h": 28,
+            "h": 38,
             "anchor": "auto",
             "active": true,
             "sprite": "",
@@ -975,7 +1081,7 @@
             "raycastTarget": false,
             "text": "Hidepenguin",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
             "material": "",
@@ -991,9 +1097,9 @@
             "id": "txt99999b_2",
             "parent": "flag_top1",
             "kind": "text",
-            "x": 510,
+            "x": 513,
             "y": 523,
-            "w": 100,
+            "w": 97,
             "h": 20,
             "anchor": "auto",
             "active": true,
@@ -1004,7 +1110,7 @@
             "raycastTarget": false,
             "text": "999.99B",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "right",
             "bold": false,
             "material": "",
@@ -1046,8 +1152,37 @@
             "overrides": []
         },
         {
-            "id": "avatar_001_1",
+            "id": "card_list_frame_1",
             "parent": "flag_top2",
+            "kind": "image",
+            "x": 122,
+            "y": 310,
+            "w": 146,
+            "h": 146,
+            "anchor": "auto",
+            "active": true,
+            "sprite": "Assets/_MainProject/Art/UI_v2/Party/Base/card_list_frame.png",
+            "sliced": false,
+            "preserveAspect": false,
+            "color": "",
+            "raycastTarget": false,
+            "text": "",
+            "fontSize": 0.0,
+            "font": "",
+            "align": "center",
+            "bold": false,
+            "material": "",
+            "outlineWidth": 0.0,
+            "outlineColor": "",
+            "direction": "vertical",
+            "spacing": 0.0,
+            "padding": 0,
+            "prefab": "",
+            "overrides": []
+        },
+        {
+            "id": "avatar_001_1",
+            "parent": "card_list_frame_1",
             "kind": "image",
             "x": 137,
             "y": 318,
@@ -1081,7 +1216,7 @@
             "x": 113,
             "y": 472,
             "w": 169,
-            "h": 28,
+            "h": 37,
             "anchor": "auto",
             "active": true,
             "sprite": "",
@@ -1091,7 +1226,7 @@
             "raycastTarget": false,
             "text": "Hidepenguin",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
             "material": "",
@@ -1107,9 +1242,9 @@
             "id": "txt99999b",
             "parent": "flag_top2",
             "kind": "text",
-            "x": 165,
+            "x": 166,
             "y": 523,
-            "w": 100,
+            "w": 99,
             "h": 20,
             "anchor": "auto",
             "active": true,
@@ -1120,7 +1255,7 @@
             "raycastTarget": false,
             "text": "999.99B",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "right",
             "bold": false,
             "material": "",
@@ -1162,8 +1297,37 @@
             "overrides": []
         },
         {
-            "id": "avatar_001_3",
+            "id": "card_list_frame_3",
             "parent": "flag_top3",
+            "kind": "image",
+            "x": 809,
+            "y": 310,
+            "w": 146,
+            "h": 146,
+            "anchor": "auto",
+            "active": true,
+            "sprite": "Assets/_MainProject/Art/UI_v2/Party/Base/card_list_frame.png",
+            "sliced": false,
+            "preserveAspect": false,
+            "color": "",
+            "raycastTarget": false,
+            "text": "",
+            "fontSize": 0.0,
+            "font": "",
+            "align": "center",
+            "bold": false,
+            "material": "",
+            "outlineWidth": 0.0,
+            "outlineColor": "",
+            "direction": "vertical",
+            "spacing": 0.0,
+            "padding": 0,
+            "prefab": "",
+            "overrides": []
+        },
+        {
+            "id": "avatar_001_3",
+            "parent": "card_list_frame_3",
             "kind": "image",
             "x": 824,
             "y": 318,
@@ -1197,7 +1361,7 @@
             "x": 800,
             "y": 472,
             "w": 169,
-            "h": 28,
+            "h": 39,
             "anchor": "auto",
             "active": true,
             "sprite": "",
@@ -1207,7 +1371,7 @@
             "raycastTarget": false,
             "text": "Hidepenguin",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
             "material": "",
@@ -1236,7 +1400,7 @@
             "raycastTarget": false,
             "text": "999.99B",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "right",
             "bold": false,
             "material": "",
@@ -1252,9 +1416,9 @@
             "id": "txtTop10PromoteRank",
             "parent": "border_popup",
             "kind": "text",
-            "x": 182,
+            "x": 184,
             "y": 1731,
-            "w": 716,
+            "w": 713,
             "h": 28,
             "anchor": "auto",
             "active": true,
@@ -1265,7 +1429,7 @@
             "raycastTarget": false,
             "text": "Top 10 Promote. Rank 11-30 stay. Bottom 15 Demote",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
             "material": "",
@@ -1278,7 +1442,7 @@
             "overrides": []
         },
         {
-            "id": "crown_top3",
+            "id": "crown_top3_1",
             "parent": "border_popup",
             "kind": "image",
             "x": 817,
@@ -1339,7 +1503,7 @@
             "id": "crown_top2_1",
             "parent": "border_popup",
             "kind": "image",
-            "x": 130,
+            "x": 129,
             "y": 192,
             "w": 132,
             "h": 132,
@@ -1368,7 +1532,7 @@
             "id": "boder_btntab_1",
             "parent": "",
             "kind": "image",
-            "x": 132,
+            "x": 560,
             "y": 1785,
             "w": 388,
             "h": 80,
@@ -1397,8 +1561,8 @@
             "id": "boder_btntab_2",
             "parent": "",
             "kind": "image",
-            "x": 560,
-            "y": 1785,
+            "x": 132,
+            "y": 1786,
             "w": 388,
             "h": 80,
             "anchor": "auto",
@@ -1468,10 +1632,10 @@
             "raycastTarget": false,
             "text": "Season Recored Leaderboard",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
-            "material": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+            "material": "Assets/_MainProject/Art/Fonts/FONNTS Material-outline.mat",
             "outlineWidth": 3.0,
             "outlineColor": "#000000",
             "direction": "vertical",
@@ -1515,7 +1679,7 @@
             "kind": "text",
             "x": 463,
             "y": 1969,
-            "w": 165,
+            "w": 161,
             "h": 58,
             "anchor": "auto",
             "active": true,
@@ -1526,7 +1690,7 @@
             "raycastTarget": false,
             "text": "Back",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
             "material": "",
@@ -1584,10 +1748,10 @@
             "raycastTarget": false,
             "text": "Leaderboard",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
-            "material": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+            "material": "Assets/_MainProject/Art/Fonts/FONNTS Material-outline.mat",
             "outlineWidth": 3.0,
             "outlineColor": "#000000",
             "direction": "vertical",
@@ -1642,10 +1806,10 @@
             "raycastTarget": false,
             "text": "Ranking Rewards",
             "fontSize": 0.0,
-            "font": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset",
+            "font": "Assets/_MainProject/Art/Fonts/FONNTS.asset",
             "align": "center",
             "bold": false,
-            "material": "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Outline.mat",
+            "material": "Assets/_MainProject/Art/Fonts/FONNTS Material-outline.mat",
             "outlineWidth": 3.0,
             "outlineColor": "#000000",
             "direction": "vertical",
@@ -1655,14 +1819,17 @@
             "overrides": []
         }
     ],
+    "excluded": [],
+    "skipRegions": [],
     "notes": [
-        "25 dòng chữ: vị trí, màu, cỡ theo demo, nội dung đọc bằng OCR — soát lại ký hiệu đặc biệt (₫, ×, icon trong chữ).",
-        "Danh sách 5 hàng → scrollLeaderboardItem (ScrollRect, spacing 4px) + item prefab LeaderboardItem (6 node). Avatar/ô vật phẩm không có art → thêm vào LeaderboardItem rồi build lại.",
+        "26 dòng chữ: vị trí, màu, cỡ theo demo, nội dung đọc bằng OCR — soát lại ký hiệu đặc biệt (₫, ×, icon trong chữ).",
+        "Danh sách 5 hàng → scrollLeaderboardItem (ScrollRect, spacing 4px) + item prefab LeaderboardItem (7 node). Avatar/ô vật phẩm không có art → thêm vào LeaderboardItem rồi build lại.",
         "Danh sách 5 hàng → scrollRankingRewardsItem (ScrollRect, spacing 8px) + item prefab RankingRewardsItem (3 node). Avatar/ô vật phẩm không có art → thêm vào RankingRewardsItem rồi build lại.",
         "boder_playerrank: bố cục giống LeaderboardItem → instance của LeaderboardItem, ghi đè nền.",
         "Trạng thái 1 (tab \"Leaderboard\"): 6 node riêng trong grpLeaderboard (bật).",
         "Trạng thái 2 (tab \"Ranking Rewards\"): 6 node riêng trong grpRankingRewards (ẩn — bật khi chọn tab).",
-        "Glow/bán trong suốt, không dò được bằng hình — ước lượng vị trí từ demo: bg_pattern, card_list_add.",
+        "imgDim: lớp dim đen 80 % ước lượng từ điểm sáng nhất của phần bị phủ (cận trên) — so với demo và chỉnh alpha nếu cần.",
+        "Glow/bán trong suốt, không dò được bằng hình — ước lượng vị trí từ demo: card_list_add, bg_pattern.",
         "Chưa có: vùng art thiếu, chữ nằm ngoài sprite đã khớp, phần nền gameplay phía sau (không thuộc prefab) — bổ sung khi review spec."
     ]
 }

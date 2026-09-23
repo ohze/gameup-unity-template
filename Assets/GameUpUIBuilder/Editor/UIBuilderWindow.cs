@@ -6,6 +6,7 @@ using GameUp.Core;
 using GameUp.Core.Editor;
 using TMPro;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -26,6 +27,7 @@ namespace GameUp.UIBuilder.Editor
         private const double StampCheckInterval = 1.0;
         private const int BroadArtWarning = 200;
         private const int SkipSnap = 16; // px demo — cạnh vùng bỏ qua gần mép ảnh thì dính vào mép
+        private const float TreeMaxHeight = 420f; // ~22 hàng rồi cây tự cuộn bên trong
         private const int AutoWorkerCap = 12; // khớp MAX_WORKERS trong Tools~/ui_locate.py
 
         private UIBuilderPython _pythonSetup;
@@ -58,6 +60,10 @@ namespace GameUp.UIBuilder.Editor
         private string _artCountKey; // thư mục art + cờ thư mục con lúc đếm — đếm lại khi đổi
         private int _artCount;
         private bool _showPythonLog;
+        private string _previewMessage;
+        private bool _previewFailed;
+        [SerializeField] private TreeViewState _treeState;
+        private UISpecTree _tree;
         private string _highlightSprite;
         private DateTime _jobStamp;
         private readonly Dictionary<string, Object> _assetCache = new Dictionary<string, Object>();
@@ -147,6 +153,7 @@ namespace GameUp.UIBuilder.Editor
             DrawInputStep(texture, previewWidth > 0f);
             DrawLocateStep();
             DrawSpecStep();
+            DrawPreviewStep();
             DrawBuildStep();
             DrawCompareStep();
 
@@ -175,14 +182,16 @@ namespace GameUp.UIBuilder.Editor
             var live = _locator != null && _locatingIndex == _previewIndex ? _locator.Progress : null;
             var caption = live != null ? $"{LocateProgress.Stages[live.Stage]} · {live.Status}" : null;
             var hovered = UIDemoPreviewDrawer.Draw(area, texture, live?.Snapshot ?? _locate, Settings.previewLayers, _highlightSprite,
-                live?.LatestSprite, caption);
+                _spec, _tree?.Selected, live?.LatestSprite, caption);
             var image = UIDemoPreviewDrawer.FitRect(area, texture.width, texture.height);
             var scale = image.width / texture.width;
             UIDemoPreviewDrawer.DrawSkipRegions(image, scale, Settings.skipRegions, _dragStart.HasValue ? DragRect() : (Rect?)null);
             if (_drawingSkip) HandleSkipDrag(image, scale, texture);
-            else if (hovered != null && Event.current.type == EventType.MouseDown)
+            else if (Event.current.type == EventType.MouseDown && (hovered.Node != null || hovered.Sprite != null))
             {
-                _highlightSprite = hovered;
+                // Node thắng sprite: đang duyệt cây thì bấm vào khung là để chọn node trong cây bên trái.
+                if (hovered.Node != null) Tree.SelectNode(hovered.Node);
+                else _highlightSprite = hovered.Sprite;
                 Event.current.Use();
             }
 
@@ -698,6 +707,7 @@ namespace GameUp.UIBuilder.Editor
                 layers = LayerToggle(layers, PreviewLayers.Texts, "Chữ");
                 layers = LayerToggle(layers, PreviewLayers.Dropped, "Bị loại");
                 layers = LayerToggle(layers, PreviewLayers.UIRegion, "Vùng UI");
+                layers = LayerToggle(layers, PreviewLayers.Nodes, "Node");
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
                 if (EditorGUI.EndChangeCheck())
@@ -707,8 +717,9 @@ namespace GameUp.UIBuilder.Editor
                 }
             }
 
-            GUInstallerUI.Hint("Xanh lá = khớp · cam = 9-slice · xanh dương = chữ · đỏ đứt = bị loại · vàng = đang chọn / vừa dò · "
-                               + "phần tối = dưới lớp phủ (UI màn phía sau, bị bỏ). Rê chuột lên khung để xem máy khớp thế nào, bấm để chọn.");
+            GUInstallerUI.Hint("Xanh lá = khớp · cam = 9-slice · xanh dương = chữ · đỏ đứt = bị loại · tím = node sẽ dựng · "
+                               + "xám đứt = node đã bỏ · vàng = đang chọn / vừa dò · phần tối = dưới lớp phủ (UI màn phía sau, bị bỏ). "
+                               + "Rê chuột lên khung để xem chi tiết, bấm để chọn node trong cây ở Bước 5.");
         }
 
         private static PreviewLayers LayerToggle(PreviewLayers layers, PreviewLayers layer, string label)
@@ -1007,26 +1018,216 @@ namespace GameUp.UIBuilder.Editor
             return value <= SkipSnap ? 0 : value >= size - SkipSnap ? size : value;
         }
 
-        private void GenerateSpec()
+        /// <summary>Sinh spec nháp từ kết quả định vị; <paramref name="silent"/> = không hỏi, không báo lỗi bằng hộp thoại.</summary>
+        private bool GenerateSpec(bool silent = false)
         {
             var path = UIBuilderPaths.ToAbsolute(SpecPath);
-            if (File.Exists(path) && !EditorUtility.DisplayDialog("Ghi đè spec?",
+            if (!silent && File.Exists(path) && !EditorUtility.DisplayDialog("Ghi đè spec?",
                     $"{SpecPath} đã có (có thể đã được Claude/bạn chỉnh). Sinh lại sẽ ghi đè toàn bộ.", "Ghi đè", "Huỷ"))
-                return;
+                return false;
 
             var demos = Demos;
             if (_locates.Count < demos.Count || _locates.Any(l => l == null))
             {
-                EditorUtility.DisplayDialog("Thiếu kết quả định vị", "Chạy định vị cho đủ mọi demo trước khi tạo spec.", "OK");
-                return;
+                if (!silent) EditorUtility.DisplayDialog("Thiếu kết quả định vị", "Chạy định vị cho đủ mọi demo trước khi tạo spec.", "OK");
+                return false;
             }
 
-            UISpecFile.Save(UISpecGenerator.Generate(_locates, Settings.jobName, demos, OutputPrefab, Settings.textFont,
-                Settings.textOutlineMaterial, Settings.skipRegions), SpecPath);
+            var spec = UISpecGenerator.Generate(_locates, Settings.jobName, demos, OutputPrefab, Settings.textFont,
+                Settings.textOutlineMaterial, Settings.skipRegions);
+            // Node đã loại ở bước xem trước không dựng lại khi sinh lại spec từ cùng kết quả định vị.
+            UISpecExclusions.Carry(spec, _spec);
+            UISpecFile.Save(spec, SpecPath);
             ReloadJob();
+            return true;
         }
 
-        // ─── BƯỚC 5 — Dựng prefab ───────────────────────────────────────────
+        // ─── BƯỚC 5 — Duyệt cây ─────────────────────────────────────────────
+
+        private UISpecTree Tree
+        {
+            get
+            {
+                if (_tree != null) return _tree;
+                _treeState ??= new TreeViewState();
+                _tree = new UISpecTree(_treeState) { Changed = SaveSpec };
+                _tree.SetSpec(_spec);
+                return _tree;
+            }
+        }
+
+        /// <summary>
+        /// Cây node sắp dựng, ngay trong cửa sổ: tick chọn dựng hay bỏ, nhóm lại, đổi tên, đổi thứ tự vẽ, kéo thả đổi cha.
+        /// Chọn node nào thì khung của nó sáng lên trên ảnh demo bên phải, và bấm khung trên ảnh thì chọn ngược lại node
+        /// trong cây — để soi máy dò có đặt đúng chỗ không.
+        /// </summary>
+        private void DrawPreviewStep()
+        {
+            var state = _spec == null ? GUSetupState.Blocked : GUSetupState.Done;
+            using (GUInstallerUI.BeginCard())
+            {
+                GUInstallerUI.CardHeader("BƯỚC 5", "Duyệt cây & chọn dựng gì", state);
+                GUILayout.Label("Cây dưới đây là đúng thứ sẽ ra prefab. Bỏ tick = không dựng (giữ lại, tick lại là có). "
+                                + "Bấm đúp để đổi tên node, kéo thả để đổi cha và đổi thứ tự vẽ. Chọn node → khung sáng trên "
+                                + "ảnh demo; bấm khung trên ảnh → chọn node trong cây. Mọi thay đổi ghi thẳng vào spec.json.",
+                    GUInstallerUI.Desc);
+
+                if (_spec == null)
+                {
+                    GUInstallerUI.Hint("Chưa có spec — chạy định vị và tạo spec nháp ở Bước 4.");
+                    return;
+                }
+
+                DrawTreeToolbar();
+                DrawTree();
+
+                if (!string.IsNullOrEmpty(_previewMessage))
+                    EditorGUILayout.HelpBox(_previewMessage, _previewFailed ? MessageType.Error : MessageType.Info);
+
+                GUInstallerUI.Hint($"{_spec.nodes.Count} node sẽ dựng"
+                                   + (_spec.excluded.Count > 0 ? $" · {_spec.excluded.Count} node đã bỏ (hàng xám)" : string.Empty)
+                                   + " · Ctrl/Shift để chọn nhiều node.");
+                DrawSceneStageRow();
+            }
+        }
+
+        private void DrawTreeToolbar()
+        {
+            var selected = Tree.Selected.ToList();
+            EditorGUILayout.BeginHorizontal();
+
+            GUILayout.Label(new GUIContent("Nhóm:", "Tên node cha sẽ tạo khi gom các node đang chọn."),
+                EditorStyles.miniLabel, GUILayout.Width(36f));
+            EditorGUI.BeginChangeCheck();
+            var groupName = EditorGUILayout.TextField(Settings.previewGroupName, GUILayout.Width(110f));
+            if (EditorGUI.EndChangeCheck())
+            {
+                Settings.previewGroupName = groupName;
+                Settings.Save();
+            }
+
+            if (GUInstallerUI.MiniButton("Gom lại", selected.Count > 0, 70f))
+            {
+                var error = UISpecEdit.Group(_spec, selected, Settings.previewGroupName);
+                Report(error, $"Đã gom {selected.Count} node vào '{Settings.previewGroupName}'.");
+                if (error == null) Tree.SelectNode(Settings.previewGroupName);
+            }
+
+            if (GUInstallerUI.MiniButton("Bỏ", selected.Count > 0, 44f))
+            {
+                foreach (var id in selected) UISpecEdit.Exclude(_spec, id);
+                Report(null, $"Đã bỏ {selected.Count} node — tick lại ở cây để dựng lại.");
+            }
+
+            if (GUInstallerUI.MiniButton("Dựng lại", selected.Count > 0, 70f))
+            {
+                foreach (var id in selected) UISpecExclusions.Restore(_spec, id);
+                Report(null, $"Đã dựng lại {selected.Count} node.");
+            }
+
+            if (GUInstallerUI.MiniButton("▲", selected.Count == 1, 26f))
+            {
+                UISpecEdit.Move(_spec, selected[0], -1);
+                Report(null, "Đã đổi thứ tự vẽ.");
+            }
+
+            if (GUInstallerUI.MiniButton("▼", selected.Count == 1, 26f))
+            {
+                UISpecEdit.Move(_spec, selected[0], 1);
+                Report(null, "Đã đổi thứ tự vẽ.");
+            }
+
+            GUILayout.FlexibleSpace();
+            if (GUInstallerUI.MiniButton("Dựng lại tất cả", _spec.excluded.Count > 0, 110f))
+            {
+                var count = _spec.excluded.Count;
+                UISpecExclusions.RestoreAll(_spec);
+                Report(null, $"Đã dựng lại {count} node.");
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        /// <summary>Cây cao theo số hàng, tối đa ~22 hàng rồi tự cuộn bên trong — không đẩy các bước sau xuống quá xa.</summary>
+        private void DrawTree()
+        {
+            var height = Mathf.Clamp(Tree.totalHeight + 4f, 60f, TreeMaxHeight);
+            var rect = GUILayoutUtility.GetRect(0f, height, GUILayout.ExpandWidth(true));
+            Tree.OnGUI(rect);
+        }
+
+        /// <summary>Tuỳ chọn: dựng cây thành object thật trong scene tạm khi cần Inspector / kéo rect bằng tay.</summary>
+        private void DrawSceneStageRow()
+        {
+            var open = UIPreviewStage.IsOpen && UIPreviewStage.JobName == Settings.jobName;
+            EditorGUILayout.BeginHorizontal();
+            if (GUInstallerUI.MiniButton(open ? "Dựng lại trong scene" : "Mở trong scene (tuỳ chọn)", true, 180f)) OpenPreview();
+            if (GUInstallerUI.MiniButton("Lấy cây từ scene", open, 130f)) SyncPreview();
+            if (GUInstallerUI.MiniButton("Đóng scene", open, 90f)) ClosePreview();
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+            GUInstallerUI.Hint(open
+                ? "Đang mở scene tạm — sửa rect/Inspector ở đó xong bấm 'Lấy cây từ scene' để ghi ngược vào spec."
+                : "Cần Inspector hoặc kéo rect bằng tay thì mở cây thành object thật trong một scene tạm (không tạo asset).");
+        }
+
+        private void Report(string error, string done)
+        {
+            _previewFailed = error != null;
+            _previewMessage = error ?? done;
+            if (error != null) return;
+            SaveSpec();
+            Tree.Reload();
+        }
+
+        /// <summary>Ghi spec ngay sau mỗi thay đổi trên cây; cập nhật mốc thời gian để cửa sổ không tự tải lại.</summary>
+        private void SaveSpec()
+        {
+            if (_spec == null) return;
+            UISpecFile.Save(_spec, SpecPath);
+            _jobStamp = JobStamp();
+        }
+
+        private void OpenPreview()
+        {
+            if (_spec == null) return;
+            var report = UIPreviewStage.Open(_spec, Settings.jobName);
+            _previewFailed = !report.Success;
+            _previewMessage = $"Cây trong scene tạm: {report.Created} object"
+                              + (report.Warnings.Count > 0 ? $", {report.Warnings.Count} cảnh báo (xem Console)." : ".");
+            foreach (var warning in report.Warnings) GULogger.Warning(LogTag, warning);
+        }
+
+        private void SyncPreview()
+        {
+            var synced = UIPreviewStage.Sync(_spec);
+            if (synced == null) return;
+            var removed = synced.excluded.Count - _spec.excluded.Count;
+            UISpecFile.Save(synced, SpecPath);
+            ReloadJob();
+            _previewFailed = false;
+            _previewMessage = $"Đã lấy {synced.nodes.Count} node từ scene về {SpecPath}"
+                              + (removed > 0 ? $" · bỏ thêm {removed} node." : ".");
+            GULogger.Log(LogTag, _previewMessage);
+        }
+
+        private void ClosePreview()
+        {
+            if (!EditorUtility.DisplayDialog("Đóng scene xem trước?",
+                    "Scene tạm sẽ đóng mà không lưu. Phần sửa trên cây chưa lấy về spec sẽ mất.", "Đóng", "Huỷ"))
+                return;
+            UIPreviewStage.Close();
+            _previewMessage = null;
+        }
+
+        /// <summary>Định vị xong: sinh spec nháp (nếu chưa có) để cây hiện lên ngay, không phải bấm thêm bước nào.</summary>
+        private void AutoPreview()
+        {
+            if (!Settings.autoPreview || _spec != null) return;
+            GenerateSpec(true);
+        }
+
+        // ─── BƯỚC 6 — Dựng prefab ───────────────────────────────────────────
 
         private void DrawBuildStep()
         {
@@ -1034,7 +1235,7 @@ namespace GameUp.UIBuilder.Editor
                 : _report.Success ? GUSetupState.Done : GUSetupState.Missing;
             using (GUInstallerUI.BeginCard())
             {
-                GUInstallerUI.CardHeader("BƯỚC 5", "Dựng / cập nhật prefab", state);
+                GUInstallerUI.CardHeader("BƯỚC 6", "Dựng / cập nhật prefab", state);
                 GUILayout.Label("Prefab đã có thì chỉ cập nhật node theo tên — object/component thêm tay được giữ nguyên. Dựng xong tự render ảnh so sánh với demo.", GUInstallerUI.Desc);
 
                 EditorGUILayout.BeginHorizontal();
@@ -1045,6 +1246,8 @@ namespace GameUp.UIBuilder.Editor
                     AssetDatabase.OpenAsset(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath));
                 EditorGUILayout.EndHorizontal();
 
+                if (UIPreviewStage.IsOpen && UIPreviewStage.JobName == Settings.jobName)
+                    GUInstallerUI.Hint("Đang mở bản xem trước — sửa trên cây phải bấm Đồng bộ cây → spec ở Bước 5 thì prefab mới nhận.");
                 if (_report == null) return;
                 EditorGUILayout.HelpBox(_report.Summary, _report.Success ? MessageType.Info : MessageType.Error);
                 foreach (var warning in _report.Warnings) GUInstallerUI.Hint($"⚠ {warning}");
@@ -1153,6 +1356,7 @@ namespace GameUp.UIBuilder.Editor
                     {
                         _locateQueue.Clear();
                         _jobStamp = JobStamp();
+                        if (result != null) AutoPreview();
                     }
                 }
                 else
@@ -1180,6 +1384,7 @@ namespace GameUp.UIBuilder.Editor
             ImportExportedSprites(_locates);
             _locateMessage = $"Đọc PSD xong: {result.states.Count} trạng thái, {result.sprites.Count(s => s.IsMatched)} art ở tab 1, "
                              + $"{result.exported.Count} PNG xuất từ layer · {result.elapsedMs / 1000f:0.#} s";
+            AutoPreview();
         }
 
         /// <summary>
@@ -1258,6 +1463,7 @@ namespace GameUp.UIBuilder.Editor
             _locateMessage = _locate != null ? $"Kết quả trước: {_locate.sprites.Count(s => s.IsMatched)}/{_locate.sprites.Count} sprite khớp." : null;
             _report = null;
             _comparePath = null;
+            _tree?.SetSpec(_spec);
             _jobStamp = JobStamp();
         }
 
