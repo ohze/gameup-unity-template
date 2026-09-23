@@ -14,6 +14,7 @@ namespace GameUp.SDK
         public AdUnitConfig rewarded = new AdUnitConfig();
         public AdUnitConfig appOpen = new AdUnitConfig();
         public AdUnitConfig nativeAd = new AdUnitConfig();
+        public AdUnitConfig nativeOverlay = new AdUnitConfig();
 
         public AdUnitConfig Get(AdUnitType type)
         {
@@ -24,6 +25,7 @@ namespace GameUp.SDK
                 case AdUnitType.RewardedVideo: return rewarded;
                 case AdUnitType.AppOpen: return appOpen;
                 case AdUnitType.NativeAd: return nativeAd;
+                case AdUnitType.NativeOverlay: return nativeOverlay;
                 default: return null;
             }
         }
@@ -35,6 +37,7 @@ namespace GameUp.SDK
             yield return rewarded;
             yield return appOpen;
             yield return nativeAd;
+            yield return nativeOverlay;
         }
 
         public bool MigrateLegacyEntries()
@@ -90,6 +93,7 @@ namespace GameUp.SDK
         public List<string> umpTestDeviceHashedIds = new List<string>();
 
         public AdUnitConfigSet units = new AdUnitConfigSet();
+        public NativeOverlayOptions nativeOverlayOptions = new NativeOverlayOptions();
     }
 
     [Serializable]

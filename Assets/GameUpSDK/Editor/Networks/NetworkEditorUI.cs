@@ -50,6 +50,9 @@ namespace GameUp.SDK.Editor.Setup
 
             EditorGUILayout.Space();
             DrawUnitSet(admob.FindPropertyRelative("units"), platform, includeNative: true);
+            DrawAdUnitConfig(admob.FindPropertyRelative("units").FindPropertyRelative("nativeOverlay"),
+                "Native Overlay (AdMob Unity API)", AdUnitType.NativeOverlay, platform);
+            EditorGUILayout.PropertyField(admob.FindPropertyRelative("nativeOverlayOptions"), true);
         }
 
         public static void DrawMaxSection(SerializedProperty max, AdMobIdEditorPlatform platform)

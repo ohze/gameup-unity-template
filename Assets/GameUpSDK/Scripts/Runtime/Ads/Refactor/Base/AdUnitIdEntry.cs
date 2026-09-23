@@ -8,7 +8,8 @@ namespace GameUp.SDK
         Interstitial,
         RewardedVideo,
         AppOpen,
-        NativeAd
+        NativeAd,
+        NativeOverlay
     }
 
     public enum EcpmFloor

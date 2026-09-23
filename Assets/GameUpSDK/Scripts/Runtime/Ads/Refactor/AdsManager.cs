@@ -34,7 +34,7 @@ namespace GameUp.SDK
     }
 
     [DefaultExecutionOrder(-50)]
-    public class AdsManager : MonoSingleton<AdsManager>
+    public partial class AdsManager : MonoSingleton<AdsManager>
     {
         [Tooltip("Để trống = dùng asset GameUpAdsConfig chung của project (Resources/GameUpSDK/GameUpAdsConfig).")]
         [SerializeField] private GameUpAdsConfig configOverride;
@@ -219,6 +219,7 @@ namespace GameUp.SDK
         {
             if (_onRemoveAllAdsChanged != null)
                 RemoveAdsSetting.Instance.IsRemoveAllAds.OnValueChange.RemoveListener(_onRemoveAllAdsChanged);
+            DisposeNativeOverlays();
             AdsEvent.OnImpressionDataReady -= GameUpAnalytics.LogAdImpression;
             AdsEvent.OnBannerSwap -= OnBannerSwapped;
 
@@ -237,6 +238,7 @@ namespace GameUp.SDK
         private void OnRemoveAllAdsValueChanged(bool removeAll)
         {
             if (!removeAll) return;
+            HideNativeOverlay();
             foreach (var placement in new List<string>(_activeBanners))
                 HideBanner(placement);
         }
@@ -275,6 +277,7 @@ namespace GameUp.SDK
         {
             if (!_wiredNetworks.Add(network)) return;
 
+            WireNativeOverlay(network);
             _tracker.SubscribeToNetwork(network);
             WireUpCappingEvents(network);
             if (network.BannerAd != null)
@@ -384,6 +387,7 @@ namespace GameUp.SDK
         {
             AdCappingManager.Instance.PauseAllCapping();
             TemporarilyHideBanners();
+            SuspendNativeOverlay();
         }
 
         // Display lỗi = ad KHÔNG lên màn hình, nên phải nhả pause y như lúc ad đóng.
@@ -394,6 +398,7 @@ namespace GameUp.SDK
         {
             AdCappingManager.Instance.ResumeAllCapping();
             RestoreBanners();
+            RestoreNativeOverlay();
         }
 
         private void HandleFullscreenClosed(AdUnitType adType)
@@ -401,6 +406,7 @@ namespace GameUp.SDK
             AdCappingManager.Instance.ResumeAllCapping();
             AdCappingManager.Instance.ResetCapping(adType);
             RestoreBanners();
+            RestoreNativeOverlay();
             AdHistoryTracker.MarkAdClosed(adType);
         }
 
@@ -481,6 +487,7 @@ namespace GameUp.SDK
             // Điều kiện mới (vd HideBannerFromRemote) có thể cấm banner đang hiển thị
             // → ép đánh giá lại ngay, không chờ tới lần load kế tiếp.
             RefreshBannerVisibility();
+            RefreshNativeOverlayVisibility();
         }
 
         /// <summary>
@@ -526,6 +533,8 @@ namespace GameUp.SDK
                                                    network.InterstitialAd.IsAvailable(where),
                         AdUnitType.AppOpen => network.AppOpenAd != null && network.AppOpenAd.IsAvailable(where),
                         AdUnitType.Banner => network.BannerAd != null && network.BannerAd.IsAvailable(where),
+                        AdUnitType.NativeOverlay => network is INativeOverlayNetwork overlayNetwork &&
+                                                    overlayNetwork.NativeOverlayAd != null && overlayNetwork.NativeOverlayAd.IsAvailable(where),
                         AdUnitType.NativeAd => network.NativeFullScreenAd != null &&
                                                network.NativeFullScreenAd.IsAvailable(where),
                         _ => false
@@ -778,6 +787,9 @@ namespace GameUp.SDK
                         network.Value.AppOpenAd?.Load(where);
                     }
 
+                    break;
+                case AdUnitType.NativeOverlay:
+                    LoadNativeOverlay(where);
                     break;
                 case AdUnitType.NativeAd:
                     foreach (var network in _networkDict)

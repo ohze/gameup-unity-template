@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace GameUp.SDK
 {
-    public class AdmobNetwork : MonoBehaviour, IAdNetwork
+    public class AdmobNetwork : MonoBehaviour, IAdNetwork, INativeOverlayNetwork
     {
         [Tooltip("Để trống = dùng asset GameUpAdsConfig chung của project (Resources/GameUpSDK/GameUpAdsConfig).")]
         [SerializeField] private GameUpAdsConfig configOverride;
@@ -30,6 +30,10 @@ namespace GameUp.SDK
         public IBannerAd BannerAd { get; private set; }
 
         public INativeFullScreenAd NativeFullScreenAd { get; private set; }
+
+        public INativeOverlayAd NativeOverlayAd { get; private set; }
+
+        private void OnDestroy() => NativeOverlayAd?.Dispose();
 
         public AdmobAdsSettings Settings => GameUpAdsConfig.Resolve(configOverride)?.admob;
 
@@ -85,7 +89,9 @@ namespace GameUp.SDK
                     InterstitialAd.LoadAll();
                     RewardedAd.LoadAll();
 
+                    NativeOverlayAd = new AdmobNativeOverlayAd(units.nativeOverlay, settings.nativeOverlayOptions);
                     OnInitialized?.Invoke(this);
+                    NativeOverlayAd.LoadAll();
 
                     if (settings.showMediationInspector)
                     {
