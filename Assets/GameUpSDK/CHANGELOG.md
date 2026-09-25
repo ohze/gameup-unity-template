@@ -14,6 +14,7 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Fixed
 
+- **2.0.1 — `appOpenOnColdStart` và `nativeCtaClickRate` chỉnh được trong Editor.** Hai field của `GameUpAdsConfig` trước đây không được vẽ ở đâu (`GameUpAdsConfigEditor` ghi đè `OnInspectorGUI` chỉ vẽ 3 tab mạng; cửa sổ Setup chỉ có `mediationPriority`) nên muốn tắt/bật App Open lúc cold start phải sửa tay file `.asset`. Nay có mục **Cài đặt chung** (`NetworkEditorUI.DrawGeneralSection`) ở đầu Inspector của asset và trong tab `GameUp → SDK → Setup` đổi tên thành **"Cài đặt chung & Thứ tự ưu tiên"**. Không đổi runtime, asset cũ giữ nguyên giá trị.
 - **Bỏ `MobileAds.RaiseAdEventsOnUnityMainThread` (obsolete từ Google Mobile Ads 10.7) và tự marshal callback.** Cờ này trước đây gánh việc đưa mọi callback AdMob về main thread; bỏ đi mà không sửa gì thì callback quay lại thread native và mọi thao tác Unity API trong đó sẽ ném exception. Đã bọc lại các chỗ trước đây dựa vào nó:
   - `AdmobNetwork`: toàn bộ thân callback `MobileAds.Initialize` chuyển vào `MobileAdsEventExecutor.ExecuteInUpdate` — trước đây chỉ nửa sau nằm trong, còn dòng log dùng `Time.realtimeSinceStartup` nằm ngoài (sẽ ném `UnityException: can only be called from the main thread` ngay lần init đầu).
   - `AdmobAdFormat`: thân callback `Load(...)` của Interstitial/Rewarded/AppOpen (`HandleLoadSuccess`/`HandleLoadFailed`, ghi `_ads`, `_expireTimes`) đẩy qua `MainThreadDispatcher` — cũng khiến các Dictionary chỉ bị đụng từ một thread.

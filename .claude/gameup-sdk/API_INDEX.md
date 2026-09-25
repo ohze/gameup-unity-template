@@ -1,6 +1,6 @@
 # GameUp SDK — API index (tự sinh)
 
-> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.sdk` `2.0.0`; lần sync sau sẽ ghi đè.
+> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.sdk` `2.0.1`; lần sync sau sẽ ghi đè.
 
 - Source đọc được: `Assets/GameUpSDK/` — cột **File** bên dưới là đường dẫn tương đối so với thư mục này.
 - Đường dẫn trong Unity (dùng cho asmdef/AssetDatabase): `Assets/GameUpSDK/`.
@@ -253,7 +253,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 ### `public class AdsManager : MonoSingleton<AdsManager>`
 
-`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/AdsManager.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/AdsManager.cs)
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/AdsManager.NativeOverlay.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/AdsManager.NativeOverlay.cs)
 
 - `[SerializeField] private GameUpAdsConfig configOverride`
 - `public List<MediationProvider> mediationPriority`
@@ -263,6 +263,12 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public bool AreAllNetworksInitialized { get; }`
 - `public Dictionary<MediationProvider, IAdNetwork> Networks { get; }`
 - `public event Action OnAdsInitialized`
+- `public bool IsNativeOverlayAvailable(string where = "default")`
+- `public void LoadNativeOverlay(string where = "default")`
+- `public void ShowNativeOverlay(string where = "default", NativeOverlayOptions options = null, Action onSuccess = null, Action onFail = null)`
+- `public void HideNativeOverlay()`
+- `public void DestroyNativeOverlay(string where = "default")`
+- `public void RefreshNativeOverlayVisibility()`
 - `protected override void Awake()`
 - `public void ExportLegacyInto(GameUpAdsConfig target)`
 - `public void RetryInitializeAfterConsent()`
@@ -392,7 +398,31 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public void Show(string where, Action onSuccess, Action onFail)`
 - `public void Hide()`
 
-### `public class AdmobNetwork : MonoBehaviour, IAdNetwork`
+### `public sealed class AdmobNativeOverlayAd : IAdFormat, IDisposable, INativeOverlayAd`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Admob/AdmobNativeOverlayAd.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Admob/AdmobNativeOverlayAd.cs)
+
+> AdMob C# NativeOverlayAd. No GameUp Java/Objective-C bridge is used. One visible overlay per adapter; cache and waterfall are keyed by resolved unit ID.
+
+- `public event Action<string> OnAdLoaded`
+- `public event Action<string, string> OnAdLoadFailed`
+- `public event Action<string> OnAdDisplayed`
+- `public event Action<string, string> OnAdDisplayFailed`
+- `public event Action<string> OnAdClosed`
+- `public event Action<string> OnAdClicked`
+- `public event Action<string> OnAdImpressionRecorded`
+- `public event Action<string> OnFullScreenOpened`
+- `public event Action<string> OnFullScreenClosed`
+- `public AdmobNativeOverlayAd(AdUnitConfig config, NativeOverlayOptions defaults)`
+- `public void LoadAll()`
+- `public void Load(string where = null)`
+- `public bool IsAvailable(string where = null)`
+- `public void Show(string where, NativeOverlayOptions options, Action onSuccess, Action onFail)`
+- `public void Hide()`
+- `public void Destroy(string where)`
+- `public void Dispose()`
+
+### `public class AdmobNetwork : MonoBehaviour, IAdNetwork, INativeOverlayNetwork`
 
 `GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Admob/AdmobNetwork.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Admob/AdmobNetwork.cs)
 
@@ -412,6 +442,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public IAppOpenAd AppOpenAd { get; }`
 - `public IBannerAd BannerAd { get; }`
 - `public INativeFullScreenAd NativeFullScreenAd { get; }`
+- `public INativeOverlayAd NativeOverlayAd { get; }`
 - `public AdmobAdsSettings Settings { get; }`
 - `public void Initialize()`
 - `public void SetConsent(bool isConsent)`
@@ -504,7 +535,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 `GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/AdUnitIdEntry.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/AdUnitIdEntry.cs)
 
-- `Banner, Interstitial, RewardedVideo, AppOpen, NativeAd`
+- `Banner, Interstitial, RewardedVideo, AppOpen, NativeAd, NativeOverlay`
 
 ### `public abstract class BaseAdFormat : IAdFormat`
 
@@ -622,6 +653,24 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `void Show(string where, Action onSuccess, Action onFail)`
 - `void Hide()`
 
+### `public interface INativeOverlayAd : IAdFormat, IDisposable`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs)
+
+- `event Action<string> OnAdClicked`
+- `event Action<string> OnAdImpressionRecorded`
+- `event Action<string> OnFullScreenOpened`
+- `event Action<string> OnFullScreenClosed`
+- `void Show(string where, NativeOverlayOptions options, Action onSuccess, Action onFail)`
+- `void Hide()`
+- `void Destroy(string where)`
+
+### `public interface INativeOverlayNetwork`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs)
+
+- `INativeOverlayAd NativeOverlayAd { get; }`
+
 ### `public interface IRewardedAd : IAdFormat`
 
 `GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INetwork.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INetwork.cs)
@@ -633,6 +682,26 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 `GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INetwork.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INetwork.cs)
 
 - `None, Admob, Max, IronSource`
+
+### `public sealed class NativeOverlayOptions`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs)
+
+- `public NativeOverlayTemplate template`
+- `public NativeOverlayPosition position`
+- `public Color backgroundColor`
+
+### `public enum NativeOverlayPosition`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs)
+
+- `Top, Bottom, TopLeft, TopRight, BottomLeft, BottomRight, Center`
+
+### `public enum NativeOverlayTemplate`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INativeOverlayAd.cs)
+
+- `Small, Medium`
 
 ## Scripts/Runtime/Ads/Refactor/Ironsource
 
@@ -975,6 +1044,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public AdUnitConfig rewarded`
 - `public AdUnitConfig appOpen`
 - `public AdUnitConfig nativeAd`
+- `public AdUnitConfig nativeOverlay`
 - `public AdUnitConfig Get(AdUnitType type)`
 - `public IEnumerable<AdUnitConfig> All()`
 - `public bool MigrateLegacyEntries()`
@@ -993,6 +1063,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public bool umpDebugForceEea`
 - `public List<string> umpTestDeviceHashedIds`
 - `public AdUnitConfigSet units`
+- `public NativeOverlayOptions nativeOverlayOptions`
 
 ### `public class AppMetricaSettings`
 

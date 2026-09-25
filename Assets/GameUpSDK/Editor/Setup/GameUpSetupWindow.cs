@@ -19,7 +19,7 @@ namespace GameUp.SDK.Editor.Setup
             { "AppsFlyer", "Dev Key và App ID để đo lường attribution." },
             { "Game Analytics", "Game Key / Secret Key cho từng nền tảng." },
             { "AppMetrica", "API Key của AppMetrica." },
-            { "Thứ tự ưu tiên", "Thứ tự mạng được thử trước khi có nhiều hơn một mạng quảng cáo." },
+            { "Cài đặt chung & Thứ tự ưu tiên", "App Open lúc cold start, tỉ lệ Native CTA và thứ tự mạng được thử khi có nhiều hơn một mạng quảng cáo." },
             { "IronSource Mediation", "App Key và các ad unit của IronSource." },
             { "MAX Mediation", "SDK Key và các ad unit của AppLovin MAX." },
             { "AdMob / AppOpen", "App ID, ad unit AdMob và cấu hình App Open." },

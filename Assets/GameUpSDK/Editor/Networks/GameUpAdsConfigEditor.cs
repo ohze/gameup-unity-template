@@ -34,6 +34,9 @@ namespace GameUp.SDK.Editor.Setup
             }
 
             EditorGUILayout.Space();
+            NetworkEditorUI.DrawGeneralSection(serializedObject);
+
+            EditorGUILayout.Space();
             _tabIndex = GUILayout.Toolbar(_tabIndex, Tabs);
             _platform = NetworkEditorUI.DrawPlatformSelector(_platform);
             EditorGUILayout.Space(8);

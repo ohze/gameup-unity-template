@@ -5,12 +5,12 @@ using UnityEngine;
 namespace GameUp.SDK.Editor.Setup
 {
     // ==========================================
-    // MEDIATION PRIORITY TAB -> GameUpAdsConfig.mediationPriority
+    // MEDIATION PRIORITY TAB -> GameUpAdsConfig.mediationPriority + cài đặt chung (appOpenOnColdStart, nativeCtaClickRate)
     // Thứ tự trong danh sách = thứ tự waterfall lúc runtime (xem AdsManager.GetAvailableProvider).
     // ==========================================
     public class MediationPrioritySetupTab : AdsConfigTabBase
     {
-        public override string Title => "Thứ tự ưu tiên";
+        public override string Title => "Cài đặt chung & Thứ tự ưu tiên";
 
         protected override void DrawHeader()
         {
@@ -21,6 +21,10 @@ namespace GameUp.SDK.Editor.Setup
 
         protected override void DrawSection(SerializedObject so)
         {
+            NetworkEditorUI.DrawGeneralSection(so);
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField("Thứ tự ưu tiên waterfall", EditorStyles.boldLabel);
             var listProp = so.FindProperty("mediationPriority");
             if (listProp == null) return;
 

@@ -33,6 +33,28 @@ namespace GameUp.SDK.Editor.Setup
         // SECTIONS
         // =====================================================================
 
+        /// <summary>Thông số dùng chung cho mọi mạng (không theo platform / mediation).</summary>
+        public static void DrawGeneralSection(SerializedObject config)
+        {
+            if (config == null) return;
+
+            EditorGUILayout.LabelField("Cài đặt chung", EditorStyles.boldLabel);
+            // Label dài hơn labelWidth mặc định của cửa sổ Setup ⇒ nới ra để không bị cắt chữ.
+            var previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 240f;
+
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.PropertyField(config.FindProperty("appOpenOnColdStart"),
+                new GUIContent("App Open lúc mở app (cold start)",
+                    "Bật = AOA được hiện ngay lần mở app đầu tiên. Tắt = AOA chỉ hiện khi user quay lại app từ nền."));
+            EditorGUILayout.PropertyField(config.FindProperty("nativeCtaClickRate"),
+                new GUIContent("Native CTA Click Rate (%)",
+                    "Tỉ lệ biến toàn bộ vùng Native Ad thành CTA. Remote Config native_cta_click_rate ghi đè giá trị này."));
+            EditorGUILayout.EndVertical();
+
+            EditorGUIUtility.labelWidth = previousLabelWidth;
+        }
+
         public static void DrawAdmobSection(SerializedProperty admob, AdMobIdEditorPlatform platform)
         {
             if (admob == null) return;
