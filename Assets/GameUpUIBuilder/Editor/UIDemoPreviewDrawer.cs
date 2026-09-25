@@ -27,9 +27,14 @@ namespace GameUp.UIBuilder.Editor
         private static readonly Color NodeColor = new Color(0.65f, 0.55f, 1f, 0.85f);
         private static readonly Color NodeSelected = new Color(1f, 0.92f, 0.20f, 1f);
         private static readonly Color NodeExcluded = new Color(0.55f, 0.55f, 0.55f, 0.8f);
+        private static readonly Color NodeChild = new Color(1f, 0.92f, 0.20f, 0.55f);
+        private static readonly Color NodeTreeHover = new Color(0.30f, 0.90f, 1f, 1f);
+        private static readonly Color SpotlightShade = new Color(0f, 0f, 0f, 0.45f);
+        private const float FadedAlpha = 0.3f;
 
         private static GUIStyle _tag;
         private static GUIStyle _tooltip;
+        private static GUIStyle _nodeTag;
 
         /// <summary>Khung đang dưới con trỏ: nhỏ nhất thắng (icon nằm trong nút).</summary>
         private struct Hover
@@ -40,12 +45,14 @@ namespace GameUp.UIBuilder.Editor
         }
 
         /// <param name="spec">Cây sắp dựng — vẽ khung từng node (lớp <see cref="PreviewLayers.Nodes"/>); null = không vẽ.</param>
-        /// <param name="selectedNodes">id node đang chọn trong cây bên trái — tô nổi.</param>
+        /// <param name="selectedNodes">id node đang chọn trong cây bên trái — tô nổi, làm tối phần còn lại của ảnh.</param>
+        /// <param name="treeHover">id node đang rê chuột trong cây bên trái — viền xanh ngọc.</param>
         /// <param name="latest">Sprite vừa dò xong (khi đang chạy) — tô nổi như đang chọn.</param>
         /// <param name="caption">Dòng trạng thái vẽ trên đầu ảnh (khi đang chạy); null = không vẽ.</param>
         /// <returns>Sprite và node đang được rê chuột.</returns>
         public static UIDemoHover Draw(Rect area, Texture2D texture, LocateResult locate, PreviewLayers layers, string highlight,
-            UISpec spec = null, ICollection<string> selectedNodes = null, string latest = null, string caption = null)
+            UISpec spec = null, ICollection<string> selectedNodes = null, string treeHover = null, string latest = null,
+            string caption = null)
         {
             EditorGUI.DrawRect(area, Backdrop);
             if (texture == null) return default;
@@ -66,8 +73,10 @@ namespace GameUp.UIBuilder.Editor
             }
 
             var node = new Hover();
-            if (spec != null && spec.referenceWidth > 0 && (layers & PreviewLayers.Nodes) != 0)
-                DrawNodes(image, image.width / spec.referenceWidth, spec, selectedNodes, ref node);
+            // Node đang chọn / đang rê trong cây luôn hiện, kể cả khi tắt lớp Node — để biết mình đang chọn phần nào.
+            if (spec != null && spec.referenceWidth > 0)
+                DrawNodes(image, image.width / spec.referenceWidth, spec, selectedNodes, treeHover,
+                    (layers & PreviewLayers.Nodes) != 0, ref node);
 
             if (!string.IsNullOrEmpty(caption)) DrawCaption(image, caption);
             // Node vẽ sau và thắng khi trùng khung: đang duyệt cây thì thông tin node là thứ cần xem.
@@ -76,30 +85,135 @@ namespace GameUp.UIBuilder.Editor
             return new UIDemoHover { Sprite = hover.Sprite, Node = node.Sprite };
         }
 
-        /// <summary>Khung từng node của spec: tím = sẽ dựng, vàng = đang chọn trong cây, xám đứt = đã bỏ.</summary>
-        private static void DrawNodes(Rect image, float scale, UISpec spec, ICollection<string> selected, ref Hover hover)
+        /// <summary>
+        /// Khung từng node của spec: tím = sẽ dựng, xám đứt = đã bỏ. Khi có node đang chọn: phần ảnh ngoài vùng chọn tối
+        /// đi, khung khác mờ đi, node chọn tô vàng kèm nhãn tên, con cháu của nó viền vàng nhạt — nhìn là biết đang chọn gì.
+        /// </summary>
+        private static void DrawNodes(Rect image, float scale, UISpec spec, ICollection<string> selected, string treeHover,
+            bool showAll, ref Hover hover)
         {
-            foreach (var node in spec.nodes) DrawNode(image, scale, node, selected, false, ref hover);
-            foreach (var node in spec.excluded) DrawNode(image, scale, node, selected, true, ref hover);
+            var hasSelection = selected != null && selected.Count > 0;
+            var inside = hasSelection ? Descendants(spec, selected) : new HashSet<string>();
+            if (hasSelection) DrawSpotlight(image, scale, spec, selected);
+
+            foreach (var node in spec.nodes) DrawNode(image, scale, node, false, showAll, hasSelection, inside, ref hover);
+            foreach (var node in spec.excluded) DrawNode(image, scale, node, true, showAll, hasSelection, inside, ref hover);
+
+            // Vẽ sau cùng để nằm trên mọi khung khác.
+            if (hasSelection)
+            {
+                foreach (var node in spec.nodes) DrawSelected(image, scale, node, false, selected, ref hover);
+                foreach (var node in spec.excluded) DrawSelected(image, scale, node, true, selected, ref hover);
+            }
+
+            if (treeHover != null) DrawTreeHover(image, scale, spec, treeHover);
         }
 
-        private static void DrawNode(Rect image, float scale, UISpecNode node, ICollection<string> selected, bool excluded,
-            ref Hover hover)
+        private static void DrawNode(Rect image, float scale, UISpecNode node, bool excluded, bool showAll, bool hasSelection,
+            HashSet<string> inside, ref Hover hover)
         {
             if (node.w <= 0 || node.h <= 0) return;
-            var rect = ToScreen(image, scale, node.x, node.y, node.w, node.h);
-            var isSelected = selected != null && selected.Contains(node.id);
+            var isChild = inside.Contains(node.id);
+            if (!showAll && !isChild) return;
 
-            if (excluded && !isSelected) DrawDashedOutline(rect, NodeExcluded);
-            else
-            {
-                var color = isSelected ? NodeSelected : NodeColor;
-                if (isSelected) EditorGUI.DrawRect(rect, new Color(color.r, color.g, color.b, 0.16f));
-                DrawOutline(rect, color, isSelected ? 2f : 1f);
-            }
+            var rect = ToScreen(image, scale, node.x, node.y, node.w, node.h);
+            var color = isChild ? NodeChild : excluded ? NodeExcluded : NodeColor;
+            if (hasSelection && !isChild) color.a *= FadedAlpha;
+            if (excluded || isChild) DrawDashedOutline(rect, color);
+            else DrawOutline(rect, color, 1f);
 
             if (IsHovered(rect, hover))
                 hover = new Hover { Rect = rect, Sprite = node.id, Info = DescribeNode(node, excluded) };
+        }
+
+        private static void DrawSelected(Rect image, float scale, UISpecNode node, bool excluded, ICollection<string> selected,
+            ref Hover hover)
+        {
+            if (node.w <= 0 || node.h <= 0 || !selected.Contains(node.id)) return;
+            var rect = ToScreen(image, scale, node.x, node.y, node.w, node.h);
+            EditorGUI.DrawRect(rect, new Color(NodeSelected.r, NodeSelected.g, NodeSelected.b, 0.16f));
+            DrawOutline(rect, NodeSelected, 2f);
+            DrawNodeTag(image, rect, excluded ? $"✕ {node.id}" : node.id, NodeSelected);
+            if (IsHovered(rect, hover))
+                hover = new Hover { Rect = rect, Sprite = node.id, Info = DescribeNode(node, excluded) };
+        }
+
+        private static void DrawTreeHover(Rect image, float scale, UISpec spec, string id)
+        {
+            var node = spec.nodes.FirstOrDefault(n => n.id == id) ?? spec.excluded.FirstOrDefault(n => n.id == id);
+            if (node == null || node.w <= 0 || node.h <= 0) return;
+            var rect = ToScreen(image, scale, node.x, node.y, node.w, node.h);
+            DrawOutline(rect, NodeTreeHover, 2f);
+            DrawNodeTag(image, rect, node.id, NodeTreeHover);
+        }
+
+        /// <summary>Làm tối phần ảnh nằm ngoài khung bao các node đang chọn.</summary>
+        private static void DrawSpotlight(Rect image, float scale, UISpec spec, ICollection<string> selected)
+        {
+            var bounds = (Rect?)null;
+            foreach (var node in spec.nodes.Concat(spec.excluded))
+            {
+                if (node.w <= 0 || node.h <= 0 || !selected.Contains(node.id)) continue;
+                var rect = ToScreen(image, scale, node.x, node.y, node.w, node.h);
+                bounds = bounds.HasValue
+                    ? Rect.MinMaxRect(Mathf.Min(bounds.Value.xMin, rect.xMin), Mathf.Min(bounds.Value.yMin, rect.yMin),
+                        Mathf.Max(bounds.Value.xMax, rect.xMax), Mathf.Max(bounds.Value.yMax, rect.yMax))
+                    : rect;
+            }
+
+            if (!bounds.HasValue) return;
+            var b = Rect.MinMaxRect(Mathf.Max(bounds.Value.xMin, image.xMin), Mathf.Max(bounds.Value.yMin, image.yMin),
+                Mathf.Min(bounds.Value.xMax, image.xMax), Mathf.Min(bounds.Value.yMax, image.yMax));
+            EditorGUI.DrawRect(new Rect(image.x, image.y, image.width, b.y - image.y), SpotlightShade);
+            EditorGUI.DrawRect(new Rect(image.x, b.yMax, image.width, image.yMax - b.yMax), SpotlightShade);
+            EditorGUI.DrawRect(new Rect(image.x, b.y, b.x - image.x, b.height), SpotlightShade);
+            EditorGUI.DrawRect(new Rect(b.xMax, b.y, image.xMax - b.xMax, b.height), SpotlightShade);
+        }
+
+        /// <summary>id mọi con cháu của các node đang chọn (không gồm chính chúng).</summary>
+        private static HashSet<string> Descendants(UISpec spec, ICollection<string> roots)
+        {
+            var result = new HashSet<string>();
+            var pending = new Queue<string>(roots);
+            while (pending.Count > 0)
+            {
+                var id = pending.Dequeue();
+                foreach (var node in spec.nodes.Concat(spec.excluded))
+                    if (node.parent == id && !roots.Contains(node.id) && result.Add(node.id)) pending.Enqueue(node.id);
+            }
+
+            return result;
+        }
+
+        /// <summary>Nhãn tên node dính mép trên khung (hết chỗ thì nằm trong khung).</summary>
+        private static void DrawNodeTag(Rect image, Rect rect, string label, Color color)
+        {
+            _nodeTag ??= new GUIStyle(EditorStyles.miniBoldLabel)
+            {
+                normal = { textColor = Color.black },
+                padding = new RectOffset(4, 4, 0, 0),
+                clipping = TextClipping.Clip
+            };
+            var content = new GUIContent(label);
+            var size = _nodeTag.CalcSize(content);
+            var width = Mathf.Min(size.x, image.width);
+            var x = Mathf.Clamp(rect.x, image.x, image.xMax - width);
+            var y = rect.y - size.y >= image.y ? rect.y - size.y : rect.y;
+            var tag = new Rect(x, y, width, size.y);
+            EditorGUI.DrawRect(tag, color);
+            GUI.Label(tag, content, _nodeTag);
+        }
+
+        /// <summary>id các node có khung chứa điểm <paramref name="point"/>, nhỏ trước lớn sau — để bấm lặp lại chọn node lớn hơn.</summary>
+        public static List<string> NodesAt(Rect image, UISpec spec, Vector2 point)
+        {
+            if (spec == null || spec.referenceWidth <= 0) return new List<string>();
+            var scale = image.width / spec.referenceWidth;
+            return spec.nodes.Concat(spec.excluded)
+                .Where(n => n.w > 0 && n.h > 0 && ToScreen(image, scale, n.x, n.y, n.w, n.h).Contains(point))
+                .OrderBy(n => n.w * n.h)
+                .Select(n => n.id)
+                .ToList();
         }
 
         private static string DescribeNode(UISpecNode node, bool excluded)

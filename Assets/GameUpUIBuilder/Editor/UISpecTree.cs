@@ -37,6 +37,12 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>id các node đang chọn (cả node còn dựng lẫn node đã bỏ).</summary>
         public ICollection<string> Selected => _selected;
 
+        /// <summary>id node đang rê chuột trong cây (cập nhật mỗi lần vẽ) — cửa sổ viền nó trên ảnh demo.</summary>
+        public string HoveredNode { get; private set; }
+
+        /// <summary>id node đang rê chuột trên ảnh demo — hàng của nó được tô trong cây.</summary>
+        public string DemoHover { get; set; }
+
         public void SetSpec(UISpec spec)
         {
             _spec = spec;
@@ -44,11 +50,23 @@ namespace GameUp.UIBuilder.Editor
         }
 
         /// <summary>Chọn một node theo id và cuộn tới nó — dùng khi bấm vào khung trên ảnh demo.</summary>
-        public void SelectNode(string id)
+        public void SelectNode(string id) => SelectNodes(new[] { id });
+
+        /// <summary>Thêm node vào vùng chọn, hoặc bỏ ra nếu đang chọn — bấm khung trên ảnh demo kèm Ctrl/Shift.</summary>
+        public void ToggleNode(string id)
         {
-            if (!_ids.TryGetValue(id, out var item)) return;
-            SetSelection(new List<int> { item },
-                TreeViewSelectionOptions.RevealAndFrame | TreeViewSelectionOptions.FireSelectionChanged);
+            var ids = _selected.ToList();
+            if (!ids.Remove(id)) ids.Add(id);
+            SelectNodes(ids);
+        }
+
+        /// <summary>Thay vùng chọn bằng các node này (rỗng = bỏ chọn hết) và cuộn tới node cuối.</summary>
+        public void SelectNodes(IList<string> ids)
+        {
+            var items = ids.Where(_ids.ContainsKey).Select(i => _ids[i]).ToList();
+            SetSelection(items, TreeViewSelectionOptions.RevealAndFrame | TreeViewSelectionOptions.FireSelectionChanged);
+            // Ctrl-bấm liên tiếp trên ảnh: node vừa thêm là mốc cho lần bấm sau.
+            if (items.Count > 0) state.lastClickedID = items[items.Count - 1];
         }
 
         public override void OnGUI(Rect rect)
@@ -59,6 +77,7 @@ namespace GameUp.UIBuilder.Editor
                 Reload();
             }
 
+            if (Event.current.type == EventType.Repaint) HoveredNode = null;
             base.OnGUI(rect);
         }
 
@@ -110,6 +129,12 @@ namespace GameUp.UIBuilder.Editor
 
             var excluded = _excluded.Contains(args.item.id);
             var rect = args.rowRect;
+            if (Event.current.type == EventType.Repaint)
+            {
+                if (rect.Contains(Event.current.mousePosition)) HoveredNode = node.id;
+                if (node.id == DemoHover) EditorGUI.DrawRect(rect, DemoHoverRow);
+            }
+
             var indent = GetContentIndent(args.item);
 
             var toggle = new Rect(rect.x + indent, rect.y + 1f, ToggleWidth, ToggleWidth);
@@ -206,6 +231,8 @@ namespace GameUp.UIBuilder.Editor
         }
 
         // ─── Kiểu chữ ───────────────────────────────────────────────────────
+
+        private static readonly Color DemoHoverRow = new Color(0.30f, 0.90f, 1f, 0.22f);
 
         private static GUIStyle _disabled;
         private static GUIStyle _detail;

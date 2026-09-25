@@ -28,6 +28,7 @@ namespace GameUp.UIBuilder.Editor
         private const int BroadArtWarning = 200;
         private const int SkipSnap = 16; // px demo — cạnh vùng bỏ qua gần mép ảnh thì dính vào mép
         private const float TreeMaxHeight = 420f; // ~22 hàng rồi cây tự cuộn bên trong
+        private const float RepeatClickDistance = 4f; // px màn hình — bấm lại trong bán kính này = cùng chỗ
         private const int AutoWorkerCap = 12; // khớp MAX_WORKERS trong Tools~/ui_locate.py
 
         private UIBuilderPython _pythonSetup;
@@ -64,6 +65,8 @@ namespace GameUp.UIBuilder.Editor
         private bool _previewFailed;
         [SerializeField] private TreeViewState _treeState;
         private UISpecTree _tree;
+        private Rect _treeRect;          // vị trí cây trong vùng cuộn cột trái — để cuộn tới khi chọn từ ảnh demo
+        private Vector2 _lastNodeClick;  // bấm lại đúng chỗ này trên ảnh → chọn node lớn hơn kế tiếp
         private string _highlightSprite;
         private DateTime _jobStamp;
         private readonly Dictionary<string, Object> _assetCache = new Dictionary<string, Object>();
@@ -181,21 +184,57 @@ namespace GameUp.UIBuilder.Editor
             // Đang định vị đúng demo đang xem → vẽ kết quả tạm, tô nổi sprite vừa dò xong.
             var live = _locator != null && _locatingIndex == _previewIndex ? _locator.Progress : null;
             var caption = live != null ? $"{LocateProgress.Stages[live.Stage]} · {live.Status}" : null;
+            var treeHover = mouseOverWindow == this ? _tree?.HoveredNode : null;
             var hovered = UIDemoPreviewDrawer.Draw(area, texture, live?.Snapshot ?? _locate, Settings.previewLayers, _highlightSprite,
-                _spec, _tree?.Selected, live?.LatestSprite, caption);
+                _spec, _tree?.Selected, treeHover, live?.LatestSprite, caption);
+            if (_tree != null && Event.current.type == EventType.Repaint) _tree.DemoHover = hovered.Node;
             var image = UIDemoPreviewDrawer.FitRect(area, texture.width, texture.height);
             var scale = image.width / texture.width;
             UIDemoPreviewDrawer.DrawSkipRegions(image, scale, Settings.skipRegions, _dragStart.HasValue ? DragRect() : (Rect?)null);
             if (_drawingSkip) HandleSkipDrag(image, scale, texture);
-            else if (Event.current.type == EventType.MouseDown && (hovered.Node != null || hovered.Sprite != null))
-            {
-                // Node thắng sprite: đang duyệt cây thì bấm vào khung là để chọn node trong cây bên trái.
-                if (hovered.Node != null) Tree.SelectNode(hovered.Node);
-                else _highlightSprite = hovered.Sprite;
-                Event.current.Use();
-            }
+            else if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && image.Contains(Event.current.mousePosition))
+                HandleDemoClick(image, hovered);
 
-            EditorGUILayout.EndVertical();
+                        EditorGUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Bấm trên ảnh demo: node thắng sprite — bấm khung là chọn node trong cây bên trái. Bấm lại đúng chỗ đó thì chọn
+        /// node lớn hơn kế tiếp đang chồng dưới con trỏ (icon → nút → panel); Ctrl/Shift để thêm/bớt node khỏi vùng chọn;
+        /// bấm chỗ không có khung nào để bỏ chọn.
+        /// </summary>
+        private void HandleDemoClick(Rect image, UIDemoHover hovered)
+        {
+            var e = Event.current;
+            if (hovered.Node != null && _spec != null)
+            {
+                var id = hovered.Node;
+                var stack = UIDemoPreviewDrawer.NodesAt(image, _spec, e.mousePosition);
+                var current = Tree.Selected.Count == 1 ? Tree.Selected.First() : null;
+                var sameSpot = Vector2.Distance(e.mousePosition, _lastNodeClick) <= RepeatClickDistance;
+                if (sameSpot && current != null && stack.Contains(current))
+                    id = stack[(stack.IndexOf(current) + 1) % stack.Count];
+                _lastNodeClick = e.mousePosition;
+
+                if (e.shift || EditorGUI.actionKey) Tree.ToggleNode(id);
+                else Tree.SelectNode(id);
+                RevealTree();
+            }
+            else if (hovered.Sprite != null) _highlightSprite = hovered.Sprite;
+            else if (_tree != null && _tree.Selected.Count > 0) _tree.SelectNodes(Array.Empty<string>());
+            else return;
+
+            e.Use();
+            Repaint();
+        }
+
+        /// <summary>Cây ở Bước 5 đang cuộn khuất khỏi cột trái → cuộn tới để thấy node vừa chọn.</summary>
+        private void RevealTree()
+        {
+            if (_treeRect.height <= 0f) return;
+            var view = position.height;
+            if (_treeRect.y >= _scroll.y && _treeRect.yMax <= _scroll.y + view) return;
+            _scroll.y = Mathf.Max(0f, _treeRect.y - 60f);
         }
 
         // ─── BƯỚC 1 — Python ────────────────────────────────────────────────
@@ -719,7 +758,7 @@ namespace GameUp.UIBuilder.Editor
 
             GUInstallerUI.Hint("Xanh lá = khớp · cam = 9-slice · xanh dương = chữ · đỏ đứt = bị loại · tím = node sẽ dựng · "
                                + "xám đứt = node đã bỏ · vàng = đang chọn / vừa dò · phần tối = dưới lớp phủ (UI màn phía sau, bị bỏ). "
-                               + "Rê chuột lên khung để xem chi tiết, bấm để chọn node trong cây ở Bước 5.");
+                               + "Rê chuột lên khung để xem chi tiết, bấm để chọn node trong cây ở Bước 5 (bấm lại cùng chỗ = node lớn hơn).");
         }
 
         private static PreviewLayers LayerToggle(PreviewLayers layers, PreviewLayers layer, string label)
@@ -1068,8 +1107,10 @@ namespace GameUp.UIBuilder.Editor
             {
                 GUInstallerUI.CardHeader("BƯỚC 5", "Duyệt cây & chọn dựng gì", state);
                 GUILayout.Label("Cây dưới đây là đúng thứ sẽ ra prefab. Bỏ tick = không dựng (giữ lại, tick lại là có). "
-                                + "Bấm đúp để đổi tên node, kéo thả để đổi cha và đổi thứ tự vẽ. Chọn node → khung sáng trên "
-                                + "ảnh demo; bấm khung trên ảnh → chọn node trong cây. Mọi thay đổi ghi thẳng vào spec.json.",
+                                + "Bấm đúp để đổi tên node, kéo thả để đổi cha và đổi thứ tự vẽ. Chọn / rê chuột lên node → khung "
+                                + "sáng trên ảnh demo (phần còn lại tối đi); bấm khung trên ảnh → chọn node trong cây, bấm lại "
+                                + "cùng chỗ để chọn node lớn hơn bên dưới, Ctrl/Shift để chọn nhiều, bấm chỗ trống để bỏ chọn. "
+                                + "Mọi thay đổi ghi thẳng vào spec.json.",
                     GUInstallerUI.Desc);
 
                 if (_spec == null)
@@ -1153,6 +1194,7 @@ namespace GameUp.UIBuilder.Editor
         {
             var height = Mathf.Clamp(Tree.totalHeight + 4f, 60f, TreeMaxHeight);
             var rect = GUILayoutUtility.GetRect(0f, height, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint) _treeRect = rect;
             Tree.OnGUI(rect);
         }
 
