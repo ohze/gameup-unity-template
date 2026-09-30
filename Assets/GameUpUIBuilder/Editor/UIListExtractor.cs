@@ -25,6 +25,8 @@ namespace GameUp.UIBuilder.Editor
         private const float SimilarSize = 0.1f;
         private const float SingleChildSize = 0.05f; // hàng chỉ 1 phần tử con: cỡ phải sát hơn (banner + tiêu đề ≠ hàng)
         private const float SimilarChildren = 0.6f;
+        private const float TextSizeRatio = 2.5f; // "2/3" 20 px và "Complete" 32 px cùng ô; "Claim" 28 px và khối 155 px khác
+        private const float ChildInside = 0.9f; // ô exp lệch 3 px ra ngoài mép hàng quest vẫn là phần tử của hàng
 
         /// <summary>Tách danh sách trong <paramref name="nodes"/> (tọa độ tuyệt đối), thêm template vào <paramref name="templates"/>.</summary>
         /// <param name="loose">
@@ -53,6 +55,9 @@ namespace GameUp.UIBuilder.Editor
                 if (rows.Any(r => !nodes.Contains(r))) continue; // đã thuộc một danh sách lớn hơn
                 var name = index < templateNames.Count ? templateNames[index] : $"{templateNames.LastOrDefault() ?? "List"}{index + 1}";
                 index++;
+                // cùng tên với template của trạng thái khác → cùng file prefab, dựng sau ghi đè dựng trước
+                var baseName = name;
+                for (var n = 2; templates.Any(t => t.name == name); n++) name = $"{baseName}{n}";
                 var template = new UITemplateSpec
                 {
                     name = name,
@@ -71,7 +76,8 @@ namespace GameUp.UIBuilder.Editor
                 for (var r = 0; r < rows.Count; r++) AddSlots(template, rows[r], children[r]);
                 FinishTemplate(template);
                 var instances = rows.Select((row, index) => ToInstance(row, $"{name}_{index + 1}", children[index], template)).ToList();
-                var step = rows.Count > 1 ? rows[1].y - rows[0].y : rows[0].h;
+                // bước trung bình đầu → cuối: PSD xếp hàng lệch vài px (171 / 176 / 172 / 176), lấy cặp đầu thì sai dồn xuống cuối
+                var step = rows.Count > 1 ? (rows[rows.Count - 1].y - rows[0].y) / (float)(rows.Count - 1) : rows[0].h;
                 var scroll = new UISpecNode
                 {
                     id = UISpecGenerator.UniqueId($"scroll{name}", usedIds),
@@ -100,10 +106,13 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>
         /// Hàng lẻ có bố cục giống một item (≥ 60% phần tử khớp vị trí tương đối, cỡ lệch ≤ 10%) → instance của item đó,
         /// ghi đè nền. Chọn template khớp nhất trong <paramref name="templates"/> (có thể của trạng thái/tab khác).
+        /// Phần tử hàng này có mà template chưa có (nút Claim của quest đã xong) → thêm chỗ vào template, ẩn ở các instance
+        /// khác (tìm trong <paramref name="allStates"/> — mọi trạng thái; mặc định chỉ <paramref name="nodes"/>).
         /// </summary>
         public static void ExtractSimilarRows(List<UISpecNode> nodes, List<UITemplateSpec> templates, HashSet<string> usedIds,
-            List<string> notes)
+            List<string> notes, IEnumerable<List<UISpecNode>> allStates = null)
         {
+            var states = allStates?.ToList() ?? new List<List<UISpecNode>> { nodes };
             var candidates = nodes
                 .Where(n => (n.kind == UISpecNode.KindImage || n.kind == UISpecNode.KindButton) && !string.IsNullOrEmpty(n.sprite)
                             && string.IsNullOrEmpty(n.parent))
@@ -123,11 +132,25 @@ namespace GameUp.UIBuilder.Editor
                 }
 
                 if (best == null || bestScore < SimilarChildren) continue;
+                AddMissingSlots(best, row, children, states);
                 var instance = ToInstance(row, UISpecGenerator.UniqueId($"{best.name}_{row.id}", usedIds), children, best);
                 RemoveWithChildren(nodes, new List<UISpecNode> { row });
                 nodes.Add(instance);
                 notes.Add($"{row.id}: bố cục giống {best.name} → instance của {best.name}, ghi đè nền.");
             }
+        }
+
+        /// <summary>Thêm chỗ cho phần tử của hàng chưa có trong template; instance đã dựng từ template này ẩn chỗ mới.</summary>
+        private static void AddMissingSlots(UITemplateSpec template, UISpecNode row, List<UISpecNode> children,
+            List<List<UISpecNode>> states)
+        {
+            var before = new HashSet<string>(template.nodes.Select(n => n.id));
+            AddSlots(template, row, children);
+            var added = template.nodes.Where(n => !before.Contains(n.id)).Select(n => n.id).ToList();
+            if (added.Count == 0) return;
+            FinishTemplate(template);
+            foreach (var instance in states.SelectMany(s => s).Where(n => n.kind == UISpecNode.KindInstance && n.prefab == template.output))
+                instance.overrides.AddRange(added.Select(id => new UISpecOverride { id = id, hide = true }));
         }
 
         /// <summary>Gom khung cùng cỡ, cùng cột (lệch ≤ <see cref="LooseTolerance"/> px) — không xét sprite.</summary>
@@ -157,7 +180,14 @@ namespace GameUp.UIBuilder.Editor
         private static List<UISpecNode> ChildrenOf(UISpecNode row, List<UISpecNode> nodes, List<UISpecNode> rows)
         {
             return nodes.Where(n => !rows.Contains(n) && n.kind != UISpecNode.KindScroll && n.kind != UISpecNode.KindInstance
-                                    && UISpecGenerator.Contains(row, n)).ToList();
+                                    && (UISpecGenerator.Contains(row, n) || InsideRatio(n, row) >= ChildInside)).ToList();
+        }
+
+        private static float InsideRatio(UISpecNode inner, UISpecNode outer)
+        {
+            var ix = Mathf.Max(0, Mathf.Min(inner.x + inner.w, outer.x + outer.w) - Mathf.Max(inner.x, outer.x));
+            var iy = Mathf.Max(0, Mathf.Min(inner.y + inner.h, outer.y + outer.h) - Mathf.Max(inner.y, outer.y));
+            return inner.w * inner.h > 0 ? ix * iy / (float)(inner.w * inner.h) : 0f;
         }
 
         /// <summary>Phần tử của hàng chưa có chỗ trong template (theo loại + vị trí tương đối) → thêm slot mới.</summary>
@@ -191,7 +221,7 @@ namespace GameUp.UIBuilder.Editor
             var instance = new UISpecNode
             {
                 id = id, kind = UISpecNode.KindInstance, prefab = template.output,
-                x = row.x, y = row.y, w = row.w, h = row.h, anchor = row.anchor
+                x = row.x, y = row.y, w = row.w, h = row.h, anchor = row.anchor, order = row.order
             };
             var background = template.nodes[0];
             if (row.sprite != background.sprite || row.color != background.color)
@@ -231,10 +261,15 @@ namespace GameUp.UIBuilder.Editor
 
         private static string ColorOrWhite(string color) => string.IsNullOrEmpty(color) ? "#FFFFFFFF" : color;
 
-        /// <summary>Nền đứng đầu, slot lớn vẽ trước; căn lề chữ theo cột như màn chính.</summary>
+        /// <summary>
+        /// Nền đứng đầu, slot lớn vẽ trước (PSD: theo thứ tự layer nếu slot nào cũng có — vương miện nằm trên vòng tròn hạng
+        /// nhỏ hơn nó); căn lề chữ theo cột như màn chính.
+        /// </summary>
         private static void FinishTemplate(UITemplateSpec template)
         {
-            template.nodes = template.nodes.Take(1).Concat(template.nodes.Skip(1).OrderByDescending(n => (long)n.w * n.h)).ToList();
+            var slots = template.nodes.Skip(1).ToList();
+            var sorted = slots.All(n => n.order > 0) ? slots.OrderBy(n => n.order) : slots.OrderByDescending(n => (long)n.w * n.h);
+            template.nodes = template.nodes.Take(1).Concat(sorted).ToList();
             foreach (var node in template.nodes.Skip(1)) node.parent = string.Empty;
             UISpecGenerator.AssignTextAlignment(template.nodes, template.width);
         }
@@ -262,7 +297,9 @@ namespace GameUp.UIBuilder.Editor
         {
             var dx = Mathf.Abs(a.x + a.w / 2f - (b.x + b.w / 2f));
             var dy = Mathf.Abs(a.y + a.h / 2f - (b.y + b.h / 2f));
-            return dx <= Mathf.Max(a.w, b.w) / 2f && dy <= Mathf.Max(a.h, b.h) / 2f;
+            // cùng cỡ chữ (cao lệch ≤ 2.5 lần): khung chữ khổng lồ đè lên ô "Claim" không được gộp vào ô đó
+            var sameSize = Mathf.Max(a.h, b.h) <= Mathf.Min(a.h, b.h) * TextSizeRatio;
+            return sameSize && dx <= Mathf.Max(a.w, b.w) / 2f && dy <= Mathf.Max(a.h, b.h) / 2f;
         }
 
         private static UISpecNode Relative(UISpecNode node, UISpecNode row)
@@ -273,7 +310,7 @@ namespace GameUp.UIBuilder.Editor
                 sprite = node.sprite, sliced = node.sliced, color = node.color, raycastTarget = node.raycastTarget,
                 text = node.text, font = node.font, fontSize = node.fontSize, align = node.align, bold = node.bold,
                 material = node.material, outlineWidth = node.outlineWidth, outlineColor = node.outlineColor,
-                alignFixed = node.alignFixed
+                alignFixed = node.alignFixed, order = node.order
             };
         }
 

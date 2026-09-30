@@ -15,6 +15,7 @@ Tiến trình: dòng stdout "@progress {json}" giống ui_locate.py.
 """
 import argparse
 import hashlib
+import itertools
 import json
 import logging
 import math
@@ -82,10 +83,15 @@ PART_MIN_PIXELS = 64
 TEXT_OCR_SCORE = 0.80       # chữ vẽ sẵn trong layer: OCR đọc được (≥ 0.8) → thành text TMP thay vì ảnh
 DECOMPOSE_MIN_AREA = 150 * 60  # mảng flatten lớn (cả hàng danh sách) → tách chữ / art / khối màu, còn lại mới là nền
 TEXT_INK_DIFF = 40          # pixel chữ = khác màu nền quanh khung chữ > 40
+TEXT_MAX_COVER = 0.5        # khung chữ OCR chiếm ≥ 50% mảng = hình bị đọc nhầm thành chữ (vương miện → "M" 0.84), bỏ
 SHAPE_MIN_PIXELS = 300      # khối một màu trong mảng flatten (vòng hạng, ô vuông, pill điểm) ≥ 300 px
 SHAPE_COLOR_TOL = 10
 SEEN_ZNCC = 0.80            # art đã khớp ở chỗ khác trong màn, tìm lại trong mảng flatten (khung avatar 0.83, lệch màu 17)
 SEEN_NEW_PIXELS = 0.25      # ... nhận nếu thêm ≥ 25% pixel chưa art nào phủ (khung ngoài avatar ~33%; art gần trùng ~0)
+DECOMPOSE_MIN_REST = 0.10   # chữ + art đã phủ ≥ 90% pixel mảng → mảng chính là art đó (vương miện / avatar lặp lại ở hàng
+                            # khác), phần "nền" còn lại chỉ là viền khử răng cưa bị lấp một màu → không xuất (thành khối
+                            # phẳng hình vương miện, avatar đen vẽ đè lên art)
+ORDER_SLOTS = 64            # thứ tự vẽ ghi ra = thứ tự layer × 64 + vị trí trong các phần tách từ layer đó
 
 
 def emit(phase, **data):
@@ -177,6 +183,7 @@ class Leaf:
     def __init__(self, layer, order, box, opacity, group):
         self.layer = layer
         self.order = order
+        self.rank = order  # thứ tự layer trong cả file (mọi trạng thái cùng thang) — đặt ở collect_leaves
         self.box = box  # (x0, y0, x1, y1), đã kẹp trong khung màn
         self.opacity = opacity
         self.name = layer.name
@@ -240,15 +247,42 @@ def iou(a, b):
     return inter / union if union > 0 else 0.0
 
 
-def find_root(psd, artboard):
-    """Khung màn: artboard (theo tên, hoặc artboard duy nhất / đầu tiên), không có thì cả file."""
+def find_root(psd, artboard, demo_path=""):
+    """Khung màn: artboard theo tên; không chỉ định mà file có nhiều artboard → artboard giống ảnh demo nhất (một file PSD
+    chứa nhiều màn: ranking + battle pass — lấy artboard đầu tiên là dựng nhầm màn); không có artboard thì cả file."""
     boards = [l for l in psd if l.kind == "artboard"]
     if artboard:
         boards = [b for b in boards if b.name == artboard] or boards
+    elif len(boards) > 1 and demo_path:
+        boards = [pick_artboard(psd, boards, demo_path)]
     if boards:
         b = boards[0]
         return b, b.bbox, len([l for l in psd if l.kind == "artboard"])
     return psd, (0, 0, psd.width, psd.height), 0
+
+
+def pick_artboard(psd, boards, demo_path):
+    """Artboard có ảnh ghép sẵn của Photoshop (cắt theo khung artboard) gần ảnh demo nhất, so ở cỡ thu nhỏ 1/20."""
+    demo = cv2.imread(demo_path)
+    try:
+        merged = psd.topil()  # ảnh ghép Photoshop lưu trong file, không tự dựng lại
+    except Exception:  # noqa: BLE001
+        merged = None
+    if demo is None or merged is None:
+        return boards[0]
+    merged = pil_to_bgra(merged)[:, :, :3]
+    size = (max(1, demo.shape[1] // 20), max(1, demo.shape[0] // 20))
+    target = cv2.resize(demo, size, interpolation=cv2.INTER_AREA).astype(np.float32)
+    best, best_diff = boards[0], float("inf")
+    for board in boards:
+        x0, y0, x1, y1 = board.bbox
+        crop = merged[max(0, y0):y1, max(0, x0):x1]
+        if crop.size == 0:
+            continue
+        diff = float(np.abs(cv2.resize(crop, size, interpolation=cv2.INTER_AREA).astype(np.float32) - target).mean())
+        if diff < best_diff:
+            best, best_diff = board, diff
+    return best
 
 
 def detect_states(root, canvas, names):
@@ -278,7 +312,13 @@ def detect_states(root, canvas, names):
         if not hidden or not shown:
             continue
         members = {id(c): c for c, b in hidden for s, sb in shown if iou(b, sb) >= STATE_IOU}
-        members.update({id(s): s for c, b in hidden for s, sb in shown if iou(b, sb) >= STATE_IOU})
+        # tab loại trừ nhau → chỉ một nhóm đang hiện; nhóm hiện khác chồng lên (nội dung chung: header, thanh exp của
+        # battle pass) không phải trạng thái — giữ nhóm hiện trùng khung nhóm ẩn nhất
+        visible = [(s, max(iou(b, sb) for c, b in hidden)) for s, sb in shown]
+        visible = [(s, v) for s, v in visible if v >= STATE_IOU]
+        if visible:
+            top = max(visible, key=lambda e: e[1])[0]
+            members[id(top)] = top
         if len(members) < 2:
             continue
         chosen = [c for c, _ in kids if id(c) in members]
@@ -292,6 +332,9 @@ def collect_leaves(root, canvas, visible_override):
     """Layer lá đang hiện theo thứ tự vẽ (dưới → trên); nhóm trạng thái bật/tắt theo visible_override."""
     leaves = []
     _walk(root, 1.0, canvas, visible_override, leaves, "")
+    ranks = {id(layer): i for i, layer in enumerate(root.descendants())}
+    for leaf in leaves:
+        leaf.rank = ranks[id(leaf.layer)]
     return leaves
 
 
@@ -497,6 +540,7 @@ class Match:
         self.score = score
         self.trust = trust
         self.color = None  # "#RRGGBBAA" cho sprite trắng dùng chung (shape phẳng)
+        self.order = 0  # thứ tự vẽ trong trạng thái đang ghi (lớn = nằm trên), đặt ở process_state; 0 = chưa biết
 
     def entry(self):
         tint = self.color
@@ -510,6 +554,7 @@ class Match:
             "diff": round(s.diff, 2), "zncc": round(s.zncc, 4), "inlier": round(max(s.inlier, s.band), 4), "tint": tint,
             "layer": self.leaf.name if self.leaf is not None else "",
             "group": self.leaf.group if self.leaf is not None else "",
+            "order": self.order,
         }
 
 
@@ -807,7 +852,7 @@ def color_hex(values):
 
 def effect_color(effect):
     c = getattr(effect, "color", None)
-    if not isinstance(c, dict):
+    if not hasattr(c, "items"):  # psd-tools trả Descriptor (giống dict nhưng không kế thừa dict)
         return None
     vals = {}
     for k, v in c.items():
@@ -1036,7 +1081,7 @@ class TextReader:
         return lines
 
     def read(self, rgba):
-        """Chữ trên ảnh BGRA → (nội dung, độ tin); None nếu không đọc được / chưa cài OCR."""
+        """Một dòng chữ trên ảnh BGRA → (nội dung, độ tin); None nếu không đọc được, nhiều dòng, hoặc chưa cài OCR."""
         if not self._ready():
             return None
         h, w = rgba.shape[:2]
@@ -1051,9 +1096,11 @@ class TextReader:
             return None
         texts = list(getattr(result, "txts", None) or [])
         scores = list(getattr(result, "scores", None) or [])
-        if not texts:
+        # nhiều dòng = phần dư là cả khối nội dung (hàng quest flatten: tiêu đề + "20" + "Complete" ở các chỗ khác nhau) —
+        # ghép thành một chữ thì ra khung chữ khổng lồ; để nguyên ảnh
+        if len(texts) != 1:
             return None
-        return " ".join(t.strip() for t in texts).strip(), float(min(scores)) if scores else 0.0
+        return texts[0].strip(), float(scores[0]) if scores else 0.0
 
 
 def baked_text(rgba, x, y, reader):
@@ -1200,12 +1247,14 @@ def resolve_rest(ctx, leaf, rec, image, exact, matches, cache, leaves, placed):
         rec.flattened = f"'{leaf.name}' tách {len(parts)} phần tử rời"
     # art đã khớp ở chỗ khác trong màn, đúng tỉ lệ đã gặp — để tìm lại trong mảng flatten (avatar 0.66 trong hàng)
     seen = {(m.art.path, m.scale): (m.art, m.scale) for m in matches + placed() if not m.sliced}
-    decomposed = 0
+    decomposed, stroked = 0, False
     for part, px, py in parts or [(raster, 0, 0)]:
         x, y = leaf.box[0] + px, leaf.box[1] + py
         split = decompose_part(ctx, leaf, part, x, y, list(seen.values())) if leaf.kind in ("pixel", "smartobject") else None
         if split is None:
-            rec.matches.append(export_part(ctx.exporter, leaf, part, x, y))
+            parts_out = with_stroke(ctx.exporter, leaf, export_part(ctx.exporter, leaf, part, x, y))
+            stroked |= len(parts_out) > 1
+            rec.matches.extend(parts_out)
             continue
         rec.matches.extend(split[0])
         rec.texts.extend(split[1])
@@ -1213,7 +1262,7 @@ def resolve_rest(ctx, leaf, rec, image, exact, matches, cache, leaves, placed):
     if decomposed:
         rec.flattened = (rec.flattened or f"'{leaf.name}'") + f", phân rã {decomposed} mảng thành nền + chữ + art + khối màu"
     rec.exported = True
-    fx = [n for n in effect_names(leaf.layer) if n != "ColorOverlay"]
+    fx = [n for n in effect_names(leaf.layer) if n != "ColorOverlay" and not (stroked and n == "Stroke")]
     if leaf.kind == "shape" and fx:
         rec.lost_fx = f"{leaf.name} ({', '.join(fx)})"
 
@@ -1230,7 +1279,7 @@ def decompose_part(ctx, leaf, part, px, py, seen):
     Mảng flatten lớn (cả hàng danh sách gộp một layer) → tách: chữ (OCR), art đã gặp trong màn (avatar, khung, icon ở
     đúng tỉ lệ đã khớp), khối một màu (vòng hạng, ô vuông, pill điểm); phần còn lại là nền. None nếu không tách được
     chữ hay art nào (ô vật phẩm, hình vẽ) — khi đó xuất nguyên mảng.
-    Trả về (matches, texts): nền trước, rồi khối màu, art; tọa độ theo khung màn.
+    Trả về (matches, texts): nền trước, rồi khối màu, art; tọa độ theo khung màn. Chữ + art phủ gần hết mảng → chỉ art.
     """
     h, w = part.shape[:2]
     if w * h < DECOMPOSE_MIN_AREA:
@@ -1238,9 +1287,10 @@ def decompose_part(ctx, leaf, part, px, py, seen):
     work = np.ascontiguousarray(part[:, :, :3].copy())
     solid = part[:, :, 3] > ALPHA_OPAQUE
     texts, arts = [], []
+    inked = np.zeros((h, w), bool)
 
     for (x0, y0, x1, y1), text, score in ctx.reader.detect(work):
-        if score < TEXT_OCR_SCORE or not text:
+        if score < TEXT_OCR_SCORE or not text or (x1 - x0) * (y1 - y0) >= w * h * TEXT_MAX_COVER:
             continue
         x0, y0, x1, y1 = max(0, x0 - 3), max(0, y0 - 3), min(w, x1 + 3), min(h, y1 + 3)
         crop = work[y0:y1, x0:x1]
@@ -1255,7 +1305,9 @@ def decompose_part(ctx, leaf, part, px, py, seen):
         entry = text_entry(rgba, px + x0 + int(tx0), py + y0 + int(ty0), text, score, None)
         entry["group"] = leaf.group
         texts.append(entry)
-        crop[cv2.dilate(ink.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2) > 0] = bg
+        grown = cv2.dilate(ink.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=2) > 0
+        crop[grown] = bg
+        inked[y0:y1, x0:x1] |= grown
 
     # art đã gặp trong màn: dò hết trên cùng một ảnh (đã bỏ chữ) rồi mới lấp — khung avatar và avatar bên trong đều thấy
     base = work.copy()
@@ -1279,11 +1331,16 @@ def decompose_part(ctx, leaf, part, px, py, seen):
         arts.append(Match(art, leaf, px + pos[0], py + pos[1], tw, th, scale, False, score, KNOWN))
         found.append(mask)
         covered |= mask
+    filled = np.zeros((h, w), bool)
     for mask in found:
-        work[cv2.dilate(mask.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=3) > 0] = ring_color(base, covered)
+        grown = cv2.dilate(mask.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=3) > 0
+        work[grown] = ring_color(base, covered)
+        filled |= grown
 
     if not texts and not arts:
         return None
+    if (solid & ~filled & ~inked).sum() < solid.sum() * DECOMPOSE_MIN_REST:
+        return arts, texts
 
     shapes = split_flat_shapes(ctx.exporter, leaf, work, solid, px, py)
     background = np.dstack([work, part[:, :, 3]])
@@ -1386,8 +1443,49 @@ def export_part(exporter, leaf, raster, x, y):
         color, radius = shape
         match = Match(exporter.rounded(radius), leaf, x, y, w, h, 1.0, True, Score(1.0, 0.0, 1.0), PLAIN)
         match.color = color
+        match.radius = radius
         return match
     return Match(exporter.export(leaf.name, raster), leaf, x, y, w, h, 1.0, False, Score(1.0, 0.0, 1.0), PLAIN)
+
+
+def solid_stroke(layer):
+    """Stroke màu đơn, hoà trộn thường đang bật → (cỡ px, vị trí 'out'/'in'/'center', '#RRGGBBAA'); None nếu không có."""
+    for e in enabled_effects(layer):
+        if type(e).__name__ != "Stroke" or getattr(e, "fill_type", None) != b"SClr":
+            continue  # stroke gradient / pattern không vẽ lại bằng một màu được
+        color = effect_color(e)
+        size = int(round(float(getattr(e, "size", 0) or 0)))
+        if color is None or size <= 0 or getattr(e, "blend_mode", b"Nrml") != b"Nrml":
+            continue
+        position = str(getattr(e, "position", "")).lower()
+        where = "in" if "ins" in position else "center" if "ctr" in position or "cent" in position else "out"
+        alpha = int(round(max(0.0, min(100.0, float(getattr(e, "opacity", 100) or 0))) * 2.55))
+        return size, where, color + "%02X" % alpha
+    return None
+
+
+def with_stroke(exporter, leaf, match):
+    """
+    Shape một màu dựng lại bằng sprite bo góc mất hiệu ứng Stroke (viền tím 16 px quanh popup, viền đen hàng top) →
+    thêm khối màu viền nằm dưới, cùng sprite bo góc: stroke ngoài nới khung ra, stroke trong thu phần ruột vào.
+    Trả về các phần theo thứ tự vẽ (viền trước).
+    """
+    stroke = solid_stroke(leaf.layer) if getattr(match, "radius", None) is not None else None
+    if stroke is None:
+        return [match]
+    size, where, color = stroke
+    grow = size if where == "out" else size / 2 if where == "center" else 0
+    shrink = size - grow  # phần viền nằm trong khung layer
+    g, k = int(math.ceil(grow)), int(math.ceil(shrink))
+    outer = Match(exporter.rounded(match.radius + g), leaf, match.x - g, match.y - g, match.w + 2 * g, match.h + 2 * g,
+                  1.0, True, Score(1.0, 0.0, 1.0), PLAIN)
+    outer.color = color
+    if k and match.w > 2 * k and match.h > 2 * k:
+        inner = Match(exporter.rounded(max(0, match.radius - k)), leaf, match.x + k, match.y + k, match.w - 2 * k,
+                      match.h - 2 * k, 1.0, True, Score(1.0, 0.0, 1.0), PLAIN)
+        inner.color = match.color
+        match = inner
+    return [outer, match]
 
 
 def process_state(ctx, leaves, image, exact, emit_live):
@@ -1437,15 +1535,24 @@ def process_state(ctx, leaves, image, exact, emit_live):
         if leaf.kind == "type":
             entry = read_text(leaf)
             if entry["text"].strip():
+                entry["order"] = draw_order(leaf, 0)
                 texts.append(entry)
                 if emit_live:
                     emit("text", text=entry)
         elif records[id(leaf.layer)].drop:
             dropped.append(drop(leaf, records[id(leaf.layer)].drop))
 
+    # record của layer dùng chung được lấy lại từ trạng thái trước → gán lại thứ tự vẽ theo leaf của trạng thái này
+    baked = []
+    for leaf in ui:
+        if leaf.kind == "type":
+            continue
+        rec = records[id(leaf.layer)]
+        for i, m in enumerate(rec.matches):
+            m.order = draw_order(leaf, i)
+        baked.extend(dict(t, order=draw_order(leaf, ORDER_SLOTS - 1)) for t in rec.texts)  # chữ vẽ sẵn nằm trên phần ảnh
     recs = [records[id(l.layer)] for l in ui if l.kind != "type"]
     matches = [m for r in recs for m in r.matches]
-    baked = [t for r in recs for t in r.texts]
     texts.extend(baked)
     notes = [r.note for r in recs if r.note]
     flattened = [r.flattened for r in recs if r.flattened]
@@ -1489,6 +1596,14 @@ def process_state(ctx, leaves, image, exact, emit_live):
     }
 
 
+def draw_order(leaf, index):
+    """
+    Thứ tự vẽ ghi ra locate (> 0, lớn = nằm trên): layer dưới → trên theo cả file — node dùng chung giữa các tab so được
+    với node riêng của từng tab; trong một layer theo thứ tự phần tách ra.
+    """
+    return (leaf.rank + 1) * ORDER_SLOTS + min(index, ORDER_SLOTS - 1)
+
+
 def add_residual(leaf, raster, inner, exporter, matches, cache, covers, fill, reader=None, texts=None):
     """
     Phần pixel của layer mà art đã khớp không có, đặt đúng chỗ; True nếu có. Chữ vẽ sẵn (OCR đọc được) → thêm vào
@@ -1505,7 +1620,12 @@ def add_residual(leaf, raster, inner, exporter, matches, cache, covers, fill, re
             return True
     art = exporter.export(f"{leaf.name}_frame" if fill else f"{leaf.name}_extra", rgba)
     h, w = rgba.shape[:2]
-    matches.append(Match(art, leaf, leaf.box[0] + ox, leaf.box[1] + oy, w, h, 1.0, False, Score(1.0, 0.0, 1.0), PLAIN))
+    match = Match(art, leaf, leaf.box[0] + ox, leaf.box[1] + oy, w, h, 1.0, False, Score(1.0, 0.0, 1.0), PLAIN)
+    # khung (cả layer, lỗ đã vá) nằm dưới art bên trong nó; phần dư thường (chữ, viền vẽ sẵn) nằm trên art
+    if fill:
+        matches.insert(len(matches) - len(inner), match)
+    else:
+        matches.append(match)
     return True
 
 
@@ -1562,6 +1682,29 @@ def compare_demo(demo, image, k):
     return shot, note
 
 
+def match_demos(demo_paths, images):
+    """
+    [(chỉ số trạng thái, ảnh demo hoặc None)] theo thứ tự tab ra locate: mỗi demo ghép với trạng thái giống nó nhất (thử
+    mọi cách ghép, so ở cỡ 1/8), xếp theo thứ tự demo người dùng đưa; trạng thái không có demo đứng sau theo thứ tự PSD.
+    Thứ tự nhóm trong PSD (rewards trước quest) không nhất thiết là thứ tự demo (Mission trước Rewards).
+    """
+    demos = [d for d in demo_paths if d]
+    shots = [cv2.imread(d, cv2.IMREAD_COLOR) for d in demos]
+    if not images or not any(shot is not None for shot in shots):
+        return [(k, demos[k] if k < len(demos) else None) for k in range(len(images))]
+    ch, cw = images[0].shape[:2]
+    size = (max(1, cw // 8), max(1, ch // 8))
+    small = [cv2.resize(img[:, :, :3], size, interpolation=cv2.INTER_AREA).astype(np.float32) for img in images]
+    cost = [[float("inf") if shot is None else
+             float(np.abs(cv2.resize(shot, size, interpolation=cv2.INTER_AREA).astype(np.float32) - img).mean())
+             for img in small] for shot in shots]
+    count = min(len(demos), len(images))
+    best = min(itertools.permutations(range(len(images)), count),
+               key=lambda perm: sum(cost[j][perm[j]] for j in range(count)))
+    order = [(best[j], demos[j]) for j in range(count)]
+    return order + [(k, None) for k in range(len(images)) if k not in best]
+
+
 def locate_path(out_dir, k):
     return os.path.join(out_dir, "locate.json" if k == 0 else f"locate_{k + 1}.json")
 
@@ -1575,12 +1718,12 @@ def main():
     ap.add_argument("--demo", action="append", default=[], help="Ảnh demo theo thứ tự trạng thái (tuỳ chọn, để so)")
     ap.add_argument("--export", default="", help="Thư mục (trong Assets) ghi PNG cho layer không có art; trống = không xuất")
     ap.add_argument("--states", default="", help="Tên các nhóm trạng thái, cách nhau dấu phẩy (mặc định tự tìm)")
-    ap.add_argument("--artboard", default="", help="Tên artboard (mặc định artboard đầu tiên)")
+    ap.add_argument("--artboard", default="", help="Tên artboard (mặc định: giống demo 1 nhất, không có demo thì đầu tiên)")
     args = ap.parse_args()
 
     started = time.time()
     psd = PSDImage.open(args.psd)
-    root, canvas, board_count = find_root(psd, args.artboard)
+    root, canvas, board_count = find_root(psd, args.artboard, next((d for d in args.demo if d), ""))
     cw, ch = canvas[2] - canvas[0], canvas[3] - canvas[1]
     arts = []
     for path in list_art(args.art, args.recursive):
@@ -1603,13 +1746,19 @@ def main():
             rasters[id(leaf.layer)] = layer_raster(leaf, canvas)
         return rasters[id(leaf.layer)]
 
-    prepared = []
+    rendered = []
     for k, name in enumerate(state_names):
         override = {id(s): (i == k) for i, s in enumerate(states)}
         leaves = collect_leaves(root, canvas, override)
         image, exact = state_image(psd, canvas, states, override, file_visibility, leaves, raster_of)
+        rendered.append((name, leaves, image, exact))
+    order = match_demos(args.demo, [r[2] for r in rendered])
+    state_names = [rendered[i][0] for i, _ in order]
+
+    prepared = []
+    for k, (i, demo) in enumerate(order):
+        name, leaves, image, exact = rendered[i]
         notes = []
-        demo = args.demo[k] if k < len(args.demo) and args.demo[k] else None
         if demo:
             _, note = compare_demo(demo, image, k)
             if note:

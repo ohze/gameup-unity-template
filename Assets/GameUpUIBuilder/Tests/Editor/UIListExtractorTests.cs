@@ -151,6 +151,37 @@ namespace GameUp.UIBuilder.Tests
             Assert.IsFalse(nodes.Where(n => n.kind == UISpecNode.KindInstance).SelectMany(n => n.overrides).Any(o => o.hide));
         }
 
+        [Test]
+        public void ExtractLists_PsdLayerOrder_TemplateSlotsFollowLayersNotSize()
+        {
+            var nodes = Rows(3);
+            var ring = Image("ring", "Assets/art/shape_round_61.png", 76, 667, 123, 123);
+            var crown = Image("crown1", CrownTop1, 72, 663, 132, 132);
+            (nodes[0].order, ring.order, crown.order) = (100, 200, 300);
+            nodes[1].order = 400;
+            nodes[2].order = 500;
+            nodes.Add(ring);
+            nodes.Add(crown);
+            var templates = new List<UITemplateSpec>();
+
+            UIListExtractor.ExtractLists(nodes, new[] { "RankItem" }, "Assets/Out", templates, new HashSet<string>(), new List<string>(), true);
+
+            var slots = templates.Single().nodes.Skip(1).Select(n => n.sprite).ToList();
+            CollectionAssert.AreEqual(new[] { ring.sprite, CrownTop1 }, slots, "vương miện (layer trên) vẽ sau vòng tròn dù lớn hơn");
+        }
+
+        [Test]
+        public void ExtractLists_SlightlyUnevenRows_SpacingFromAverageStep()
+        {
+            // PSD: 646, 817, 993, 1169, 1345 — cặp đầu cách 171, trung bình 174.75
+            var nodes = new[] { 646, 817, 993, 1169, 1345 }.Select((y, i) => Image($"row{i + 1}", Row, 55, y, 970, 170)).ToList();
+            var templates = new List<UITemplateSpec>();
+
+            UIListExtractor.ExtractLists(nodes, new[] { "RankItem" }, "Assets/Out", templates, new HashSet<string>(), new List<string>(), true);
+
+            Assert.AreEqual(4.75f, nodes.Single(n => n.kind == UISpecNode.KindScroll).spacing, 0.01f, "hàng cuối lệch ≤ 4 px thay vì 15 px");
+        }
+
         private static UISpecNode Tinted(string id, string sprite, int x, int y, int w, int h, string color)
         {
             var node = Image(id, sprite, x, y, w, h);

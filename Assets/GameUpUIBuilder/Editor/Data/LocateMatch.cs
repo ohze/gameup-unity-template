@@ -25,6 +25,9 @@ namespace GameUp.UIBuilder.Editor
         public string layer;
         public string group;
 
+        /// <summary>PSD: thứ tự vẽ trong trạng thái (lớn = nằm trên); 0 = không có (dò ảnh demo).</summary>
+        public int order;
+
         /// <summary>Cách sprite xuất hiện trên demo: "1:1", "scale 0.75", "9-slice", kèm tint nếu có.</summary>
         public string MethodLabel
         {

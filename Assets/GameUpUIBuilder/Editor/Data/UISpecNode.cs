@@ -87,5 +87,8 @@ namespace GameUp.UIBuilder.Editor
 
         /// <summary>PSD: đường dẫn nhóm layer — lúc sinh spec dùng đặt tên box theo vùng.</summary>
         [NonSerialized] public string group;
+
+        /// <summary>PSD: thứ tự layer (lớn = nằm trên) — lúc sinh spec dùng xếp thứ tự vẽ và chọn cha; 0 = không có.</summary>
+        [NonSerialized] public int order;
     }
 }

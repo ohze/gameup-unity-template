@@ -32,5 +32,8 @@ namespace GameUp.UIBuilder.Editor
 
         /// <summary>PSD: đường dẫn nhóm layer chứa text layer.</summary>
         public string group;
+
+        /// <summary>PSD: thứ tự vẽ trong trạng thái (lớn = nằm trên); 0 = không có (OCR trên demo).</summary>
+        public int order;
     }
 }

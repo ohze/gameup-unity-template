@@ -37,6 +37,24 @@ art của shape có hiệu ứng (`Context.offsets`) dùng lại cho tab còn l�
 - So art trên **ảnh demo** sai khi demo là bản cũ (Dungeon ranking: PSD hàng top 1-3 có màu, `demo_1.png` xám) → so trên
   ảnh từ PSD; pixel layer / smart object so trên chính pixel của layer (không bị che, đúng vị trí tuyệt đối).
 
+So sánh dò sprite ↔ PSD (2026-09-30, ranking 2 tab, cache mới, prefab dựng lại từ đầu):
+- Tab 1 "dò sprite trùng demo hơn" là do `demo_1.png` là **bản cũ** (hàng top 1-3 xám, PSD có màu — script đã ghi chú
+  lệch 22%); tab 2 và phần chung PSD tốt hơn (dò sprite thiếu ô vật phẩm, pill điểm, icon lửa vì không có art).
+- **Thứ tự vẽ**: generator từng xếp theo luật dò ảnh (phẳng trước, lớn trước nhỏ, vật chứa làm cha) → vương miện bị vòng
+  tròn hạng (nhỏ hơn, nằm dưới trong PSD) che. Nay `ui_psd.py` ghi `order` = chỉ số layer **cả file** × 64 + phần tách
+  (mọi tab cùng thang — chỉ số theo từng trạng thái lệch vì bỏ layer nhóm tab đang ẩn); generator xếp anh em theo
+  `order`, nhóm tab/box so theo **cặp phần tử chồng nhau** (nhóm trải nhiều layer xen kẽ node dùng chung), không nhận
+  làm cha node nằm trên nó; template danh sách cũng theo `order`. Nguồn dò ảnh (`order` = 0) giữ luật cũ.
+- `decompose_part` (mảng flatten lớn): art đã gặp phủ gần hết mảng → mảng chính là art đó, **không** xuất "nền" (trước
+  đây ra khối phẳng hình vương miện / avatar đen đè lên). OCR đọc cả vương miện thành "M" 0.84 → bỏ khung chữ ≥ 50% mảng.
+- Khung avatar ở chế độ `fill` (cả layer, lỗ đã vá) phải nằm **dưới** avatar bên trong.
+- Shape một màu dựng lại bằng `shape_round_*` mất hiệu ứng → Stroke màu đơn nay vẽ lại bằng khối bo góc màu viền nằm
+  dưới (ngoài: nới khung; trong: thu ruột). `effect_color` từng luôn trả None (psd-tools trả `Descriptor`, không phải
+  `dict`) → màu viền chữ PSD trước đây luôn rơi về `#000000`.
+- Khoảng cách hàng danh sách lấy theo bước trung bình đầu → cuối: PSD xếp lệch vài px, lấy cặp đầu thì hàng cuối lệch ~15 px.
+- Test bằng CLI phải gọi `UIBuilderWindow.ImportExportedSprites` (PNG xuất ra mặc định import Multiple, không border →
+  `shape_round_*` kéo thành elip) và xoá prefab cũ (builder giữ object không còn trong spec như "phần làm tay").
+
 Làm sạch cây (so với bản dò ảnh `Prefabs/UI/Test/RankingPsd.prefab`, 47 node): shape một màu → `shape_round_<r>` +
 màu, layer flatten → tách mảng rời (`split_parts`), chữ vẽ sẵn → OCR (`TextReader`, `baked_text`), generator PSD:
 `ExtractLists(loose)`, `ShareSwappedSprites` (chỉ nút), `GroupIntoBoxes` (dải dọc trong panel ≥ 30% màn, tên theo

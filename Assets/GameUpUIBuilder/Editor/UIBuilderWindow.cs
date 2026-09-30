@@ -22,6 +22,10 @@ namespace GameUp.UIBuilder.Editor
         private const string LogTag = "UIBuilder";
         private const float MinLeftWidth = 440f;
         private const float MinPreviewWidth = 160f;
+        private const float MinTreeWidth = 300f;
+        private const float DefaultTreeWidth = 380f;
+        private const float SplitterWidth = 5f;
+        private const float PreviewToolbarHeight = 44f; // thanh tab + lớp khung phía trên ảnh demo
         private const float RowLabelWidth = 72f;
         private const double RepaintInterval = 0.1;
         private const double StampCheckInterval = 1.0;
@@ -31,11 +35,22 @@ namespace GameUp.UIBuilder.Editor
         private const float RepeatClickDistance = 4f; // px màn hình — bấm lại trong bán kính này = cùng chỗ
         private const int AutoWorkerCap = 12; // khớp MAX_WORKERS trong Tools~/ui_locate.py
 
+        private const string PreviewLegend =
+            "Xanh lá = khớp · cam = 9-slice · xanh dương = chữ · đỏ đứt = bị loại · tím = node sẽ dựng · xám đứt = node đã bỏ · "
+            + "vàng = đang chọn / vừa dò · phần tối = dưới lớp phủ (UI màn phía sau, bị bỏ). Rê chuột lên khung để xem chi tiết, "
+            + "bấm để chọn node trong cây (bấm lại cùng chỗ = node lớn hơn).";
+
+        private const string TreeHelp =
+            "Cây là đúng thứ sẽ ra prefab. Bỏ tick = không dựng (giữ lại, tick lại là có). Bấm đúp để đổi tên, kéo thả để đổi cha "
+            + "và thứ tự vẽ. Chọn / rê chuột lên node → khung sáng trên ảnh demo; bấm khung trên ảnh → chọn node trong cây, bấm lại "
+            + "cùng chỗ để chọn node lớn hơn bên dưới, Ctrl/Shift để chọn nhiều, bấm chỗ trống để bỏ chọn. Mọi thay đổi ghi thẳng vào spec.json.";
+
         private UIBuilderPython _pythonSetup;
         private UIBuilderLocator _locator;
         private int _locatingIndex;
         private readonly Queue<int> _locateQueue = new Queue<int>();
         private bool _crossCheckPass; // đang ở lượt đối chiếu phần chung giữa các tab
+        private readonly HashSet<int> _locatedThisRun = new HashSet<int>(); // chỉ đối chiếu với kết quả của lượt chạy này
         private bool _drawingSkip;    // đang kéo khung "phần đã có sẵn" trên ảnh demo
         private Vector2? _dragStart;
         private Vector2 _dragEnd;
@@ -46,6 +61,7 @@ namespace GameUp.UIBuilder.Editor
         private string _locateError; // lỗi của lần định vị gần nhất — hiện bằng hộp lỗi, không lẫn vào gợi ý xám
         private UISpec _spec;
         private string _specError;
+        private string _specStale; // spec.json đang có là của demo khác → không hiện cây cũ, sinh spec mới
         private UIBuildReport _report;
         private string _comparePath;
         private string _systemPython;
@@ -61,6 +77,11 @@ namespace GameUp.UIBuilder.Editor
         private string _artCountKey; // thư mục art + cờ thư mục con lúc đếm — đếm lại khi đổi
         private int _artCount;
         private bool _showPythonLog;
+        private bool _showPythonDetails;
+        private bool _showTreeHelp;
+        private bool _showLegend;
+        [SerializeField] private float _treeWidth = DefaultTreeWidth;
+        private float _treeColumnWidth; // > 0 = cây đang ở cột giữa (tính lại mỗi lần vẽ)
         private string _previewMessage;
         private bool _previewFailed;
         [SerializeField] private TreeViewState _treeState;
@@ -113,7 +134,7 @@ namespace GameUp.UIBuilder.Editor
             window.titleContent = new GUIContent("UI Builder");
             window.minSize = new Vector2(MinLeftWidth, 480f);
             // Lần đầu mở: đủ rộng cho cột thông tin + cột ảnh demo tỉ lệ 1:2.
-            if (isNew) window.position = new Rect(window.position.x, window.position.y, 900f, 780f);
+            if (isNew) window.position = new Rect(window.position.x, window.position.y, 1280f, 820f);
             window.Show();
         }
 
@@ -145,7 +166,8 @@ namespace GameUp.UIBuilder.Editor
                 if (JobStamp() != _jobStamp) ReloadJob();
             }
             var texture = PreviewDemo != null ? UIDemoTexture.Get(PreviewDemo) : null;
-            var previewWidth = PreviewWidth(texture);
+            ComputeColumns(texture, out var treeWidth, out var previewWidth);
+            _treeColumnWidth = treeWidth;
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.BeginVertical();
@@ -162,24 +184,107 @@ namespace GameUp.UIBuilder.Editor
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
+            if (treeWidth > 0f)
+            {
+                DrawSplitter(position.width - MinLeftWidth - SplitterWidth - previewWidth);
+                DrawTreeColumn(treeWidth);
+            }
+
             if (previewWidth > 0f) DrawPreviewPanel(texture, previewWidth);
             EditorGUILayout.EndHorizontal();
         }
 
-        // ─── Cột phải — ảnh demo ────────────────────────────────────────────
+        // ─── Bố cục 3 cột: thiết lập | cây (Bước 5) | ảnh demo ──────────────
 
-        /// <summary>Rộng vừa đủ để ảnh demo cao bằng cửa sổ; 0 nếu tắt, chưa có demo, hoặc cửa sổ quá hẹp.</summary>
-        private float PreviewWidth(Texture2D texture)
+        /// <summary>
+        /// Độ rộng cột cây và cột ảnh (0 = không hiện). Ảnh được ưu tiên rộng vừa đủ cao bằng cửa sổ; thiếu chỗ thì co cây về
+        /// tối thiểu, rồi co ảnh, rồi đưa cây về lại cột trái (Bước 5 dạng card), cuối cùng mới ẩn ảnh.
+        /// </summary>
+        private void ComputeColumns(Texture2D texture, out float tree, out float preview)
         {
-            if (!Settings.showDemoPreview || texture == null) return 0f;
-            var ideal = (position.height - 8f) * texture.width / texture.height;
-            var width = Mathf.Floor(Mathf.Min(ideal, position.width - MinLeftWidth));
-            return width >= MinPreviewWidth ? width : 0f;
+            var room = position.width - MinLeftWidth;
+            var ideal = Settings.showDemoPreview && texture != null
+                ? Mathf.Floor((position.height - PreviewToolbarHeight) * texture.width / texture.height) : 0f;
+            preview = ideal >= MinPreviewWidth ? ideal : 0f;
+            tree = _spec != null || _locate != null ? Mathf.Floor(Mathf.Max(MinTreeWidth, _treeWidth)) : 0f;
+
+            var over = preview + (tree > 0f ? tree + SplitterWidth : 0f) - room;
+            if (over > 0f && tree > 0f) ShrinkColumn(ref tree, MinTreeWidth, ref over);
+            if (over > 0f && preview > 0f) ShrinkColumn(ref preview, MinPreviewWidth, ref over);
+            if (over > 0f && tree > 0f)
+            {
+                over -= tree + SplitterWidth;
+                tree = 0f;
+            }
+
+            if (over > 0f) preview = 0f;
         }
+
+        private static void ShrinkColumn(ref float width, float min, ref float over)
+        {
+            var cut = Mathf.Min(over, width - min);
+            width -= cut;
+            over -= cut;
+        }
+
+        /// <summary>Thanh kéo giữa cột trái và cột cây — kéo sang trái để cây rộng ra.</summary>
+        private void DrawSplitter(float maxTreeWidth)
+        {
+            var rect = GUILayoutUtility.GetRect(SplitterWidth, SplitterWidth, 0f, 100000f, GUILayout.ExpandHeight(true));
+            EditorGUI.DrawRect(new Rect(rect.center.x - 0.5f, rect.y, 1f, rect.height), GUInstallerUI.SeparatorColor);
+            EditorGUIUtility.AddCursorRect(rect, MouseCursor.ResizeHorizontal);
+
+            var e = Event.current;
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            switch (e.GetTypeForControl(id))
+            {
+                case EventType.MouseDown when e.button == 0 && rect.Contains(e.mousePosition):
+                    GUIUtility.hotControl = id;
+                    e.Use();
+                    break;
+                case EventType.MouseDrag when GUIUtility.hotControl == id:
+                    _treeWidth = Mathf.Clamp(_treeColumnWidth - e.delta.x, MinTreeWidth, Mathf.Max(MinTreeWidth, maxTreeWidth));
+                    e.Use();
+                    Repaint();
+                    break;
+                case EventType.MouseUp when GUIUtility.hotControl == id:
+                    GUIUtility.hotControl = 0;
+                    e.Use();
+                    break;
+            }
+        }
+
+        // ─── Cột giữa — Bước 5 (cây) ────────────────────────────────────────
+
+        /// <summary>Cây chiếm hết chiều cao cột; cuối cột là nút dựng prefab để duyệt xong dựng luôn.</summary>
+        private void DrawTreeColumn(float width)
+        {
+            EditorGUILayout.BeginVertical(GUInstallerUI.Card, GUILayout.Width(width), GUILayout.ExpandHeight(true));
+            GUInstallerUI.CardHeader("BƯỚC 5", "Duyệt cây node", TreeState());
+            _showTreeHelp = EditorGUILayout.Foldout(_showTreeHelp, "Cách dùng", true);
+            if (_showTreeHelp) GUILayout.Label(TreeHelp, GUInstallerUI.Desc);
+
+            DrawTreeBody(true);
+            if (_spec != null)
+            {
+                EditorGUILayout.Space(4);
+                GUInstallerUI.Separator();
+                DrawBuildButtons();
+                if (_report != null)
+                    GUInstallerUI.Hint(_report.Warnings.Count > 0
+                        ? $"{_report.Summary} · {_report.Warnings.Count} cảnh báo — xem Bước 6."
+                        : _report.Summary);
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        // ─── Cột phải — ảnh demo ────────────────────────────────────────────
 
         private void DrawPreviewPanel(Texture2D texture, float width)
         {
             EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.ExpandHeight(true));
+            DrawPreviewToolbar();
             var area = GUILayoutUtility.GetRect(width, width, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
             // Đang định vị đúng demo đang xem → vẽ kết quả tạm, tô nổi sprite vừa dò xong.
             var live = _locator != null && _locatingIndex == _previewIndex ? _locator.Progress : null;
@@ -195,7 +300,43 @@ namespace GameUp.UIBuilder.Editor
             else if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && image.Contains(Event.current.mousePosition))
                 HandleDemoClick(image, hovered);
 
-                        EditorGUILayout.EndVertical();
+            EditorGUILayout.EndVertical();
+        }
+
+        /// <summary>Trên ảnh demo: chọn tab đang xem (nhiều demo), bật/tắt lớp khung, "?" hiện chú thích màu.</summary>
+        private void DrawPreviewToolbar()
+        {
+            var demos = Demos;
+            if (demos.Count > 1)
+            {
+                var labels = Enumerable.Range(1, demos.Count).Select(i => $"Tab {i}").ToArray();
+                var picked = GUILayout.Toolbar(Mathf.Clamp(_previewIndex, 0, demos.Count - 1), labels, EditorStyles.miniButton);
+                if (picked != _previewIndex) SelectPreview(picked);
+            }
+
+            if (_locator == null && _locate == null && _spec == null) return;
+            EditorGUILayout.BeginHorizontal();
+            var layers = Settings.previewLayers;
+            layers = LayerToggle(layers, PreviewLayers.Sprites, "Sprite", EditorStyles.miniButtonLeft);
+            layers = LayerToggle(layers, PreviewLayers.Texts, "Chữ", EditorStyles.miniButtonMid);
+            layers = LayerToggle(layers, PreviewLayers.Dropped, "Bị loại", EditorStyles.miniButtonMid);
+            layers = LayerToggle(layers, PreviewLayers.UIRegion, "Vùng UI", EditorStyles.miniButtonMid);
+            layers = LayerToggle(layers, PreviewLayers.Nodes, "Node", EditorStyles.miniButtonRight);
+            _showLegend = GUILayout.Toggle(_showLegend, new GUIContent("?", "Chú thích màu"), EditorStyles.miniButton, GUILayout.Width(20f));
+            EditorGUILayout.EndHorizontal();
+            if (layers != Settings.previewLayers)
+            {
+                Settings.previewLayers = layers;
+                Settings.Save();
+            }
+
+            if (_showLegend) GUInstallerUI.Hint(PreviewLegend);
+        }
+
+        private static PreviewLayers LayerToggle(PreviewLayers layers, PreviewLayers layer, string label, GUIStyle style)
+        {
+            var on = GUILayout.Toggle((layers & layer) != 0, label, style, GUILayout.MinWidth(24f));
+            return on ? layers | layer : layers & ~layer;
         }
 
         /// <summary>
@@ -228,10 +369,10 @@ namespace GameUp.UIBuilder.Editor
             Repaint();
         }
 
-        /// <summary>Cây ở Bước 5 đang cuộn khuất khỏi cột trái → cuộn tới để thấy node vừa chọn.</summary>
+        /// <summary>Cây ở Bước 5 nằm trong cột trái (cửa sổ hẹp) và đang cuộn khuất → cuộn tới để thấy node vừa chọn.</summary>
         private void RevealTree()
         {
-            if (_treeRect.height <= 0f) return;
+            if (_treeColumnWidth > 0f || _treeRect.height <= 0f) return;
             var view = position.height;
             if (_treeRect.y >= _scroll.y && _treeRect.yMax <= _scroll.y + view) return;
             _scroll.y = Mathf.Max(0f, _treeRect.y - 60f);
@@ -249,6 +390,18 @@ namespace GameUp.UIBuilder.Editor
             using (GUInstallerUI.BeginCard())
             {
                 GUInstallerUI.CardHeader("BƯỚC 1", "Môi trường Python (OpenCV + OCR + PSD)", state);
+                // Đã sẵn sàng thì chỉ còn một dòng — cột trái dành chỗ cho các bước đang làm.
+                var failed = _pythonSetup != null && _pythonSetup.Failed;
+                if (state == GUSetupState.Done && !_showPythonDetails && !failed)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    GUInstallerUI.Hint($"Sẵn sàng · {_systemPython ?? UIBuilderPaths.VenvFolder}");
+                    GUILayout.FlexibleSpace();
+                    if (GUInstallerUI.MiniButton("Chi tiết", true, 70f)) _showPythonDetails = true;
+                    EditorGUILayout.EndHorizontal();
+                    return;
+                }
+
                 GUILayout.Label("Định vị sprite bằng OpenCV, đọc chữ bằng RapidOCR, đọc PSD bằng psd-tools — chạy trên máy, không cần mạng, không cần Photoshop. Cài một lần cho mọi project trên máy.",
                     GUInstallerUI.Desc);
 
@@ -269,6 +422,8 @@ namespace GameUp.UIBuilder.Editor
 
                 if (GUInstallerUI.MiniButton("Dò lại Python", !busy, 110f)) _systemPython = UIBuilderPython.FindSystemPython();
                 if (busy && GUInstallerUI.MiniButton("Huỷ", true, 60f)) _pythonSetup.Cancel();
+                GUILayout.FlexibleSpace();
+                if (state == GUSetupState.Done && GUInstallerUI.MiniButton("Thu gọn", true, 70f)) _showPythonDetails = false;
                 EditorGUILayout.EndHorizontal();
 
                 if (_pythonSetup != null)
@@ -615,7 +770,6 @@ namespace GameUp.UIBuilder.Editor
                 if (!string.IsNullOrEmpty(_locateMessage)) GUInstallerUI.Hint(_locateMessage);
                 if (!string.IsNullOrEmpty(_locateError)) EditorGUILayout.HelpBox(_locateError, MessageType.Error);
                 if (busy) DrawLocateProgress(_locator.Progress);
-                if (busy || _locate != null) DrawPreviewLayers();
                 if (!busy && _locate != null) DrawLocateResult();
                 if (!busy && _lastProgress != null) DrawLocateLog(_lastProgress, "Nhật ký lần chạy vừa rồi");
             }
@@ -732,47 +886,13 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
-        /// <summary>Bật/tắt lớp khung trên ảnh demo + chú thích màu.</summary>
-        private void DrawPreviewLayers()
-        {
-            EditorGUILayout.Space(4);
-            using (new EditorGUI.DisabledScope(!Settings.showDemoPreview))
-            {
-                EditorGUI.BeginChangeCheck();
-                EditorGUILayout.BeginHorizontal();
-                GUILayout.Label("Hiện trên ảnh:", EditorStyles.miniLabel, GUILayout.Width(RowLabelWidth + 4f));
-                var layers = Settings.previewLayers;
-                layers = LayerToggle(layers, PreviewLayers.Sprites, "Sprite");
-                layers = LayerToggle(layers, PreviewLayers.Texts, "Chữ");
-                layers = LayerToggle(layers, PreviewLayers.Dropped, "Bị loại");
-                layers = LayerToggle(layers, PreviewLayers.UIRegion, "Vùng UI");
-                layers = LayerToggle(layers, PreviewLayers.Nodes, "Node");
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndHorizontal();
-                if (EditorGUI.EndChangeCheck())
-                {
-                    Settings.previewLayers = layers;
-                    Settings.Save();
-                }
-            }
-
-            GUInstallerUI.Hint("Xanh lá = khớp · cam = 9-slice · xanh dương = chữ · đỏ đứt = bị loại · tím = node sẽ dựng · "
-                               + "xám đứt = node đã bỏ · vàng = đang chọn / vừa dò · phần tối = dưới lớp phủ (UI màn phía sau, bị bỏ). "
-                               + "Rê chuột lên khung để xem chi tiết, bấm để chọn node trong cây ở Bước 5 (bấm lại cùng chỗ = node lớn hơn).");
-        }
-
-        private static PreviewLayers LayerToggle(PreviewLayers layers, PreviewLayers layer, string label)
-        {
-            var on = GUILayout.Toggle((layers & layer) != 0, label, EditorStyles.miniButton, GUILayout.Width(64f));
-            return on ? layers | layer : layers & ~layer;
-        }
-
         /// <summary>Định vị lần lượt từng demo (mỗi demo một process song song nhiều nhân — chạy tuần tự để không tranh CPU).</summary>
         private void StartLocate()
         {
             _locateQueue.Clear();
             _locateError = null;
             _crossCheckPass = false;
+            _locatedThisRun.Clear();
             if (IsPsdMode)
             {
                 // một process đọc mọi trạng thái; demo người dùng đưa theo thứ tự tab chỉ để so sánh
@@ -797,7 +917,8 @@ namespace GameUp.UIBuilder.Editor
                 : _crossCheckPass ? $"Đối chiếu phần chung giữa các tab — demo {_locatingIndex + 1}/{demos.Count}…"
                 : $"Đang định vị demo {_locatingIndex + 1}/{demos.Count}…";
             SelectPreview(_locatingIndex); // xem trực tiếp demo đang được dò
-            var hints = Enumerable.Range(0, demos.Count).Where(k => k != _locatingIndex)
+            // locate của tab khác còn từ demo cũ (cùng tên job) không được dùng để đối chiếu
+            var hints = _locatedThisRun.Where(k => k != _locatingIndex)
                 .Select(k => UIBuilderPaths.LocatePath(Settings.jobName, k))
                 .Where(p => File.Exists(UIBuilderPaths.ToAbsolute(p)));
             _locator = UIBuilderLocator.Start(demos[_locatingIndex], Settings.artFolders, Settings.includeSubfolders,
@@ -912,8 +1033,8 @@ namespace GameUp.UIBuilder.Editor
                 DrawSkipRegions();
 
                 EditorGUILayout.BeginHorizontal();
-                if (GUInstallerUI.MiniButton(_spec != null ? "Sinh lại spec nháp" : "Tạo spec nháp", _locate != null, 140f))
-                    GenerateSpec();
+                if (GUInstallerUI.MiniButton(_spec != null ? "Sinh lại spec nháp" : "Tạo spec nháp", _locate != null, 140f) && GenerateSpec())
+                    GUIUtility.ExitGUI();
                 if (GUInstallerUI.MiniButton("Mở spec", _spec != null, 80f))
                     EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(SpecPath));
                 if (GUInstallerUI.MiniButton("Tải lại", true, 70f)) ReloadJob();
@@ -941,6 +1062,7 @@ namespace GameUp.UIBuilder.Editor
                 }
 
                 if (!string.IsNullOrEmpty(_specError)) EditorGUILayout.HelpBox(_specError, MessageType.Error);
+                if (!string.IsNullOrEmpty(_specStale)) EditorGUILayout.HelpBox(_specStale, MessageType.Warning);
                 if (_spec == null) return;
                 GUInstallerUI.Hint($"{_spec.nodes.Count} node · {SpecPath}");
                 foreach (var note in _spec.notes) GUInstallerUI.Hint($"• {note}");
@@ -1095,41 +1217,54 @@ namespace GameUp.UIBuilder.Editor
             }
         }
 
+        private GUSetupState TreeState() => _spec == null ? GUSetupState.Blocked : GUSetupState.Done;
+
         /// <summary>
-        /// Cây node sắp dựng, ngay trong cửa sổ: tick chọn dựng hay bỏ, nhóm lại, đổi tên, đổi thứ tự vẽ, kéo thả đổi cha.
-        /// Chọn node nào thì khung của nó sáng lên trên ảnh demo bên phải, và bấm khung trên ảnh thì chọn ngược lại node
-        /// trong cây — để soi máy dò có đặt đúng chỗ không.
+        /// Cây node sắp dựng: tick chọn dựng hay bỏ, nhóm lại, đổi tên, đổi thứ tự vẽ, kéo thả đổi cha. Chọn node nào thì khung
+        /// của nó sáng lên trên ảnh demo, và bấm khung trên ảnh thì chọn ngược lại node trong cây — để soi máy dò có đặt đúng
+        /// chỗ không. Cửa sổ đủ rộng thì cây nằm ở cột giữa (xem <see cref="DrawTreeColumn"/>), ở đây chỉ còn một dòng trỏ sang.
         /// </summary>
         private void DrawPreviewStep()
         {
-            var state = _spec == null ? GUSetupState.Blocked : GUSetupState.Done;
             using (GUInstallerUI.BeginCard())
             {
-                GUInstallerUI.CardHeader("BƯỚC 5", "Duyệt cây & chọn dựng gì", state);
-                GUILayout.Label("Cây dưới đây là đúng thứ sẽ ra prefab. Bỏ tick = không dựng (giữ lại, tick lại là có). "
-                                + "Bấm đúp để đổi tên node, kéo thả để đổi cha và đổi thứ tự vẽ. Chọn / rê chuột lên node → khung "
-                                + "sáng trên ảnh demo (phần còn lại tối đi); bấm khung trên ảnh → chọn node trong cây, bấm lại "
-                                + "cùng chỗ để chọn node lớn hơn bên dưới, Ctrl/Shift để chọn nhiều, bấm chỗ trống để bỏ chọn. "
-                                + "Mọi thay đổi ghi thẳng vào spec.json.",
-                    GUInstallerUI.Desc);
-
-                if (_spec == null)
+                GUInstallerUI.CardHeader("BƯỚC 5", "Duyệt cây & chọn dựng gì", TreeState());
+                if (_treeColumnWidth > 0f)
                 {
-                    GUInstallerUI.Hint("Chưa có spec — chạy định vị và tạo spec nháp ở Bước 4.");
+                    GUInstallerUI.Hint(_spec != null
+                        ? $"Cây ở cột giữa → · {_spec.nodes.Count} node sẽ dựng" + (_spec.excluded.Count > 0 ? $" · {_spec.excluded.Count} đã bỏ" : string.Empty)
+                        : "Cây ở cột giữa → · chưa có spec.");
                     return;
                 }
 
-                DrawTreeToolbar();
-                DrawTree();
-
-                if (!string.IsNullOrEmpty(_previewMessage))
-                    EditorGUILayout.HelpBox(_previewMessage, _previewFailed ? MessageType.Error : MessageType.Info);
-
-                GUInstallerUI.Hint($"{_spec.nodes.Count} node sẽ dựng"
-                                   + (_spec.excluded.Count > 0 ? $" · {_spec.excluded.Count} node đã bỏ (hàng xám)" : string.Empty)
-                                   + " · Ctrl/Shift để chọn nhiều node.");
-                DrawSceneStageRow();
+                GUILayout.Label(TreeHelp, GUInstallerUI.Desc);
+                DrawTreeBody(false);
             }
+        }
+
+        /// <summary>Thanh công cụ + cây + trạng thái; <paramref name="fill"/> = cây giãn hết chiều cao còn lại (cột giữa).</summary>
+        private void DrawTreeBody(bool fill)
+        {
+            if (_spec == null)
+            {
+                GUInstallerUI.Hint(_locate != null
+                    ? "Chưa có spec — tạo spec nháp để hiện cây."
+                    : "Chưa có spec — chạy định vị ở Bước 3 rồi tạo spec nháp ở Bước 4.");
+                if (_locate != null && GUInstallerUI.PrimaryButton("Tạo spec nháp", true, 26f) && GenerateSpec())
+                    GUIUtility.ExitGUI();
+                return;
+            }
+
+            DrawTreeToolbar();
+            DrawTree(fill);
+
+            if (!string.IsNullOrEmpty(_previewMessage))
+                EditorGUILayout.HelpBox(_previewMessage, _previewFailed ? MessageType.Error : MessageType.Info);
+
+            GUInstallerUI.Hint($"{_spec.nodes.Count} node sẽ dựng"
+                               + (_spec.excluded.Count > 0 ? $" · {_spec.excluded.Count} node đã bỏ (hàng xám)" : string.Empty)
+                               + " · Ctrl/Shift để chọn nhiều node.");
+            DrawSceneStageRow();
         }
 
         private void DrawTreeToolbar()
@@ -1140,7 +1275,7 @@ namespace GameUp.UIBuilder.Editor
             GUILayout.Label(new GUIContent("Nhóm:", "Tên node cha sẽ tạo khi gom các node đang chọn."),
                 EditorStyles.miniLabel, GUILayout.Width(36f));
             EditorGUI.BeginChangeCheck();
-            var groupName = EditorGUILayout.TextField(Settings.previewGroupName, GUILayout.Width(110f));
+            var groupName = EditorGUILayout.TextField(Settings.previewGroupName, GUILayout.MinWidth(60f));
             if (EditorGUI.EndChangeCheck())
             {
                 Settings.previewGroupName = groupName;
@@ -1153,6 +1288,9 @@ namespace GameUp.UIBuilder.Editor
                 Report(error, $"Đã gom {selected.Count} node vào '{Settings.previewGroupName}'.");
                 if (error == null) Tree.SelectNode(Settings.previewGroupName);
             }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal();
 
             if (GUInstallerUI.MiniButton("Bỏ", selected.Count > 0, 44f))
             {
@@ -1189,12 +1327,16 @@ namespace GameUp.UIBuilder.Editor
             EditorGUILayout.EndHorizontal();
         }
 
-        /// <summary>Cây cao theo số hàng, tối đa ~22 hàng rồi tự cuộn bên trong — không đẩy các bước sau xuống quá xa.</summary>
-        private void DrawTree()
+        /// <summary>
+        /// Cột giữa: cây giãn hết chiều cao còn lại. Trong cột trái: cao theo số hàng, tối đa ~22 hàng rồi tự cuộn bên trong —
+        /// không đẩy các bước sau xuống quá xa.
+        /// </summary>
+        private void DrawTree(bool fill)
         {
-            var height = Mathf.Clamp(Tree.totalHeight + 4f, 60f, TreeMaxHeight);
-            var rect = GUILayoutUtility.GetRect(0f, height, GUILayout.ExpandWidth(true));
-            if (Event.current.type == EventType.Repaint) _treeRect = rect;
+            var rect = fill
+                ? GUILayoutUtility.GetRect(0f, 100000f, 80f, 100000f)
+                : GUILayoutUtility.GetRect(0f, Mathf.Clamp(Tree.totalHeight + 4f, 60f, TreeMaxHeight), GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint) _treeRect = fill ? Rect.zero : rect;
             Tree.OnGUI(rect);
         }
 
@@ -1203,14 +1345,13 @@ namespace GameUp.UIBuilder.Editor
         {
             var open = UIPreviewStage.IsOpen && UIPreviewStage.JobName == Settings.jobName;
             EditorGUILayout.BeginHorizontal();
-            if (GUInstallerUI.MiniButton(open ? "Dựng lại trong scene" : "Mở trong scene (tuỳ chọn)", true, 180f)) OpenPreview();
-            if (GUInstallerUI.MiniButton("Lấy cây từ scene", open, 130f)) SyncPreview();
-            if (GUInstallerUI.MiniButton("Đóng scene", open, 90f)) ClosePreview();
-            GUILayout.FlexibleSpace();
+            if (GUInstallerUI.MiniButton(open ? "Dựng lại trong scene" : "Mở trong scene")) OpenPreview();
+            if (GUInstallerUI.MiniButton("Lấy cây từ scene", open)) SyncPreview();
+            if (GUInstallerUI.MiniButton("Đóng", open, 50f)) ClosePreview();
             EditorGUILayout.EndHorizontal();
             GUInstallerUI.Hint(open
                 ? "Đang mở scene tạm — sửa rect/Inspector ở đó xong bấm 'Lấy cây từ scene' để ghi ngược vào spec."
-                : "Cần Inspector hoặc kéo rect bằng tay thì mở cây thành object thật trong một scene tạm (không tạo asset).");
+                : "Tuỳ chọn: cần Inspector hoặc kéo rect bằng tay thì mở cây thành object thật trong một scene tạm (không tạo asset).");
         }
 
         private void Report(string error, string done)
@@ -1262,10 +1403,17 @@ namespace GameUp.UIBuilder.Editor
             _previewMessage = null;
         }
 
-        /// <summary>Định vị xong: sinh spec nháp (nếu chưa có) để cây hiện lên ngay, không phải bấm thêm bước nào.</summary>
+        /// <summary>
+        /// Định vị xong: sinh spec nháp để cây hiện lên ngay, không phải bấm thêm bước nào — cả khi spec đang có cũ hơn kết
+        /// quả định vị vừa chạy (demo / PSD mới cùng tên job: giữ spec cũ thì Bước 5 vẫn là cây của demo cũ). Bản cũ chép
+        /// sang <c>spec.bak.json</c>, node đã bỏ vẫn giữ (<see cref="UISpecExclusions"/>).
+        /// </summary>
         private void AutoPreview()
         {
-            if (!Settings.autoPreview || _spec != null) return;
+            if (!Settings.autoPreview) return;
+            var path = UIBuilderPaths.ToAbsolute(SpecPath);
+            if (_spec != null && File.Exists(path) && File.GetLastWriteTimeUtc(path) >= LocatesStamp()) return;
+            if (File.Exists(path)) File.Copy(path, Path.ChangeExtension(path, ".bak.json"), true);
             GenerateSpec(true);
         }
 
@@ -1280,22 +1428,30 @@ namespace GameUp.UIBuilder.Editor
                 GUInstallerUI.CardHeader("BƯỚC 6", "Dựng / cập nhật prefab", state);
                 GUILayout.Label("Prefab đã có thì chỉ cập nhật node theo tên — object/component thêm tay được giữ nguyên. Dựng xong tự render ảnh so sánh với demo.", GUInstallerUI.Desc);
 
-                EditorGUILayout.BeginHorizontal();
-                if (GUInstallerUI.PrimaryButton("Dựng prefab từ spec", _spec != null, 26f)) BuildPrefab();
-                var prefabPath = _spec?.output;
-                var prefabExists = prefabPath != null && AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null;
-                if (GUILayout.Button("Mở prefab", GUILayout.Width(90f), GUILayout.Height(26f)) && prefabExists)
-                    AssetDatabase.OpenAsset(AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath));
-                EditorGUILayout.EndHorizontal();
+                DrawBuildButtons();
 
                 if (UIPreviewStage.IsOpen && UIPreviewStage.JobName == Settings.jobName)
-                    GUInstallerUI.Hint("Đang mở bản xem trước — sửa trên cây phải bấm Đồng bộ cây → spec ở Bước 5 thì prefab mới nhận.");
+                    GUInstallerUI.Hint("Đang mở scene tạm — sửa trong scene phải bấm 'Lấy cây từ scene' ở Bước 5 thì prefab mới nhận.");
                 if (_report == null) return;
                 EditorGUILayout.HelpBox(_report.Summary, _report.Success ? MessageType.Info : MessageType.Error);
                 foreach (var warning in _report.Warnings) GUInstallerUI.Hint($"⚠ {warning}");
                 if (_comparePath != null && GUInstallerUI.MiniButton("Mở ảnh so sánh (demo | prefab | chồng 50%)", true, 280f))
                     EditorUtility.OpenWithDefaultApp(UIBuilderPaths.ToAbsolute(_comparePath));
             }
+        }
+
+        /// <summary>Nút dựng + mở prefab — ở Bước 6 và ở chân cột cây (duyệt xong dựng luôn).</summary>
+        private void DrawBuildButtons()
+        {
+            EditorGUILayout.BeginHorizontal();
+            if (GUInstallerUI.PrimaryButton("Dựng prefab từ spec", _spec != null, 26f)) BuildPrefab();
+            var prefab = LoadAsset<GameObject>(_spec?.output);
+            using (new EditorGUI.DisabledScope(prefab == null))
+            {
+                if (GUILayout.Button("Mở prefab", GUILayout.Width(90f), GUILayout.Height(26f))) AssetDatabase.OpenAsset(prefab);
+            }
+
+            EditorGUILayout.EndHorizontal();
         }
 
         private void BuildPrefab()
@@ -1372,6 +1528,7 @@ namespace GameUp.UIBuilder.Editor
 
                     while (_locates.Count <= _locatingIndex) _locates.Add(null);
                     _locates[_locatingIndex] = result;
+                    if (result != null) _locatedThisRun.Add(_locatingIndex);
                     _locate = _locates[Mathf.Clamp(_previewIndex, 0, _locates.Count - 1)];
                     var prefix = Demos.Count > 1 ? $"Demo {_locatingIndex + 1}: " : string.Empty;
                     _locateMessage = result != null
@@ -1460,13 +1617,15 @@ namespace GameUp.UIBuilder.Editor
         /// <summary>Kết quả định vị đã lưu: chế độ PSD = locate.json, locate_2.json… liền nhau do lần đọc PSD ghi.</summary>
         private List<LocateResult> LoadLocates()
         {
+            // file còn lại từ demo / PSD khác cùng tên job coi như chưa định vị — không vẽ khung cũ lên ảnh mới
             if (!IsPsdMode)
-                return Demos.Select((_, i) => UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i))).ToList();
+                return Demos.Select((demo, i) => UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i)) is { } result
+                                                && ProjectPath(result.demo) == ProjectPath(demo) ? result : null).ToList();
             var results = new List<LocateResult>();
             for (var i = 0; ; i++)
             {
                 var result = UIBuilderLocator.Load(UIBuilderPaths.LocatePath(Settings.jobName, i));
-                if (result == null || !result.IsPsd) return results;
+                if (result == null || !result.IsPsd || ProjectPath(result.psd) != ProjectPath(Settings.psdPath)) return results;
                 results.Add(result);
             }
         }
@@ -1502,6 +1661,12 @@ namespace GameUp.UIBuilder.Editor
             _locate = _locates.Count > 0 ? _locates[_previewIndex] : null;
             _spec = File.Exists(UIBuilderPaths.ToAbsolute(SpecPath)) ? UISpecFile.Load(SpecPath, out _specError) : null;
             if (_spec == null && !File.Exists(UIBuilderPaths.ToAbsolute(SpecPath))) _specError = null;
+            // PSD: spec chỉ ghi demo, không ghi file PSD — chưa có kết quả đọc của file PSD đang chọn thì spec là của file khác
+            _specStale = _spec == null ? null
+                : IsPsdMode && _locates.Count == 0 ? $"{SpecPath} là của file PSD khác — đọc PSD hiện tại để sinh spec mới (bản cũ chép sang spec.bak.json)."
+                : !SpecMatchesDemos(_spec) ? $"{SpecPath} là của demo khác ({_spec.demo}) — định vị demo hiện tại để sinh spec mới (bản cũ chép sang spec.bak.json)."
+                : null;
+            if (_specStale != null) _spec = null;
             _locateMessage = _locate != null ? $"Kết quả trước: {_locate.sprites.Count(s => s.IsMatched)}/{_locate.sprites.Count} sprite khớp." : null;
             _report = null;
             _comparePath = null;
@@ -1511,7 +1676,15 @@ namespace GameUp.UIBuilder.Editor
 
         private DateTime JobStamp()
         {
-            var stamp = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(SpecPath));
+            var spec = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(SpecPath));
+            var locates = LocatesStamp();
+            return spec > locates ? spec : locates;
+        }
+
+        /// <summary>Lần ghi mới nhất của các file locate của job.</summary>
+        private DateTime LocatesStamp()
+        {
+            var stamp = DateTime.MinValue;
             for (var i = 0; i < Demos.Count; i++)
             {
                 var locate = File.GetLastWriteTimeUtc(UIBuilderPaths.ToAbsolute(UIBuilderPaths.LocatePath(Settings.jobName, i)));
@@ -1519,6 +1692,14 @@ namespace GameUp.UIBuilder.Editor
             }
 
             return stamp;
+        }
+
+        /// <summary>Spec sinh từ đúng các demo đang chọn (cùng thứ tự tab)?</summary>
+        private bool SpecMatchesDemos(UISpec spec)
+        {
+            var demos = Demos;
+            var specDemos = new[] { spec.demo }.Concat(spec.extraDemos).ToList();
+            return demos.Count == 0 || (specDemos.Count == demos.Count && specDemos.Zip(demos, (a, b) => ProjectPath(a) == ProjectPath(b)).All(same => same));
         }
 
         private bool HasDemo() => !string.IsNullOrEmpty(Settings.demoPath) && File.Exists(UIBuilderPaths.ToAbsolute(Settings.demoPath));

@@ -584,7 +584,13 @@ namespace GameUp.UIBuilder.Editor
                 if (target.TryGetComponent<Image>(out var image))
                 {
                     if (!string.IsNullOrEmpty(o.sprite))
+                    {
                         image.sprite = LoadSprite(new UISpecNode { id = $"{node.id}/{o.id}", sprite = o.sprite }, report);
+                        // sprite thay vào có border 9-slice (nền hàng dựng lại bằng sprite bo góc dùng chung) mà Image của item
+                        // đang Simple → kéo giãn cả hình thành elip; ngược lại sprite thường không cắt 9-slice
+                        if (image.sprite != null)
+                            image.type = image.sprite.border != Vector4.zero ? Image.Type.Sliced : Image.Type.Simple;
+                    }
                     if (!string.IsNullOrEmpty(o.color)) image.color = ParseColor(o.color, image.color, $"{node.id}/{o.id}", report);
                 }
 

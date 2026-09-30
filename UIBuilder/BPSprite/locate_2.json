@@ -1,0 +1,1000 @@
+{
+ "version": 1,
+ "demo": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/demo_rewards.png",
+ "demoWidth": 1080,
+ "demoHeight": 2160,
+ "elapsedMs": 2045,
+ "cachedCount": 43,
+ "sprites": [
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/boder_avatarchar.png",
+   "name": "boder_avatarchar",
+   "spriteWidth": 252,
+   "spriteHeight": 252,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 52,
+     "y": 192,
+     "w": 252,
+     "h": 252,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 19.8,
+     "zncc": 0.655,
+     "inlier": 0.53
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/boder_progress_exp.png",
+   "name": "boder_progress_exp",
+   "spriteWidth": 588,
+   "spriteHeight": 48,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/border_popup.png",
+   "name": "border_popup",
+   "spriteWidth": 1040,
+   "spriteHeight": 1588,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 20,
+     "y": 158,
+     "w": 1040,
+     "h": 1588,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 60.8,
+     "zncc": 0.228,
+     "inlier": 0.217
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/btn_purchasepass.png",
+   "name": "btn_purchasepass",
+   "spriteWidth": 328,
+   "spriteHeight": 92,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 714,
+     "y": 449,
+     "w": 328,
+     "h": 92,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.2,
+     "zncc": 0.641,
+     "inlier": 0.743
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/icon_exp.png",
+   "name": "icon_exp",
+   "spriteWidth": 104,
+   "spriteHeight": 116,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/icon_pack_voltari.png",
+   "name": "icon_pack_voltari",
+   "spriteWidth": 260,
+   "spriteHeight": 240,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/icon_purchase.png",
+   "name": "icon_purchase",
+   "spriteWidth": 56,
+   "spriteHeight": 56,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 729,
+     "y": 462,
+     "w": 56,
+     "h": 56,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.999,
+     "inlier": 0.967
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/line_progress_exp.png",
+   "name": "line_progress_exp",
+   "spriteWidth": 588,
+   "spriteHeight": 48,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 106,
+     "y": 469,
+     "w": 588,
+     "h": 48,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.852,
+     "inlier": 0.875
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_exp.png",
+   "name": "boder_exp",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_exp_done.png",
+   "name": "boder_exp_done",
+   "spriteWidth": 180,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_progress_quest.png",
+   "name": "boder_progress_quest",
+   "spriteWidth": 520,
+   "spriteHeight": 40,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_quest.png",
+   "name": "boder_quest",
+   "spriteWidth": 932,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_quest_done.png",
+   "name": "boder_quest_done",
+   "spriteWidth": 932,
+   "spriteHeight": 180,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_tab_choose.png",
+   "name": "boder_tab_choose",
+   "spriteWidth": 1040,
+   "spriteHeight": 252,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 88,
+     "y": 663,
+     "w": 225,
+     "h": 54,
+     "scale": 0.216,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.849,
+     "inlier": 0.901
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/boder_tab_notchoose.png",
+   "name": "boder_tab_notchoose",
+   "spriteWidth": 488,
+   "spriteHeight": 124,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 552,
+     "y": 571,
+     "w": 488,
+     "h": 124,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.5,
+     "inlier": 0.806
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/border_tab2.png",
+   "name": "border_tab2",
+   "spriteWidth": 1040,
+   "spriteHeight": 948,
+   "status": "unmatched",
+   "lowTexture": false,
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/btn_claim.png",
+   "name": "btn_claim",
+   "spriteWidth": 180,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/btn_daily_weekly.png",
+   "name": "btn_daily_weekly",
+   "spriteWidth": 460,
+   "spriteHeight": 100,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/btn_go.png",
+   "name": "btn_go",
+   "spriteWidth": 180,
+   "spriteHeight": 104,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/icon_tick.png",
+   "name": "icon_tick",
+   "spriteWidth": 108,
+   "spriteHeight": 108,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 232,
+     "y": 983,
+     "w": 108,
+     "h": 108,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.945
+    }
+   ],
+   "flatColor": [
+    26,
+    236,
+    127
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/line_progress_quest_doing.png",
+   "name": "line_progress_quest_doing",
+   "spriteWidth": 520,
+   "spriteHeight": 40,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/misson/line_progress_quest_done.png",
+   "name": "line_progress_quest_done",
+   "spriteWidth": 520,
+   "spriteHeight": 40,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/name_pass.png",
+   "name": "name_pass",
+   "spriteWidth": 704,
+   "spriteHeight": 108,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 321,
+     "y": 221,
+     "w": 704,
+     "h": 108,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.993
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/border_popup.png",
+   "name": "border_popup",
+   "spriteWidth": 1040,
+   "spriteHeight": 1164,
+   "status": "unmatched",
+   "lowTexture": false,
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/border_popup2.png",
+   "name": "border_popup2",
+   "spriteWidth": 1000,
+   "spriteHeight": 1000,
+   "status": "unmatched",
+   "lowTexture": false,
+   "reason": "explained-by-other"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/btn_buy.png",
+   "name": "btn_buy",
+   "spriteWidth": 416,
+   "spriteHeight": 192,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/illus_premium.png",
+   "name": "illus_premium",
+   "spriteWidth": 568,
+   "spriteHeight": 408,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/illus_premium1.png",
+   "name": "illus_premium1",
+   "spriteWidth": 568,
+   "spriteHeight": 408,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/illus_premium2.png",
+   "name": "illus_premium2",
+   "spriteWidth": 568,
+   "spriteHeight": 408,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/popup_purchase/voucher.png",
+   "name": "voucher",
+   "spriteWidth": 168,
+   "spriteHeight": 68,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_freerewards_1.png",
+   "name": "boder_freerewards_1",
+   "spriteWidth": 488,
+   "spriteHeight": 156,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 56,
+     "y": 961,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 17.1,
+     "zncc": 0.0,
+     "inlier": 0.724,
+     "tint": "#7F7F80"
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_freerewards_2.png",
+   "name": "boder_freerewards_2",
+   "spriteWidth": 488,
+   "spriteHeight": 156,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 56,
+     "y": 1281,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 1.0,
+     "zncc": 0.617,
+     "inlier": 0.723
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_level.png",
+   "name": "boder_level",
+   "spriteWidth": 104,
+   "spriteHeight": 104,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 488,
+     "y": 825,
+     "w": 104,
+     "h": 104,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.833,
+     "inlier": 0.848
+    },
+    {
+     "x": 488,
+     "y": 985,
+     "w": 104,
+     "h": 104,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.814,
+     "inlier": 0.825
+    },
+    {
+     "x": 488,
+     "y": 1145,
+     "w": 104,
+     "h": 104,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.828,
+     "inlier": 0.839
+    },
+    {
+     "x": 488,
+     "y": 1305,
+     "w": 104,
+     "h": 104,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.839,
+     "inlier": 0.846
+    },
+    {
+     "x": 488,
+     "y": 1465,
+     "w": 104,
+     "h": 104,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.811,
+     "inlier": 0.827
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_premiumrewards_1.png",
+   "name": "boder_premiumrewards_1",
+   "spriteWidth": 488,
+   "spriteHeight": 156,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 536,
+     "y": 801,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.5,
+     "zncc": 0.636,
+     "inlier": 0.723
+    },
+    {
+     "x": 536,
+     "y": 961,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.5,
+     "zncc": 0.638,
+     "inlier": 0.723
+    },
+    {
+     "x": 536,
+     "y": 1121,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.5,
+     "zncc": 0.642,
+     "inlier": 0.723
+    },
+    {
+     "x": 536,
+     "y": 1441,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.5,
+     "zncc": 0.649,
+     "inlier": 0.723
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_premiumrewards_2.png",
+   "name": "boder_premiumrewards_2",
+   "spriteWidth": 488,
+   "spriteHeight": 156,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 536,
+     "y": 1281,
+     "w": 488,
+     "h": 156,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.4,
+     "zncc": 0.606,
+     "inlier": 0.73
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_progress_level.png",
+   "name": "boder_progress_level",
+   "spriteWidth": 28,
+   "spriteHeight": 856,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 526,
+     "y": 1566,
+     "w": 28,
+     "h": 19,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 0.975
+    },
+    {
+     "x": 526,
+     "y": 1594,
+     "w": 28,
+     "h": 16,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 1.0,
+     "inlier": 1.0
+    }
+   ],
+   "suggestedBorder": {
+    "left": 4,
+    "right": 4,
+    "top": 1,
+    "bottom": 1
+   }
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_tab_choose.png",
+   "name": "boder_tab_choose",
+   "spriteWidth": 1040,
+   "spriteHeight": 220,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 20,
+     "y": 570,
+     "w": 1040,
+     "h": 220,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 28.4,
+     "zncc": 0.399,
+     "inlier": 0.483
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_tab_free.png",
+   "name": "boder_tab_free",
+   "spriteWidth": 488,
+   "spriteHeight": 88,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 42,
+     "y": 716,
+     "w": 488,
+     "h": 88,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 1.9,
+     "zncc": 0.627,
+     "inlier": 0.711
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_tab_premium.png",
+   "name": "boder_tab_premium",
+   "spriteWidth": 488,
+   "spriteHeight": 88,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 550,
+     "y": 716,
+     "w": 488,
+     "h": 88,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 24.5,
+     "zncc": 0.483,
+     "inlier": 0.568
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/boder_tab_rewards.png",
+   "name": "boder_tab_rewards",
+   "spriteWidth": 1040,
+   "spriteHeight": 948,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 20,
+     "y": 695,
+     "w": 1040,
+     "h": 948,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 20.5,
+     "zncc": 0.335,
+     "inlier": 0.352
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/border_popup copy 16.png",
+   "name": "border_popup copy 16",
+   "spriteWidth": 28,
+   "spriteHeight": 160,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/icon_lock.png",
+   "name": "icon_lock",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 997,
+     "y": 721,
+     "w": 60,
+     "h": 60,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.999,
+     "inlier": 0.982
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Home/battlepass/rewards/light_reward.png",
+   "name": "light_reward",
+   "spriteWidth": 1000,
+   "spriteHeight": 1000,
+   "status": "unmatched",
+   "reason": "no-match"
+  }
+ ],
+ "dropped": [
+  {
+   "name": "border_tab2",
+   "reason": "explained-by-other",
+   "x": 20,
+   "y": 695,
+   "w": 1040,
+   "h": 948
+  },
+  {
+   "name": "border_popup",
+   "reason": "explained-by-other",
+   "x": 20,
+   "y": 275,
+   "w": 1040,
+   "h": 1164
+  },
+  {
+   "name": "border_popup2",
+   "reason": "explained-by-other",
+   "x": 21,
+   "y": 740,
+   "w": 1000,
+   "h": 1000
+  },
+  {
+   "name": "boder_freerewards_1",
+   "reason": "same-spot",
+   "x": 56,
+   "y": 1281,
+   "w": 488,
+   "h": 156
+  }
+ ],
+ "texts": [
+  {
+   "x": 330,
+   "y": 363,
+   "w": 486,
+   "h": 28,
+   "color": "#C3C3D4",
+   "text": "Obtain <color=#FFE718>Voltari</color> at level 5 Pass",
+   "confidence": 0.993
+  },
+  {
+   "x": 71,
+   "y": 471,
+   "w": 47,
+   "h": 39,
+   "color": "#FEFEFE",
+   "text": "99",
+   "confidence": 0.999,
+   "outlineColor": "#000000",
+   "outlineWidth": 2
+  },
+  {
+   "x": 799,
+   "y": 477,
+   "w": 222,
+   "h": 25,
+   "color": "#FEFEFE",
+   "text": "Purchase Pass",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 2
+  },
+  {
+   "x": 365,
+   "y": 480,
+   "w": 98,
+   "h": 25,
+   "color": "#FDFDFD",
+   "text": "60/100",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 2
+  },
+  {
+   "x": 158,
+   "y": 616,
+   "w": 262,
+   "h": 43,
+   "color": "#FEFEFE",
+   "text": "REWARDS",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 691,
+   "y": 616,
+   "w": 219,
+   "h": 43,
+   "color": "#818181",
+   "text": "MISSION",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 602,
+   "y": 733,
+   "w": 389,
+   "h": 36,
+   "color": "#FEFEFE",
+   "text": "Premium Rewards",
+   "confidence": 0.995,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 143,
+   "y": 734,
+   "w": 289,
+   "h": 35,
+   "color": "#FEFEFE",
+   "text": "Free <color=#B3E2EB>Rewards</color>",
+   "confidence": 0.956,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 529,
+   "y": 861,
+   "w": 21,
+   "h": 32,
+   "color": "#FEFEFE",
+   "text": "1",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 781,
+   "y": 911,
+   "w": 73,
+   "h": 22,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 528,
+   "y": 1021,
+   "w": 23,
+   "h": 32,
+   "color": "#FEFEFE",
+   "text": "2",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 781,
+   "y": 1071,
+   "w": 73,
+   "h": 22,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 529,
+   "y": 1178,
+   "w": 20,
+   "h": 32,
+   "color": "#FEFEFE",
+   "text": "3",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 781,
+   "y": 1231,
+   "w": 73,
+   "h": 22,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 527,
+   "y": 1342,
+   "w": 25,
+   "h": 32,
+   "color": "#FEFEFE",
+   "text": "4",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 270,
+   "y": 1391,
+   "w": 76,
+   "h": 26,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 0.923,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 785,
+   "y": 1391,
+   "w": 69,
+   "h": 22,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 528,
+   "y": 1499,
+   "w": 22,
+   "h": 32,
+   "color": "#FEFEFE",
+   "text": "5",
+   "confidence": 0.999,
+   "outlineColor": "#000000",
+   "outlineWidth": 4
+  },
+  {
+   "x": 781,
+   "y": 1551,
+   "w": 73,
+   "h": 22,
+   "color": "#FEFEFE",
+   "text": "9999",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  },
+  {
+   "x": 89,
+   "y": 1665,
+   "w": 904,
+   "h": 22,
+   "color": "#B8B8CC",
+   "text": "Purchase the Premium Pass to earn Premium Passs Excluesive Rewards",
+   "confidence": 0.994
+  },
+  {
+   "x": 334,
+   "y": 1734,
+   "w": 411,
+   "h": 2,
+   "color": "#5E5D8B",
+   "text": "EnterDungeon",
+   "confidence": 0.969
+  },
+  {
+   "x": 463,
+   "y": 1824,
+   "w": 161,
+   "h": 58,
+   "color": "#FEFEFE",
+   "text": "Back",
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
+  }
+ ],
+ "ocr": "ok",
+ "dimAlpha": 0.8,
+ "dimEstimated": true,
+ "uiRegions": [
+  {
+   "x": 0,
+   "y": 158,
+   "w": 1080,
+   "h": 1794
+  }
+ ]
+}

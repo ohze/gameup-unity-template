@@ -272,6 +272,50 @@ namespace GameUp.UIBuilder.Tests
             StringAssert.Contains("đổi sprite theo tab", string.Join("\n", spec.notes));
         }
 
+        [Test]
+        public void Generate_PsdLayerOrder_LargerLayerAboveIsNotParentAndDrawsLater()
+        {
+            // Vương miện (layer trên) chứa trọn vòng tròn hạng (layer dưới): vòng tròn thành con sẽ vẽ đè mất vương miện.
+            var locate = Psd(
+                Sprite("boder_rankslot", Ordered(Match(56, 647, 968, 168, false), 100)),
+                Sprite("shape_round_61", Ordered(Match(76, 667, 123, 123, true), 200)),
+                Sprite("crown_top1", Ordered(Match(72, 663, 132, 132, false), 300)));
+
+            var spec = UISpecGenerator.Generate(locate, "Popup", "Assets/demo.png", "Assets/Popup.prefab", null);
+
+            var ring = spec.nodes.Single(n => n.sprite.EndsWith("shape_round_61.png"));
+            Assert.AreEqual("boder_rankslot", ring.parent, "không làm con của vương miện nằm trên nó");
+            Assert.AreEqual("boder_rankslot", spec.nodes.Single(n => n.id == "crown_top1").parent);
+            Assert.Less(spec.nodes.IndexOf(ring), spec.nodes.FindIndex(n => n.id == "crown_top1"), "vẽ theo thứ tự layer PSD");
+        }
+
+        [Test]
+        public void Generate_PsdTabGroupSpanningLayers_DrawsAboveSharedNodeItOverlaps()
+        {
+            // Nền nút tab dùng chung 2 tab (layer 3200) nằm giữa: hàng danh sách của nhóm tab ở dưới (100), nút tab ở trên (3456).
+            var tab1 = Psd(
+                Sprite("tab_frame", Ordered(Match(131, 1785, 390, 82, false), 3200)),
+                Sprite("tab_on", Ordered(Match(143, 1773, 366, 83, false), 3456)),
+                Sprite("boder_rankslot", Ordered(Match(56, 647, 968, 168, false), 100)));
+            var tab2 = Psd(
+                Sprite("tab_frame", Ordered(Match(131, 1785, 390, 82, false), 3200)),
+                Sprite("tab_off", Ordered(Match(143, 1773, 366, 83, false), 3300)),
+                Sprite("group_31", Ordered(Match(56, 647, 968, 168, false), 150)));
+
+            var spec = UISpecGenerator.Generate(new[] { tab1, tab2 }, "Popup", new[] { "Assets/d1.png", "Assets/d2.png" }, "Assets/Popup.prefab", null);
+
+            var frame = spec.nodes.FindIndex(n => n.id == "tab_frame");
+            Assert.AreEqual(string.Empty, spec.nodes[frame].parent, "nền nút dùng chung 2 tab");
+            Assert.Less(frame, spec.nodes.FindIndex(n => n.id == "tab_on"), "nút tab 1 không bị nền dùng chung che");
+            Assert.Less(frame, spec.nodes.FindIndex(n => n.id == "tab_off"));
+        }
+
+        private static LocateMatch Ordered(LocateMatch match, int order)
+        {
+            match.order = order;
+            return match;
+        }
+
         private static LocateResult Psd(params LocateSprite[] sprites)
         {
             var locate = Locate(sprites);

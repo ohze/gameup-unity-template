@@ -33,7 +33,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import cv2
 import numpy as np
 
-ALGO_VERSION = "14"
+ALGO_VERSION = "15"
 ALPHA_OPAQUE = 200          # pixel có alpha > ngưỡng mới dùng để so khớp
 MIN_OPAQUE_PIXELS = 64      # sprite gần như trong suốt (glow/vfx) → không dò được bằng hình
 ROBUST_KEEP = 0.75          # sai lệch màu tính trên 75% pixel khớp nhất → chịu được bị che ~25%
@@ -53,6 +53,9 @@ LOW_TEXTURE_DIFF = 3.0      # ... nên chỉ nhận khi trùng gần tuyệt đ�
 EXACT_TOLERANCE = 6         # pixel "trùng tuyệt đối" (demo ghép từ chính art này) — sai lệch màu ≤ ngưỡng
 OCCLUDED_INLIER = 0.50      # sprite lớn bị che nhiều (nền popup dưới chữ/icon/nút): ≥ 50% pixel trùng tuyệt đối...
 OCCLUDED_MIN_PIXELS = 5000  # ... và đủ nhiều pixel để không thể trùng ngẫu nhiên
+PANEL_MIN_PIXELS = 20000    # panel lớn bị nội dung phủ gần hết ruột (popup battle pass: trùng 22% nhưng 356k pixel, viền 4
+PANEL_INLIER = 0.15         # cạnh 100%; nền tab: 18%, 180k pixel, 3 cạnh ≥ 0.94) — ở 1:1, ≥ 20k pixel trùng tuyệt đối,
+PANEL_SIDES = 2             # ≥ 15% pixel, viền đạt như bị che thường, hoặc 2 cạnh dài trùng ≥ 85% và tổng viền ≥ 65%
 INTERIOR_DIFF = 4.0         # ruột trùng gần tuyệt đối (75% pixel tốt nhất lệch ≤ 4) và ≥ 60% pixel trùng, đủ pixel, có
 INTERIOR_INLIER = 0.60      # hoạ tiết → nhận dù viền ngoài khác (vương miện hàng 3 Dungeon: designer thêm stroke — lệch 2.9,
                             # trùng 62%, viền 33%, ZNCC 0.74 vì chữ số viền đen đè giữa). Chỉ ở 1:1: panel gần một màu
@@ -303,6 +306,10 @@ def _verify(x, y, t):
     if (t.scale == 1.0 and zncc >= INTERIOR_ZNCC and robust <= INTERIOR_DIFF and inlier >= INTERIOR_INLIER
             and exact.sum() >= OCCLUDED_MIN_PIXELS and t.gray_masked[exact].std() >= LOW_TEXTURE_STD):
         return robust, zncc, inlier
+    if t.scale == 1.0 and inlier >= PANEL_INLIER and exact.sum() >= PANEL_MIN_PIXELS:
+        edge, sides = _edge_evidence(diff2d <= EXACT_TOLERANCE, t)
+        if _edge_ok(edge, sides) or (sides >= PANEL_SIDES and edge >= OCCLUDED_SIDE_EDGE):
+            return robust, zncc, inlier
     # Bị che nhiều: phần lộ ra vẫn trùng tuyệt đối, có hoạ tiết (không phải mảng một màu trùng ngẫu nhiên),
     # và viền ngoài lộ gần đủ (hoặc đủ ở 3/4 cạnh) — loại các khúc của sprite khác trùng pixel một phần.
     if inlier < OCCLUDED_INLIER or exact.sum() < OCCLUDED_MIN_PIXELS:
@@ -547,7 +554,10 @@ def _search(t, max_instances, gate=True):
         return _search_flat(t, max_instances)
     if not _fits_coarse(t):
         return []
-    if gate and _shape_maps(t)[1] < PRESENCE_GATE:
+    # Panel lớn 1:1 bị nội dung che gần hết ruột (popup battle pass: tương quan nét 0.17) vẫn có đỉnh hình dáng đúng chỗ →
+    # chỉ xét các đỉnh đó thay vì bỏ hẳn; sprite khác trượt cổng thì bỏ như cũ.
+    covered_panel = gate and _shape_maps(t)[1] < PRESENCE_GATE
+    if covered_panel and (t.scale != 1.0 or t.opaque < PANEL_MIN_PIXELS / PANEL_INLIER):
         return []
     img = _gray_at(t.f)
     score = _masked_score_map(img, t.small_gray, t.small_mask)
@@ -555,7 +565,12 @@ def _search(t, max_instances, gate=True):
     H, W = _demo.shape[:2]
     # Số ứng viên theo số bản có thể đặt vừa ảnh: panel cỡ cả popup chỉ có 1 chỗ, khỏi dò mịn 32 ứng viên.
     fit = max(1, (W // t.w) * (H // t.h))
-    peaks = _top_peaks(score, min(PEAK_CANDIDATES, 4 * fit + 4), min_dist)
+    if covered_panel:
+        # chỉ so trên dải viền ngoài (lộ ra quanh nội dung) — nét / màu cả khung đều bị nội dung kéo lệch
+        band = _boundary(t.small_mask).astype(np.uint8) * 255
+        peaks = _top_peaks(_masked_score_map(img, t.small_gray, band), 2 * fit + 2, min_dist)
+    else:
+        peaks = _top_peaks(score, min(PEAK_CANDIDATES, 4 * fit + 4), min_dist)
     # Ứng viên gần trùng nhau (±1 px ở ảnh thu nhỏ) chỉ dò mịn một lần.
     peaks += [p for p in _shape_peaks(t, min_dist, min(PEAK_CANDIDATES // 2, 2 * fit + 2))
               if all(abs(p[0] - q[0]) > 1 or abs(p[1] - q[1]) > 1 for q in peaks)]
@@ -852,6 +867,80 @@ def _complete_repeats(sprite, matches):
                 taken.append(best[0])
                 added.append(_match_entry(group[0]["x"], best[0], w, h, group[0]["scale"], False, 0.0, 0.0, best[1]))
     return matches + added
+
+
+ROW_TINT_BRIGHT_INLIER = 0.5  # hàng theo nhịp được tô tối (quest đã xong ×0.5): ≥ 50% pixel sáng của sprite trùng
+                              # bản tô màu — nội dung (chữ, icon) che phần còn lại; vị trí đã chốt bằng nhịp cột
+
+
+def _tinted_agreement(rgba, x, y):
+    """(tỉ lệ pixel trùng, tỉ lệ pixel sáng trùng, "#RRGGBB" tint) khi đặt sprite tô màu đều tại (x, y); tint ước lượng
+    bằng trung vị demo/sprite trên pixel sáng. None nếu ra ngoài ảnh hoặc sprite quá tối để ước lượng."""
+    h, w = rgba.shape[:2]
+    patch = _demo[y:y + h, x:x + w].astype(np.float32)
+    if patch.shape[:2] != (h, w):
+        return None
+    src = rgba[:, :, :3].astype(np.float32)
+    m = rgba[:, :, 3] > ALPHA_OPAQUE
+    bright = m & (src.max(axis=2) > TINT_BRIGHT)
+    if bright.sum() < 500:
+        return None
+    tint = np.clip(np.median(patch[bright] / np.maximum(src[bright], 1.0), axis=0), 0.0, 1.0)
+    exact = np.abs(src * tint - patch).mean(axis=2) <= TINT_TOLERANCE
+    b, g, r = (tint * 255).round().astype(int)
+    return float(exact[m].mean()), float(exact[bright].mean()), "#{:02X}{:02X}{:02X}".format(r, g, b)
+
+
+def _complete_rows(results):
+    """Hàng danh sách mỗi hàng một biến thể nền (quest đang làm / đã xong / đã nhận tô tối): gộp mọi sprite 1:1 cùng cỡ,
+    cùng cột thành một nhịp, rồi thử từng sprite của cột ở các ô trống đúng nhịp (có ước lượng tint). _complete_repeats
+    chỉ thấy nhịp khi cùng một sprite khớp ≥ 2 lần."""
+    columns = {}
+    for r in results:
+        if r.get("status") != "matched":
+            continue
+        for m in r["matches"]:
+            if not m["sliced"] and m["scale"] == 1.0 and m["w"] * m["h"] >= 10000:
+                columns.setdefault((round(m["x"] / 4), m["w"], m["h"]), []).append((r, m))
+    H = _demo.shape[0]
+    for (_, w, h), entries in columns.items():
+        owners = list({id(r): r for r, _ in entries}.values())
+        if len(owners) < 2:
+            continue  # một sprite lặp lại đã do _complete_repeats lo
+        ys = sorted(m["y"] for _, m in entries)
+        steps = [b - a for a, b in zip(ys, ys[1:])]
+        step = int(np.median(steps)) if steps else 0
+        if step < h * 0.8 or any(abs(s_ - step) > REPEAT_STEP_TOLERANCE for s_ in steps):
+            continue
+        x = entries[0][1]["x"]
+        sprites = {id(r): _load_rgba(r["sprite"]) for r in owners}
+        # đi tiếp từng ô liền kề theo nhịp, gặp ô không khớp thì dừng — ngoại suy xa khớp vào header / mảng tối
+        for start, direction in ((ys[0], -1), (ys[-1], 1)):
+            py = start + direction * step
+            while 0 <= py and py + h <= H:
+                best = _best_row_variant(owners, sprites, x, py)
+                if best is None:
+                    break
+                r, inlier, tint, y = best
+                r["matches"].append(_match_entry(x, y, w, h, 1.0, False, 0.0, 0.0, inlier, tint))
+                py = y + direction * step
+
+
+def _best_row_variant(owners, sprites, x, py):
+    """(sprite, inlier, tint hoặc None, y) khớp nhất ở ô theo nhịp (±6 px); tint chỉ nhận xám đều (hàng tắt / đã xong)."""
+    best = None
+    for r in owners:
+        for dy in range(-REPEAT_STEP_TOLERANCE, REPEAT_STEP_TOLERANCE + 1):
+            found = _tinted_agreement(sprites[id(r)], x, py + dy)
+            if found is None or found[0] < REPEAT_INLIER or found[1] < ROW_TINT_BRIGHT_INLIER:
+                continue
+            rgb = [int(found[2][i:i + 2], 16) / 255.0 for i in (1, 3, 5)]
+            plain = min(rgb) >= TINT_MIN
+            if not plain and max(rgb) - min(rgb) > DIM_GRAY_SPREAD:
+                continue
+            if best is None or found[0] > best[1]:
+                best = (r, found[0], None if plain else found[2], py + dy)
+    return best
 
 
 ADJACENT_MAX = 24           # tối đa số ô kề thêm cho một sprite
@@ -1315,6 +1404,9 @@ def _filter_flat_ambiguous(results):
             continue
         ms = r["matches"]
         overlapping = {id(a) for a in ms for b in ms if a is not b and _iou(a, b) > 0}
+        # cùng dải với các vị trí trượt (cùng hàng, cùng cỡ) → cũng đang trượt trên dải cùng màu đó, chỉ không chạm nhau
+        slid = [m for m in ms if id(m) in overlapping]
+        overlapping |= {id(m) for m in ms if any(abs(m["y"] - o["y"]) <= 4 and m["h"] == o["h"] for o in slid)}
         r["matches"] = [m for m in ms if id(m) not in overlapping]
         if not r["matches"]:
             r["status"], r["reason"] = "unmatched", "ambiguous"
@@ -1412,14 +1504,18 @@ def _is_dim_tint(hex_tint):
 
 def _split_dimmed(results):
     """Khớp có tint xám đều = gameplay/HUD nằm sau lớp dim của popup (icon thanh điều hướng bị tối đều) → không thuộc UI.
-    Bỏ khỏi danh sách và trả về độ đậm lớp dim (alpha đen) để dựng imgDim đúng như demo."""
+    Bỏ khỏi danh sách và trả về độ đậm lớp dim (alpha đen) để dựng imgDim đúng như demo. Trừ khi nằm gọn trong một sprite
+    sáng lớn hơn (panel popup): đó là trạng thái tối của chính UI (quest đã xong, thưởng đã nhận), giữ lại kèm tint."""
     levels = []
+    lit = [m for r in results if r.get("status") == "matched" for m in r["matches"]
+           if not (m.get("tint") and not m.get("flatTint") and _is_dim_tint(m["tint"]))]
     for r in results:
         if r.get("status") != "matched":
             continue
         keep = []
         for m in r["matches"]:
-            if m.get("tint") and not m.get("flatTint") and _is_dim_tint(m["tint"]):
+            inside_ui = any(o["w"] * o["h"] > m["w"] * m["h"] and _inside_ratio(m, o) >= 0.9 for o in lit)
+            if m.get("tint") and not m.get("flatTint") and _is_dim_tint(m["tint"]) and not inside_ui:
                 levels.append(int(m["tint"][1:3], 16) / 255.0)
             else:
                 keep.append(m)
@@ -1553,6 +1649,60 @@ def _filter_explained(results):
             r["matches"] = kept
 
 
+PANEL_EXPLAINED = 0.8       # panel khớp yếu nằm trong panel lớn hơn: ≥ 80% pixel trùng của nó cũng trùng panel ngoài →
+                            # chỉ ăn theo pixel panel ngoài (popup khác cùng viền tím khớp vào mép popup thật: 100%;
+                            # nền tab có màu riêng: thấp)
+
+
+def _is_covered_panel(m):
+    """Khớp qua nhánh panel bị che (1:1, lớn, < 50% pixel trùng) — bằng chứng chủ yếu là viền."""
+    return (not m["sliced"] and m["scale"] == 1.0 and m["inlier"] < OCCLUDED_INLIER
+            and m["w"] * m["h"] * m["inlier"] >= PANEL_MIN_PIXELS)
+
+
+def _exact_in_box(sprite, m, box):
+    """Pixel trùng tuyệt đối giữa sprite (đặt theo m, 1:1) và demo, trên khung box (x, y, w, h); ngoài khung m = False."""
+    x, y, w, h = box
+    out = np.zeros((h, w), bool)
+    x0, y0 = max(x, m["x"]), max(y, m["y"])
+    x1, y1 = min(x + w, m["x"] + m["w"]), min(y + h, m["y"] + m["h"])
+    if x1 <= x0 or y1 <= y0:
+        return out
+    part = sprite[y0 - m["y"]:y1 - m["y"], x0 - m["x"]:x1 - m["x"]]
+    diff = np.abs(_demo[y0:y1, x0:x1].astype(np.int16) - part[:, :, :3].astype(np.int16)).mean(axis=2)
+    out[y0 - y:y1 - y, x0 - x:x1 - x] = (diff <= EXACT_TOLERANCE) & (part[:, :, 3] > ALPHA_OPAQUE)
+    return out
+
+
+def _filter_covered_panels(results):
+    """Panel khớp qua nhánh bị che mà pixel trùng gần hết đã do các khớp mạnh hơn chồng lên nó giải thích (popup khác cùng
+    kiểu viền tím khớp vào mép popup thật; popup khác cùng màu kem trùng nền tab) → bỏ. Xét từ khớp mạnh tới yếu để hai
+    panel cùng màu không loại lẫn nhau; nền tab có màu riêng so với popup nên giữ."""
+    entries = sorted(((r, m) for r in results if r.get("status") == "matched" for m in r["matches"]
+                      if not m["sliced"] and m["scale"] == 1.0), key=lambda e: -e[1]["inlier"])
+    sprites, dropped = {}, set()
+    for i, (r, m) in enumerate(entries):
+        if not _is_covered_panel(m):
+            continue
+        stronger = [(o, om) for o, om in entries[:i] if id(om) not in dropped and _inside_ratio(m, om) > 0]
+        if not stronger:
+            continue
+        box = (m["x"], m["y"], m["w"], m["h"])
+        own = _exact_in_box(sprites.setdefault(r["sprite"], _load_rgba(r["sprite"])), m, box)
+        explained = np.zeros_like(own)
+        for o, om in stronger:
+            explained |= _exact_in_box(sprites.setdefault(o["sprite"], _load_rgba(o["sprite"])), om, box)
+        if (own & explained).sum() >= own.sum() * PANEL_EXPLAINED:
+            dropped.add(id(m))
+    for r in results:
+        if r.get("status") != "matched":
+            continue
+        r["matches"] = [m for m in r["matches"] if id(m) not in dropped]
+        if not r["matches"]:
+            r["status"], r["reason"] = "unmatched", "explained-by-other"
+            r.pop("matches", None)
+
+
 # ─── Vùng UI chính (phần không nằm dưới lớp phủ tối) ────────────────────────
 
 UI_BLOCK = 16               # dò vùng theo ô 16×16 px (độ sáng lớn nhất trong ô)
@@ -1561,6 +1711,7 @@ OVERLAY_RING_MAX = 170      # viền màn hình (2 ô) sáng nhất ≤ 170 → 
 OVERLAY_MARGIN = 20         # ô sáng hơn viền ≥ 20 mới là UI nổi trên lớp phủ
 UI_REGION_MIN = 0.5         # chữ ngoài sprite phải nằm ≥ 50% trong vùng UI
 DIM_ESTIMATE_RANGE = (0.3, 0.85)
+UI_RING_FREE = 0.25         # đo dải mép trên các ô không bị sprite phủ khi còn ≥ 25% số ô
 
 
 def _ui_region(results):
@@ -1572,7 +1723,17 @@ def _ui_region(results):
     bh, bw = H // UI_BLOCK, W // UI_BLOCK
     brightness = _demo.max(axis=2)
     blocks = brightness[:bh * UI_BLOCK, :bw * UI_BLOCK].reshape(bh, UI_BLOCK, bw, UI_BLOCK).max(axis=(1, 3))
-    ring = np.concatenate([blocks[:2].ravel(), blocks[-2:].ravel(), blocks[:, :2].ravel(), blocks[:, -2:].ravel()])
+    ring = _edge_blocks(blocks)
+    # Popup gần kín bề ngang (battle pass 1040/1080 px) chạm dải mép → viền sáng của chính popup làm tưởng màn không có
+    # lớp phủ (249 thay vì 51). Bỏ các ô mép bị sprite đã khớp phủ quá nửa, nếu còn đủ ô để đo.
+    covered = np.zeros((H, W), np.float32)
+    for r in results:
+        for m in r.get("matches", []) if r.get("status") == "matched" else []:
+            if m["w"] * m["h"] < H * W * 0.8:  # ảnh nền cả màn không tính
+                covered[max(0, m["y"]):m["y"] + m["h"], max(0, m["x"]):m["x"] + m["w"]] = 1
+    cover = _edge_blocks(covered[:bh * UI_BLOCK, :bw * UI_BLOCK].reshape(bh, UI_BLOCK, bw, UI_BLOCK).mean(axis=(1, 3)))
+    if (cover < 0.5).mean() >= UI_RING_FREE:
+        ring = ring[cover < 0.5]
     ceiling = float(np.percentile(ring, 95))
     if bh < 8 or bw < 8 or ceiling > OVERLAY_RING_MAX:
         return None, None, []
@@ -1596,6 +1757,11 @@ def _ui_region(results):
         lo, hi = DIM_ESTIMATE_RANGE
         dim = round(float(np.clip(1.0 - np.percentile(outside, 99.5) / 255.0, lo, hi)), 2)
     return region, dim, boxes
+
+
+def _edge_blocks(blocks):
+    """Các ô thuộc dải mép màn hình (2 ô mỗi phía), theo thứ tự cố định."""
+    return np.concatenate([blocks[:2].ravel(), blocks[-2:].ravel(), blocks[:, :2].ravel(), blocks[:, -2:].ravel()])
 
 
 def _fill_holes(mask):
@@ -2325,10 +2491,14 @@ def main():
     if args.hint:
         _emit("filter", message="Đối chiếu vị trí đã tìm được ở demo các tab khác")
         _apply_hints(ordered, args.hint)
+    _emit("filter", message="Điền hàng danh sách theo nhịp cột (mỗi hàng một biến thể nền)")
+    _complete_rows(ordered)
     dropped, dim_alpha = _run_filter(ordered, "Bỏ vật nằm sau lớp dim", "behind-dim", _split_dimmed)
     dropped += _run_filter(ordered, "Bỏ khớp yếu từ thư mục art của màn khác", "foreign-weak",
                            lambda rs: _filter_foreign_weak(rs, args.art, args.demo))[0]
     dropped += _run_filter(ordered, "Bỏ khớp nằm trọn trong sprite khác", "explained-by-other", _filter_explained)[0]
+    dropped += _run_filter(ordered, "Panel bị che chỉ trùng nhờ pixel của panel ngoài", "explained-by-other",
+                           _filter_covered_panels)[0]
     dropped += _run_filter(ordered, "Hai sprite cùng một chỗ → giữ bản khớp hơn", "same-spot", _filter_same_spot)[0]
     dropped += _run_filter(ordered, "Panel một màu trong panel cùng màu", "flat-nested", _filter_flat_nested)[0]
     dropped += _run_filter(ordered, "Sprite một màu trượt trên vùng cùng màu", "ambiguous", _filter_flat_ambiguous)[0]
