@@ -33,7 +33,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import cv2
 import numpy as np
 
-ALGO_VERSION = "13"
+ALGO_VERSION = "14"
 ALPHA_OPAQUE = 200          # pixel có alpha > ngưỡng mới dùng để so khớp
 MIN_OPAQUE_PIXELS = 64      # sprite gần như trong suốt (glow/vfx) → không dò được bằng hình
 ROBUST_KEEP = 0.75          # sai lệch màu tính trên 75% pixel khớp nhất → chịu được bị che ~25%
@@ -602,6 +602,11 @@ RING_SCALES = (0.3, 1.6, 0.01)
 RING_MINIMA = 3              # tối đa 3 đáy cục bộ, mỗi đáy ≤ 1.3 lần đáy tốt nhất
 RING_MINIMA_RATIO = 1.3
 RING_FINE = (-0.015, -0.01, -0.005, 0.0, 0.005, 0.01, 0.015)  # hàng của mình 0.545 cạnh đáy 0.53
+SMALL_TOP = 0.48             # icon xuất 256–2048 px hiện ~50–200 px (icon_totalDMG: 0.22 trên cờ top, 0.34 trong hàng;
+SMALL_STEP = 0.92            #     icon kho 2048 px: 0.07) — dưới lưới COARSE_SCALES. Quét cấp số nhân bước 8% từ 0.48
+SMALL_MIN_SIDE = 28          #     tới khi phần đục còn 28 px (nhỏ hơn thì khớp vào mọi nét vụn)...
+SMALL_REFINE = (0.96, 0.98, 1.02, 1.04)  # ... đáy điểm nhọn (0.34 khớp, 0.33/0.35 trượt) → tinh chỉnh ±4% quanh đáy
+SMALL_FINE = (1.0, 0.99, 1.01)           #     rồi dò ở đó ±1%
 
 
 def _find_uniform(sprite, try_scales=True):
@@ -651,6 +656,44 @@ def _find_uniform(sprite, try_scales=True):
                 near_hits = _search(near, MAX_INSTANCES)
                 if near_hits:
                     groups.append((near, near_hits))
+    groups += _find_small_scales(sprite, [t.scale for t, _ in groups])
+    return groups
+
+
+def _find_small_scales(sprite, known):
+    """Art xuất lớn thu dưới 0.5: quét điểm dò thô theo cấp số nhân, lấy tới RING_MINIMA đáy cục bộ, tinh chỉnh quanh mỗi
+    đáy rồi dò ở đó. Chỉ xét tỉ lệ mà phần đục vẫn đủ lớn để hình dáng có nghĩa."""
+    ys, xs = np.nonzero(sprite[:, :, 3] > ALPHA_OPAQUE)
+    if len(xs) == 0:
+        return []
+    side = min(xs.max() - xs.min(), ys.max() - ys.min()) + 1
+    scales = []
+    s = SMALL_TOP
+    while side * s >= SMALL_MIN_SIDE:
+        scales.append(round(s, 3))
+        s *= SMALL_STEP
+    if len(scales) < 3:
+        return []
+    curve = [_coarse_best(_Template(sprite, s)) for s in scales]
+    minima = sorted((curve[i], scales[i]) for i in range(1, len(scales) - 1)
+                    if curve[i] <= curve[i - 1] and curve[i] <= curve[i + 1] and np.isfinite(curve[i]))
+    groups = []
+    # Không lọc theo tỉ lệ với đáy tốt nhất như khung viền: icon bị che một phần (đè lên khung số) có đáy cao gấp đôi
+    # các bản không bị che ở tỉ lệ khác (0.34: 55 so với 0.227: 23) — bước dò mịn tự loại đáy không có thật.
+    for value, s in minima[:RING_MINIMA]:
+        value, s = min([(value, s)] + [(_coarse_best(_Template(sprite, round(s * k, 3))), round(s * k, 3))
+                                      for k in SMALL_REFINE if side * s * k >= SMALL_MIN_SIDE])
+        if any(abs(s - k) < k * SCALE_GAP for k in known):
+            continue
+        for k in SMALL_FINE:
+            t = _Template(sprite, round(s * k, 3))
+            if _shape_maps(t)[1] < PRESENCE_GATE:
+                continue
+            hits = _search(t, MAX_INSTANCES)
+            if hits:
+                groups.append((t, hits))
+                known = known + [s]
+                break
     return groups
 
 
@@ -948,7 +991,23 @@ def _locate_sprite(sprite_path):
     h, w = sprite.shape[:2]
     base.update(spriteWidth=int(w), spriteHeight=int(h))
     if w > _demo.shape[1] or h > _demo.shape[0]:
-        return {**base, "status": "unmatched", "reason": "too-large"}
+        # Art xuất lớn hơn cả màn (icon kho 2048 px) chỉ có thể xuất hiện thu nhỏ → chỉ dò nhánh scale nhỏ.
+        groups = _find_small_scales(sprite, []) if _color_presence(sprite) >= COLOR_GATE else []
+        if not groups:
+            return {**base, "status": "unmatched", "reason": "too-large"}
+        return {**base, "status": "matched", "lowTexture": False,
+                "matches": _dedupe_matches([_match_entry(x, y, t.w, t.h, t.scale, False, d, z, i)
+                                            for t, found in groups for x, y, d, z, i, *_ in found])}
+    look = _translucent_look(sprite)
+    if look is not None:
+        matches = _find_translucent(sprite, *look)
+        if not matches:
+            return {**base, "status": "unmatched", "reason": "no-match"}
+        result = {**base, "status": "matched", "lowTexture": True, "matches": matches,
+                  "flatColor": [int(c) for c in look[0]]}
+        if any(m["sliced"] for m in matches):
+            result["suggestedBorder"] = _estimate_border(sprite)
+        return result
     if int(np.count_nonzero(sprite[:, :, 3] > ALPHA_OPAQUE)) < MIN_OPAQUE_PIXELS:
         return {**base, "status": "unmatched", "reason": "soft-alpha"}
 
@@ -1057,6 +1116,151 @@ def _verify_flat_tinted(x, y, t, inner):
     sides = [(ys < cy - t.h / 4), (ys > cy + t.h / 4), (xs < cx - t.w / 4), (xs > cx + t.w / 4)]
     passing = sum(1 for side in sides if side.sum() < 4 or float(other[ys[side], xs[side]].mean()) >= FLAT_RING)
     return (edge, fill) if passing >= FLAT_SIDES else None
+
+
+TRANSLUCENT_ALPHA = (60, 245)  # ruột alpha đều trong khoảng này = sprite một màu bán trong suốt (khung số đen 80%)
+TRANSLUCENT_ALPHA_SPREAD = 4   # ... lệch alpha ≤ 4 trên 95% ruột
+TRANSLUCENT_TOLERANCE = 6      # demo = màu × α + nền × (1 − α): pixel ngoài khoảng đó (± 6) không thể thuộc sprite
+TRANSLUCENT_UNIFORM = 4        # nền sau một bản là mảng phẳng (hàng xám, cờ xanh) → bản đó cũng một màu, lệch ≤ 4
+TRANSLUCENT_MIN_SIZE = 0.4     # mỗi chiều ≥ 40% bản gốc (khung số trên cờ top: 0.61 chiều cao)
+TRANSLUCENT_IOU = 0.8          # hình (đã lấp chữ bên trong) trùng sprite kéo giãn ≥ 80% — icon đè một đầu vẫn ~0.9
+TRANSLUCENT_FILL = 0.55        # ≥ 55% hình là màu đó (chữ bên trong chiếm phần còn lại); viền đen quanh chữ cái < 0.5
+TRANSLUCENT_RING = 0.5         # ≥ 50% vành ngay ngoài trùng màu nền suy ngược từ màu của bản (± 20)...
+TRANSLUCENT_BG_TOLERANCE = 20  # ... nền suy ngược khuếch đại sai số 1/(1 − α) lần nên nới ngưỡng
+TRANSLUCENT_CORNER = 0.3       # góc "sạch": phần trong suốt của sprite ở góc đó (góc bo) mang màu đó ≤ 30%...
+TRANSLUCENT_CLEAN_CORNERS = 2  # ... cần ≥ 2/4 góc sạch — một đầu bị icon/ô giữ chỗ che thẳng vẫn còn 2 góc đầu kia,
+                               #     hộp chữ nhật tối (IoU cao với khung bo tròn kéo dài) thì không góc nào sạch
+
+
+def _translucent_look(sprite):
+    """(màu BGR, α 0-1) nếu sprite một màu với ruột bán trong suốt đều (nền tối sau số), None nếu không."""
+    alpha = sprite[:, :, 3]
+    inner = cv2.erode((alpha > 10).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+    if inner.sum() < MIN_OPAQUE_PIXELS:
+        return None
+    a = alpha[inner].astype(np.float32)
+    med = float(np.median(a))
+    if not TRANSLUCENT_ALPHA[0] <= med <= TRANSLUCENT_ALPHA[1]:
+        return None
+    if float(np.percentile(np.abs(a - med), 95)) > TRANSLUCENT_ALPHA_SPREAD:
+        return None
+    color = sprite[:, :, :3][inner].astype(np.float32)
+    if float(color.std(axis=0).max()) >= LOW_TEXTURE_STD:
+        return None
+    return np.median(color, axis=0), med / 255.0
+
+
+def _find_translucent(sprite, color, a):
+    """Sprite một màu bán trong suốt: màu trên demo phụ thuộc nền phía sau nên không so pixel được. Mỗi bản là một mảng
+    phẳng có màu trong khoảng [màu × α, màu × α + 255 × (1 − α)] → lấy các màu phổ biến trong khoảng đó, tách từng mảng
+    cùng màu và nhận khi: hình (đã lấp chữ bên trong) trùng sprite kéo giãn 9-slice (hoặc scale đều), và vành ngay ngoài
+    đúng là màu nền suy ngược từ màu của mảng — loại viền đen quanh chữ cái (nền suy ngược đen, vành ngoài trắng)."""
+    sh, sw = sprite.shape[:2]
+    demo = _demo.astype(np.int16)
+    lo = color * a - TRANSLUCENT_TOLERANCE
+    hi = color * a + 255.0 * (1.0 - a) + TRANSLUCENT_TOLERANCE
+    valid = np.all((demo >= lo) & (demo <= hi), axis=2)
+    px = _demo[valid]
+    if len(px) < MIN_OPAQUE_PIXELS:
+        return []
+    codes = _color_codes(px)
+    code_map = np.full(valid.shape, -1, np.int32)
+    code_map[valid] = codes
+    counts = np.bincount(codes)
+    min_area = TRANSLUCENT_MIN_SIZE ** 2 * sw * sh * TRANSLUCENT_FILL
+    min_w, min_h = sw * TRANSLUCENT_MIN_SIZE, sh * TRANSLUCENT_MIN_SIZE
+    border = _estimate_border(sprite)
+    H, W = valid.shape
+    found = []
+    # Mọi màu (lượng tử) đủ diện tích cho một bản nhỏ nhất — nền tối của cả màn chiếm nhiều màu hơn khung số trên cờ top.
+    # Mảng cùng mã màu chỉ là hạt giống: trong khung bao của nó tách lại theo màu trung vị ± TRANSLUCENT_UNIFORM (mảng
+    # phẳng bị JPEG làm lệch có thể vắt qua 2 mã màu).
+    for code in np.flatnonzero(counts >= min_area):
+        count, labels, stats, _ = cv2.connectedComponentsWithStats((code_map == code).astype(np.uint8), connectivity=4)
+        for i in range(1, count):
+            x, y, w, h, area = (int(v) for v in stats[i])
+            if area < min_area * 0.5 or w < min_w * 0.8 or h < min_h * 0.8:
+                continue
+            fill = np.median(_demo[y:y + h, x:x + w][labels[y:y + h, x:x + w] == i], axis=0)
+            x0, y0, x1, y1 = max(0, x - 2), max(0, y - 2), min(W, x + w + 2), min(H, y + h + 2)
+            same = (np.abs(demo[y0:y1, x0:x1] - fill).max(axis=2) <= TRANSLUCENT_UNIFORM).astype(np.uint8)
+            n, local, local_stats, _ = cv2.connectedComponentsWithStats(same, connectivity=4)
+            j = int(np.argmax(local_stats[1:, 4])) + 1 if n > 1 else 0
+            if j == 0:
+                continue
+            lx, ly, lw, lh, larea = (int(v) for v in local_stats[j])
+            if larea < min_area or lw < min_w or lh < min_h:
+                continue
+            bg = np.clip((fill - color * a) / max(1e-3, 1.0 - a), 0, 255)
+            comp = local[ly:ly + lh, lx:lx + lw] == j
+            entry = _translucent_match(sprite, border, comp, x0 + lx, y0 + ly, bg)
+            if entry is not None and all(_iou(entry, m) < 0.5 for m in found):
+                found.append(entry)
+    _extend_occluded_ends(found)
+    return found
+
+
+def _extend_occluded_ends(found):
+    """Hàng danh sách: khung cùng mép phải, cùng chiều cao là cùng một khung — đầu trái bị icon / ô giữ chỗ che mỗi hàng
+    một khác (hàng 1 lộ tới 770, hàng 2–5 bị ô xám che tới 796) → kéo về đầu trái lộ xa nhất. Tương tự với mép trái chung."""
+    for m in found:
+        right = m["x"] + m["w"]
+        peers = [p for p in found if abs(p["x"] + p["w"] - right) <= 2 and abs(p["h"] - m["h"]) <= 2]
+        if len(peers) >= 2:
+            left = min(p["x"] for p in peers)
+            m["w"], m["x"] = right - left, left
+        peers = [p for p in found if abs(p["x"] - m["x"]) <= 2 and abs(p["h"] - m["h"]) <= 2]
+        if len(peers) >= 2:
+            m["w"] = max(p["x"] + p["w"] for p in peers) - m["x"]
+
+
+def _translucent_match(sprite, border, comp, x, y, bg):
+    """Khớp cho một mảng cùng màu (mặt nạ comp đặt tại x, y) hoặc None."""
+    sh, sw = sprite.shape[:2]
+    h, w = comp.shape
+    filled = _fill_holes(comp)
+    if comp.sum() < TRANSLUCENT_FILL * filled.sum():
+        return None
+    exact = abs(w - sw) <= 1 and abs(h - sh) <= 1
+    if exact or border is None:
+        # Không có vùng giữa đồng nhất để kéo giãn → chỉ nhận scale đều (tỉ lệ khung giữ nguyên).
+        if abs(w / float(h) - sw / float(sh)) > 0.05 * sw / float(sh):
+            return None
+        match = {"w": w, "h": h, "sliced": False, "scale": 1.0 if exact else round(w / float(sw), 3)}
+    else:
+        match = {"w": w, "h": h, "sliced": True, "scale": 1.0}
+    shape = _render_match(sprite, match, border)[:, :, 3] > 10
+    inter = float((shape & filled).sum())
+    if inter / max(1.0, float((shape | filled).sum())) < TRANSLUCENT_IOU:
+        return None
+    if _clean_corners(comp, shape) < TRANSLUCENT_CLEAN_CORNERS:
+        return None
+    H, W = _demo.shape[:2]
+    if x <= 0 or y <= 0 or x + w >= W or y + h >= H:
+        return None  # chạm mép màn hình: thanh nền của màn, không phải khung nằm trong UI
+    r = EDGE_RING
+    y0, x0, y1, x1 = max(0, y - r), max(0, x - r), min(H, y + h + r), min(W, x + w + r)
+    mask = np.zeros((y1 - y0, x1 - x0), np.uint8)
+    mask[y - y0:y - y0 + h, x - x0:x - x0 + w] = filled
+    ring = (cv2.dilate(mask, np.ones((2 * r + 1, 2 * r + 1), np.uint8)) > 0) & (mask == 0)
+    if not ring.any():
+        return None
+    near = np.abs(_demo[y0:y1, x0:x1][ring].astype(np.float32) - bg).max(axis=1) <= TRANSLUCENT_BG_TOLERANCE
+    if float(near.mean()) < TRANSLUCENT_RING:
+        return None
+    return _match_entry(x, y, w, h, match["scale"], match["sliced"], 0.0, 0.0, float(comp.sum()) / filled.sum())
+
+
+def _clean_corners(comp, shape):
+    """Số góc (phần tư khung) mà phần trong suốt của sprite ở đó gần như không mang màu của mảng. Sprite kín góc (không
+    bo) coi như mọi góc đều sạch."""
+    h, w = shape.shape
+    clean = 0
+    for rows in (slice(0, h // 2), slice(h // 2, h)):
+        for cols in (slice(0, w // 2), slice(w // 2, w)):
+            empty = ~shape[rows, cols]
+            clean += not empty.any() or float(comp[rows, cols][empty].mean()) <= TRANSLUCENT_CORNER
+    return clean
 
 
 def _dedupe_matches(matches):
@@ -1568,9 +1772,18 @@ OCR_TILE_OVERLAP = 160       # ... chồng nhau 160 px để dòng chữ nằm t
 FLOAT_TEXT_BRIGHT = 200     # chữ không nằm trên sprite nào: nhận khi nét sáng ≥ 200 (chữ sau lớp dim 60% ≤ ~100)...
 FLOAT_TEXT_CONTRAST = 150    # ... hoặc tương phản với nền ≥ 150 (chữ tối trên panel sáng chưa có art)
 OCR_WORD_GAP = 0.9           # nối 2 khung OCR cùng dòng khi khoảng trống ≤ 0.9 × chiều cao chữ thấp hơn
-OUTLINE_MAX = 8             # dải cùng màu quanh chữ dày hơn 8 px = nền (ô điểm tối), không phải viền chữ
+OUTLINE_MAX = 8             # dải cùng màu quanh chữ dày hơn 8 px = nền (ô điểm tối), không phải viền chữ...
+OUTLINE_MAX_RATIO = 0.25    # ... hoặc dày hơn 1/4 chiều cao chữ (số 20 px trong khung số tối cao 36: "viền" 8 px)
 OUTLINE_UNIFORM = 0.6       # ≥ 60% dải quanh ruột chữ cùng một màu, khác hẳn màu chữ → có viền
 OCR_TRUSTED = 0.9            # kết quả phát hiện+nhận dạng ≥ 0.9 thì giữ — đọc lại theo màu làm mất số khác màu trong dòng
+OUTLINE_AA_BAND = 0.4       # dải 1 px sát ruột chữ là pixel khử răng cưa (pha giữa ruột và viền) → ngưỡng thấp hơn
+OUTLINE_FILL_MIN = 12       # ngưỡng "gần màu ruột" thích ứng: nửa khoảng cách màu ruột–nền, trong [12, 60] — chữ trắng
+                            #     trên hàng xám nhạt (lệch ~42) với ngưỡng 60 gộp cả nền vào ruột
+OUTLINE_CONTRAST = 80       # pixel viền khác màu ruột ≥ 80
+OUTLINED_FILL_RATIO = 0.3   # chữ sáng viền tối: phần bị viền bao kín ≥ 30% số pixel viền...
+OUTLINED_BG_GAP = 25        # ... và khác màu nền ≥ 25 — chữ tối không viền cũng có lỗ (o, a, e) nhưng lỗ là màu nền
+RUN_COLOR_GAP = 60          # từ khác màu chính của dòng ≥ 60 → tô riêng bằng rich text ("Top <10> Promote")
+RUN_PAD = 0.3               # khung từ nới 30% chiều cao để dải viền đo được màu nền
 
 
 def _ocr_engine():
@@ -1665,6 +1878,9 @@ def _read_at(engine, diff, cx, cy, w, h):
         return None
     color = _dominant_color(_ink_pixels(bx0, by0, bx1 - bx0, by1 - by0, ink))
     x, y, tw, th = _center_ink_box(bx0, by0, bx1 - bx0, by1 - by0, color, cx, cy, w, h)
+    outlined = _outlined_fill(x, y, tw, th, color)
+    if outlined is not None:
+        color, (x, y, tw, th) = outlined
     entry = {"x": x, "y": y, "w": tw, "h": th, "color": color, "text": result.txts[0].strip(),
              "confidence": round(float(result.scores[0]), 3)}
     entry.update(_text_outline(x, y, tw, th, color))
@@ -1691,8 +1907,11 @@ def _detect_texts_ocr(engine, covered, diff, ui_region, icons):
         pixels = _ink_pixels(bx, by, bw, bh, diff[by:by + bh, bx:bx + bw] > TEXT_COLOR_RESIDUAL)
         color = _dominant_color(pixels)
         x, y, w, h = _ink_box(bx, by, bw, bh, color)
+        outlined = _outlined_fill(bx, by, bw, bh, color)
+        if outlined is not None:
+            color, (x, y, w, h) = outlined
         entry = {"x": x, "y": y, "w": w, "h": h, "color": color,
-                 "text": line["text"], "confidence": round(line["confidence"], 3)}
+                 "text": _color_runs(line["words"], color) or line["text"], "confidence": round(line["confidence"], 3)}
         entry.update(_text_outline(x, y, w, h, color))
         texts.append(entry)
     texts.sort(key=lambda t: (t["y"], t["x"]))
@@ -1736,8 +1955,8 @@ def _ocr_lines(engine, image, y_offset):
 
 
 def _raw_to_lines(raw, icons):
-    return [{"x": bx, "y": by, "w": bw, "h": bh, "text": seg_text, "confidence": raw["score"]}
-            for seg_text, (bx, by, bw, bh) in _split_ocr_line(raw["box"], raw["text"], raw["chars"], icons)]
+    return [{"x": bx, "y": by, "w": bw, "h": bh, "text": seg_text, "confidence": raw["score"], "words": words}
+            for seg_text, (bx, by, bw, bh), words in _split_ocr_line(raw["box"], raw["text"], raw["chars"], icons)]
 
 
 def _ink_pixels(bx, by, bw, bh, residual):
@@ -1755,11 +1974,12 @@ def _ink_pixels(bx, by, bw, bh, residual):
 def _split_ocr_line(box, text, chars, icons=()):
     """Một khung model trả về có thể trùm 2 nhãn cạnh nhau ("Lv.100   Lv.100" ở 2 thẻ) → tách ở khoảng trống lớn giữa
     các từ; ký tự nằm đè lên icon đã khớp (icon hạng "S" "A" đọc thành chữ, cả khi đọc liền "SAJulius") bị bỏ.
-    chars: khung từng ký tự không phải dấu cách, theo thứ tự trong text. Trả về [(nội dung, (x, y, w, h))]."""
+    chars: khung từng ký tự không phải dấu cách, theo thứ tự trong text. Trả về [(nội dung, (x, y, w, h), từ)] — từ:
+    [(từ, khung)] để tô màu riêng từng từ, None khi model không trả khung ký tự."""
     rect = cv2.boundingRect(np.array(box).astype(np.int32))
     glyphs = [c for c in text if not c.isspace()]
     if not chars or len(chars) != len(glyphs):
-        return [(text.strip(), rect)]
+        return [(text.strip(), rect, None)]
     rects = [cv2.boundingRect(np.array(c).astype(np.int32)) for c in chars]
     on_icon = _icon_chars(rects, icons)
     words, current, removed, index = [], [], False, 0
@@ -1789,8 +2009,8 @@ def _split_ocr_line(box, text, chars, icons=()):
             segments.append([])
         segments[-1].append((word, r))
     if len(segments) == 1 and not removed:
-        return [(text.strip(), _union_rect([r for _, r in items]))]
-    return [(" ".join(w for w, _ in seg).strip(), _union_rect([r for _, r in seg])) for seg in segments]
+        return [(text.strip(), _union_rect([r for _, r in items]), items)]
+    return [(" ".join(w for w, _ in seg).strip(), _union_rect([r for _, r in seg]), seg) for seg in segments]
 
 
 ICON_CHAR_COLOR = 80          # ký tự trên icon khác màu chữ của dòng ≥ 80 → là icon (S/A cam/tím giữa chữ trắng)
@@ -1862,7 +2082,8 @@ def _merge_ocr_words(words):
             if overlap >= 0.6 * min(line["h"], word["h"]) and -0.6 * max(line["h"], word["h"]) <= gap <= OCR_WORD_GAP * min(line["h"], word["h"]):
                 x, y = line["x"], min(line["y"], word["y"])
                 line.update(y=y, w=word["x"] + word["w"] - x, h=max(line["y"] + line["h"], word["y"] + word["h"]) - y,
-                            text=f"{line['text']} {word['text']}", confidence=min(line["confidence"], word["confidence"]))
+                            text=f"{line['text']} {word['text']}", confidence=min(line["confidence"], word["confidence"]),
+                            words=line["words"] + word["words"] if line["words"] and word["words"] else None)
                 break
         else:
             lines.append(dict(word))
@@ -1871,34 +2092,90 @@ def _merge_ocr_words(words):
 
 def _text_outline(x, y, w, h, hex_color):
     """{"outlineColor", "outlineWidth"} nếu chữ có viền (font game hay dùng chữ trắng viền đen), rỗng nếu không.
-    Viền = các dải pixel ngay quanh ruột chữ cùng một màu khác hẳn màu chữ; dày quá OUTLINE_MAX px là nền chứ không phải viền."""
+    Viền = các dải pixel ngay quanh ruột chữ cùng một màu khác hẳn màu chữ; dày quá OUTLINE_MAX px là nền chứ không phải viền.
+    Dải 1 px sát ruột là pixel khử răng cưa nên màu viền đo ở 2 px quanh ruột, chỉ trên pixel khác hẳn màu ruột."""
     pad = OUTLINE_MAX + 2
     H, W = _demo.shape[:2]
     x0, y0, x1, y1 = max(0, x - pad), max(0, y - pad), min(W, x + w + pad), min(H, y + h + pad)
     region = _demo[y0:y1, x0:x1].astype(np.int16)
-    fill_bgr = np.array([int(hex_color[5:7], 16), int(hex_color[3:5], 16), int(hex_color[1:3], 16)])
-    fill = (np.abs(region - fill_bgr).max(axis=2) < OCR_COLOR_TOLERANCE).astype(np.uint8)
+    fill_bgr = np.array(_hex_to_rgb(hex_color)[::-1])
+    border = np.concatenate([region[0], region[-1], region[:, 0], region[:, -1]])
+    gap = float(np.abs(np.median(border, axis=0) - fill_bgr).max())
+    tolerance = int(np.clip(gap * 0.5, OUTLINE_FILL_MIN, OCR_COLOR_TOLERANCE))
+    fill = (np.abs(region - fill_bgr).max(axis=2) < tolerance).astype(np.uint8)
     if fill.sum() < 20:
         return {}
 
-    ring = (cv2.dilate(fill, np.ones((3, 3), np.uint8)) > 0) & (fill == 0)
-    if ring.sum() < 20:
+    ring = (cv2.dilate(fill, np.ones((5, 5), np.uint8)) > 0) & (fill == 0)
+    far = region[ring]
+    far = far[np.abs(far - fill_bgr).max(axis=1) >= OUTLINE_CONTRAST]
+    if len(far) < 20:
         return {}
-    outline = np.median(region[ring], axis=0)
-    if np.abs(outline - fill_bgr).max() < 80:
-        return {}
+    outline = np.median(far, axis=0)
 
     width, inner = 0, fill
     for k in range(1, OUTLINE_MAX + 2):
         outer = (cv2.dilate(fill, np.ones((2 * k + 1, 2 * k + 1), np.uint8)) > 0).astype(np.uint8)
         band = (outer > 0) & (inner == 0)
-        if band.sum() == 0 or float((np.abs(region[band] - outline).max(axis=1) < 40).mean()) < OUTLINE_UNIFORM:
+        need = OUTLINE_AA_BAND if k == 1 else OUTLINE_UNIFORM
+        if band.sum() == 0 or float((np.abs(region[band] - outline).max(axis=1) < 40).mean()) < need:
             break
         width, inner = k, outer
-    if width == 0 or width > OUTLINE_MAX:
+    if width == 0 or width > min(OUTLINE_MAX, h * OUTLINE_MAX_RATIO):
         return {}
     b, g, r = outline.astype(int)
     return {"outlineColor": "#{:02X}{:02X}{:02X}".format(r, g, b), "outlineWidth": width}
+
+
+def _outlined_fill(bx, by, bw, bh, hex_color):
+    """Chữ sáng viền tối trên nền cũng sáng (chữ trắng viền đen trên hàng xám nhạt): mực đo theo độ lệch với nền chỉ bắt
+    được viền → màu chữ ra màu viền. Ruột thật là phần bị viền bao kín, đủ nhiều, khác hẳn màu viền và khác màu nền
+    → (màu ruột, khung ruột) hoặc None. Khung đo nới thêm để viền của chữ sát mép khung phát hiện vẫn khép kín."""
+    pad = OUTLINE_MAX
+    H, W = _demo.shape[:2]
+    x0, y0, x1, y1 = max(0, bx - pad), max(0, by - pad), min(W, bx + bw + pad), min(H, by + bh + pad)
+    box = _demo[y0:y1, x0:x1].astype(np.int16)
+    ink_bgr = np.array(_hex_to_rgb(hex_color)[::-1])
+    ink = np.abs(box - ink_bgr).max(axis=2) < OCR_COLOR_TOLERANCE
+    holes = _fill_holes(ink) & ~ink
+    if ink.sum() < 20 or holes.sum() < OUTLINED_FILL_RATIO * ink.sum():
+        return None
+    fill = _dominant_color(box[holes].astype(np.uint8))
+    fill_bgr = np.array(_hex_to_rgb(fill)[::-1])
+    border = np.concatenate([box[0], box[-1], box[:, 0], box[:, -1]])
+    if (np.abs(fill_bgr - ink_bgr).max() < OUTLINE_CONTRAST
+            or np.abs(fill_bgr - np.median(border, axis=0)).max() < OUTLINED_BG_GAP):
+        return None
+    ys, xs = np.nonzero(holes & (np.abs(box - fill_bgr).max(axis=2) < OUTLINED_BG_GAP))
+    if len(xs) < 10:
+        return None
+    return fill, (x0 + int(xs.min()), y0 + int(ys.min()), int(xs.max() - xs.min()) + 1, int(ys.max() - ys.min()) + 1)
+
+
+def _color_runs(words, base):
+    """Dòng chữ có từ khác màu ("Top 10 Promote. Rank 11-30 stay" — số xanh lá / xanh dương) → rich text TMP
+    <color=#RRGGBB>từ</color> cho từ khác màu chính ≥ RUN_COLOR_GAP; None nếu cả dòng một màu hoặc không có khung từ."""
+    if not words or len(words) < 2:
+        return None
+    H, W = _demo.shape[:2]
+    base_rgb = np.array(_hex_to_rgb(base))
+    parts, changed = [], False
+    for text, (x, y, w, h) in words:
+        pad = max(2, int(h * RUN_PAD))
+        x0, y0, x1, y1 = max(0, x - pad), max(0, y - pad), min(W, x + w + pad), min(H, y + h + pad)
+        if x1 - x0 < 4 or y1 - y0 < 4:
+            parts.append(text)
+            continue
+        color = _dominant_color(_ink_pixels(x0, y0, x1 - x0, y1 - y0, np.ones((y1 - y0, x1 - x0), bool)))
+        outlined = _outlined_fill(x0, y0, x1 - x0, y1 - y0, color)
+        if outlined is not None:
+            color = outlined[0]
+        if np.abs(np.array(_hex_to_rgb(color)) - base_rgb).max() >= RUN_COLOR_GAP:
+            parts.append(f"<color={color}>{text}</color>")
+            changed = True
+        else:
+            parts.append(text)
+    return " ".join(parts) if changed else None
 
 
 def _ink_box(bx, by, bw, bh, hex_color):

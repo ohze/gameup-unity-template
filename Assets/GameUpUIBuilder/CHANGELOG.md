@@ -39,6 +39,16 @@
   - tên node theo vai trò khi layer vô danh: `imgFill` (shape), `imgIcon` (≤ 96 px), `imgPart`.
 
 ### Fixed
+- **Dò sprite: icon thu nhỏ mạnh & khung bán trong suốt** — popup_ranking (`ALGO_VERSION` 14):
+  - icon xuất lớn hiện dưới 0.5 (`icon_totalDMG` 256 px: 0.227 trên cờ top, 0.34 trong hàng; icon kho 2048 px 0.07) nằm
+    ngoài lưới `COARSE_SCALES` → quét thêm cấp số nhân bước 8% từ 0.48 tới khi phần đục còn 28 px, tinh chỉnh ±4% quanh
+    tới 3 đáy cục bộ; sprite lớn hơn demo không còn bị bỏ (`too-large`) mà dò ở nhánh này (bench G: 7/9 → 9/9);
+  - sprite một màu bán trong suốt (`frame_info` đen α 80%, kéo giãn sau số điểm) không bao giờ trùng pixel → nhánh
+    riêng: tách mảng phẳng có màu trong khoảng `màu·α … màu·α + 255·(1−α)`, nhận khi hình trùng sprite kéo giãn 9-slice,
+    ≥ 2/4 góc bo sạch và vành ngoài đúng màu nền suy ngược; hàng danh sách cùng mép phải kéo về đầu trái lộ xa nhất.
+- **Màu chữ theo demo**: chữ trắng viền đen trên nền sáng ("Player Name" trên hàng xám) ra màu viền → lấy màu phần bị
+  viền bao kín; viền mảnh bị bỏ sót vì dải 1 px khử răng cưa ("Hidepenguin", "Back") → nới dải đầu, ngưỡng ruột theo
+  nền; "viền" dày hơn 1/4 chiều cao chữ là khung nền; từ khác màu trong dòng → rich text `<color=#…>` ("Top 10 Promote").
 - **Dò sprite (ảnh demo) thiếu phần tử** — màn Dungeon ranking (`ALGO_VERSION` 13):
   - khung viền mảnh thu nhỏ (khung avatar `card_list_frame` 0.53 / 0.545 / 0.62): sprite dạng viền (đục < 35%) chưa
     khớp 1:1 → quét tỉ lệ dày 0.01 lấy các đáy cục bộ, dò mịn ±0.015 bước 0.005; khớp thu nhỏ nới lệch màu (ZNCC ≥ 0.83

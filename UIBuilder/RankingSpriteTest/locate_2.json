@@ -3,11 +3,225 @@
  "demo": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/demo_2.png",
  "demoWidth": 1080,
  "demoHeight": 2160,
- "elapsedMs": 888,
- "cachedCount": 99,
+ "elapsedMs": 20267,
+ "cachedCount": 0,
  "sprites": [
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/banner_title.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_earth.png",
+   "name": "card_list_earth",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_fire.png",
+   "name": "card_list_fire",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_frame.png",
+   "name": "card_list_frame",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 122,
+     "y": 310,
+     "w": 146,
+     "h": 146,
+     "scale": 0.62,
+     "sliced": false,
+     "diff": 22.7,
+     "zncc": 0.87,
+     "inlier": 0.335
+    },
+    {
+     "x": 467,
+     "y": 310,
+     "w": 146,
+     "h": 146,
+     "scale": 0.62,
+     "sliced": false,
+     "diff": 22.8,
+     "zncc": 0.871,
+     "inlier": 0.335
+    },
+    {
+     "x": 809,
+     "y": 310,
+     "w": 146,
+     "h": 146,
+     "scale": 0.62,
+     "sliced": false,
+     "diff": 22.5,
+     "zncc": 0.87,
+     "inlier": 0.335
+    },
+    {
+     "x": 218,
+     "y": 1554,
+     "w": 129,
+     "h": 129,
+     "scale": 0.545,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.324
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_lightning.png",
+   "name": "card_list_lightning",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_nature.png",
+   "name": "card_list_nature",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_selected.png",
+   "name": "card_list_selected",
+   "spriteWidth": 285,
+   "spriteHeight": 285,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_list_water.png",
+   "name": "card_list_water",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_party_earth.png",
+   "name": "card_party_earth",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_party_fire.png",
+   "name": "card_party_fire",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_party_frame.png",
+   "name": "card_party_frame",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_party_lightning.png",
+   "name": "card_party_lightning",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_party_nature.png",
+   "name": "card_party_nature",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/card_party_water.png",
+   "name": "card_party_water",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/frame_level.png",
+   "name": "frame_level",
+   "spriteWidth": 339,
+   "spriteHeight": 93,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/icon_locked.png",
+   "name": "icon_locked",
+   "spriteWidth": 60,
+   "spriteHeight": 60,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/v1/card_list_add.png",
+   "name": "card_list_add",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "soft-alpha"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/v1/card_list_selected.png",
+   "name": "card_list_selected",
+   "spriteWidth": 285,
+   "spriteHeight": 285,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/v2/card_list_A.png",
+   "name": "card_list_A",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/v2/card_list_S.png",
+   "name": "card_list_S",
+   "spriteWidth": 236,
+   "spriteHeight": 236,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/v2/card_party_A.png",
+   "name": "card_party_A",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/Base/v2/card_party_S.png",
+   "name": "card_party_S",
+   "spriteWidth": 328,
+   "spriteHeight": 540,
+   "status": "unmatched",
+   "reason": "no-match"
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/banner_title.png",
    "name": "banner_title",
    "spriteWidth": 1024,
    "spriteHeight": 148,
@@ -28,7 +242,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/boder_btntab.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/boder_btntab.png",
    "name": "boder_btntab",
    "spriteWidth": 388,
    "spriteHeight": 80,
@@ -65,7 +279,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/boder_playerrank.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/boder_playerrank.png",
    "name": "boder_playerrank",
    "spriteWidth": 1000,
    "spriteHeight": 176,
@@ -86,7 +300,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/boder_rankslot.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/boder_rankslot.png",
    "name": "boder_rankslot",
    "spriteWidth": 968,
    "spriteHeight": 168,
@@ -151,7 +365,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/border_popup.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/border_popup.png",
    "name": "border_popup",
    "spriteWidth": 1032,
    "spriteHeight": 1656,
@@ -177,7 +391,28 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/btn_tab_1.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/btn_red.png",
+   "name": "btn_red",
+   "spriteWidth": 512,
+   "spriteHeight": 190,
+   "status": "matched",
+   "lowTexture": false,
+   "matches": [
+    {
+     "x": 284,
+     "y": 1920,
+     "w": 512,
+     "h": 190,
+     "scale": 1.0,
+     "sliced": false,
+     "diff": 0.0,
+     "zncc": 0.73,
+     "inlier": 0.902
+    }
+   ]
+  },
+  {
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/btn_tab_1.png",
    "name": "btn_tab_1",
    "spriteWidth": 376,
    "spriteHeight": 91,
@@ -198,7 +433,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/btn_tab_2.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/btn_tab_2.png",
    "name": "btn_tab_2",
    "spriteWidth": 376,
    "spriteHeight": 91,
@@ -220,7 +455,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top1.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/crown_top1.png",
    "name": "crown_top1",
    "spriteWidth": 132,
    "spriteHeight": 132,
@@ -252,7 +487,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top2.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/crown_top2.png",
    "name": "crown_top2",
    "spriteWidth": 132,
    "spriteHeight": 132,
@@ -284,7 +519,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/crown_top3.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/crown_top3.png",
    "name": "crown_top3",
    "spriteWidth": 132,
    "spriteHeight": 132,
@@ -316,7 +551,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/flag_top1.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/flag_top1.png",
    "name": "flag_top1",
    "spriteWidth": 344,
    "spriteHeight": 400,
@@ -337,7 +572,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/flag_top2.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/flag_top2.png",
    "name": "flag_top2",
    "spriteWidth": 312,
    "spriteHeight": 376,
@@ -358,7 +593,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Challenge Mode/popup_ranking/flag_top3.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/flag_top3.png",
    "name": "flag_top3",
    "spriteWidth": 312,
    "spriteHeight": 352,
@@ -379,183 +614,72 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_001.png",
-   "name": "avatar_001",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/frame_info.png",
+   "name": "frame_info",
+   "spriteWidth": 168,
+   "spriteHeight": 57,
+   "status": "matched",
+   "lowTexture": true,
+   "matches": [
+    {
+     "x": 828,
+     "y": 515,
+     "w": 142,
+     "h": 36,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.687
+    },
+    {
+     "x": 484,
+     "y": 515,
+     "w": 144,
+     "h": 36,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.687
+    },
+    {
+     "x": 141,
+     "y": 515,
+     "w": 142,
+     "h": 36,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.685
+    },
+    {
+     "x": 804,
+     "y": 1590,
+     "w": 206,
+     "h": 58,
+     "scale": 1.0,
+     "sliced": true,
+     "diff": 0.0,
+     "zncc": 0.0,
+     "inlier": 0.741
+    }
+   ],
+   "flatColor": [
+    0,
+    0,
+    0
+   ],
+   "suggestedBorder": {
+    "left": 15,
+    "right": 15,
+    "top": 15,
+    "bottom": 15
+   }
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_002.png",
-   "name": "avatar_002",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_003.png",
-   "name": "avatar_003",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_004.png",
-   "name": "avatar_004",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_005.png",
-   "name": "avatar_005",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_006.png",
-   "name": "avatar_006",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_007.png",
-   "name": "avatar_007",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_008.png",
-   "name": "avatar_008",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_009.png",
-   "name": "avatar_009",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_010.png",
-   "name": "avatar_010",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_011.png",
-   "name": "avatar_011",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_012.png",
-   "name": "avatar_012",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_013.png",
-   "name": "avatar_013",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_014.png",
-   "name": "avatar_014",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_015.png",
-   "name": "avatar_015",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_016.png",
-   "name": "avatar_016",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_017.png",
-   "name": "avatar_017",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_018.png",
-   "name": "avatar_018",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_019.png",
-   "name": "avatar_019",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_020.png",
-   "name": "avatar_020",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_021.png",
-   "name": "avatar_021",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/enemy/avatar_022.png",
-   "name": "avatar_022",
-   "spriteWidth": 156,
-   "spriteHeight": 156,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_001.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_001.png",
    "name": "avatar_001",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -609,7 +733,7 @@
    ]
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_002.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_002.png",
    "name": "avatar_002",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -617,7 +741,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_003.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_003.png",
    "name": "avatar_003",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -625,7 +749,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_004.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_004.png",
    "name": "avatar_004",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -633,7 +757,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_005.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_005.png",
    "name": "avatar_005",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -641,7 +765,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_006.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_006.png",
    "name": "avatar_006",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -649,7 +773,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_007.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_007.png",
    "name": "avatar_007",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -657,7 +781,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_008.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_008.png",
    "name": "avatar_008",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -665,7 +789,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_009.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_009.png",
    "name": "avatar_009",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -673,7 +797,7 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/Avatar/hero/avatar_010.png",
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/hero/avatar_010.png",
    "name": "avatar_010",
    "spriteWidth": 156,
    "spriteHeight": 156,
@@ -681,495 +805,47 @@
    "reason": "no-match"
   },
   {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/avatar_element_earth.png",
-   "name": "avatar_element_earth",
-   "spriteWidth": 60,
-   "spriteHeight": 60,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/avatar_frame.png",
-   "name": "avatar_frame",
-   "spriteWidth": 144,
-   "spriteHeight": 144,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/avatar_placeholder.png",
-   "name": "avatar_placeholder",
-   "spriteWidth": 144,
-   "spriteHeight": 144,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/bg.png",
-   "name": "bg",
-   "spriteWidth": 1080,
-   "spriteHeight": 2160,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/bg_pattern.png",
-   "name": "bg_pattern",
-   "spriteWidth": 512,
-   "spriteHeight": 512,
-   "status": "unmatched",
-   "reason": "soft-alpha"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/bottom_tab.png",
-   "name": "bottom_tab",
-   "spriteWidth": 200,
-   "spriteHeight": 214,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/bottom_tab_selected.png",
-   "name": "bottom_tab_selected",
-   "spriteWidth": 280,
-   "spriteHeight": 214,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_UEE_2.png",
-   "name": "btn_UEE_2",
-   "spriteWidth": 348,
-   "spriteHeight": 152,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_blue 1.png",
-   "name": "btn_blue 1",
-   "spriteWidth": 180,
-   "spriteHeight": 192,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_blue.png",
-   "name": "btn_blue",
-   "spriteWidth": 512,
-   "spriteHeight": 190,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_currentstat.png",
-   "name": "btn_currentstat",
-   "spriteWidth": 280,
-   "spriteHeight": 76,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_gray.png",
-   "name": "btn_gray",
-   "spriteWidth": 512,
-   "spriteHeight": 190,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_gray2.png",
-   "name": "btn_gray2",
-   "spriteWidth": 180,
-   "spriteHeight": 192,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_green.png",
-   "name": "btn_green",
-   "spriteWidth": 512,
-   "spriteHeight": 190,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_newstat.png",
-   "name": "btn_newstat",
-   "spriteWidth": 280,
-   "spriteHeight": 76,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_red.png",
-   "name": "btn_red",
-   "spriteWidth": 512,
-   "spriteHeight": 190,
+   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/popup_ranking/icon_totalDMG.png",
+   "name": "icon_totalDMG",
+   "spriteWidth": 256,
+   "spriteHeight": 256,
    "status": "matched",
    "lowTexture": false,
    "matches": [
     {
-     "x": 284,
-     "y": 1920,
-     "w": 512,
-     "h": 190,
-     "scale": 1.0,
+     "x": 93,
+     "y": 502,
+     "w": 58,
+     "h": 58,
+     "scale": 0.227,
      "sliced": false,
-     "diff": 0.0,
-     "zncc": 0.73,
-     "inlier": 0.902
+     "diff": 1.2,
+     "zncc": 0.934,
+     "inlier": 0.698
+    },
+    {
+     "x": 439,
+     "y": 502,
+     "w": 58,
+     "h": 58,
+     "scale": 0.227,
+     "sliced": false,
+     "diff": 1.2,
+     "zncc": 0.937,
+     "inlier": 0.698
+    },
+    {
+     "x": 780,
+     "y": 502,
+     "w": 58,
+     "h": 58,
+     "scale": 0.227,
+     "sliced": false,
+     "diff": 1.2,
+     "zncc": 0.935,
+     "inlier": 0.698
     }
    ]
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/btn_yellow.png",
-   "name": "btn_yellow",
-   "spriteWidth": 512,
-   "spriteHeight": 190,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/frame.png",
-   "name": "frame",
-   "spriteWidth": 286,
-   "spriteHeight": 68,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/frame_skill.png",
-   "name": "frame_skill",
-   "spriteWidth": 536,
-   "spriteHeight": 536,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_combatPower.png",
-   "name": "icon_combatPower",
-   "spriteWidth": 94,
-   "spriteHeight": 99,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_currency.png",
-   "name": "icon_currency",
-   "spriteWidth": 516,
-   "spriteHeight": 172,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_feature_artifact.png",
-   "name": "icon_feature_artifact",
-   "spriteWidth": 220,
-   "spriteHeight": 240,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_feature_battle.png",
-   "name": "icon_feature_battle",
-   "spriteWidth": 220,
-   "spriteHeight": 240,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_feature_locked.png",
-   "name": "icon_feature_locked",
-   "spriteWidth": 220,
-   "spriteHeight": 240,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_feature_party.png",
-   "name": "icon_feature_party",
-   "spriteWidth": 220,
-   "spriteHeight": 240,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/icon_feature_store.png",
-   "name": "icon_feature_store",
-   "spriteWidth": 220,
-   "spriteHeight": 240,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/noti.png",
-   "name": "noti",
-   "spriteWidth": 60,
-   "spriteHeight": 60,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/top_bar.png",
-   "name": "top_bar",
-   "spriteWidth": 1080,
-   "spriteHeight": 240,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/unit_element_earth.png",
-   "name": "unit_element_earth",
-   "spriteWidth": 80,
-   "spriteHeight": 80,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/unit_element_fire.png",
-   "name": "unit_element_fire",
-   "spriteWidth": 80,
-   "spriteHeight": 80,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/unit_element_lightning.png",
-   "name": "unit_element_lightning",
-   "spriteWidth": 80,
-   "spriteHeight": 80,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/unit_element_nature.png",
-   "name": "unit_element_nature",
-   "spriteWidth": 80,
-   "spriteHeight": 80,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/_Shared/unit_element_water.png",
-   "name": "unit_element_water",
-   "spriteWidth": 80,
-   "spriteHeight": 80,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_earth.png",
-   "name": "card_list_earth",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_fire.png",
-   "name": "card_list_fire",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_frame.png",
-   "name": "card_list_frame",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "matched",
-   "lowTexture": false,
-   "matches": [
-    {
-     "x": 122,
-     "y": 310,
-     "w": 146,
-     "h": 146,
-     "scale": 0.62,
-     "sliced": false,
-     "diff": 22.7,
-     "zncc": 0.87,
-     "inlier": 0.335
-    },
-    {
-     "x": 467,
-     "y": 310,
-     "w": 146,
-     "h": 146,
-     "scale": 0.62,
-     "sliced": false,
-     "diff": 22.8,
-     "zncc": 0.871,
-     "inlier": 0.335
-    },
-    {
-     "x": 809,
-     "y": 310,
-     "w": 146,
-     "h": 146,
-     "scale": 0.62,
-     "sliced": false,
-     "diff": 22.5,
-     "zncc": 0.87,
-     "inlier": 0.335
-    },
-    {
-     "x": 218,
-     "y": 1554,
-     "w": 129,
-     "h": 129,
-     "scale": 0.545,
-     "sliced": false,
-     "diff": 0.0,
-     "zncc": 0.0,
-     "inlier": 0.324
-    }
-   ]
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_lightning.png",
-   "name": "card_list_lightning",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_nature.png",
-   "name": "card_list_nature",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_selected.png",
-   "name": "card_list_selected",
-   "spriteWidth": 285,
-   "spriteHeight": 285,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_list_water.png",
-   "name": "card_list_water",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_party_earth.png",
-   "name": "card_party_earth",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_party_fire.png",
-   "name": "card_party_fire",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_party_frame.png",
-   "name": "card_party_frame",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_party_lightning.png",
-   "name": "card_party_lightning",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_party_nature.png",
-   "name": "card_party_nature",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/card_party_water.png",
-   "name": "card_party_water",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/frame_level.png",
-   "name": "frame_level",
-   "spriteWidth": 339,
-   "spriteHeight": 93,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/icon_locked.png",
-   "name": "icon_locked",
-   "spriteWidth": 60,
-   "spriteHeight": 60,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/v1/card_list_add.png",
-   "name": "card_list_add",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "soft-alpha"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/v1/card_list_selected.png",
-   "name": "card_list_selected",
-   "spriteWidth": 285,
-   "spriteHeight": 285,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/v2/card_list_A.png",
-   "name": "card_list_A",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/v2/card_list_S.png",
-   "name": "card_list_S",
-   "spriteWidth": 236,
-   "spriteHeight": 236,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/v2/card_party_A.png",
-   "name": "card_party_A",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
-  },
-  {
-   "sprite": "/home/duylv/Documents/GameUp/gameup-unity-template/Assets/_MainProject/Art/UI_v2/Party/Base/v2/card_party_S.png",
-   "name": "card_party_S",
-   "spriteWidth": 328,
-   "spriteHeight": 540,
-   "status": "unmatched",
-   "reason": "no-match"
   }
  ],
  "dropped": [
@@ -1241,7 +917,9 @@
    "h": 37,
    "color": "#FEFEFE",
    "text": "Hidepenguin",
-   "confidence": 1.0
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
   },
   {
    "x": 458,
@@ -1250,7 +928,9 @@
    "h": 38,
    "color": "#FEFEFE",
    "text": "Hidepenguin",
-   "confidence": 1.0
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
   },
   {
    "x": 800,
@@ -1259,7 +939,9 @@
    "h": 37,
    "color": "#FEFEFE",
    "text": "Hidepenguin",
-   "confidence": 1.0
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
   },
   {
    "x": 170,
@@ -1306,7 +988,9 @@
    "h": 39,
    "color": "#FEFEFE",
    "text": "11-20",
-   "confidence": 1.0
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
   },
   {
    "x": 103,
@@ -1345,7 +1029,7 @@
    "w": 713,
    "h": 28,
    "color": "#C9C8EA",
-   "text": "Top 10 Promote. Rank 11-30 stay. Bottom 15 Demote",
+   "text": "Top <color=#37F252>10</color> Promote. Rank <color=#2ADAFC>11-30</color> stay. Bottom <color=#FD7C50>15</color> Demote",
    "confidence": 0.993
   },
   {
@@ -1377,7 +1061,9 @@
    "h": 58,
    "color": "#FEFEFE",
    "text": "Back",
-   "confidence": 1.0
+   "confidence": 1.0,
+   "outlineColor": "#000000",
+   "outlineWidth": 3
   }
  ],
  "ocr": "ok",
