@@ -172,9 +172,13 @@ namespace GameUp.Core.Editor
         {
             EditorGUILayout.LabelField("Build", EditorStyles.boldLabel);
 
-            EditorGUI.BeginChangeCheck();
-            _outputFolder = EditorGUILayout.TextField("Thư mục output", _outputFolder);
-            if (EditorGUI.EndChangeCheck()) EditorPrefs.SetString(GetPrefsKey("OutputFolder"), _outputFolder);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUI.BeginChangeCheck();
+                _outputFolder = EditorGUILayout.TextField("Thư mục output", _outputFolder);
+                if (GUILayout.Button("...", GUILayout.Width(28f))) PickOutputFolder();
+                if (EditorGUI.EndChangeCheck()) EditorPrefs.SetString(GetPrefsKey("OutputFolder"), _outputFolder);
+            }
             EditorGUILayout.LabelField("File", GetOutputPath(), EditorStyles.miniLabel);
 
             foreach (var warning in CollectWarnings()) EditorGUILayout.HelpBox(warning, MessageType.Warning);
@@ -333,6 +337,20 @@ namespace GameUp.Core.Editor
             PlayerSettings.bundleVersion = previousVersionName;
             PlayerSettings.Android.bundleVersionCode = previousVersionCode;
             GULogger.Error(LogTag, $"Build AAB thất bại ({report.summary.result}, {report.summary.totalErrors} lỗi) — đã trả version về {previousVersionName} ({previousVersionCode}).");
+        }
+
+        private void PickOutputFolder()
+        {
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var current = Path.GetFullPath(Path.Combine(projectRoot, _outputFolder ?? string.Empty));
+            var picked = EditorUtility.OpenFolderPanel("Chọn thư mục output", Directory.Exists(current) ? current : projectRoot, string.Empty);
+            if (string.IsNullOrEmpty(picked)) return;
+
+            // Thư mục nằm trong project thì lưu đường dẫn tương đối để máy khác mở project vẫn đúng.
+            var relative = Path.GetRelativePath(projectRoot, picked);
+            _outputFolder = relative.StartsWith("..") || Path.IsPathRooted(relative) ? picked : relative.Replace('\\', '/');
+            // Bỏ focus để TextField đang được chọn hiển thị giá trị mới.
+            GUI.FocusControl(null);
         }
 
         private string GetOutputPath()
