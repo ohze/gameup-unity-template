@@ -14,6 +14,13 @@ namespace GameUp.SDK.Editor.Setup
     {
         public override string Title => "AppsFlyer";
 
+        // Ẩn khi project đã chọn MMP = Adjust, trừ khi AppsFlyer vẫn còn cài (cần thấy để dọn/so sánh).
+#if !GAMEUP_MMP_ADJUST || APPSFLYER_DEPENDENCIES_INSTALLED
+        public override bool IsVisible => true;
+#else
+        public override bool IsVisible => false;
+#endif
+
         protected override void DrawSection(SerializedObject so)
         {
             var appsFlyer = so.FindProperty("appsFlyer");

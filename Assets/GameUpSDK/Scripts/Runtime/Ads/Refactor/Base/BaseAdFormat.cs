@@ -156,7 +156,7 @@ namespace GameUp.SDK
             GULogger.Log(msg);
         }
         
-        protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue)
+        protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue, string currency = null)
         {
             var data = new AdImpressionData
             {
@@ -164,7 +164,8 @@ namespace GameUp.SDK
                 AdUnit = adUnitId,
                 InstanceName = placement,
                 AdFormat = adFormat,
-                Revenue = revenue
+                Revenue = revenue,
+                Currency = currency
             };
             MainThreadDispatcher.Enqueue(() => AdsEvent.RaiseImpressionDataReady(data));
         }

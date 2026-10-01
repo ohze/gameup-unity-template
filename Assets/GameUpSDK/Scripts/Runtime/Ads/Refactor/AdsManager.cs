@@ -87,7 +87,16 @@ namespace GameUp.SDK
         public event Action OnAdsInitialized;
 
         private readonly HashSet<IAdNetwork> _wiredNetworks = new HashSet<IAdNetwork>();
-        private readonly HashSet<string> _pendingBannerShows = new HashSet<string>();
+
+        /// <summary>
+        /// Placement banner mà game ĐANG muốn hiện (ShowBanner thêm, HideBanner bỏ). Khác <see cref="_activeBanners"/>
+        /// (đang thực sự hiện): banner load/refresh xong chỉ được hiện khi nằm trong tập này, nên HideBanner có hiệu lực
+        /// bền và banner chỉ preload sẽ không tự bật lên. Gọi ShowBanner trước khi init cũng được giữ ở đây và phát lại.
+        /// </summary>
+        private readonly HashSet<string> _requestedBanners = new HashSet<string>();
+
+        /// <summary>Collapsible native banner (key) đã nhường chỗ cho banner thường (value) — HideBanner(key) ẩn cả hai.</summary>
+        private readonly Dictionary<string, string> _swappedBanners = new Dictionary<string, string>();
 
         public Dictionary<MediationProvider, IAdNetwork> Networks => _networkDict;
 
@@ -110,31 +119,22 @@ namespace GameUp.SDK
         }
 
         /// <summary>
-        /// Bỏ entry None và entry trùng. mediationPriority do người dùng sửa tay trong Inspector,
-        /// mà một dòng trùng đủ để _networkDict ném ArgumentException ngay Awake — chết cả SDK.
+        /// Chuẩn hoá thứ tự waterfall theo SDK đang cài (xem <see cref="MediationPriority.Resolve"/>): bỏ None / trùng /
+        /// mạng đã gỡ, nối mạng mới cài vào cuối. Một dòng trùng đủ để _networkDict ném ArgumentException ngay Awake,
+        /// còn mạng cài thêm mà chưa có trong asset thì trước đây không bao giờ được dùng.
         /// </summary>
         private void SanitizeMediationPriority()
         {
-            if (mediationPriority == null)
-            {
-                mediationPriority = new List<MediationProvider>();
-                return;
-            }
+            var resolved = MediationPriority.Resolve(mediationPriority);
+            bool changed = mediationPriority == null || resolved.Count != mediationPriority.Count;
+            for (int i = 0; !changed && i < resolved.Count; i++)
+                changed = resolved[i] != mediationPriority[i];
 
-            var seen = new HashSet<MediationProvider>();
-            var cleaned = new List<MediationProvider>(mediationPriority.Count);
-            foreach (var provider in mediationPriority)
+            if (changed)
             {
-                if (provider == MediationProvider.None) continue;
-                if (seen.Add(provider)) cleaned.Add(provider);
+                GULogger.Log("GameUp", $"mediationPriority theo SDK đang cài: {string.Join(" → ", resolved)}");
             }
-
-            if (cleaned.Count != mediationPriority.Count)
-            {
-                GULogger.Warning("GameUp",
-                    $"mediationPriority có entry None/trùng — đã dọn còn: {string.Join(", ", cleaned)}");
-            }
-            mediationPriority = cleaned;
+            mediationPriority = resolved;
         }
 
 #if UNITY_EDITOR
@@ -241,6 +241,7 @@ namespace GameUp.SDK
             HideNativeOverlay();
             foreach (var placement in new List<string>(_activeBanners))
                 HideBanner(placement);
+            _requestedBanners.Clear();
         }
 
         private void Update()
@@ -290,47 +291,47 @@ namespace GameUp.SDK
 
             if (first)
             {
-                FlushPendingBannerShows();
+                ShowRequestedBanners();
                 OnAdsInitialized?.Invoke();
             }
         }
 
         /// <summary>
-        /// Phát lại các lệnh ShowBanner được gọi trước khi có mạng nào sẵn sàng.
-        /// CHỈ áp dụng cho banner: banner là UI thường trực nên hiện muộn vài giây vẫn đúng ý,
-        /// còn interstitial/AppOpen phát lại sẽ bật lên lạc ngữ cảnh — với chúng, onFail ngay
-        /// lúc gọi mới là hành vi đúng.
+        /// Hiện các banner game đã yêu cầu mà chưa hiện được: gọi trước khi init, hoặc bị hoãn vì đang có
+        /// fullscreen ad. CHỈ áp dụng cho banner: banner là UI thường trực nên hiện muộn vài giây vẫn đúng ý,
+        /// còn interstitial/AppOpen phát lại sẽ bật lên lạc ngữ cảnh — với chúng, onFail ngay lúc gọi mới đúng.
         /// </summary>
-        private void FlushPendingBannerShows()
+        private void ShowRequestedBanners()
         {
-            if (_pendingBannerShows.Count == 0) return;
-
-            var pending = new List<string>(_pendingBannerShows);
-            _pendingBannerShows.Clear();
-            foreach (var where in pending)
+            foreach (var where in new List<string>(_requestedBanners))
             {
-                GULogger.Log("GameUp", $"Phát lại ShowBanner đã xếp hàng trước khi init: {where}");
-                ShowBanner(where);
+                if (!_activeBanners.Contains(where)) ShowBanner(where);
             }
         }
 
         private void OnBannerSwapped(string last, string current)
         {
             _activeBanners.Remove(last);
-            if (!string.IsNullOrEmpty(current))
+            if (string.IsNullOrEmpty(current))
             {
-                _activeBanners.Add(current);
+                _swappedBanners.Remove(last);
+                return;
             }
+
+            _activeBanners.Add(current);
+            _swappedBanners[last] = current;
         }
 
         private void OnBannerLoaded(string where)
         {
             GULogger.Log($"OnBannerLoaded: {where}");
-            // Banner được adapter preload ở trạng thái ẩn. Đây là cổng DUY NHẤT quyết định hiện.
-            if (!IsRemoveAllAdsActive() && EvaluateConditions(AdUnitType.Banner, where, out _))
+            // Adapter preload banner ở trạng thái ẩn và bắn lại callback này mỗi lần auto-refresh.
+            // Banner đang hiện thì giữ nguyên (không log lại request/available mỗi lần refresh).
+            bool wanted = _requestedBanners.Contains(where) || _activeBanners.Contains(where);
+            if (!wanted || IsRemoveAllAdsActive() || !EvaluateConditions(AdUnitType.Banner, where, out _))
+                HideBannerViews(where);
+            else if (!_activeBanners.Contains(where))
                 ShowBanner(where);   // đường chuẩn: chọn network available + đánh dấu _activeBanners
-            else
-                HideBanner(where);
 
             OnBannerLoadedEvent.Invoke(where);
         }
@@ -366,6 +367,9 @@ namespace GameUp.SDK
                     }
                 }
             }
+
+            // Banner được yêu cầu / load xong trong lúc fullscreen ad đang hiện thì bị hoãn — hiện bây giờ.
+            ShowRequestedBanners();
         }
 
         public void SetConsent(bool isConsent)
@@ -499,8 +503,9 @@ namespace GameUp.SDK
             if (_activeBanners.Count == 0) return;
             foreach (var placement in new List<string>(_activeBanners))
             {
+                // Chỉ ẩn, giữ yêu cầu của game: điều kiện thoả lại (vd đủ level) thì lần load sau tự hiện.
                 if (IsRemoveAllAdsActive() || !EvaluateConditions(AdUnitType.Banner, placement, out _))
-                    HideBanner(placement);
+                    HideBannerViews(placement);
             }
         }
 
@@ -676,12 +681,20 @@ namespace GameUp.SDK
                 return;
             }
 
+            _requestedBanners.Add(where);
+
             // Gọi trước khi mạng nào kịp init thì format object còn null, lệnh sẽ rơi vào hư không.
-            // Xếp hàng để phát lại ngay khi mạng đầu tiên sẵn sàng (xem FlushPendingBannerShows).
+            // Đã ghi nhận yêu cầu ở trên — phát lại ngay khi mạng đầu tiên sẵn sàng (xem ShowRequestedBanners).
             if (!IsInitialized)
             {
-                _pendingBannerShows.Add(where);
                 GULogger.Log("GameUp", $"ShowBanner('{where}') gọi trước khi init — đã xếp hàng.");
+                return;
+            }
+
+            // Banner không được đè lên interstitial/rewarded/AppOpen; hiện lại khi ad đóng (RestoreBanners).
+            if (AdCappingManager.Instance.IsAnyAdShowing)
+            {
+                GULogger.Log("GameUp", $"ShowBanner('{where}') hoãn: đang có fullscreen ad.");
                 return;
             }
 
@@ -708,9 +721,22 @@ namespace GameUp.SDK
 
         public void HideBanner(string where)
         {
+            // Bỏ yêu cầu của game: banner không tự hiện lại khi refresh / init xong / fullscreen ad đóng.
+            _requestedBanners.Remove(where);
+            HideBannerViews(where);
+
+            if (_swappedBanners.TryGetValue(where, out var swapped))
+            {
+                _swappedBanners.Remove(where);
+                _requestedBanners.Remove(swapped);
+                HideBannerViews(swapped);
+            }
+        }
+
+        /// <summary>Ẩn banner trên mọi mạng nhưng giữ nguyên yêu cầu của game.</summary>
+        private void HideBannerViews(string where)
+        {
             _activeBanners.Remove(where);
-            // Huỷ luôn lệnh đang xếp hàng, nếu không banner vừa bị ẩn lại tự hiện khi init xong.
-            _pendingBannerShows.Remove(where);
             foreach (var network in _networkDict.Values) network.BannerAd?.Hide(where);
         }
 

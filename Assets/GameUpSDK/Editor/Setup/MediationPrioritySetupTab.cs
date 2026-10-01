@@ -10,7 +10,7 @@ namespace GameUp.SDK.Editor.Setup
     // ==========================================
     public class MediationPrioritySetupTab : AdsConfigTabBase
     {
-        public override string Title => "Cài đặt chung & Thứ tự ưu tiên";
+        public override string Title => Installer.GameUpDependenciesWindow.SetupPriorityTabTitle;
 
         protected override void DrawHeader()
         {
@@ -32,13 +32,18 @@ namespace GameUp.SDK.Editor.Setup
 
             if (listProp.arraySize == 0)
             {
-                EditorGUILayout.HelpBox("Chưa cài SDK mạng quảng cáo nào.", MessageType.Warning);
+                EditorGUILayout.HelpBox(
+                    "Chưa cài SDK mạng quảng cáo nào. Cài ở GameUp → SDK → Setup Dependencies (mặc định AdMob).",
+                    MessageType.Warning);
                 return;
             }
 
             EditorGUILayout.HelpBox(
-                "Mạng ở trên cùng được thử trước; nếu không có ad sẵn sàng, SDK tự rớt xuống mạng kế tiếp.\n" +
-                "Danh sách chỉ hiện các mạng đã cài SDK trong project.",
+                listProp.arraySize == 1
+                    ? "Đang dùng một mạng quảng cáo. Muốn chạy song song MAX / LevelPlay / AdMob làm mạng dự phòng, " +
+                      "cài thêm ở GameUp → SDK → Setup Dependencies (mục \"Mạng quảng cáo bổ sung\") — mạng mới tự xuất hiện ở đây."
+                    : "Mạng ở trên cùng được thử trước; nếu không có ad sẵn sàng, SDK tự rớt xuống mạng kế tiếp.\n" +
+                      "Danh sách chỉ hiện các mạng đã cài SDK. Mạng mới cài tự được thêm vào cuối.",
                 MessageType.Info);
             GUILayout.Space(6);
 
@@ -65,58 +70,25 @@ namespace GameUp.SDK.Editor.Setup
         }
 
         /// <summary>
-        /// Ép danh sách khớp CHÍNH XÁC các mạng đã cài SDK: bỏ None/trùng/mạng đã gỡ SDK,
-        /// thêm mạng vừa cài (define symbol mới xuất hiện) vào cuối. Giữ nguyên thứ tự
-        /// tương đối người dùng đã sắp xếp cho các mạng còn lại.
+        /// Ép danh sách khớp CHÍNH XÁC các mạng đã cài SDK theo cùng luật với runtime (<see cref="MediationPriority.Resolve"/>):
+        /// bỏ None/trùng/mạng đã gỡ SDK, thêm mạng vừa cài vào cuối, giữ nguyên thứ tự người dùng đã sắp cho phần còn lại.
         /// </summary>
         private static void SyncWithInstalledNetworks(SerializedProperty listProp)
         {
-            var installed = GetInstalledProviders();
-            var seen = new HashSet<MediationProvider>();
-            var ordered = new List<MediationProvider>();
-
+            var saved = new List<MediationProvider>(listProp.arraySize);
             for (int i = 0; i < listProp.arraySize; i++)
-            {
-                var provider = (MediationProvider)listProp.GetArrayElementAtIndex(i).intValue;
-                if (provider == MediationProvider.None) continue;
-                if (!installed.Contains(provider)) continue;
-                if (seen.Add(provider)) ordered.Add(provider);
-            }
+                saved.Add((MediationProvider)listProp.GetArrayElementAtIndex(i).intValue);
 
-            foreach (var provider in installed)
-            {
-                if (seen.Add(provider)) ordered.Add(provider);
-            }
+            var ordered = MediationPriority.Resolve(saved);
 
-            bool changed = listProp.arraySize != ordered.Count;
-            if (!changed)
-            {
-                for (int i = 0; i < ordered.Count; i++)
-                {
-                    if ((MediationProvider)listProp.GetArrayElementAtIndex(i).intValue != ordered[i])
-                    {
-                        changed = true;
-                        break;
-                    }
-                }
-            }
+            bool changed = saved.Count != ordered.Count;
+            for (int i = 0; !changed && i < ordered.Count; i++)
+                changed = saved[i] != ordered[i];
             if (!changed) return;
 
             listProp.arraySize = ordered.Count;
             for (int i = 0; i < ordered.Count; i++)
                 listProp.GetArrayElementAtIndex(i).intValue = (int)ordered[i];
-        }
-
-        private static List<MediationProvider> GetInstalledProviders()
-        {
-            var list = new List<MediationProvider> { MediationProvider.Admob };
-#if MAXSDK_DEPENDENCIES_INSTALLED
-            list.Add(MediationProvider.Max);
-#endif
-#if LEVELPLAY_DEPENDENCIES_INSTALLED
-            list.Add(MediationProvider.IronSource);
-#endif
-            return list;
         }
     }
 }

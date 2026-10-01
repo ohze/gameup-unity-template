@@ -8,10 +8,10 @@ using AppsFlyerSDK;
 namespace GameUp.SDK
 {
     /// <summary>
-    /// Gá»i event / ad revenue AppsFlyer. SDK Ä‘Æ°á»£c khá»Ÿi táº¡o bá»Ÿi AppsFlyerObject (AppsFlyerObjectScript) â€” devKey vÃ  appID cáº¥u hÃ¬nh trÃªn object Ä‘Ã³.
+    /// Gửi event / ad revenue AppsFlyer. SDK được init bởi <c>AppsFlyerObjectScript</c> — devKey / appID lấy từ GameUpSdkConfig.
     /// </summary>
     public class AppsFlyerUtils : MonoSingleton<AppsFlyerUtils>
-#if APPSFLYER_DEPENDENCIES_INSTALLED
+#if APPSFLYER_DEPENDENCIES_INSTALLED && !GAMEUP_MMP_ADJUST
         , IAppsFlyerPurchaseValidation, IAppsFlyerPurchaseRevenueDataSource, IAppsFlyerPurchaseRevenueDataSourceStoreKit2
 #endif
     {
@@ -26,33 +26,56 @@ namespace GameUp.SDK
         protected override void Awake()
         {
             base.Awake();
+            // Bản trùng (SDK prefab đặt ở nhiều scene) đang bị Destroy — không được tạo/tắt AppsFlyerObject lần nữa.
+            if (!ReferenceEquals(Instance, this)) return;
             ApplyConfigToAppsFlyerObject();
         }
 
         private void ApplyConfigToAppsFlyerObject()
         {
 #if APPSFLYER_DEPENDENCIES_INSTALLED
+            // Project cũ còn AppsFlyerObject trong SDK prefab / scene thì dùng lại; không có thì tạo ở dưới.
+            var afObject = GetComponentInChildren<AppsFlyerObjectScript>(true)
+                           ?? FindFirstObjectByType<AppsFlyerObjectScript>(FindObjectsInactive.Include);
+#if GAMEUP_MMP_ADJUST
+            // MMP đang chọn là Adjust: tắt component trước Start() để AppsFlyer không init/startSDK,
+            // tránh 2 MMP cùng đếm install (chỉ xảy ra với project cũ còn AppsFlyerObject trong prefab/scene).
+            if (afObject != null)
+            {
+                afObject.enabled = false;
+                GULogger.Log("GameUp", "AppsFlyerUtils: MMP = Adjust — đã tắt AppsFlyerObject.");
+            }
+#else
             var settings = GameUpSdkConfig.Resolve(configOverride)?.appsFlyer;
             if (settings == null) return;
 
-            // AppsFlyerObject là prefab con của SDK root; fallback quét scene cho trường hợp đặt rời.
-            var afObject = GetComponentInChildren<AppsFlyerObjectScript>(true)
-                           ?? FindObjectOfType<AppsFlyerObjectScript>(true);
-            if (afObject == null)
-            {
-                GULogger.Warning("GameUp", "AppsFlyerUtils: không tìm thấy AppsFlyerObjectScript trong scene.");
-                return;
-            }
+            // SDK.prefab không còn nhúng AppsFlyerObject (để project chọn Adjust không dính missing script),
+            // nên tự tạo khi scene chưa có. Start() của component mới vẫn chạy sau Awake này → nhận đủ config.
+            if (afObject == null) afObject = CreateAppsFlyerObject();
 
             // Chuỗi rỗng trong asset không ghi đè giá trị đang có trên prefab (tránh xoá key khi chưa migrate).
             if (!string.IsNullOrWhiteSpace(settings.devKey)) afObject.devKey = settings.devKey;
             if (!string.IsNullOrWhiteSpace(settings.appIdIOS)) afObject.appID = settings.appIdIOS;
             afObject.isDebug = settings.isDebug;
             afObject.getConversionData = settings.getConversionData;
+
+            if (string.IsNullOrWhiteSpace(afObject.devKey))
+                GULogger.Warning("GameUp", "AppsFlyerUtils: chưa có Dev Key (GameUp → SDK → Setup → AppsFlyer) — AppsFlyer sẽ không ghi nhận install.");
+#endif
 #endif
         }
 
-#if APPSFLYER_DEPENDENCIES_INSTALLED
+#if APPSFLYER_DEPENDENCIES_INSTALLED && !GAMEUP_MMP_ADJUST
+        private AppsFlyerObjectScript CreateAppsFlyerObject()
+        {
+            // Giữ đúng tên "AppsFlyerObject" như prefab gốc của AppsFlyer; làm con để sống cùng SDK root.
+            var go = new GameObject("AppsFlyerObject");
+            go.transform.SetParent(transform, false);
+            return go.AddComponent<AppsFlyerObjectScript>();
+        }
+#endif
+
+#if APPSFLYER_DEPENDENCIES_INSTALLED && !GAMEUP_MMP_ADJUST
         private static bool _purchaseConnectorInitialized;
         private static bool _purchaseConnectorInitializing;
 
@@ -107,7 +130,7 @@ namespace GameUp.SDK
 
             _purchaseConnectorInitialized = true;
             _purchaseConnectorInitializing = false;
-            Debug.Log("[GameUpSDK] AppsFlyer Purchase Connector initialized for ROI360 (iOS).");
+            GULogger.Log("GameUp", "AppsFlyer Purchase Connector initialized for ROI360 (iOS).");
         }
 #endif
 
@@ -134,7 +157,7 @@ namespace GameUp.SDK
         }
 
         /// <summary>
-        /// Gá»­i ad revenue lÃªn AppsFlyer báº±ng AFAdRevenueData.
+        /// Gửi ad revenue lên AppsFlyer bằng AFAdRevenueData.
         /// </summary>
         public static void LogAdRevenue(AFAdRevenueData adRevenueData, Dictionary<string, string> additionalParameters = null)
         {
@@ -144,7 +167,7 @@ namespace GameUp.SDK
         }
 
         /// <summary>
-        /// Gá»­i ad revenue lÃªn AppsFlyer. DÃ¹ng enum MediationNetwork cá»§a SDK (GoogleAdMob, IronSource, ApplovinMax, ...).
+        /// Gửi ad revenue lên AppsFlyer. Dùng enum MediationNetwork của SDK (GoogleAdMob, IronSource, ApplovinMax, ...).
         /// </summary>
         public static void LogAdRevenue(string monetizationNetwork, MediationNetwork mediationNetwork,
             double eventRevenue, string revenueCurrency, Dictionary<string, string> additionalParameters = null)
@@ -167,7 +190,7 @@ namespace GameUp.SDK
         public void didReceivePurchaseRevenueError(string error)
         {
             AppsFlyer.AFLog("didReceivePurchaseRevenueError", error);
-            Debug.LogError("[GameUpSDK] AppsFlyer purchase validation error: " + error);
+            GULogger.Error("GameUp", $"AppsFlyer purchase validation error: {error}");
         }
 
         public Dictionary<string, object> PurchaseRevenueAdditionalParametersForProducts(HashSet<object> products, HashSet<object> transactions)

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d2e4f5879c44b56bfdf89fda3af7822, type: 3}
   m_Name: GameUpAdsConfig
   m_EditorClassIdentifier: 
-  mediationPriority: 030000000200000001000000
+  mediationPriority: 010000000200000003000000
   nativeCtaClickRate: 30
   appOpenOnColdStart: 0
   admob:
@@ -106,6 +106,26 @@ MonoBehaviour:
         placementsIOS: []
         multiIdsAndroid: []
         multiIdsIOS: []
+      nativeOverlay:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+    nativeOverlayOptions:
+      template: 1
+      position: 1
+      backgroundColor: {r: 1, g: 1, b: 1, a: 1}
   max:
     sdkKey: 
     showMediationDebugger: 0
@@ -190,6 +210,22 @@ MonoBehaviour:
         placementsIOS: []
         multiIdsAndroid: []
         multiIdsIOS: []
+      nativeOverlay:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
   ironSource:
     appKey: 
     units:
@@ -258,6 +294,22 @@ MonoBehaviour:
         multiIdsAndroid: []
         multiIdsIOS: []
       nativeAd:
+        enableWaterfallFloor: 0
+        useMultiAdUnitIds: 0
+        defaultIdAndroid_High: 
+        defaultIdAndroid_Medium: 
+        defaultIdAndroid_All: 
+        defaultIdIOS_High: 
+        defaultIdIOS_Medium: 
+        defaultIdIOS_All: 
+        defaultBannerSize: 2
+        defaultBannerFormat: 0
+        defaultCollapsible: 0
+        placementsAndroid: []
+        placementsIOS: []
+        multiIdsAndroid: []
+        multiIdsIOS: []
+      nativeOverlay:
         enableWaterfallFloor: 0
         useMultiAdUnitIds: 0
         defaultIdAndroid_High: 

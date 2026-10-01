@@ -12,6 +12,11 @@ namespace GameUp.SDK
         public string InstanceName { get; set; }
         public string AdFormat { get; set; }
         public double? Revenue { get; set; }
+
+        /// <summary>Mã tiền tệ ISO 4217 của <see cref="Revenue"/>. Để trống = USD (MAX / LevelPlay luôn trả USD).</summary>
+        public string Currency { get; set; }
+
+        public string ResolvedCurrency => string.IsNullOrWhiteSpace(Currency) ? "USD" : Currency;
     }
 
     /// <summary>

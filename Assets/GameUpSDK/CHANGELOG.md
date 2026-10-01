@@ -6,13 +6,36 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ## [Unreleased]
 
+### Added
+
+- **Adjust làm MMP thay thế tương đương AppsFlyer.** `GameUp → SDK → Setup Dependencies` bước 1 có thêm lựa chọn **MMP (Attribution)** = AppsFlyer | Adjust (lưu bằng define `GAMEUP_MMP_APPSFLYER` / `GAMEUP_MMP_ADJUST`, mặc định AppsFlyer nên project cũ không đổi); "Cài tất cả" chỉ cài MMP đã chọn. Adjust SDK 5.8.0 tải từ GitHub release chính thức, define `ADJUST_DEPENDENCIES_INSTALLED` tự sync. Installer cảnh báo khi MMP không dùng vẫn còn trong project, kèm nút gỡ ngay tại chỗ.
+  - Runtime `AdjustAnalyticsUtils`: tự init từ `GameUpSdkConfig.adjust` lúc load scene đầu (không cần prefab Adjust); `GameUpAnalytics` gửi event MMP (level, purchase kèm doanh thu + dedup theo order id, tutorial, achievement, registration, ads), ad revenue với source theo mạng đã phục vụ impression (`admob_sdk` / `applovin_max_sdk` / `ironsource_sdk` — đúng cả khi chạy nhiều mediation cùng lúc) và customer user id cho MMP đang chọn (gọi trước khi Adjust init xong vẫn được áp dụng). Lúc chạy chỉ MMP đã chọn hoạt động: chọn Adjust thì `AppsFlyerUtils` tắt `AppsFlyerObject` còn sót trong prefab/scene trước `Start()` (AppsFlyer không init) và mọi lệnh AppsFlyer thành no-op, kể cả khi package AppsFlyer còn trong project; chọn AppsFlyer thì `AdjustAnalyticsUtils` không init.
+  - Adjust cần event token: tab **Adjust** trong `GameUp → SDK → Setup` có App Token Android/iOS, Sandbox/Production, log, ATT waiting, và bảng `eventTokens` (nút điền sẵn các event GameUp). Event chưa có token bị bỏ qua (log Warning một lần mỗi event). App Token iOS không còn fallback sang token Android — app iOS/Android trên Adjust là hai app riêng, dùng chung sẽ ghi install iOS vào app Android.
+- **Kiểm tra cấu hình MMP lúc build** (`GameUpMmpBuildCheck`, chỉ cảnh báo, không chặn build): thiếu Adjust App Token / AppsFlyer Dev Key / App ID iOS, Adjust Sandbox hoặc log debug còn bật trong build release, event Adjust chưa có token, MMP đang chọn chưa cài, hoặc MMP không dùng vẫn còn trong project.
+- `AdImpressionData.Currency` — mã tiền tệ của doanh thu ad (để trống = USD).
+
 ### Changed
+
+- **Setup Dependencies: chọn tổ hợp mạng quảng cáo thay cho một "Primary Mediation".** Bước 1 giờ là danh sách tick AdMob / AppLovin MAX / LevelPlay — một, hai hay cả ba mạng — cộng MMP AppsFlyer | Adjust. Mặc định **AdMob + AppsFlyer**. "Cài tất cả" cài đúng các mạng đã tick (AdMob kèm 2 adapter bắt buộc). Mạng đã cài hiện "ĐÃ CÀI" kèm nút **Gỡ**; khi có từ 2 mạng trở lên, bước 1 hiện thứ tự ưu tiên hiện tại và nút **Chỉnh thứ tự ưu tiên…** mở thẳng tab tương ứng trong `GameUp → SDK → Setup`. Lựa chọn lưu ở EditorPrefs theo project nên tick/bỏ tick không làm Unity compile lại.
+  - Define `GAMEUP_PRIMARY_MEDIATION_*` không còn được set (hằng trong `GUDefinetion` đánh dấu `[Obsolete]`). Project cũ: lựa chọn ban đầu lấy theo define này, và nút "Dọn define cũ" gỡ được nó. Runtime chưa từng phụ thuộc define này.
+- **Thứ tự waterfall tự khớp với SDK đang cài** (`MediationPriority`, dùng chung cho `AdsManager`, tab Setup và installer). Trước đây danh sách chỉ đồng bộ khi mở tab Setup, nên cài thêm MAX/LevelPlay mà chưa mở tab thì lúc chạy mạng đó không bao giờ được dùng; tab cũng luôn hiện AdMob kể cả khi chưa cài. Nay mạng mới cài tự nối vào cuối, mạng đã gỡ tự bị bỏ.
+
+- **`SDK.prefab` không còn nhúng `AppsFlyerObject`.** `AppsFlyerUtils.Awake` tự tạo GameObject `AppsFlyerObject` (con của SDK root) khi scene chưa có, nên project chọn Adjust và đã gỡ AppsFlyer không bị missing script trong prefab. Project cũ còn `AppsFlyerObject` trong SDK prefab/scene vẫn chạy như trước (dùng lại object có sẵn). Thiếu Dev Key thì log Warning lúc chạy.
 
 - **BREAKING — 2.0.0 yêu cầu Unity 6 (`"unity": "6000.0"`) và GameUp Core ≥ 0.7.0.** Không đổi API; `com.unity.services.core` 1.12.0 → 1.18.0 theo bản Unity 6 đã resolve và chạy thật trên template. Project còn ở 2022.3 hãy ghim Git URL về commit trước bản này. GameUp IAP lên 2.0.0 cùng lý do (Unity 6, cần Core ≥ 0.7.0 + SDK ≥ 2.0.0; `com.unity.purchasing` giữ 5.2.1).
 
 - **`package.json` 1.4.1 — chỉ metadata, không đổi code.** Mô tả liệt kê đủ tính năng hiện có (AppLovin MAX, AppMetrica, Native Ads, Remote Config, consent ATT/GDPR) thay vì bản cũ chỉ nhắc LevelPlay/AdMob; thêm keyword `applovin-max`, `appmetrica`, `remote-config`. Kết hợp GameUp Core ≥ 0.6.0, Claude Code đọc được API SDK kể cả khi cài qua Git UPM: `.claude/gameup-sdk/API_INDEX.md`, skill `gameup-sdk-api`, lệnh `/gu-sdk`.
 
 ### Fixed
+
+- **Banner không còn tự hiện lại sau `HideBanner`.** AdMob/LevelPlay bắn lại "loaded" mỗi lần banner auto-refresh, và `AdsManager.OnBannerLoaded` từng gọi `ShowBanner` cho mọi banner load xong — banner game đã ẩn (hoặc chỉ preload) tự bật lên sau ~60 giây. Nay `AdsManager` giữ tập placement game đang yêu cầu (`ShowBanner` thêm, `HideBanner` bỏ); banner load/refresh xong chỉ hiện khi đang được yêu cầu. Kèm theo:
+  - Banner đang hiện không còn nháy tắt/bật mỗi lần AdMob refresh, và không log lại `ads_request`/`ads_available` mỗi lần refresh.
+  - `ShowBanner` lúc đang có fullscreen ad (hoặc banner load xong đúng lúc đó) không còn đè lên interstitial/rewarded/AppOpen — banner được hoãn và hiện khi ad đóng.
+  - Banner bị chặn bởi điều kiện (`RefreshBannerVisibility`, `AddCondition`) chỉ bị ẩn, không mất yêu cầu — điều kiện thoả lại thì lần load sau tự hiện.
+  - `HideBanner` của collapsible native banner ẩn luôn banner thường đã thay chỗ nó.
+- **Doanh thu AdMob dùng đúng tiền tệ.** `OnAdPaid` trước đây bỏ `AdValue.CurrencyCode` và luôn gửi USD (sai khi tài khoản AdMob dùng tiền tệ khác), lại nhân với hằng `float` nên mất độ chính xác. Nay chia `1_000_000d` và truyền currency xuống Firebase `ad_impression`, AppsFlyer, Adjust, AppMetrica.
+- **Nút mở cửa sổ Setup trong Setup Dependencies hoạt động lại.** `ExecuteMenuItem("GameUp SDK/Setup")` sai đường dẫn nên bấm xong chỉ đóng cửa sổ; nay dùng chung hằng `GameUpDependenciesWindow.SetupWindowMenuPath` với `[MenuItem]` của `GameUpSetupWindow`.
+- `AppsFlyerUtils`: sửa comment lỗi encoding, đổi `Debug.Log` sang `GULogger`, bản singleton trùng không còn đụng tới `AppsFlyerObject`.
 
 - **2.0.1 — `appOpenOnColdStart` và `nativeCtaClickRate` chỉnh được trong Editor.** Hai field của `GameUpAdsConfig` trước đây không được vẽ ở đâu (`GameUpAdsConfigEditor` ghi đè `OnInspectorGUI` chỉ vẽ 3 tab mạng; cửa sổ Setup chỉ có `mediationPriority`) nên muốn tắt/bật App Open lúc cold start phải sửa tay file `.asset`. Nay có mục **Cài đặt chung** (`NetworkEditorUI.DrawGeneralSection`) ở đầu Inspector của asset và trong tab `GameUp → SDK → Setup` đổi tên thành **"Cài đặt chung & Thứ tự ưu tiên"**. Không đổi runtime, asset cũ giữ nguyên giá trị.
 - **Bỏ `MobileAds.RaiseAdEventsOnUnityMainThread` (obsolete từ Google Mobile Ads 10.7) và tự marshal callback.** Cờ này trước đây gánh việc đưa mọi callback AdMob về main thread; bỏ đi mà không sửa gì thì callback quay lại thread native và mọi thao tác Unity API trong đó sẽ ném exception. Đã bọc lại các chỗ trước đây dựa vào nó:

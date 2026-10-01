@@ -47,8 +47,9 @@ namespace GameUp.SDK
                 ad.OnAdPaid += (adValue) =>
                 {
                     if (adValue == null) return;
-                    double revenue = adValue.Value * 0.000001f;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Interstitial_{floor}", revenue));
+                    double revenue = adValue.Value / 1_000_000d;
+                    string currency = adValue.CurrencyCode;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Interstitial_{floor}", revenue, currency));
                 };
                 _ads[unitId] = ad;
                 HandleLoadSuccess(unitId, where);
@@ -146,8 +147,9 @@ namespace GameUp.SDK
                 ad.OnAdPaid += (adValue) =>
                 {
                     if (adValue == null) return;
-                    double revenue = adValue.Value * 0.000001f;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Rewarded_{floor}", revenue));
+                    double revenue = adValue.Value / 1_000_000d;
+                    string currency = adValue.CurrencyCode;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Rewarded_{floor}", revenue, currency));
                 };
                 _ads[unitId] = ad;
                 HandleLoadSuccess(unitId, where);
@@ -250,8 +252,9 @@ namespace GameUp.SDK
                 ad.OnAdPaid += (adValue) =>
                 {
                     if (adValue == null) return;
-                    double revenue = adValue.Value * 0.000001f;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"AppOpen_{floor}", revenue));
+                    double revenue = adValue.Value / 1_000_000d;
+                    string currency = adValue.CurrencyCode;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"AppOpen_{floor}", revenue, currency));
                 };
                 _ads[unitId] = ad;
                 _expireTimes[unitId] = DateTime.UtcNow.AddHours(4);
@@ -325,6 +328,13 @@ namespace GameUp.SDK
         /// </summary>
         private readonly HashSet<string> _pendingShow = new HashSet<string>();
 
+        /// <summary>
+        /// Unit đang được AdsManager cho hiện (Show → thêm, Hide → bỏ). BannerView tự refresh định kỳ và bắn lại
+        /// OnBannerAdLoaded; chỉ ẩn trong callback đó khi unit KHÔNG nằm trong tập này, nếu không banner đang hiện
+        /// sẽ nháy tắt mỗi lần refresh.
+        /// </summary>
+        private readonly HashSet<string> _visible = new HashSet<string>();
+
         public AdmobBannerAd(AdUnitConfig config) : base(config, AdUnitType.Banner, "Admob") { }
 
         // OVERRIDE Tắt Waterfall: Banner chỉ Load duy nhất tầng All
@@ -359,7 +369,7 @@ namespace GameUp.SDK
                     // AdMob TỰ hiển thị BannerView ngay khi load xong. Gọi Hide() trước LoadAd() không
                     // có tác dụng bền → phải ẩn lại NGAY trong callback loaded để banner giữ trạng thái ẩn,
                     // chỉ hiện khi AdsManager chủ động gọi Show() qua cổng điều kiện (enable_banner...).
-                    banner.Hide();
+                    if (!_visible.Contains(unitId)) banner.Hide();
                     _isLoaded[unitId] = true;
                     HandleLoadSuccess(unitId, where);
                 });
@@ -376,8 +386,9 @@ namespace GameUp.SDK
                 banner.OnAdPaid += (adValue) =>
                 {
                     if (adValue == null) return;
-                    double revenue = adValue.Value * 0.000001f;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, "Banner", revenue));
+                    double revenue = adValue.Value / 1_000_000d;
+                    string currency = adValue.CurrencyCode;
+                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, "Banner", revenue, currency));
                 };
 
                 var request = new AdRequest();
@@ -415,6 +426,7 @@ namespace GameUp.SDK
                     && _banners.TryGetValue(unitId, out var banner) && banner != null)
                 {
                     _pendingShow.Remove(unitId);
+                    _visible.Add(unitId);
                     NotifyAdDisplayed(where);
                     banner.Show();
                     return;
@@ -431,7 +443,11 @@ namespace GameUp.SDK
         {
 #if ADMOB_DEPENDENCIES_INSTALLED
             string unitId = _config.ResolveUnitId(_adType, where, EcpmFloor.All);
-            MainThreadDispatcher.Enqueue(() => { if (_banners.TryGetValue(unitId, out var banner) && banner != null) banner.Hide(); });
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                _visible.Remove(unitId);
+                if (_banners.TryGetValue(unitId, out var banner) && banner != null) banner.Hide();
+            });
 #endif
         }
 

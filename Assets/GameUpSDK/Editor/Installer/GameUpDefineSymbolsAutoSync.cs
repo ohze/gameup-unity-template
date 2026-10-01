@@ -32,6 +32,7 @@ namespace GameUp.SDK.Installer
         private const string GameAnalyticsDepsDefine = GUDefinetion.GameAnalyticsDepsInstalled;
         private const string FacebookDepsDefine = GUDefinetion.FacebookDepsInstalled;
         private const string AppmetricaDepsDefine = GUDefinetion.AppMetricaDepsInstalled;
+        private const string AdjustDepsDefine = GUDefinetion.AdjustDepsInstalled;
 
         private const string SessionThrottleKey = "GameUpSDK_DefinesAutoSync_Throttled";
 
@@ -137,7 +138,7 @@ namespace GameUp.SDK.Installer
                 return;
 
             TryEnsureGameAnalyticsRuntimeAsmdef(out _, out _);
-            EnsurePrimaryMediationDefines();
+            GameUpDependenciesWindow.EnsureMmpDefines();
 
             // Dựa vào asset trên disk, không dựa vào AppDomain: assembly của SDK vừa gỡ vẫn còn load
             // cho tới lần domain reload kế tiếp, nên IsAssemblyLoaded sẽ bật lại define vừa clear.
@@ -149,6 +150,7 @@ namespace GameUp.SDK.Installer
             bool gameAnalyticsInstalled = IsDependencyInstalled("GameAnalyticsSDK");
             bool facebookInstalled = IsDependencyInstalled("Facebook.Unity.Editor");
             bool appMetricaInstalled = IsDependencyInstalled("AppMetrica");
+            bool adjustInstalled = IsDependencyInstalled(GameUpDependenciesWindow.AdjustAssemblyName);
 
             SetDefine(LevelPlayDepsDefine, levelPlayInstalled);
             SetDefine(AdMobDepsDefine, admobInstalled);
@@ -158,8 +160,9 @@ namespace GameUp.SDK.Installer
             SetDefine(GameAnalyticsDepsDefine, gameAnalyticsInstalled);
             SetDefine(FacebookDepsDefine, facebookInstalled);
             SetDefine(AppmetricaDepsDefine, appMetricaInstalled);
+            SetDefine(AdjustDepsDefine, adjustInstalled);
 
-            bool hasAnalytics = firebaseInstalled || appsFlyerInstalled || gameAnalyticsInstalled || appMetricaInstalled;
+            bool hasAnalytics = firebaseInstalled || appsFlyerInstalled || adjustInstalled || gameAnalyticsInstalled || appMetricaInstalled;
             bool hasMediation = admobInstalled || levelPlayInstalled || maxInstalled;
             bool sdkEnabled = hasAnalytics && hasMediation;
             GameUpDependenciesWindow.SetDepsReadyDefine(sdkEnabled);
@@ -202,39 +205,6 @@ namespace GameUp.SDK.Installer
             message =
                 "Đã tạo " + GameAnalyticsRuntimeAsmdefAssetPath + ". GameUp.SDK.Runtime tham chiếu assembly tên GameAnalyticsSDK — đợi Unity recompile.";
             return true;
-        }
-
-        /// <summary>Đảm bảo có đúng một define mediation (mặc định AdMob nếu chưa có).</summary>
-        private static void EnsurePrimaryMediationDefines()
-        {
-            bool lp = HasDefine(GUDefinetion.PrimaryMediationLevelPlay);
-            bool admob = HasDefine(GUDefinetion.PrimaryMediationAdMob);
-            bool max = HasDefine(GUDefinetion.PrimaryMediationMax);
-            int active = (lp ? 1 : 0) + (admob ? 1 : 0) + (max ? 1 : 0);
-            if (active == 0)
-            {
-                SetDefine(GUDefinetion.PrimaryMediationAdMob, true);
-                return;
-            }
-
-            if (active <= 1)
-                return;
-
-            if (admob)
-            {
-                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
-                SetDefine(GUDefinetion.PrimaryMediationMax, false);
-            }
-            else if (max)
-            {
-                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
-                SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
-            }
-            else
-            {
-                SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
-                SetDefine(GUDefinetion.PrimaryMediationMax, false);
-            }
         }
 
         private static bool IsDependencyInstalled(string assemblyName)

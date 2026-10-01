@@ -63,9 +63,12 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public const string FacebookDepsInstalled`
 - `public const string MaxDepsInstalled`
 - `public const string AppMetricaDepsInstalled`
-- `public const string PrimaryMediationLevelPlay`
-- `public const string PrimaryMediationAdMob`
-- `public const string PrimaryMediationMax`
+- `public const string AdjustDepsInstalled`
+- `public const string MmpAppsFlyer`
+- `public const string MmpAdjust`
+- `[Obsolete] public const string PrimaryMediationLevelPlay`
+- `[Obsolete] public const string PrimaryMediationAdMob`
+- `[Obsolete] public const string PrimaryMediationMax`
 
 ### `public static class MainThreadDispatcher`
 
@@ -75,6 +78,21 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 - `public static void Enqueue(Action action)`
 - `public static void ProcessQueue()`
+
+## Scripts/Runtime/Adjust
+
+### `public static class AdjustAnalyticsUtils`
+
+`GameUp.SDK` · [Scripts/Runtime/Adjust/AdjustAnalyticsUtils.cs](Assets/GameUpSDK/Scripts/Runtime/Adjust/AdjustAnalyticsUtils.cs)
+
+> Adjust MMP — vai trò tương đương `AppsFlyerUtils`: init SDK từ `GameUpSdkConfig.adjust`, gửi event chuyển đổi, ad revenue và purchase. Không cần đặt prefab Adjust vào scene: SDK được init lúc load scene đầu. Nếu scene đã có prefab Adjust tự init (Start Manually = false) thì để prefab lo, không init lần hai. Chỉ hoạt động khi MMP đang chọn là Adjust (define GAMEUP_MMP_ADJUST); ngược lại mọi hàm là no-op.
+
+- `public static bool IsInitialized { get; }`
+- `public static void Initialize()`
+- `public static void LogEvent(string eventName, Dictionary<string, string> eventValues = null)`
+- `public static void LogPurchase(string eventName, double revenue, string currency, string orderId, string productId, Dictionary<string, string> eventValues = null)`
+- `public static void LogAdRevenue(AdImpressionData data)`
+- `public static void SetCustomerUserId(string userId)`
 
 ## Scripts/Runtime/Ads
 
@@ -105,6 +123,8 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public string InstanceName { get; set; }`
 - `public string AdFormat { get; set; }`
 - `public double? Revenue { get; set; }`
+- `public string Currency { get; set; }`
+- `public string ResolvedCurrency { get; }`
 
 ### `public static class AdsEvent`
 
@@ -562,7 +582,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `protected void HandleLoadFailed(string unitId, string where, EcpmFloor floor, string error)`
 - `protected void HandleLoadSuccess(string unitId, string where)`
 - `protected void LogTrace(string phase, string unitId, string where, string extra = null)`
-- `protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue)`
+- `protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue, string currency = null)`
 - `protected string WhereByKey(string key)`
 - `protected EcpmFloor FloorOf(string unitId)`
 
@@ -676,6 +696,15 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 `GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/INetwork.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/INetwork.cs)
 
 - `void Show(string where, Action onSuccess, Action onFail)`
+
+### `public static class MediationPriority`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/MediationPriority.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/MediationPriority.cs)
+
+> Thứ tự waterfall giữa các mạng quảng cáo đã cài SDK. Dùng chung cho runtime (`AdsManager`), tab Setup và installer để cả ba luôn thấy cùng một thứ tự.
+
+- `public static List<MediationProvider> GetInstalledProviders()`
+- `public static List<MediationProvider> Resolve(IEnumerable<MediationProvider> saved)`
 
 ### `public enum MediationProvider`
 
@@ -955,7 +984,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 `GameUp.SDK` · [Scripts/Runtime/Analytics/GameUpAnalytics.cs](Assets/GameUpSDK/Scripts/Runtime/Analytics/GameUpAnalytics.cs)
 
-> Game analytics: Firebase, AppsFlyer (MMP), AppMetrica (tùy chọn), GameAnalytics progression (Start / Complete / Fail) theo GA Unity — Progression events (world main → level → wave). Cần init GameAnalytics + keys trong scene.
+> Game analytics: Firebase, MMP (AppsFlyer hoặc Adjust), AppMetrica (tùy chọn), GameAnalytics progression (Start / Complete / Fail) theo GA Unity — Progression events (world main → level → wave). Cần init GameAnalytics + keys trong scene.
 
 - `public static void LogFirebase(string eventName, string paramName = null, string paramValue = null)`
 - `public static void LogFirebaseParams(string eventName, Dictionary<string, string> param)`
@@ -984,13 +1013,21 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public static void LogAchievementUnlocked(string contentId, int? level = null)`
 - `public static void LogAdImpression(AdImpressionData data)`
 
+### `public enum MmpProvider`
+
+`GameUp.SDK` · [Scripts/Runtime/Analytics/MmpProvider.cs](Assets/GameUpSDK/Scripts/Runtime/Analytics/MmpProvider.cs)
+
+> MMP (mobile measurement partner) lo attribution + ad revenue + event chuyển đổi. AppsFlyer và Adjust giữ vai trò tương đương — mỗi project chọn một bên ở Setup Dependencies.
+
+- `AppsFlyer, Adjust`
+
 ## Scripts/Runtime/AppsFlyerCheck
 
 ### `public class AppsFlyerUtils : MonoSingleton<AppsFlyerUtils>, IAppsFlyerPurchaseRevenueDataSource, IAppsFlyerPurchaseRevenueDataSourceStoreKit2, IAppsFlyerPurchaseValidation`
 
 `GameUp.SDK` · [Scripts/Runtime/AppsFlyerCheck/AppsFlyerUtils.cs](Assets/GameUpSDK/Scripts/Runtime/AppsFlyerCheck/AppsFlyerUtils.cs)
 
-> Gá»i event / ad revenue AppsFlyer. SDK Ä‘Æ°á»£c khá»Ÿi táº¡o bá»Ÿi AppsFlyerObject (AppsFlyerObjectScript) â€” devKey vÃ appID cáº¥u hÃ¬nh trÃªn object Ä‘Ã³.
+> Gửi event / ad revenue AppsFlyer. SDK được init bởi AppsFlyerObjectScript — devKey / appID lấy từ GameUpSdkConfig.
 
 - `[SerializeField] private GameUpSdkConfig configOverride`
 - `protected override void Awake()`
@@ -1048,6 +1085,30 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public AdUnitConfig Get(AdUnitType type)`
 - `public IEnumerable<AdUnitConfig> All()`
 - `public bool MigrateLegacyEntries()`
+
+### `public class AdjustEventToken`
+
+`GameUp.SDK` · [Scripts/Runtime/Config/AdjustEventToken.cs](Assets/GameUpSDK/Scripts/Runtime/Config/AdjustEventToken.cs)
+
+> Adjust không nhận tên event tự do như AppsFlyer — mỗi event phải có token 6 ký tự tạo trên dashboard. Bảng này map tên event GameUp (vd af_level_achieved) sang token tương ứng.
+
+- `public string eventName`
+- `public string token`
+
+### `public class AdjustSettings`
+
+`GameUp.SDK` · [Scripts/Runtime/Config/AdjustSettings.cs](Assets/GameUpSDK/Scripts/Runtime/Config/AdjustSettings.cs)
+
+- `public string appTokenAndroid`
+- `public string appTokenIOS`
+- `public bool sandbox`
+- `public bool verboseLog`
+- `public bool sendInBackground`
+- `public bool costDataInAttribution`
+- `public int attConsentWaitingInterval`
+- `public List<AdjustEventToken> eventTokens`
+- `public string GetAppToken(bool isIOS)`
+- `public bool TryGetEventToken(string eventName, out string token)`
 
 ### `public class AdmobAdsSettings`
 
@@ -1120,6 +1181,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public const string ResourcePath`
 - `public string trackingUsageDescription`
 - `public AppsFlyerSettings appsFlyer`
+- `public AdjustSettings adjust`
 - `public AppMetricaSettings appMetrica`
 - `public RemoteConfigDefaults remoteConfig`
 - `public static GameUpSdkConfig Instance { get; }`

@@ -69,7 +69,7 @@ namespace GameUp.SDK
                 return;
             }
 
-            var adRevenue = new AdRevenue(data.Revenue.Value, "USD")
+            var adRevenue = new AdRevenue(data.Revenue.Value, data.ResolvedCurrency)
             {
                 AdNetwork = data.AdNetwork,
                 AdUnitId = data.AdUnit,
@@ -77,7 +77,7 @@ namespace GameUp.SDK
                 AdType = MapAdType(data.AdFormat)
             };
             AppMetrica.ReportAdRevenue(adRevenue);
-            DebugLogSent("ReportAdRevenue", $"{data.Revenue.Value} USD", $"network={data.AdNetwork}");
+            DebugLogSent("ReportAdRevenue", $"{data.Revenue.Value} {data.ResolvedCurrency}", $"network={data.AdNetwork}");
 
             var eventParams = BuildAfAdRevenueParams(data);
             if (eventParams != null && eventParams.Count > 0)
@@ -201,7 +201,7 @@ namespace GameUp.SDK
             {
                 [AppMetricaEvent.ParamMonetizationNetwork] = data.AdNetwork ?? "",
                 [AppMetricaEvent.ParamAfRevenue] = data.Revenue.Value.ToString(CultureInfo.InvariantCulture),
-                [AppMetricaEvent.ParamAfCurrency] = "USD"
+                [AppMetricaEvent.ParamAfCurrency] = data.ResolvedCurrency
             };
             if (!string.IsNullOrEmpty(data.AdUnit)) p[AppMetricaEvent.ParamAdUnit] = data.AdUnit;
             if (!string.IsNullOrEmpty(data.AdFormat)) p["ad_format"] = data.AdFormat;

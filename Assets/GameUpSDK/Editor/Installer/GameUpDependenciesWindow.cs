@@ -74,7 +74,7 @@ namespace GameUp.SDK.Installer
             public bool IsAdMobMediationAdapter;
 
             /// <summary>
-            /// Bắt buộc khi Primary Mediation = AdMob (mediation stack GameUp SDK + forward GDPR consent).
+            /// Bắt buộc khi project dùng AdMob (mediation stack GameUp SDK + forward GDPR consent).
             /// </summary>
             public bool RequiredForAdMobRuntime;
 
@@ -114,7 +114,7 @@ namespace GameUp.SDK.Installer
             public string[] DeleteAssetPathsAfterImport;
 
             /// <summary>
-            /// Thứ tự cài khuyến nghị (số nhỏ trước): Facebook → Firebase (EDM) → AdMob/LevelPlay → AppsFlyer → GameAnalytics.
+            /// Thứ tự cài khuyến nghị (số nhỏ trước): Facebook → Firebase (EDM) → AdMob/LevelPlay → MMP (AppsFlyer/Adjust) → GameAnalytics.
             /// Batch install, import sau download và danh sách UI đều sort theo trường này.
             /// </summary>
             public int InstallPriority;
@@ -187,7 +187,7 @@ namespace GameUp.SDK.Installer
             new PackageDef
             {
                 DisplayName = "Google Mobile Ads — AdMob",
-                Description = "Cần khi Primary Mediation = AdMob, khi dùng AdMob standalone (Interstitial/Rewarded/AppOpen), hoặc khi muốn bắt paid event để log ad_impression.",
+                Description = "Mạng quảng cáo mặc định. Tick AdMob ở bước 1 để \"Cài tất cả\" cài kèm 2 adapter bắt buộc. Chạy song song được với MAX / LevelPlay.",
                 Required = false,
                 AssemblyName = "GoogleMobileAds",
                 Method = InstallMethod.UnityPackage,
@@ -210,7 +210,7 @@ namespace GameUp.SDK.Installer
             new PackageDef
             {
                 DisplayName = "IronSource LevelPlay SDK",
-                Description = "Tùy chọn. Cần nếu bạn chọn Primary Mediation = LevelPlay trong AdsManager.",
+                Description = "Tùy chọn. Tick LevelPlay ở bước 1 để cài; dùng riêng hoặc chạy song song với AdMob / MAX (thứ tự ưu tiên chỉnh ở GameUp → SDK → Setup).",
                 Required = false,
                 AssemblyName = "Unity.LevelPlay",
                 Method = InstallMethod.UnityPackage,
@@ -228,7 +228,7 @@ namespace GameUp.SDK.Installer
             {
                 DisplayName = "AppLovin MAX Unity Plugin 8.6.3",
                 Description =
-                    "Tùy chọn. Bắt buộc khi Primary Mediation = Max. Android/iOS SDK 13.6.2. Define: MAXSDK_DEPENDENCIES_INSTALLED.",
+                    "Tùy chọn. Tick AppLovin MAX ở bước 1 để cài; dùng riêng hoặc chạy song song với AdMob / LevelPlay (thứ tự ưu tiên chỉnh ở GameUp → SDK → Setup). Android/iOS SDK 13.6.2.",
                 Required = false,
                 AssemblyName = "MaxSdk.Scripts",
                 Method = InstallMethod.UnityPackage,
@@ -247,9 +247,9 @@ namespace GameUp.SDK.Installer
                 // Firebase gồm 3 file riêng trong subfolder Firebase/
                 // EDM4U (Google.VersionHandler) được bundle kèm trong FirebaseAnalytics
                 DisplayName      = "AppsFlyer Attribution SDK",
-                Description      = "Tùy chọn. Mobile measurement & attribution.",
+                Description      = "MMP (attribution) — cài khi bước 1 chọn MMP = AppsFlyer. Tương đương Adjust, chỉ dùng một trong hai.",
                 Required         = false,
-                AssemblyName     = "AppsFlyer",
+                AssemblyName     = AppsFlyerAssemblyName,
                 Method           = InstallMethod.UnityPackage,
                 BundledFileNames = new[] { "appsflyer-unity-plugin-6.17.81.unitypackage" },
                 HostedUrls       = new[]
@@ -259,6 +259,25 @@ namespace GameUp.SDK.Installer
                 DownloadUrl      = "https://github.com/AppsFlyerSDK/appsflyer-unity-plugin/releases",
                 DownloadLabel    = "Tải AppsFlyer SDK →",
                 RemoveAssetPaths = new[] { "Assets/AppsFlyer" },
+                InstallPriority = 45,
+            },
+            new PackageDef
+            {
+                DisplayName = "Adjust SDK 5.8.0",
+                Description =
+                    "MMP (attribution) — cài khi bước 1 chọn MMP = Adjust. Tương đương AppsFlyer, chỉ dùng một trong hai. " +
+                    "Define: ADJUST_DEPENDENCIES_INSTALLED. Không cần kéo prefab Adjust vào scene — GameUp tự init từ GameUpSdkConfig.",
+                Required = false,
+                AssemblyName = AdjustAssemblyName,
+                Method = InstallMethod.UnityPackage,
+                BundledFileNames = new[] { "Adjust_v5.8.0.unitypackage" },
+                HostedUrls = new[]
+                {
+                    "https://github.com/adjust/unity_sdk/releases/download/v5.8.0/Adjust_v5.8.0.unitypackage",
+                },
+                DownloadUrl = "https://github.com/adjust/unity_sdk/releases",
+                DownloadLabel = "Adjust Unity SDK releases →",
+                RemoveAssetPaths = new[] { "Assets/Adjust" },
                 InstallPriority = 45,
             },
              new PackageDef
@@ -393,7 +412,7 @@ namespace GameUp.SDK.Installer
             {
                 DisplayName = "AdMob Adapter — IronSource Ads",
                 Description =
-                    "Bắt buộc với Primary Mediation = AdMob (GameUp SDK). Adapter mediation IronSource / LevelPlay trong waterfall AdMob.",
+                    "Bắt buộc khi project dùng AdMob (GameUp SDK). Adapter mediation IronSource / LevelPlay trong waterfall AdMob.",
                 Required = false,
                 AssemblyName = "GoogleMobileAds.Mediation.IronSource.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/IronSource",
@@ -575,7 +594,7 @@ namespace GameUp.SDK.Installer
             {
                 DisplayName = "AdMob Adapter — Unity Ads",
                 Description =
-                    "Bắt buộc với Primary Mediation = AdMob (GameUp SDK). Adapter mediation Unity Ads trong waterfall AdMob.",
+                    "Bắt buộc khi project dùng AdMob (GameUp SDK). Adapter mediation Unity Ads trong waterfall AdMob.",
                 Required = false,
                 AssemblyName = "GoogleMobileAds.Mediation.UnityAds.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/UnityAds",
@@ -661,6 +680,23 @@ namespace GameUp.SDK.Installer
         private const string GameAnalyticsDepsDefine = GUDefinetion.GameAnalyticsDepsInstalled;
         private const string FacebookDepsDefine = GUDefinetion.FacebookDepsInstalled;
         private const string AppmetricaDepsDefine = GUDefinetion.AppMetricaDepsInstalled;
+        private const string AdjustDepsDefine = GUDefinetion.AdjustDepsInstalled;
+
+        /// <summary>Menu của GameUpSetupWindow (assembly Editor) — installer không reference được nên mở qua menu.</summary>
+        public const string SetupWindowMenuPath = "GameUp/SDK/Setup";
+
+        /// <summary>SessionState: tiêu đề tab mà GameUpSetupWindow chọn sẵn ở lần mở kế tiếp.</summary>
+        public const string SetupWindowTabSessionKey = "GameUpSDK_SetupWindow_OpenTab";
+
+        /// <summary>Tiêu đề tab thứ tự ưu tiên mediation trong GameUpSetupWindow.</summary>
+        public const string SetupPriorityTabTitle = "Cài đặt chung & Thứ tự ưu tiên";
+
+        /// <summary>Các mạng quảng cáo có thể chạy song song, theo thứ tự hiển thị.</summary>
+        private static readonly MediationProvider[] s_mediationNetworks =
+            { MediationProvider.Admob, MediationProvider.Max, MediationProvider.IronSource };
+
+        internal const string AppsFlyerAssemblyName = "AppsFlyer";
+        internal const string AdjustAssemblyName = "AdjustSdk.Scripts";
 
         // Define do editor script của chính SDK third-party ghi vào Player Settings.
         private const string GameAnalyticsThirdPartyDefinePrefix = "gameanalytics_";
@@ -986,7 +1022,7 @@ namespace GameUp.SDK.Installer
 
             GUILayout.FlexibleSpace();
 
-            var planned = GetPackagesForSdkSetup(GetPrimaryMediationFromDefines());
+            var planned = GetPackagesForSdkSetup(GetSelectedNetworks());
             GUILayout.Label($"Bộ hiện tại: {planned.Count(p => p.IsInstalled)}/{planned.Count} đã cài", EditorStyles.miniLabel);
             GUILayout.Space(6);
             if (GUILayout.Button("↻ Làm mới", EditorStyles.toolbarButton, GUILayout.Width(80)))
@@ -1164,48 +1200,141 @@ namespace GameUp.SDK.Installer
 
         // ─── Cột trái: các bước hướng dẫn ────────────────────────────────────────
 
-        /// <summary>Bước 1 — chọn mediation chính, kèm giải thích bộ pack tương ứng.</summary>
+        /// <summary>Bước 1 — chọn tổ hợp mạng quảng cáo (1–3 mạng) và MMP, quyết định bộ pack cài ở bước 2.</summary>
         private void DrawStepMediation()
         {
             BeginCard();
-            DrawStepTitle(1, "Chọn mediation chính");
+            DrawStepTitle(1, "Chọn mạng quảng cáo & MMP");
 
-            EditorGUI.BeginDisabledGroup(IsInteractionLocked());
-            var current = GetPrimaryMediationFromDefines();
-            var next = (MediationProvider)EditorGUILayout.EnumPopup("Primary Mediation", current);
-            if (next != current)
+            GUILayout.Label("Mạng quảng cáo — chọn một hoặc nhiều (mặc định AdMob):", _mutedStyle);
+            var selected = GetSelectedNetworks();
+            foreach (var provider in s_mediationNetworks)
+                DrawNetworkRow(provider, selected);
+
+            if (selected.Count > 1)
             {
-                SetPrimaryMediationDefines(next);
-                RefreshStatus();
+                GUILayout.Label(
+                    "Nhiều mạng chạy song song: mạng xếp trên không có ad sẵn sàng thì SDK tự thử mạng kế tiếp.",
+                    _descStyle);
+                DrawPriorityOrder();
             }
 
-            EditorGUI.EndDisabledGroup();
-
-            var pm = GetPrimaryMediationFromDefines();
-            string planDesc = pm switch
+            EditorGUILayout.Space(6);
+            EditorGUI.BeginDisabledGroup(IsInteractionLocked());
+            var currentMmp = GetMmpFromDefines();
+            var nextMmp = (MmpProvider)EditorGUILayout.EnumPopup(
+                new GUIContent("MMP (Attribution)", "AppsFlyer và Adjust giữ vai trò tương đương — chọn một bên, installer chỉ cài bên đó."),
+                currentMmp);
+            if (nextMmp != currentMmp)
             {
-                MediationProvider.IronSource =>
-                    "Facebook, Firebase, AppsFlyer, GameAnalytics, IronSource LevelPlay.",
-                MediationProvider.Max =>
-                    "Facebook, Firebase, AppsFlyer, GameAnalytics, AppLovin MAX.",
-                _ => "Facebook, Firebase, AppsFlyer, GameAnalytics, Google Mobile Ads + 2 adapter bắt buộc (Unity Ads, IronSource).",
-            };
+                SetMmpDefines(nextMmp);
+                RefreshStatus();
+            }
+            EditorGUI.EndDisabledGroup();
+            GUILayout.Label("Đổi MMP lưu bằng Scripting Define Symbol nên Unity sẽ compile lại.", _mutedStyle);
+
+            string mmpName = GetMmpFromDefines() == MmpProvider.Adjust ? "Adjust" : "AppsFlyer";
+            var unusedMmp = GetUnusedInstalledMmpPackage();
+            if (unusedMmp != null)
+            {
+                EditorGUILayout.HelpBox(
+                    $"\"{unusedMmp.DisplayName}\" vẫn còn trong project dù MMP đang chọn là {mmpName}. " +
+                    "Runtime chỉ init MMP đang chọn, nhưng SDK thừa vẫn làm nặng build — nên gỡ.",
+                    MessageType.Warning);
+
+                EditorGUI.BeginDisabledGroup(IsInteractionLocked() || !CanRemovePackage(unusedMmp));
+                if (GUILayout.Button($"Gỡ {unusedMmp.DisplayName}"))
+                    RequestRemovePackage(unusedMmp);
+                EditorGUI.EndDisabledGroup();
+            }
 
             EditorGUILayout.Space(4);
-            GUILayout.Label("Lựa chọn này quyết định bộ package sẽ được cài ở bước 2:", _mutedStyle);
-            GUILayout.Label("• " + planDesc, _descStyle);
-            GUILayout.Label(
-                "Giá trị được lưu bằng Scripting Define Symbol (không tạo asset trong Assets/), nên đổi mediation sẽ khiến Unity compile lại.",
-                _mutedStyle);
+            GUILayout.Label("Bước 2 sẽ cài:", _mutedStyle);
+            GUILayout.Label($"• Facebook, Firebase, {mmpName}, GameAnalytics, {GetNetworkPlanDescription(selected)}.", _descStyle);
 
             EndCard();
+        }
+
+        /// <summary>Một dòng mạng quảng cáo: tick để đưa vào bộ cài; đã cài thì khoá tick và cho gỡ.</summary>
+        private void DrawNetworkRow(MediationProvider provider, List<MediationProvider> selected)
+        {
+            var pkg = FindMediationPackage(provider);
+            if (pkg == null) return;
+
+            bool isSelected = selected.Contains(provider);
+            EditorGUILayout.BeginHorizontal();
+
+            // Bỏ tick mạng cuối cùng là vô nghĩa (không có ads); mạng đã cài thì gỡ bằng nút bên phải.
+            bool lockToggle = IsInteractionLocked() || pkg.IsInstalled || (isSelected && selected.Count == 1);
+            EditorGUI.BeginDisabledGroup(lockToggle);
+            bool next = EditorGUILayout.ToggleLeft(GetMediationDisplayName(provider), isSelected || pkg.IsInstalled,
+                EditorStyles.boldLabel, GUILayout.Width(150));
+            EditorGUI.EndDisabledGroup();
+            if (!lockToggle && next != isSelected)
+                SetNetworkSelected(provider, next);
+
+            if (pkg.IsInstalled)
+            {
+                _badgeStyle.normal.textColor = InstalledColor;
+                GUILayout.Label("ĐÃ CÀI", _badgeStyle);
+            }
+            else
+            {
+                // Mạng chưa chọn là tùy chọn — không tô đỏ như package bắt buộc còn thiếu.
+                GUILayout.Label(isSelected ? "sẽ cài ở bước 2" : "không dùng", _mutedStyle);
+            }
+
+            GUILayout.FlexibleSpace();
+            if (pkg.IsInstalled)
+            {
+                EditorGUI.BeginDisabledGroup(IsInteractionLocked() || !CanRemovePackage(pkg));
+                if (GUILayout.Button("Gỡ", GUILayout.Width(60)))
+                    RequestRemovePackage(pkg);
+                EditorGUI.EndDisabledGroup();
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        /// <summary>Thứ tự ưu tiên hiện tại của các mạng đã cài + nút mở tab chỉnh thứ tự.</summary>
+        private void DrawPriorityOrder()
+        {
+            var installed = s_mediationNetworks.Where(n => FindMediationPackage(n)?.IsInstalled == true).ToList();
+            if (installed.Count < 2)
+            {
+                GUILayout.Label("Cài xong có thể chỉnh thứ tự ưu tiên ở GameUp → SDK → Setup.", _mutedStyle);
+                return;
+            }
+
+            var order = MediationPriority.Resolve(GameUpAdsConfig.Instance?.mediationPriority)
+                .Where(installed.Contains)
+                .Select(GetMediationDisplayName);
+            GUILayout.Label($"Thứ tự ưu tiên: {string.Join("  →  ", order)}", _descStyle);
+            if (GUILayout.Button("Chỉnh thứ tự ưu tiên…"))
+                EditorApplication.delayCall += OpenPriorityTab;
+        }
+
+        private static string GetNetworkPlanDescription(List<MediationProvider> networks)
+        {
+            return string.Join(", ", networks.Select(n => n == MediationProvider.Admob
+                ? "AdMob + 2 adapter bắt buộc (Unity Ads, IronSource)"
+                : GetMediationDisplayName(n)));
+        }
+
+        /// <summary>Gỡ ngoài OnGUI: dialog + xoá asset giữa lúc đang layout card dễ gây lỗi GUILayout.</summary>
+        private void RequestRemovePackage(PackageDef pkg)
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (this != null) ConfirmAndRemovePackage(pkg);
+            };
         }
 
         /// <summary>Bước 2 — tiến độ bộ pack cốt lõi + nút cài tất cả + các cảnh báo liên quan.</summary>
         private void DrawStepInstallAll()
         {
-            var pm = GetPrimaryMediationFromDefines();
-            var planned = GetPackagesForSdkSetup(pm);
+            var selected = GetSelectedNetworks();
+            var planned = GetPackagesForSdkSetup(selected);
             var missingAuto = planned.Where(p => !p.IsInstalled && CanAutoInstall(p)).ToList();
             var missingManual = planned.Where(p => !p.IsInstalled && !CanAutoInstall(p)).ToList();
             int installed = planned.Count(p => p.IsInstalled);
@@ -1249,7 +1378,7 @@ namespace GameUp.SDK.Installer
                 }
             }
 
-            if (pm == MediationProvider.Admob)
+            if (selected.Contains(MediationProvider.Admob))
             {
                 var missingRequiredAdapters = GetRequiredAdMobRuntimeAdapters().Where(p => !p.IsInstalled).ToList();
                 if (missingRequiredAdapters.Count > 0)
@@ -1272,6 +1401,36 @@ namespace GameUp.SDK.Installer
             EndCard();
         }
 
+        private static PackageDef FindMediationPackage(MediationProvider provider)
+        {
+            return provider switch
+            {
+                MediationProvider.Admob => FindPackageByAssembly("GoogleMobileAds"),
+                MediationProvider.Max => FindPackageByAssembly("MaxSdk.Scripts"),
+                MediationProvider.IronSource => FindPackageByAssembly("Unity.LevelPlay"),
+                _ => null,
+            };
+        }
+
+        private static string GetMediationDisplayName(MediationProvider provider)
+        {
+            return provider switch
+            {
+                MediationProvider.Admob => "AdMob",
+                MediationProvider.Max => "AppLovin MAX",
+                MediationProvider.IronSource => "LevelPlay",
+                _ => provider.ToString(),
+            };
+        }
+
+        /// <summary>Mở GameUpSetupWindow ở tab thứ tự ưu tiên, không đóng cửa sổ Dependencies.</summary>
+        private static void OpenPriorityTab()
+        {
+            SessionState.SetString(SetupWindowTabSessionKey, SetupPriorityTabTitle);
+            if (!EditorApplication.ExecuteMenuItem(SetupWindowMenuPath))
+                Debug.LogWarning($"[GameUpSDK] Không mở được {SetupWindowMenuPath} — mở thủ công từ menu.");
+        }
+
         /// <summary>Thứ tự cài khuyến nghị — gấp lại để không chiếm chỗ.</summary>
         private void DrawInstallOrderCard()
         {
@@ -1282,8 +1441,8 @@ namespace GameUp.SDK.Installer
                 EditorGUILayout.Space(4);
                 GUILayout.Label("1.  Facebook SDK", _descStyle);
                 GUILayout.Label("2.  Firebase (kèm EDM4U) — chờ compile + Android Resolver xong", _descStyle);
-                GUILayout.Label("3.  Google Mobile Ads / LevelPlay / MAX — đúng với Primary Mediation ở bước 1", _descStyle);
-                GUILayout.Label("4.  AppsFlyer", _descStyle);
+                GUILayout.Label("3.  AdMob / MAX / LevelPlay — các mạng đã tick ở bước 1", _descStyle);
+                GUILayout.Label("4.  MMP — AppsFlyer hoặc Adjust, đúng với lựa chọn ở bước 1", _descStyle);
                 GUILayout.Label("5.  GameAnalytics", _descStyle);
                 EditorGUILayout.Space(4);
                 GUILayout.Label(
@@ -1378,7 +1537,26 @@ namespace GameUp.SDK.Installer
                 }
             }
 
+            foreach (string legacy in LegacyPrimaryMediationDefines)
+            {
+                if (symbols.Contains(legacy)) stale.Add(legacy);
+            }
+
             return stale;
+        }
+
+        /// <summary>Define "Primary Mediation" cũ — giờ chọn được nhiều mạng nên không còn dùng, chỉ đọc để migrate.</summary>
+#pragma warning disable 0618
+        private static readonly string[] LegacyPrimaryMediationDefines =
+        {
+            GUDefinetion.PrimaryMediationAdMob, GUDefinetion.PrimaryMediationMax, GUDefinetion.PrimaryMediationLevelPlay
+        };
+#pragma warning restore 0618
+
+        private static void ClearLegacyPrimaryMediationDefines()
+        {
+            foreach (string legacy in LegacyPrimaryMediationDefines)
+                SetDefine(legacy, false);
         }
 
         private static List<string> GetDefinedSymbols()
@@ -1486,8 +1664,8 @@ namespace GameUp.SDK.Installer
             Debug.Log("[GameUpSDK] Đã xóa " + FacebookExamplesAssetPath);
         }
 
-        /// <summary>Firebase + AppsFlyer + bộ mediation cốt lõi theo lựa chọn. AdMob gồm thêm 2 adapter bắt buộc (Unity Ads + IronSource).</summary>
-        private static List<PackageDef> GetPackagesForSdkSetup(MediationProvider mediation)
+        /// <summary>Firebase + MMP (AppsFlyer/Adjust) + các mạng quảng cáo đã chọn. AdMob gồm thêm 2 adapter bắt buộc (Unity Ads + IronSource).</summary>
+        private static List<PackageDef> GetPackagesForSdkSetup(List<MediationProvider> networks)
         {
             var list = new List<PackageDef>();
 
@@ -1506,21 +1684,15 @@ namespace GameUp.SDK.Installer
 
             AddByAssembly("Facebook.Unity.Editor");
             AddByAssembly("Firebase.App");
-            AddByAssembly("AppsFlyer");
+            AddByAssembly(GetMmpFromDefines() == MmpProvider.Adjust ? AdjustAssemblyName : AppsFlyerAssemblyName);
             AddByAssembly("GameAnalyticsSDK");
 
-            if (mediation == MediationProvider.IronSource)
+            foreach (var network in networks)
             {
-                AddByAssembly("Unity.LevelPlay");
-            }
-            else if (mediation == MediationProvider.Max)
-            {
-                AddByAssembly("MaxSdk.Scripts");
-            }
-            else
-            {
-                // Mặc định (kể cả khi chưa chọn) là AdMob: core + 2 adapter bắt buộc.
-                AddByAssembly("GoogleMobileAds");
+                AddPackage(FindMediationPackage(network));
+                if (network != MediationProvider.Admob) continue;
+
+                // AdMob: core + 2 adapter bắt buộc.
                 foreach (var adapter in GetRequiredAdMobRuntimeAdapters())
                     AddPackage(adapter);
             }
@@ -1528,54 +1700,94 @@ namespace GameUp.SDK.Installer
             return OrderedInstallSequence(list).ToList();
         }
 
-        private static MediationProvider GetPrimaryMediationFromDefines()
+        /// <summary>
+        /// Mạng quảng cáo dev đã chọn ở bước 1, theo thứ tự hiển thị. Luôn gồm mạng đã cài và không bao giờ rỗng.
+        /// Lưu ở EditorPrefs theo project (chỉ có nghĩa trước khi cài — sau đó trạng thái cài là nguồn sự thật),
+        /// nên tick/bỏ tick không đổi define và không bắt Unity compile lại.
+        /// </summary>
+        private static List<MediationProvider> GetSelectedNetworks()
         {
-            if (HasDefine(GUDefinetion.PrimaryMediationAdMob)) return MediationProvider.Admob;
-            if (HasDefine(GUDefinetion.PrimaryMediationMax)) return MediationProvider.Max;
-            if (HasDefine(GUDefinetion.PrimaryMediationLevelPlay)) return MediationProvider.IronSource;
+            string stored = EditorPrefs.GetString(SelectedNetworksPrefKey, null);
+            var chosen = stored == null ? GetLegacyPrimaryNetworks() : ParseNetworks(stored);
 
-            // Chưa có define nào (project mới) → mặc định AdMob.
-            return MediationProvider.Admob;
+            var result = s_mediationNetworks
+                .Where(n => chosen.Contains(n) || FindMediationPackage(n)?.IsInstalled == true)
+                .ToList();
+            if (result.Count == 0) result.Add(MediationProvider.Admob);
+            return result;
         }
 
-        private static void SetPrimaryMediationDefines(MediationProvider mediation)
+        private static void SetNetworkSelected(MediationProvider provider, bool selected)
         {
-            SetDefine(GUDefinetion.PrimaryMediationAdMob, mediation == MediationProvider.Admob);
-            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, mediation == MediationProvider.IronSource);
-            SetDefine(GUDefinetion.PrimaryMediationMax, mediation == MediationProvider.Max);
+            var current = GetSelectedNetworks();
+            if (selected && !current.Contains(provider)) current.Add(provider);
+            if (!selected) current.Remove(provider);
+            if (current.Count == 0) return;
+            EditorPrefs.SetString(SelectedNetworksPrefKey, string.Join(",", current));
         }
 
-        /// <summary>Đảm bảo có đúng một define mediation (mặc định AdMob nếu chưa có).</summary>
-        private static void EnsurePrimaryMediationDefines()
+        /// <summary>Project tạo trước khi có chọn nhiều mạng: lấy theo define GAMEUP_PRIMARY_MEDIATION_* cũ, mặc định AdMob.</summary>
+        private static List<MediationProvider> GetLegacyPrimaryNetworks()
         {
-            bool lp = HasDefine(GUDefinetion.PrimaryMediationLevelPlay);
-            bool admob = HasDefine(GUDefinetion.PrimaryMediationAdMob);
-            bool max = HasDefine(GUDefinetion.PrimaryMediationMax);
-            int active = (lp ? 1 : 0) + (admob ? 1 : 0) + (max ? 1 : 0);
-            if (active == 0)
+#pragma warning disable 0618
+            if (HasDefine(GUDefinetion.PrimaryMediationMax)) return new List<MediationProvider> { MediationProvider.Max };
+            if (HasDefine(GUDefinetion.PrimaryMediationLevelPlay)) return new List<MediationProvider> { MediationProvider.IronSource };
+#pragma warning restore 0618
+            return new List<MediationProvider> { MediationProvider.Admob };
+        }
+
+        private static List<MediationProvider> ParseNetworks(string value)
+        {
+            var list = new List<MediationProvider>();
+            foreach (string part in value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                SetDefine(GUDefinetion.PrimaryMediationAdMob, true);
+                if (Enum.TryParse(part.Trim(), out MediationProvider provider) && provider != MediationProvider.None)
+                    list.Add(provider);
+            }
+            return list;
+        }
+
+        /// <summary>Theo project: hai project mở trên cùng máy không dùng chung lựa chọn.</summary>
+        private static string SelectedNetworksPrefKey => $"GameUpSDK_SelectedNetworks_{PlayerSettings.productGUID}";
+
+        private static MmpProvider GetMmpFromDefines()
+        {
+            // Chưa có define (project cũ) → AppsFlyer, giữ nguyên hành vi trước khi có Adjust.
+            return HasDefine(GUDefinetion.MmpAdjust) && !HasDefine(GUDefinetion.MmpAppsFlyer)
+                ? MmpProvider.Adjust
+                : MmpProvider.AppsFlyer;
+        }
+
+        private static void SetMmpDefines(MmpProvider mmp)
+        {
+            SetDefine(GUDefinetion.MmpAppsFlyer, mmp == MmpProvider.AppsFlyer);
+            SetDefine(GUDefinetion.MmpAdjust, mmp == MmpProvider.Adjust);
+        }
+
+        /// <summary>Đảm bảo có đúng một define MMP. Chưa có thì suy từ SDK đang cài (chỉ có Adjust → Adjust), còn lại AppsFlyer.</summary>
+        internal static void EnsureMmpDefines()
+        {
+            bool appsFlyer = HasDefine(GUDefinetion.MmpAppsFlyer);
+            bool adjust = HasDefine(GUDefinetion.MmpAdjust);
+            if (appsFlyer ^ adjust)
+                return;
+
+            if (appsFlyer)
+            {
+                SetDefine(GUDefinetion.MmpAdjust, false);
                 return;
             }
 
-            if (active <= 1)
-                return;
+            bool onlyAdjustInstalled = IsDependencyInstalledByAssembly(AdjustAssemblyName) &&
+                                       !IsDependencyInstalledByAssembly(AppsFlyerAssemblyName);
+            SetMmpDefines(onlyAdjustInstalled ? MmpProvider.Adjust : MmpProvider.AppsFlyer);
+        }
 
-            if (admob)
-            {
-                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
-                SetDefine(GUDefinetion.PrimaryMediationMax, false);
-            }
-            else if (max)
-            {
-                SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
-                SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
-            }
-            else
-            {
-                SetDefine(GUDefinetion.PrimaryMediationAdMob, false);
-                SetDefine(GUDefinetion.PrimaryMediationMax, false);
-            }
+        /// <summary>Package MMP còn trong project nhưng không phải MMP đang chọn (null nếu không có).</summary>
+        private static PackageDef GetUnusedInstalledMmpPackage()
+        {
+            var unused = FindPackageByAssembly(GetMmpFromDefines() == MmpProvider.Adjust ? AppsFlyerAssemblyName : AdjustAssemblyName);
+            return unused != null && unused.IsInstalled ? unused : null;
         }
 
         private void DrawPackageList(bool includeAdMobAdapters, bool allowPerPackageRemove = true)
@@ -1620,7 +1832,7 @@ namespace GameUp.SDK.Installer
             EditorGUILayout.BeginVertical();
             GUILayout.Label($"AdMob Mediation Adapters — {installedAdapterCount}/{adapters.Count} đã cài", _cardTitleStyle);
             GUILayout.Label(
-                "Chỉ cần khi Primary Mediation = AdMob. Installer tự tải .zip, giải nén và import .unitypackage.",
+                "Chỉ cần khi project dùng AdMob. Installer tự tải .zip, giải nén và import .unitypackage.",
                 _mutedStyle);
             EditorGUILayout.EndVertical();
             GUILayout.FlexibleSpace();
@@ -1630,11 +1842,11 @@ namespace GameUp.SDK.Installer
 
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
 
-            if (GetPrimaryMediationFromDefines() != MediationProvider.Admob)
+            if (!GetSelectedNetworks().Contains(MediationProvider.Admob))
             {
                 EditorGUILayout.HelpBox(
-                    "Primary Mediation hiện không phải AdMob nên các adapter này chưa được dùng tới. " +
-                    "Vẫn cài trước được, nhưng nhớ đổi Primary Mediation = AdMob ở tab Dependencies.",
+                    "Project chưa chọn AdMob nên các adapter này chưa được dùng tới. " +
+                    "Vẫn cài trước được, nhưng nhớ tick AdMob ở bước 1 tab Dependencies.",
                     MessageType.Warning);
             }
 
@@ -1972,7 +2184,8 @@ namespace GameUp.SDK.Installer
 
             GameUpPackageInstaller.MarkSetupComplete();
             Close();
-            EditorApplication.ExecuteMenuItem("GameUp SDK/Setup");
+            if (!EditorApplication.ExecuteMenuItem(SetupWindowMenuPath))
+                Debug.LogWarning($"[GameUpSDK] Không mở được {SetupWindowMenuPath} — mở thủ công từ menu.");
         }
 
         // ─── Install logic ────────────────────────────────────────────────────────
@@ -3002,7 +3215,9 @@ namespace GameUp.SDK.Installer
                 syncDefines = false;
 
             if (syncDefines)
-                EnsurePrimaryMediationDefines();
+            {
+                EnsureMmpDefines();
+            }
 
             foreach (var pkg in s_packages)
             {
@@ -3064,11 +3279,17 @@ namespace GameUp.SDK.Installer
             else if (!appMetricaInstalled && HasDefine(AppmetricaDepsDefine))
                 SetDefine(AppmetricaDepsDefine, false);
 
-            bool appsFlyerInstalled = IsPackageInstalled(FindPackageByAssembly("AppsFlyer"));
+            bool appsFlyerInstalled = IsPackageInstalled(FindPackageByAssembly(AppsFlyerAssemblyName));
             if (appsFlyerInstalled && !HasDefine(AppsFlyerDepsDefine))
                 SetDefine(AppsFlyerDepsDefine, true);
             else if (!appsFlyerInstalled && HasDefine(AppsFlyerDepsDefine))
                 SetDefine(AppsFlyerDepsDefine, false);
+
+            bool adjustInstalled = IsPackageInstalled(FindPackageByAssembly(AdjustAssemblyName));
+            if (adjustInstalled && !HasDefine(AdjustDepsDefine))
+                SetDefine(AdjustDepsDefine, true);
+            else if (!adjustInstalled && HasDefine(AdjustDepsDefine))
+                SetDefine(AdjustDepsDefine, false);
 
             bool gameAnalyticsInstalled = IsPackageInstalled(FindPackageByAssembly("GameAnalyticsSDK"));
             if (gameAnalyticsInstalled && !HasDefine(GameAnalyticsDepsDefine))
@@ -3078,9 +3299,9 @@ namespace GameUp.SDK.Installer
 
             // Tự động set/clear define khi trạng thái thay đổi
             // GAMEUP_SDK_DEPS_READY chỉ còn ý nghĩa "SDK enabled" (backward compat).
-            // Bật khi có (Firebase hoặc AppsFlyer hoặc GameAnalytics) AND (AdMob hoặc LevelPlay).
+            // Bật khi có (Firebase / MMP / GameAnalytics / AppMetrica) AND (AdMob / LevelPlay / MAX).
             // Không dùng define này để include SDK bên thứ 3 nữa.
-            bool hasAnalytics = firebaseInstalled || appsFlyerInstalled || gameAnalyticsInstalled || appMetricaInstalled;
+            bool hasAnalytics = firebaseInstalled || appsFlyerInstalled || adjustInstalled || gameAnalyticsInstalled || appMetricaInstalled;
             bool hasMediation = admobInstalled || levelPlayInstalled || maxInstalled;
             bool sdkEnabled = hasAnalytics && hasMediation;
             if (sdkEnabled && !IsDepsReadyDefined())
@@ -3482,6 +3703,7 @@ namespace GameUp.SDK.Installer
             SetDefine(FirebaseDepsDefine, false);
             SetDefine(AppmetricaDepsDefine, false);
             SetDefine(AppsFlyerDepsDefine, false);
+            SetDefine(AdjustDepsDefine, false);
             SetDefine(GameAnalyticsDepsDefine, false);
             SetDefine(FacebookDepsDefine, false);
             SetDepsReadyDefine(false);
@@ -3489,10 +3711,10 @@ namespace GameUp.SDK.Installer
             // Define do chính SDK third-party set (installer không set) — không dọn thì còn lại vĩnh viễn.
             RemoveDefinesWhere(IsThirdPartyDependencyDefine);
 
-            // Reset mediation về mặc định (AdMob) sau khi gỡ toàn bộ dependencies.
-            SetDefine(GUDefinetion.PrimaryMediationLevelPlay, false);
-            SetDefine(GUDefinetion.PrimaryMediationMax, false);
-            SetDefine(GUDefinetion.PrimaryMediationAdMob, true);
+            // Reset về mặc định AdMob + AppsFlyer sau khi gỡ toàn bộ dependencies.
+            ClearLegacyPrimaryMediationDefines();
+            EditorPrefs.DeleteKey(SelectedNetworksPrefKey);
+            SetMmpDefines(MmpProvider.AppsFlyer);
 
             PersistPlayerSettings();
         }
@@ -3527,7 +3749,8 @@ namespace GameUp.SDK.Installer
                 case "GoogleMobileAds": return AdMobDepsDefine;
                 case "Unity.LevelPlay": return LevelPlayDepsDefine;
                 case "MaxSdk.Scripts": return MaxSdkDepsDefine;
-                case "AppsFlyer": return AppsFlyerDepsDefine;
+                case AppsFlyerAssemblyName: return AppsFlyerDepsDefine;
+                case AdjustAssemblyName: return AdjustDepsDefine;
                 case "GameAnalyticsSDK": return GameAnalyticsDepsDefine;
                 case "AppMetrica": return AppmetricaDepsDefine;
                 default: return null;

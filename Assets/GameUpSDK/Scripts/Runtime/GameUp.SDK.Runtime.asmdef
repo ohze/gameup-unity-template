@@ -6,6 +6,7 @@
         "UnityEngine.UI",
         "Unity.LevelPlay",
         "AppsFlyer",
+        "AdjustSdk.Scripts",
         "GameAnalyticsSDK",
         "Unity.Advertisement.IosSupport",
         "MaxSdk.Scripts",

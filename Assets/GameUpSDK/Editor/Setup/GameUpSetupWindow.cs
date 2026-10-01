@@ -16,10 +16,11 @@ namespace GameUp.SDK.Editor.Setup
         private static readonly Dictionary<string, string> TabDescriptions = new Dictionary<string, string>
         {
             { "Facebook", "App ID / Client Token dùng cho Facebook SDK." },
-            { "AppsFlyer", "Dev Key và App ID để đo lường attribution." },
+            { "AppsFlyer", "MMP — Dev Key và App ID để đo lường attribution." },
+            { "Adjust", "MMP — App Token, môi trường và bảng event token để đo lường attribution." },
             { "Game Analytics", "Game Key / Secret Key cho từng nền tảng." },
             { "AppMetrica", "API Key của AppMetrica." },
-            { "Cài đặt chung & Thứ tự ưu tiên", "App Open lúc cold start, tỉ lệ Native CTA và thứ tự mạng được thử khi có nhiều hơn một mạng quảng cáo." },
+            { Installer.GameUpDependenciesWindow.SetupPriorityTabTitle, "App Open lúc cold start, tỉ lệ Native CTA và thứ tự mạng được thử khi có nhiều hơn một mạng quảng cáo." },
             { "IronSource Mediation", "App Key và các ad unit của IronSource." },
             { "MAX Mediation", "SDK Key và các ad unit của AppLovin MAX." },
             { "AdMob / AppOpen", "App ID, ad unit AdMob và cấu hình App Open." },
@@ -49,7 +50,7 @@ namespace GameUp.SDK.Editor.Setup
         private GUIStyle _panelSubtitleStyle;
         private GUIStyle _paddedAreaStyle;
 
-        [MenuItem("GameUp/SDK/Setup")]
+        [MenuItem(Installer.GameUpDependenciesWindow.SetupWindowMenuPath)]
         public static void ShowWindow()
         {
             if (!Installer.GameUpDependenciesWindow.AreAllRequiredPackagesInstalled())
@@ -57,7 +58,23 @@ namespace GameUp.SDK.Editor.Setup
                 Installer.GameUpDependenciesWindow.ShowWindow();
                 return;
             }
-            GetWindow<GameUpSetupWindow>("GameUp SDK Setup").minSize = new Vector2(820, 560);
+            var window = GetWindow<GameUpSetupWindow>("GameUp SDK Setup");
+            window.minSize = new Vector2(820, 560);
+            window.SelectRequestedTab();
+        }
+
+        /// <summary>Chọn tab do nơi khác yêu cầu qua SessionState (vd installer mở thẳng tab thứ tự ưu tiên).</summary>
+        private void SelectRequestedTab()
+        {
+            string title = SessionState.GetString(Installer.GameUpDependenciesWindow.SetupWindowTabSessionKey, null);
+            if (string.IsNullOrEmpty(title)) return;
+            SessionState.EraseString(Installer.GameUpDependenciesWindow.SetupWindowTabSessionKey);
+
+            RefreshVisibleTabs();
+            int index = _visibleTabs.FindIndex(t => t.Title == title);
+            if (index < 0) return;
+            _activeTabIndex = index;
+            Repaint();
         }
 
         private void OnEnable()
@@ -67,6 +84,7 @@ namespace GameUp.SDK.Editor.Setup
             {
                 new FacebookSetupTab(),
                 new AppsFlyerSetupTab(),
+                new AdjustSetupTab(),
                 new GameAnalyticsSetupTab(),
                 new AppmetricaSetupTab(),
                 new MediationPrioritySetupTab(),
@@ -360,6 +378,9 @@ namespace GameUp.SDK.Editor.Setup
             EditorGUILayout.EndVertical();
 
             GUILayout.Space(10);
+            DrawMmpRow();
+
+            GUILayout.Space(10);
             DrawConfigIssuesPanel();
 
             GUILayout.Space(10);
@@ -446,6 +467,21 @@ namespace GameUp.SDK.Editor.Setup
                 EditorGUILayout.EndVertical();
             }
             EditorGUILayout.EndScrollView();
+        }
+
+        /// <summary>MMP đang chọn (AppsFlyer / Adjust) — đổi ở Setup Dependencies vì kéo theo việc cài SDK.</summary>
+        private static void DrawMmpRow()
+        {
+#if GAMEUP_MMP_ADJUST
+            const string mmp = "Adjust";
+#else
+            const string mmp = "AppsFlyer";
+#endif
+            EditorGUILayout.LabelField("MMP (Attribution)", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal("box");
+            EditorGUILayout.LabelField("Đang dùng", mmp);
+            if (GUILayout.Button("Đổi MMP…", GUILayout.Width(90))) Installer.GameUpDependenciesWindow.ShowWindow();
+            EditorGUILayout.EndHorizontal();
         }
 
         private void DrawConfigRow(string label, ScriptableObject asset)

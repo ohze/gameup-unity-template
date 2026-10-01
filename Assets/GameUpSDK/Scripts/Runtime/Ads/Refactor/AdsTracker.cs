@@ -90,7 +90,7 @@ namespace GameUp.SDK
             if (!string.IsNullOrEmpty(appsFlyerEventName) && !string.IsNullOrEmpty(paramWhere))
             {
                 _afParamCache[AdsEvent.ParamAfLevel] = paramWhere;
-                AppsFlyerUtils.LogEvents(appsFlyerEventName, _afParamCache);
+                GameUpAnalytics.LogMmp(appsFlyerEventName, _afParamCache);
             }
         }
 
@@ -103,7 +103,7 @@ namespace GameUp.SDK
             if (!string.IsNullOrEmpty(appsFlyerEventName))
             {
                 _afParamCache[AdsEvent.ParamAfLevel] = level.ToString();
-                AppsFlyerUtils.LogEvents(appsFlyerEventName, _afParamCache);
+                GameUpAnalytics.LogMmp(appsFlyerEventName, _afParamCache);
             }
         }
 

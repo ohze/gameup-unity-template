@@ -6,7 +6,7 @@ using UnityEngine;
 namespace GameUp.SDK.Editor.Setup
 {
     /// <summary>
-    /// Tìm / tạo asset <see cref="GameUpSdkConfig"/> (AppsFlyer, AppMetrica, Remote Config defaults)
+    /// Tìm / tạo asset <see cref="GameUpSdkConfig"/> (AppsFlyer, Adjust, AppMetrica, Remote Config defaults)
     /// và migrate dữ liệu cũ đang nằm trong prefab sang asset đó.
     /// </summary>
     public static class GameUpSdkConfigAsset

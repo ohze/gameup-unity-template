@@ -10,7 +10,7 @@ namespace GameUp.SDK.Editor.Setup
         public override void OnInspectorGUI()
         {
             EditorGUILayout.HelpBox(
-                "Cấu hình AppsFlyer / AppMetrica / Remote Config của project. " +
+                "Cấu hình AppsFlyer / Adjust / AppMetrica / Remote Config của project. " +
                 "Sửa tại đây hoặc trong cửa sổ GameUp/SDK/Setup đều như nhau.",
                 MessageType.Info);
 

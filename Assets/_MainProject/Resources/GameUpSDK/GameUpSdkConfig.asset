@@ -12,11 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: afef8e2da226425c91589bfc3071a4b7, type: 3}
   m_Name: GameUpSdkConfig
   m_EditorClassIdentifier: 
+  trackingUsageDescription: 
   appsFlyer:
     devKey: "\u01B0qeq\u01B0ew"
     appIdIOS: 
     isDebug: 0
     getConversionData: 0
+  adjust:
+    appTokenAndroid: 123
+    appTokenIOS: 
+    sandbox: 0
+    verboseLog: 0
+    sendInBackground: 0
+    costDataInAttribution: 0
+    attConsentWaitingInterval: 120
+    eventTokens: []
   appMetrica:
     apiKey: 
     enableLogs: 0
