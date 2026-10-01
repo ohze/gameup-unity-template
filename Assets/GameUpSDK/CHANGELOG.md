@@ -37,6 +37,7 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 - **2.1.0 — Ad revenue đủ format và đúng mediation cho MMP (AppsFlyer lẫn Adjust).**
   - MAX **Banner** và **App Open** trước đây không đăng ký `OnAdRevenuePaidEvent` nên doanh thu hai format này không tới Firebase/AppsFlyer/Adjust/AppMetrica. Nay đã có, như Interstitial/Rewarded.
   - `AdImpressionData.Mediation` mới: mỗi nguồn (AdMob, MAX, LevelPlay, Native Overlay) ghi rõ mediation đã phục vụ. Trước đây mediation bị suy từ `AdNetwork`, mà LevelPlay đặt `AdNetwork` là ad network con (vd `applovin`, `google`) → AppsFlyer nhận sai `MediationNetwork` và Adjust nhận sai source (`applovin_max_sdk` thay vì `ironsource_sdk`).
+  - AdMob collapsible native banner trên **Android** không đăng ký `setOnPaidEventListener` (`NativeBannerManager.java`) nên doanh thu không bao giờ được gửi — bản iOS và native fullscreen đã có từ trước. Nay đã thêm.
   - MAX gửi `AdNetwork` = ad network thực sự (`AdInfo.NetworkName`) thay vì chữ "MAX".
   - Firebase `ad_impression`: `ad_platform` là tên mediation (`AdMob` / `AppLovin` / `ironSource`) thay vì chuỗi cố định `"mediation"`.
 - **Doanh thu AdMob dùng đúng tiền tệ.** `OnAdPaid` trước đây bỏ `AdValue.CurrencyCode` và luôn gửi USD (sai khi tài khoản AdMob dùng tiền tệ khác), lại nhân với hằng `float` nên mất độ chính xác. Nay chia `1_000_000d` và truyền currency xuống Firebase `ad_impression`, AppsFlyer, Adjust, AppMetrica.

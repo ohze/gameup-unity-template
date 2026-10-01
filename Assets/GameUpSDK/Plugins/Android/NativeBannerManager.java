@@ -74,6 +74,15 @@ public class NativeBannerManager {
                                 }
                                 if (currentNativeAd != null) currentNativeAd.destroy();
                                 currentNativeAd = nativeAd;
+                                // Thiếu listener này thì doanh thu collapsible native banner trên Android không bao giờ
+                                // tới Firebase/MMP (bản iOS và UnityNativeFullScreen đều đã có).
+                                nativeAd.setOnPaidEventListener(new com.google.android.gms.ads.OnPaidEventListener() {
+                                    @Override
+                                    public void onPaidEvent(com.google.android.gms.ads.AdValue adValue) {
+                                        AdCallback cb = activeCallback != null ? activeCallback : callback;
+                                        if (cb != null) cb.onPaid(adValue.getValueMicros() * 0.000001);
+                                    }
+                                });
                                 currentState = AdState.LOADED;
                                 sendLog("=> Banner LOADED successfully!");
                                 if (callback != null) callback.onLoaded();
