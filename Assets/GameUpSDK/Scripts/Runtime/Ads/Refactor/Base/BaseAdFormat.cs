@@ -156,11 +156,14 @@ namespace GameUp.SDK
             GULogger.Log(msg);
         }
         
-        protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue, string currency = null)
+        /// <param name="adNetwork">Mạng thực sự phục vụ ad nếu SDK mediation cho biết (vd MAX AdInfo.NetworkName); null = tên mediation.</param>
+        protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue,
+            string currency = null, string adNetwork = null)
         {
             var data = new AdImpressionData
             {
-                AdNetwork = _networkName,
+                AdNetwork = string.IsNullOrEmpty(adNetwork) ? _networkName : adNetwork,
+                Mediation = ToMediation(_networkName),
                 AdUnit = adUnitId,
                 InstanceName = placement,
                 AdFormat = adFormat,
@@ -168,6 +171,17 @@ namespace GameUp.SDK
                 Currency = currency
             };
             MainThreadDispatcher.Enqueue(() => AdsEvent.RaiseImpressionDataReady(data));
+        }
+
+        private static MediationProvider ToMediation(string networkName)
+        {
+            return networkName switch
+            {
+                "Admob" => MediationProvider.Admob,
+                "MAX" => MediationProvider.Max,
+                "LevelPlay" => MediationProvider.IronSource,
+                _ => MediationProvider.None,
+            };
         }
 
         protected string WhereByKey(string key) => _config.WhereByKey(_adType, key);

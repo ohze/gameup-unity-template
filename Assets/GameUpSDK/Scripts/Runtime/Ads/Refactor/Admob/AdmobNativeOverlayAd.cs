@@ -135,7 +135,7 @@ namespace GameUp.SDK
                             if (!IsLive(id, entry) || value == null) return;
                             AdsEvent.RaiseImpressionDataReady(new AdImpressionData
                             {
-                                AdNetwork = "Admob", AdUnit = id, InstanceName = entry.Where,
+                                AdNetwork = "Admob", Mediation = MediationProvider.Admob, AdUnit = id, InstanceName = entry.Where,
                                 AdFormat = "native_overlay", Revenue = value.Value / 1000000d
                             });
                         });

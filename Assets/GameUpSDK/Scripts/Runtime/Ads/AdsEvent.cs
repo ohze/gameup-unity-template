@@ -7,7 +7,11 @@ namespace GameUp.SDK
     /// </summary>
     public class AdImpressionData
     {
+        /// <summary>Mạng thực sự phục vụ impression (vd "AppLovin", "Google AdMob", "ironSource"). Không dùng để suy ra mediation.</summary>
         public string AdNetwork { get; set; }
+
+        /// <summary>Mediation đã phục vụ impression — quyết định source ad revenue gửi MMP (Adjust / AppsFlyer). None = không rõ.</summary>
+        public MediationProvider Mediation { get; set; }
         public string AdUnit { get; set; }
         public string InstanceName { get; set; }
         public string AdFormat { get; set; }

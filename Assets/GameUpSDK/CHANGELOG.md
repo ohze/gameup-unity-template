@@ -34,6 +34,11 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
   - `ShowBanner` lúc đang có fullscreen ad (hoặc banner load xong đúng lúc đó) không còn đè lên interstitial/rewarded/AppOpen — banner được hoãn và hiện khi ad đóng.
   - Banner bị chặn bởi điều kiện (`RefreshBannerVisibility`, `AddCondition`) chỉ bị ẩn, không mất yêu cầu — điều kiện thoả lại thì lần load sau tự hiện.
   - `HideBanner` của collapsible native banner ẩn luôn banner thường đã thay chỗ nó.
+- **2.1.0 — Ad revenue đủ format và đúng mediation cho MMP (AppsFlyer lẫn Adjust).**
+  - MAX **Banner** và **App Open** trước đây không đăng ký `OnAdRevenuePaidEvent` nên doanh thu hai format này không tới Firebase/AppsFlyer/Adjust/AppMetrica. Nay đã có, như Interstitial/Rewarded.
+  - `AdImpressionData.Mediation` mới: mỗi nguồn (AdMob, MAX, LevelPlay, Native Overlay) ghi rõ mediation đã phục vụ. Trước đây mediation bị suy từ `AdNetwork`, mà LevelPlay đặt `AdNetwork` là ad network con (vd `applovin`, `google`) → AppsFlyer nhận sai `MediationNetwork` và Adjust nhận sai source (`applovin_max_sdk` thay vì `ironsource_sdk`).
+  - MAX gửi `AdNetwork` = ad network thực sự (`AdInfo.NetworkName`) thay vì chữ "MAX".
+  - Firebase `ad_impression`: `ad_platform` là tên mediation (`AdMob` / `AppLovin` / `ironSource`) thay vì chuỗi cố định `"mediation"`.
 - **Doanh thu AdMob dùng đúng tiền tệ.** `OnAdPaid` trước đây bỏ `AdValue.CurrencyCode` và luôn gửi USD (sai khi tài khoản AdMob dùng tiền tệ khác), lại nhân với hằng `float` nên mất độ chính xác. Nay chia `1_000_000d` và truyền currency xuống Firebase `ad_impression`, AppsFlyer, Adjust, AppMetrica.
 - **Nút mở cửa sổ Setup trong Setup Dependencies hoạt động lại.** `ExecuteMenuItem("GameUp SDK/Setup")` sai đường dẫn nên bấm xong chỉ đóng cửa sổ; nay dùng chung hằng `GameUpDependenciesWindow.SetupWindowMenuPath` với `[MenuItem]` của `GameUpSetupWindow`.
 - `AppsFlyerUtils`: sửa comment lỗi encoding, đổi `Debug.Log` sang `GULogger`, bản singleton trùng không còn đụng tới `AppsFlyerObject`.

@@ -106,6 +106,7 @@ namespace GameUp.SDK
             var impression = new AdImpressionData
             {
                 AdNetwork = data.AdNetwork,
+                Mediation = MediationProvider.IronSource,
                 AdUnit = data.MediationAdUnitName ?? data.MediationAdUnitId,
                 InstanceName = data.InstanceName,
                 AdFormat = data.AdFormat,

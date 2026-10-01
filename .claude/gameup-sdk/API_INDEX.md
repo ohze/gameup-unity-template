@@ -1,6 +1,6 @@
 # GameUp SDK — API index (tự sinh)
 
-> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.sdk` `2.0.1`; lần sync sau sẽ ghi đè.
+> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.sdk` `2.1.0`; lần sync sau sẽ ghi đè.
 
 - Source đọc được: `Assets/GameUpSDK/` — cột **File** bên dưới là đường dẫn tương đối so với thư mục này.
 - Đường dẫn trong Unity (dùng cho asmdef/AssetDatabase): `Assets/GameUpSDK/`.
@@ -119,6 +119,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 > DTO for ad impression data (ARM). Used when forwarding IronSource/LevelPlay impression data to GameUpAnalytics.
 
 - `public string AdNetwork { get; set; }`
+- `public MediationProvider Mediation { get; set; }`
 - `public string AdUnit { get; set; }`
 - `public string InstanceName { get; set; }`
 - `public string AdFormat { get; set; }`
@@ -582,7 +583,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `protected void HandleLoadFailed(string unitId, string where, EcpmFloor floor, string error)`
 - `protected void HandleLoadSuccess(string unitId, string where)`
 - `protected void LogTrace(string phase, string unitId, string where, string extra = null)`
-- `protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue, string currency = null)`
+- `protected void TrackRevenue(string adUnitId, string placement, string adFormat, double revenue, string currency = null, string adNetwork = null)`
 - `protected string WhereByKey(string key)`
 - `protected EcpmFloor FloorOf(string unitId)`
 

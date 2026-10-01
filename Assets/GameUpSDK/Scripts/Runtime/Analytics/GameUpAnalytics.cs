@@ -469,25 +469,30 @@ namespace GameUp.SDK
         // ---------- Firebase: Ad Revenue Measurement (ARM) ----------
 
 #if APPSFLYER_DEPENDENCIES_INSTALLED && !GAMEUP_MMP_ADJUST
-        private static MediationNetwork GetMediationNetworkFromAdNetwork(string adNetwork)
+        /// <summary>MediationNetwork của AppsFlyer = mediation đã phục vụ impression (AdNetwork chỉ là ad network con).</summary>
+        private static MediationNetwork GetAppsFlyerMediationNetwork(AdImpressionData data)
         {
-            if (string.IsNullOrEmpty(adNetwork)) return MediationNetwork.Custom;
-            var n = adNetwork.Trim().ToLowerInvariant();
-            if (n.Contains("admob") || n.Contains("google")) return MediationNetwork.GoogleAdMob;
-            if (n.Contains("unity")) return MediationNetwork.Unity;
-            if (n.Contains("applovin") || n.Contains("max")) return MediationNetwork.ApplovinMax;
-            if (n.Contains("meta") || n.Contains("facebook")) return MediationNetwork.Custom;
-            if (n.Contains("chartboost")) return MediationNetwork.ChartBoost;
-            if (n.Contains("fyber")) return MediationNetwork.Fyber;
-            if (n.Contains("appodeal")) return MediationNetwork.Appodeal;
-            if (n.Contains("admost")) return MediationNetwork.Admost;
-            if (n.Contains("topon")) return MediationNetwork.Topon;
-            if (n.Contains("tradplus")) return MediationNetwork.Tradplus;
-            if (n.Contains("yandex")) return MediationNetwork.Yandex;
-            if (n.Contains("ironsource")) return MediationNetwork.IronSource;
-            return MediationNetwork.Custom;
+            return data.Mediation switch
+            {
+                MediationProvider.Admob => MediationNetwork.GoogleAdMob,
+                MediationProvider.Max => MediationNetwork.ApplovinMax,
+                MediationProvider.IronSource => MediationNetwork.IronSource,
+                _ => MediationNetwork.Custom,
+            };
         }
 #endif
+
+        /// <summary>ad_platform của Firebase ARM là tên mediation (trước đây gửi cứng chuỗi "mediation").</summary>
+        private static string GetFirebaseAdPlatform(MediationProvider mediation)
+        {
+            return mediation switch
+            {
+                MediationProvider.Admob => "AdMob",
+                MediationProvider.Max => "AppLovin",
+                MediationProvider.IronSource => "ironSource",
+                _ => "mediation",
+            };
+        }
 
         /// <summary>
         /// Logs ad_impression to Firebase for Ad Revenue Measurement (ARM).
@@ -504,7 +509,7 @@ namespace GameUp.SDK
 #if FIREBASE_DEPENDENCIES_INSTALLED
             var parameters = new Parameter[]
             {
-                new Parameter(FirebaseAnalytics.ParameterAdPlatform, "mediation"),
+                new Parameter(FirebaseAnalytics.ParameterAdPlatform, GetFirebaseAdPlatform(data.Mediation)),
                 new Parameter(FirebaseAnalytics.ParameterAdSource, adNetwork),
                 new Parameter(FirebaseAnalytics.ParameterAdUnitName, data.AdUnit ?? ""),
                 new Parameter(FirebaseAnalytics.ParameterAdFormat, data.InstanceName ?? data.AdFormat ?? ""),
@@ -517,7 +522,7 @@ namespace GameUp.SDK
 #if APPSFLYER_DEPENDENCIES_INSTALLED && !GAMEUP_MMP_ADJUST
             var adRevenueData = new AFAdRevenueData(
                 adNetwork,
-                GetMediationNetworkFromAdNetwork(adNetwork),
+                GetAppsFlyerMediationNetwork(data),
                 currency,
                 revenue);
             var adRevenueParams = new Dictionary<string, string>();

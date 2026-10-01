@@ -18,7 +18,7 @@ namespace GameUp.SDK
 
 #if MAXSDK_DEPENDENCIES_INSTALLED
         private void OnRevenuePaid(string id, MaxSdkBase.AdInfo info) =>
-            TrackRevenue(id, info.NetworkPlacement, $"Interstitial_{FloorOf(id)}", info.Revenue);
+            TrackRevenue(id, info.NetworkPlacement, $"Interstitial_{FloorOf(id)}", info.Revenue, adNetwork: info.NetworkName);
 #endif
 
         public override bool IsAvailable(string where = null)
@@ -116,7 +116,7 @@ namespace GameUp.SDK
 
 #if MAXSDK_DEPENDENCIES_INSTALLED
         private void OnRevenuePaid(string id, MaxSdkBase.AdInfo info) =>
-            TrackRevenue(id, info.NetworkPlacement, $"Rewarded_{FloorOf(id)}", info.Revenue);
+            TrackRevenue(id, info.NetworkPlacement, $"Rewarded_{FloorOf(id)}", info.Revenue, adNetwork: info.NetworkName);
 #endif
 
         public override bool IsAvailable(string where = null)
@@ -205,7 +205,18 @@ namespace GameUp.SDK
 
     public class MaxAppOpenAd : BaseAdFormat, IAppOpenAd
     {
-        public MaxAppOpenAd(AdUnitConfig config) : base(config, AdUnitType.AppOpen, "MAX") { }
+        public MaxAppOpenAd(AdUnitConfig config) : base(config, AdUnitType.AppOpen, "MAX")
+        {
+#if MAXSDK_DEPENDENCIES_INSTALLED
+            // Trước đây App Open của MAX không đăng ký revenue → doanh thu không tới Firebase/MMP.
+            MaxSdkCallbacks.AppOpen.OnAdRevenuePaidEvent += OnRevenuePaid;
+#endif
+        }
+
+#if MAXSDK_DEPENDENCIES_INSTALLED
+        private void OnRevenuePaid(string id, MaxSdkBase.AdInfo info) =>
+            TrackRevenue(id, info.NetworkPlacement, "AppOpen", info.Revenue, adNetwork: info.NetworkName);
+#endif
 
         public override bool IsAvailable(string where = null)
         {
@@ -286,7 +297,18 @@ namespace GameUp.SDK
     {
         private readonly Dictionary<string, bool> _isLoaded = new Dictionary<string, bool>();
 
-        public MaxBannerAd(AdUnitConfig config) : base(config, AdUnitType.Banner, "MAX") { }
+        public MaxBannerAd(AdUnitConfig config) : base(config, AdUnitType.Banner, "MAX")
+        {
+#if MAXSDK_DEPENDENCIES_INSTALLED
+            // Trước đây Banner của MAX không đăng ký revenue → doanh thu không tới Firebase/MMP.
+            MaxSdkCallbacks.Banner.OnAdRevenuePaidEvent += OnRevenuePaid;
+#endif
+        }
+
+#if MAXSDK_DEPENDENCIES_INSTALLED
+        private void OnRevenuePaid(string id, MaxSdkBase.AdInfo info) =>
+            TrackRevenue(id, info.NetworkPlacement, "Banner", info.Revenue, adNetwork: info.NetworkName);
+#endif
 
         // Tắt Waterfall cho Banner MAX
         public override void Load(string where = null) => LoadByFloor(where, EcpmFloor.All);

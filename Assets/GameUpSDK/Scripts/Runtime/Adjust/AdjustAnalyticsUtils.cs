@@ -113,7 +113,7 @@ namespace GameUp.SDK
         {
             if (!IsInitialized || data == null || !data.Revenue.HasValue) return;
 
-            var adRevenue = new AdjustAdRevenue(GetAdRevenueSource(data.AdNetwork));
+            var adRevenue = new AdjustAdRevenue(GetAdRevenueSource(data));
             adRevenue.SetRevenue(data.Revenue.Value, data.ResolvedCurrency);
             adRevenue.AdImpressionsCount = 1;
             if (!string.IsNullOrEmpty(data.AdNetwork)) adRevenue.AdRevenueNetwork = data.AdNetwork;
@@ -159,14 +159,16 @@ namespace GameUp.SDK
             return adjustEvent;
         }
 
-        /// <summary>Map tên mạng GameUp đặt cho impression ("Admob" / "MAX" / "LevelPlay") sang source của Adjust.</summary>
-        private static string GetAdRevenueSource(string adNetwork)
+        /// <summary>Source của Adjust = mediation đã phục vụ impression (không phải ad network con, vd AppLovin chạy trong LevelPlay).</summary>
+        private static string GetAdRevenueSource(AdImpressionData data)
         {
-            string n = adNetwork?.Trim().ToLowerInvariant() ?? "";
-            if (n.Contains("admob") || n.Contains("google")) return "admob_sdk";
-            if (n.Contains("max") || n.Contains("applovin")) return "applovin_max_sdk";
-            if (n.Contains("levelplay") || n.Contains("ironsource")) return "ironsource_sdk";
-            return "publisher_sdk";
+            return data.Mediation switch
+            {
+                MediationProvider.Admob => "admob_sdk",
+                MediationProvider.Max => "applovin_max_sdk",
+                MediationProvider.IronSource => "ironsource_sdk",
+                _ => "publisher_sdk",
+            };
         }
 #else
         public static void Initialize() { }
