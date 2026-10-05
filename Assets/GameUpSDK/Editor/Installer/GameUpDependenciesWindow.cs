@@ -154,7 +154,7 @@ namespace GameUp.SDK.Installer
             new PackageDef
             {
                 DisplayName = "Firebase SDK  (Analytics + Crashlytics + Remote Config)",
-                Description = "Khuyến nghị mạnh. Analytics, crash reporting, remote config. Kèm EDM4U (dùng chung cho AdMob/AppsFlyer/GA).",
+                Description = "Mặc định. Kênh analytics chính — mọi event của GameUpAnalytics đều log Firebase. Kèm Crashlytics, Remote Config và EDM4U (dùng chung cho AdMob/AppsFlyer/GA).",
                 Required = false,
                 AssemblyName = "Firebase.App",
                 Method = InstallMethod.UnityPackage,
@@ -302,9 +302,9 @@ namespace GameUp.SDK.Installer
             new PackageDef
             {
                 DisplayName = "Appmetrica SDK",
-                Description = "Tùy chọn. Analytics sản phẩm thay thế Firebase",
+                Description = "Tùy chọn, mặc định không cài. Gửi thêm event song song với Firebase (Firebase vẫn luôn log). Bật ở bước 1 để đưa vào \"Cài tất cả\".",
                 Required = false,
-                AssemblyName = "AppMetrica",
+                AssemblyName = AppMetricaAssemblyName,
                 InstalledTypeFullName = "AppMetrica",
                 Method = InstallMethod.UnityPackage,
                 BundledFileNames = new[] { "Appmetrica.unitypackage" },
@@ -697,6 +697,7 @@ namespace GameUp.SDK.Installer
 
         internal const string AppsFlyerAssemblyName = "AppsFlyer";
         internal const string AdjustAssemblyName = "AdjustSdk.Scripts";
+        internal const string AppMetricaAssemblyName = "AppMetrica";
 
         // Define do editor script của chính SDK third-party ghi vào Player Settings.
         private const string GameAnalyticsThirdPartyDefinePrefix = "gameanalytics_";
@@ -1204,7 +1205,7 @@ namespace GameUp.SDK.Installer
         private void DrawStepMediation()
         {
             BeginCard();
-            DrawStepTitle(1, "Chọn mạng quảng cáo & MMP");
+            DrawStepTitle(1, "Chọn mạng quảng cáo, MMP & Analytics");
 
             GUILayout.Label("Mạng quảng cáo — chọn một hoặc nhiều (mặc định AdMob):", _mutedStyle);
             var selected = GetSelectedNetworks();
@@ -1248,11 +1249,58 @@ namespace GameUp.SDK.Installer
                 EditorGUI.EndDisabledGroup();
             }
 
+            EditorGUILayout.Space(6);
+            DrawAppMetricaOption();
+
             EditorGUILayout.Space(4);
+            string appMetricaPart = IsAppMetricaSelected() ? ", AppMetrica" : "";
             GUILayout.Label("Bước 2 sẽ cài:", _mutedStyle);
-            GUILayout.Label($"• Facebook, Firebase, {mmpName}, GameAnalytics, {GetNetworkPlanDescription(selected)}.", _descStyle);
+            GUILayout.Label($"• Facebook, Firebase, {mmpName}, GameAnalytics{appMetricaPart}, {GetNetworkPlanDescription(selected)}.", _descStyle);
 
             EndCard();
+        }
+
+        /// <summary>
+        /// Analytics: Firebase luôn là kênh log mặc định; AppMetrica là tuỳ chọn thêm (tick để đưa vào bộ cài).
+        /// Đã cài thì khoá tick và cho gỡ — giống dòng mạng quảng cáo.
+        /// </summary>
+        private void DrawAppMetricaOption()
+        {
+            GUILayout.Label("Analytics — Firebase luôn log (mặc định). AppMetrica là tùy chọn thêm:", _mutedStyle);
+
+            var pkg = FindPackageByAssembly(AppMetricaAssemblyName);
+            if (pkg == null) return;
+
+            bool isSelected = IsAppMetricaSelected();
+            EditorGUILayout.BeginHorizontal();
+
+            bool lockToggle = IsInteractionLocked() || pkg.IsInstalled;
+            EditorGUI.BeginDisabledGroup(lockToggle);
+            bool next = EditorGUILayout.ToggleLeft("AppMetrica", isSelected, EditorStyles.boldLabel, GUILayout.Width(150));
+            EditorGUI.EndDisabledGroup();
+            if (!lockToggle && next != isSelected)
+                EditorPrefs.SetBool(UseAppMetricaPrefKey, next);
+
+            if (pkg.IsInstalled)
+            {
+                _badgeStyle.normal.textColor = InstalledColor;
+                GUILayout.Label("ĐÃ CÀI", _badgeStyle);
+            }
+            else
+            {
+                GUILayout.Label(isSelected ? "sẽ cài ở bước 2" : "không dùng", _mutedStyle);
+            }
+
+            GUILayout.FlexibleSpace();
+            if (pkg.IsInstalled)
+            {
+                EditorGUI.BeginDisabledGroup(IsInteractionLocked() || !CanRemovePackage(pkg));
+                if (GUILayout.Button("Gỡ", GUILayout.Width(60)))
+                    RequestRemovePackage(pkg);
+                EditorGUI.EndDisabledGroup();
+            }
+
+            EditorGUILayout.EndHorizontal();
         }
 
         /// <summary>Một dòng mạng quảng cáo: tick để đưa vào bộ cài; đã cài thì khoá tick và cho gỡ.</summary>
@@ -1444,6 +1492,7 @@ namespace GameUp.SDK.Installer
                 GUILayout.Label("3.  AdMob / MAX / LevelPlay — các mạng đã tick ở bước 1", _descStyle);
                 GUILayout.Label("4.  MMP — AppsFlyer hoặc Adjust, đúng với lựa chọn ở bước 1", _descStyle);
                 GUILayout.Label("5.  GameAnalytics", _descStyle);
+                GUILayout.Label("6.  AppMetrica — chỉ khi đã bật ở bước 1 (tùy chọn)", _descStyle);
                 EditorGUILayout.Space(4);
                 GUILayout.Label(
                     "Với AdMob, installer tự thêm adapter Unity Ads + IronSource. Các adapter network khác (AppLovin, Meta, Pangle…) nằm ở tab \"AdMob Mediation\" và không nằm trong \"Cài tất cả\".",
@@ -1664,7 +1713,10 @@ namespace GameUp.SDK.Installer
             Debug.Log("[GameUpSDK] Đã xóa " + FacebookExamplesAssetPath);
         }
 
-        /// <summary>Firebase + MMP (AppsFlyer/Adjust) + các mạng quảng cáo đã chọn. AdMob gồm thêm 2 adapter bắt buộc (Unity Ads + IronSource).</summary>
+        /// <summary>
+        /// Firebase + MMP (AppsFlyer/Adjust) + các mạng quảng cáo đã chọn (+ AppMetrica nếu bật ở bước 1).
+        /// AdMob gồm thêm 2 adapter bắt buộc (Unity Ads + IronSource).
+        /// </summary>
         private static List<PackageDef> GetPackagesForSdkSetup(List<MediationProvider> networks)
         {
             var list = new List<PackageDef>();
@@ -1686,6 +1738,8 @@ namespace GameUp.SDK.Installer
             AddByAssembly("Firebase.App");
             AddByAssembly(GetMmpFromDefines() == MmpProvider.Adjust ? AdjustAssemblyName : AppsFlyerAssemblyName);
             AddByAssembly("GameAnalyticsSDK");
+            if (IsAppMetricaSelected())
+                AddByAssembly(AppMetricaAssemblyName);
 
             foreach (var network in networks)
             {
@@ -1749,6 +1803,16 @@ namespace GameUp.SDK.Installer
 
         /// <summary>Theo project: hai project mở trên cùng máy không dùng chung lựa chọn.</summary>
         private static string SelectedNetworksPrefKey => $"GameUpSDK_SelectedNetworks_{PlayerSettings.productGUID}";
+
+        /// <summary>Theo project, mặc định tắt — AppMetrica chỉ cài khi dev chủ động bật.</summary>
+        private static string UseAppMetricaPrefKey => $"GameUpSDK_UseAppMetrica_{PlayerSettings.productGUID}";
+
+        /// <summary>AppMetrica nằm trong bộ cài khi dev đã tick ở bước 1, hoặc đã cài sẵn trong project.</summary>
+        private static bool IsAppMetricaSelected()
+        {
+            return EditorPrefs.GetBool(UseAppMetricaPrefKey, false)
+                   || FindPackageByAssembly(AppMetricaAssemblyName)?.IsInstalled == true;
+        }
 
         private static MmpProvider GetMmpFromDefines()
         {
@@ -3273,7 +3337,7 @@ namespace GameUp.SDK.Installer
             else if (!firebaseInstalled && HasDefine(FirebaseDepsDefine))
                 SetDefine(FirebaseDepsDefine, false);
 
-            bool appMetricaInstalled = IsPackageInstalled(FindPackageByAssembly("AppMetrica"));
+            bool appMetricaInstalled = IsPackageInstalled(FindPackageByAssembly(AppMetricaAssemblyName));
             if (appMetricaInstalled && !HasDefine(AppmetricaDepsDefine))
                 SetDefine(AppmetricaDepsDefine, true);
             else if (!appMetricaInstalled && HasDefine(AppmetricaDepsDefine))

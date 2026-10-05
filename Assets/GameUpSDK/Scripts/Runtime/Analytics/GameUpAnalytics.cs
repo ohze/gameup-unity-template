@@ -15,7 +15,9 @@ using Facebook.Unity;
 namespace GameUp.SDK
 {
     /// <summary>
-    /// Game analytics: Firebase, MMP (AppsFlyer hoặc Adjust), AppMetrica (tùy chọn), GameAnalytics progression (Start / Complete / Fail) theo
+    /// Game analytics: Firebase (mặc định — mọi event đều log), MMP (AppsFlyer hoặc Adjust),
+    /// AppMetrica (tùy chọn — chỉ gửi khi đã cài + bật <c>enableEventLogging</c>, không cài thì bỏ qua),
+    /// GameAnalytics progression (Start / Complete / Fail) theo
     /// <see href="https://docs.gameanalytics.com/event-tracking-and-integrations/sdks-and-collection-api/game-engine-sdks/unity/event-tracking">GA Unity — Progression events</see>
     /// (world <c>main</c> → level → wave). Cần init GameAnalytics + keys trong scene.
     /// </summary>
@@ -100,27 +102,32 @@ namespace GameUp.SDK
             return p;
         }
 
-        /// <summary>AppMetrica: video_ads_available — mỗi lần user request show (IDLE spec).</summary>
+        /// <summary>Funnel video_ads_*: Firebase luôn nhận, AppMetrica nhận thêm nếu đã cài.</summary>
+        private static void LogVideoAdsEvent(string eventName, string adType, string placement, string result, bool hasConnection)
+        {
+            var p = BuildVideoAdsParams(adType, placement, result, hasConnection);
+            LogFirebaseParams(eventName, p);
+            LogAppMetrica(eventName, p);
+        }
+
+        /// <summary>video_ads_available — mỗi lần user request show (IDLE spec).</summary>
         public static void LogVideoAdsAvailable(string adType, string placement, string result, bool hasConnection)
         {
             if (!VideoAdsAppMetricaTracker.ShouldSendAvailable(placement, adType, result)) return;
-            LogAppMetrica(AppMetricaEvent.VideoAdsAvailable,
-                BuildVideoAdsParams(adType, placement, result, hasConnection));
+            LogVideoAdsEvent(AppMetricaEvent.VideoAdsAvailable, adType, placement, result, hasConnection);
         }
 
-        /// <summary>AppMetrica: video_ads_started — khi ad bắt đầu hiển thị (chỉ sau available success).</summary>
+        /// <summary>video_ads_started — khi ad bắt đầu hiển thị (chỉ sau available success).</summary>
         public static void LogVideoAdsStarted(string adType, string placement, string result, bool hasConnection)
         {
             if (!VideoAdsAppMetricaTracker.CanSendStarted(placement, adType)) return;
-            LogAppMetrica(AppMetricaEvent.VideoAdsStarted,
-                BuildVideoAdsParams(adType, placement, result, hasConnection));
+            LogVideoAdsEvent(AppMetricaEvent.VideoAdsStarted, adType, placement, result, hasConnection);
         }
 
-        /// <summary>AppMetrica: video_ads_watch — sau khi ad kết thúc (watched / canceled / failed).</summary>
+        /// <summary>video_ads_watch — sau khi ad kết thúc (watched / canceled / failed).</summary>
         public static void LogVideoAdsWatch(string adType, string placement, string result, bool hasConnection)
         {
-            LogAppMetrica(AppMetricaEvent.VideoAdsWatch,
-                BuildVideoAdsParams(adType, placement, result, hasConnection));
+            LogVideoAdsEvent(AppMetricaEvent.VideoAdsWatch, adType, placement, result, hasConnection);
             VideoAdsAppMetricaTracker.ClearSession();
         }
 

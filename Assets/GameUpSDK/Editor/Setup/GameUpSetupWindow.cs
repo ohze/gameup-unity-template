@@ -19,7 +19,7 @@ namespace GameUp.SDK.Editor.Setup
             { "AppsFlyer", "MMP — Dev Key và App ID để đo lường attribution." },
             { "Adjust", "MMP — App Token, môi trường và bảng event token để đo lường attribution." },
             { "Game Analytics", "Game Key / Secret Key cho từng nền tảng." },
-            { "AppMetrica", "API Key của AppMetrica." },
+            { "AppMetrica", "Tùy chọn — API Key của AppMetrica. Event vẫn luôn log Firebase, AppMetrica chỉ nhận thêm." },
             { Installer.GameUpDependenciesWindow.SetupPriorityTabTitle, "App Open lúc cold start, tỉ lệ Native CTA và thứ tự mạng được thử khi có nhiều hơn một mạng quảng cáo." },
             { "IronSource Mediation", "App Key và các ad unit của IronSource." },
             { "MAX Mediation", "SDK Key và các ad unit của AppLovin MAX." },
@@ -381,6 +381,9 @@ namespace GameUp.SDK.Editor.Setup
             DrawMmpRow();
 
             GUILayout.Space(10);
+            DrawAnalyticsRow();
+
+            GUILayout.Space(10);
             DrawConfigIssuesPanel();
 
             GUILayout.Space(10);
@@ -482,6 +485,31 @@ namespace GameUp.SDK.Editor.Setup
             EditorGUILayout.LabelField("Đang dùng", mmp);
             if (GUILayout.Button("Đổi MMP…", GUILayout.Width(90))) Installer.GameUpDependenciesWindow.ShowWindow();
             EditorGUILayout.EndHorizontal();
+        }
+
+        /// <summary>Firebase là kênh log mặc định; AppMetrica tuỳ chọn — bật/tắt ở Setup Dependencies vì kéo theo việc cài SDK.</summary>
+        private static void DrawAnalyticsRow()
+        {
+#if FIREBASE_DEPENDENCIES_INSTALLED
+            const string firebase = "Đã cài (mặc định)";
+#else
+            const string firebase = "Chưa cài — cần cài để log event";
+#endif
+#if APPMETRICA_DEPENDENCIES_INSTALLED
+            const string appMetrica = "Đã cài — log thêm song song Firebase";
+            const string appMetricaButton = "Gỡ AppMetrica…";
+#else
+            const string appMetrica = "Không dùng (tùy chọn)";
+            const string appMetricaButton = "Thêm AppMetrica…";
+#endif
+            EditorGUILayout.LabelField("Analytics", EditorStyles.boldLabel);
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.LabelField("Firebase", firebase);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("AppMetrica", appMetrica);
+            if (GUILayout.Button(appMetricaButton, GUILayout.Width(130))) Installer.GameUpDependenciesWindow.ShowWindow();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.EndVertical();
         }
 
         private void DrawConfigRow(string label, ScriptableObject asset)

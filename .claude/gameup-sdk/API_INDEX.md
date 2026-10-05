@@ -985,7 +985,7 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 `GameUp.SDK` · [Scripts/Runtime/Analytics/GameUpAnalytics.cs](Assets/GameUpSDK/Scripts/Runtime/Analytics/GameUpAnalytics.cs)
 
-> Game analytics: Firebase, MMP (AppsFlyer hoặc Adjust), AppMetrica (tùy chọn), GameAnalytics progression (Start / Complete / Fail) theo GA Unity — Progression events (world main → level → wave). Cần init GameAnalytics + keys trong scene.
+> Game analytics: Firebase (mặc định — mọi event đều log), MMP (AppsFlyer hoặc Adjust), AppMetrica (tùy chọn — chỉ gửi khi đã cài + bật enableEventLogging, không cài thì bỏ qua), GameAnalytics progression (Start / Complete / Fail) theo GA Unity — Progression events (world main → level → wave). Cần init GameAnalytics + keys trong scene.
 
 - `public static void LogFirebase(string eventName, string paramName = null, string paramValue = null)`
 - `public static void LogFirebaseParams(string eventName, Dictionary<string, string> param)`
