@@ -1,7 +1,7 @@
 {
   "name": "com.ohze.gameup.sdk",
   "displayName": "GameUp SDK",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "unity": "6000.0",
   "description": "GameUp SDK — quảng cáo đa mediation (AdMob, AppLovin MAX, IronSource LevelPlay: banner, interstitial, rewarded, app open, native) kèm luật capping / remove ads, analytics (Firebase, MMP AppsFlyer hoặc Adjust, AppMetrica, GameAnalytics, Facebook), Firebase Remote Config và consent ATT/GDPR.\n\nMặc định AdMob + AppsFlyer. Cửa sổ Setup Dependencies cho chọn tổ hợp 1–3 mạng quảng cáo chạy song song (thứ tự waterfall chỉnh trong GameUp → SDK → Setup) và MMP AppsFlyer hoặc Adjust, rồi tự cài SDK bên thứ ba và đồng bộ Scripting Define Symbols. Cần Unity 6 và GameUp Core ≥ 0.7.0. Với GameUp Core ≥ 0.6.0, Claude Code có bảng tra API tự sinh (.claude/gameup-sdk) để dùng đúng AdsManager / GameUpAnalytics.\n\nDuyLV 2026",
   "keywords": [

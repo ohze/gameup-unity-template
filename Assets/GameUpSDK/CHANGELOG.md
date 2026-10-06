@@ -29,6 +29,7 @@ Tất cả thay đổi đáng chú ý của **GameUp SDK** (`com.ohze.gameup.sdk
 
 ### Fixed
 
+- **Gỡ package chạy 2 pha: gỡ define → đợi compile → mới xóa file.** Trước đây `ConfirmAndRemovePackage` / gỡ toàn bộ clear define và xóa asset trong cùng một lần chạy: Unity import SDK bị xóa dở trong khi `GameUp.SDK.Runtime` còn compile với define cũ (vd `ADJUST_DEPENDENCIES_INSTALLED`, `APPSFLYER_DEPENDENCIES_INSTALLED`), dẫn tới lỗi compile và define bị sync bật lại. Nay pha 2 (xóa file, gộp trong `StartAssetEditing`) chỉ chạy sau `compilationFinished` / domain reload, danh sách path giữ trong `SessionState` nên vẫn chạy khi cửa sổ installer đã đóng; guard chặn auto-sync define được giữ suốt hai pha.
 - **2.1.0 — Banner không còn tự hiện lại sau `HideBanner`.** AdMob/LevelPlay bắn lại "loaded" mỗi lần banner auto-refresh, và `AdsManager.OnBannerLoaded` từng gọi `ShowBanner` cho mọi banner load xong — banner game đã ẩn (hoặc chỉ preload) tự bật lên sau ~60 giây. Nay `AdsManager` giữ tập placement game đang yêu cầu (`ShowBanner` thêm, `HideBanner` bỏ); banner load/refresh xong chỉ hiện khi đang được yêu cầu. Kèm theo:
   - Banner đang hiện không còn nháy tắt/bật mỗi lần AdMob refresh, và không log lại `ads_request`/`ads_available` mỗi lần refresh.
   - `ShowBanner` lúc đang có fullscreen ad (hoặc banner load xong đúng lúc đó) không còn đè lên interstitial/rewarded/AppOpen — banner được hoãn và hiện khi ad đóng.

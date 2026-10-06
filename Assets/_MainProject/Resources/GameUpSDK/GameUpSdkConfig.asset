@@ -26,7 +26,25 @@ MonoBehaviour:
     sendInBackground: 0
     costDataInAttribution: 0
     attConsentWaitingInterval: 120
-    eventTokens: []
+    eventTokens:
+    - eventName: af_level_achieved
+      token: 
+    - eventName: af_purchase
+      token: 
+    - eventName: af_tutorial_completion
+      token: 
+    - eventName: af_achievement_unlocked
+      token: 
+    - eventName: af_complete_registration
+      token: 
+    - eventName: af_inters_show
+      token: 
+    - eventName: af_inters_displayed
+      token: 
+    - eventName: af_rewarded_show
+      token: 
+    - eventName: af_rewarded_displayed
+      token: 
   appMetrica:
     apiKey: 
     enableLogs: 0

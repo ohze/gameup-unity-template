@@ -3609,40 +3609,18 @@ namespace GameUp.SDK.Installer
             if (!EditorUtility.DisplayDialog(
                     "GameUp SDK — Gỡ package",
                     $"Bạn có chắc muốn gỡ \"{pkg.DisplayName}\"?\n\n" +
-                    $"Sẽ clear define symbols của package trước, rồi xóa các path:\n• {preview}\n\n" +
+                    "Bước 1: gỡ define symbols của package và đợi Unity compile lại (code GameUp không còn tham chiếu SDK).\n" +
+                    $"Bước 2: tự xóa các path:\n• {preview}\n\n" +
                     "Lưu ý: thao tác này không tự thêm lại package vào project.",
                     "Gỡ package",
                     "Hủy"))
                 return;
 
             ClearPendingBatch();
-
-            bool deleted;
-            string error;
             BeginDependencyRemoval();
-            try
-            {
-                ClearDefinesForPackage(pkg);
-                deleted = TryDeleteAssets(existingPaths, out error);
-            }
-            finally
-            {
-                EndDependencyRemoval();
-            }
-
-            if (!deleted)
-            {
-                EditorUtility.DisplayDialog(
-                    "GameUp SDK — Gỡ package thất bại",
-                    error,
-                    "OK");
-                RefreshStatus(syncDefines: true);
-                return;
-            }
-
-            AssetDatabase.Refresh();
-            RefreshStatus();
-            Debug.Log("[GameUpSDK] Đã gỡ package: " + pkg.DisplayName);
+            bool definesChanged = ClearDefinesForPackage(pkg);
+            StartTwoPhaseRemoval(pkg.DisplayName, existingPaths, definesChanged);
+            RefreshStatus(syncDefines: false);
         }
 
         private void ConfirmAndRemoveAdMobAdapter(PackageDef pkg)
@@ -3722,45 +3700,17 @@ namespace GameUp.SDK.Installer
 
             // Hủy batch đang chờ (nếu có) — nếu không, luồng resume sau reload sẽ cài lại thứ vừa gỡ.
             ClearPendingBatch();
-
-            string error;
-            List<string> failedPaths;
             BeginDependencyRemoval();
-            try
-            {
-                // Clear define trước để tránh conditionals/compile lệch trạng thái trong lúc gỡ.
-                ClearAllDependencyDefines();
-                TryDeleteAssets(existingPaths, out error, out failedPaths);
-            }
-            finally
-            {
-                EndDependencyRemoval();
-            }
-
-            AssetDatabase.Refresh();
-            RefreshStatus(syncDefines: true);
-
-            if (failedPaths.Count == 0)
-            {
-                Debug.Log("[GameUpSDK] Đã gỡ toàn bộ SDK dependencies trong tab SetupDependencies (Core/DOTween giữ nguyên).");
-                return;
-            }
-
-            string detail = error;
-            detail += "\n\nPath chưa xóa được:\n• " + string.Join("\n• ", failedPaths);
-            detail += "\n\nCác path khác có thể đã được gỡ. Bấm \"Làm mới trạng thái\" sau khi xóa thủ công phần còn sót.";
-
-            EditorUtility.DisplayDialog(
-                "GameUp SDK — Gỡ SDK dependencies (một phần)",
-                detail,
-                "OK");
-
-            Debug.LogWarning(
-                "[GameUpSDK] Gỡ SDK dependencies một phần. Còn sót: " + string.Join(", ", failedPaths));
+            bool definesChanged = ClearAllDependencyDefines();
+            StartTwoPhaseRemoval("toàn bộ SDK dependencies (Core/DOTween giữ nguyên)", existingPaths, definesChanged);
+            RefreshStatus(syncDefines: false);
         }
 
-        private static void ClearAllDependencyDefines()
+        /// <summary>Clear mọi define SDK. Trả true nếu Scripting Define Symbols thực sự thay đổi (⇒ Unity sẽ compile lại).</summary>
+        private static bool ClearAllDependencyDefines()
         {
+            var before = GetDefinedSymbols();
+
             SetDefine(LevelPlayDepsDefine, false);
             SetDefine(AdMobDepsDefine, false);
             SetDefine(MaxSdkDepsDefine, false);
@@ -3781,11 +3731,16 @@ namespace GameUp.SDK.Installer
             SetMmpDefines(MmpProvider.AppsFlyer);
 
             PersistPlayerSettings();
+            return HaveDefinesChanged(before);
         }
 
-        /// <summary>Clear define của riêng một package, gọi trước khi xóa asset của package đó.</summary>
-        private static void ClearDefinesForPackage(PackageDef pkg)
+        /// <summary>
+        /// Clear define của riêng một package, gọi trước khi xóa asset của package đó.
+        /// Trả true nếu Scripting Define Symbols thực sự thay đổi (⇒ Unity sẽ compile lại).
+        /// </summary>
+        private static bool ClearDefinesForPackage(PackageDef pkg)
         {
+            var before = GetDefinedSymbols();
             string depsDefine = GetDepsDefineForPackage(pkg);
             if (!string.IsNullOrEmpty(depsDefine))
                 SetDefine(depsDefine, false);
@@ -3798,6 +3753,113 @@ namespace GameUp.SDK.Installer
             }
 
             PersistPlayerSettings();
+            return HaveDefinesChanged(before);
+        }
+
+        private static bool HaveDefinesChanged(List<string> before)
+        {
+            var after = GetDefinedSymbols();
+            return after.Count != before.Count || after.Except(before, StringComparer.Ordinal).Any();
+        }
+
+        // ─── Gỡ 2 pha: gỡ define → đợi compile xong → mới xóa asset ─────────────────
+        // Xóa file cùng lúc với đổi define khiến Unity import/compile SDK đang bị xóa dở trong khi
+        // GameUp.SDK.Runtime vẫn compile với define cũ ⇒ lỗi compile, domain không reload, define bị sync bật lại.
+        // Pha 2 chạy ở compilationFinished / sau domain reload nên sống sót kể cả khi cửa sổ installer bị đóng.
+
+        private const string SessionKeyPendingDeletePaths = "GameUp.Installer.PendingDeletePaths";
+        private const string SessionKeyPendingDeleteLabel = "GameUp.Installer.PendingDeleteLabel";
+
+        private static bool HasPendingAssetDeletion =>
+            !string.IsNullOrEmpty(SessionState.GetString(SessionKeyPendingDeletePaths, ""));
+
+        /// <summary>Pha 1 (define đã clear): lưu danh sách path rồi đợi compile; không đổi define thì xóa luôn.</summary>
+        private static void StartTwoPhaseRemoval(string label, List<string> paths, bool definesChanged)
+        {
+            SessionState.SetString(SessionKeyPendingDeletePaths, string.Join("\n", paths));
+            SessionState.SetString(SessionKeyPendingDeleteLabel, label);
+
+            if (!definesChanged)
+            {
+                CompletePendingAssetDeletion();
+                return;
+            }
+
+            Debug.Log($"[GameUpSDK] Gỡ {label}: đã gỡ define symbols, đợi Unity compile xong rồi mới xóa file…");
+            CompilationPipeline.RequestScriptCompilation();
+        }
+
+        [InitializeOnLoadMethod]
+        private static void RegisterPendingAssetDeletionHooks()
+        {
+            CompilationPipeline.compilationFinished -= OnCompilationFinishedCompleteDeletion;
+            CompilationPipeline.compilationFinished += OnCompilationFinishedCompleteDeletion;
+            // Domain vừa reload sau compile: chạy bù nếu compilationFinished của domain cũ không kịp xử lý.
+            if (HasPendingAssetDeletion)
+                EditorApplication.delayCall += TryCompletePendingAssetDeletion;
+        }
+
+        private static void OnCompilationFinishedCompleteDeletion(object _)
+        {
+            if (HasPendingAssetDeletion)
+                EditorApplication.delayCall += TryCompletePendingAssetDeletion;
+        }
+
+        private static void TryCompletePendingAssetDeletion()
+        {
+            if (!HasPendingAssetDeletion)
+                return;
+
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating)
+            {
+                EditorApplication.delayCall += TryCompletePendingAssetDeletion;
+                return;
+            }
+
+            CompletePendingAssetDeletion();
+        }
+
+        /// <summary>Pha 2: xóa asset (gộp một lần refresh), mở lại auto-sync define, báo kết quả.</summary>
+        private static void CompletePendingAssetDeletion()
+        {
+            var paths = SessionState.GetString(SessionKeyPendingDeletePaths, "")
+                .Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+            string label = SessionState.GetString(SessionKeyPendingDeleteLabel, "package");
+            // Xóa key trước khi xóa file: Refresh bên dưới gây compile, không được chạy lại pha 2.
+            SessionState.EraseString(SessionKeyPendingDeletePaths);
+            SessionState.EraseString(SessionKeyPendingDeleteLabel);
+
+            string error = null;
+            var failedPaths = new List<string>();
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                if (paths.Count > 0)
+                    TryDeleteAssets(paths, out error, out failedPaths);
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+                EndDependencyRemoval();
+            }
+
+            AssetDatabase.Refresh();
+            foreach (var window in Resources.FindObjectsOfTypeAll<GameUpDependenciesWindow>())
+                window.RefreshStatus(syncDefines: true);
+
+            if (failedPaths.Count == 0)
+            {
+                Debug.Log($"[GameUpSDK] Đã gỡ {label}.");
+                return;
+            }
+
+            EditorUtility.DisplayDialog(
+                "GameUp SDK — Gỡ chưa hết",
+                $"{error}\n\nPath chưa xóa được:\n• {string.Join("\n• ", failedPaths)}\n\n" +
+                "Define symbols đã được gỡ. Xóa thủ công phần còn sót rồi bấm \"Làm mới\".",
+                "OK");
+            Debug.LogWarning($"[GameUpSDK] Gỡ {label} một phần. Còn sót: {string.Join(", ", failedPaths)}");
         }
 
         /// <summary>Define <c>*_DEPENDENCIES_INSTALLED</c> mà installer quản lý cho package này.</summary>
@@ -3892,7 +3954,9 @@ namespace GameUp.SDK.Installer
         [InitializeOnLoadMethod]
         private static void ReleaseDependencyRemovalGuardOnLoad()
         {
-            EndDependencyRemoval();
+            // Đang ở giữa gỡ 2 pha thì giữ guard — pha 2 sẽ tự mở lại sau khi xóa file.
+            if (!HasPendingAssetDeletion)
+                EndDependencyRemoval();
         }
 
         /// <summary>
