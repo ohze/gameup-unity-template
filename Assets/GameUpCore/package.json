@@ -3,10 +3,11 @@
   "version": "0.8.4",
   "displayName": "GameUp Core",
   "description": "Bộ khung nền cho dự án game Unity 6: Singleton, Signal, Object Pool, UI Screen/Popup, Audio, Save/Load, Bootstrap và Scene Loader. Cần cài DOTween trước khi biên dịch — xem README.md để biết thứ tự cài đặt và hướng dẫn dùng.\n\nKèm bộ công cụ AI (Claude Code / Cursor): CLAUDE.md, agent, skill, hook, bảng tra API tự sinh cho GameUp Core, GameUp SDK, GameUp IAP, và trình cài một nút Claude Code × Unity / Cursor × Unity (skills + MCP điều khiển Editor).\n\nDuyLV 2026",
-  "unity": "6000.0",
+  "unity": "2022.3",
   "dependencies": {
-    "com.unity.addressables": "2.9.1",
-    "com.unity.ugui": "2.0.0"
+    "com.unity.addressables": "1.22.3",
+    "com.unity.ugui": "1.0.0",
+    "com.unity.textmeshpro": "3.0.7"
   },
   "repository": {
     "type": "git",
