@@ -5,6 +5,13 @@
 ## [Unreleased]
 
 ### Fixed
+- **`AddressableDataHolder` mất dữ liệu khi đổi scene (WebGL / TikTok Mini Games).** Holder nạp từ Resources bị Unity unload lúc chuyển scene Single dù đã đặt `DontUnloadUnusedAsset`; `OnDisable` gọi `ReleaseAll()` và Resources nạp lại một bản mới chưa init → `ScriptableObjectSingleton<T>.Instance` trả `null` đúng lúc scene mới dựng, mọi data phải nạp lại (Home chậm, lỗi "Không có SO_…"). Trạng thái nạp (`CacheHandlers`, `Initialized`, đếm pending) nay là static dùng chung mọi bản holder; bỏ `ReleaseAll` khi `OnDisable`/`OnDestroy` (data singleton sống suốt phiên); thêm reset static khi vào Play Mode không reload domain. Editor không tái hiện được vì `GetData` trong Editor đọc thẳng thư mục.
+- **`GameUp/Logger/Enable|Disable Logs` bỏ sót WebGL.** Danh sách target thêm `NamedBuildTarget.WebGL` — trước đây bản WebGL không bao giờ có `ENABLE_LOG` dù đã bấm menu.
+
+### Added
+- **`LocalStorageUtils.SetBackend(ILocalStorageBackend)` + `LocalStorageUtils.Save()`.** Đổi nơi cất save cho nền tảng mà PlayerPrefs của Unity không giữ được dữ liệu qua các lần mở game (TikTok Mini Games yêu cầu `TT.PlayerPrefs`). Mặc định `UnityPlayerPrefsBackend` (ghi rõ `UnityEngine.PlayerPrefs` để không bị class `PlayerPrefs` ở namespace gốc của SDK nền tảng che mất). `Save()` đẩy dữ liệu xuống bộ nhớ thật — WebGL không có `OnApplicationQuit` nên không gọi là mất save. Gọi `SetBackend` trước lần đọc save đầu tiên (`RuntimeInitializeOnLoadMethod(BeforeSceneLoad)`).
+- **`SafeArea.SetProvider(Func<Rect>)`.** Cho nền tảng cung cấp vùng an toàn khi `Screen.safeArea` không biết phần bị che (WebGL trên TikTok: nút menu góc phải trên). Mặc định vẫn `Screen.safeArea`.
+
 - **Xung đột GUID `ScreenshotCapture` khi cài qua Git UPM.** Lúc chuyển từ SDK sang Core (0.5.0) file giữ `.meta` cũ, nên project có Core mới nhưng SDK còn khoá ở commit trước 1.4.0 (`packages-lock.json` không tự cập nhật Git package) có hai package cùng GUID → Unity báo `GUID [...] conflicts with 'Packages/com.ohze.gameup.sdk/...'` và bỏ qua file của Core (thư mục package là immutable nên không tự cấp GUID mới). `ScreenshotCapture.cs` và `ScreenshotCaptureEditor.cs` trong Core nay có GUID riêng. Hệ quả: prefab/scene đang gắn component `ScreenshotCapture` từ bản SDK cũ sẽ báo *Missing Script* — gắn lại `GameUp.Core.ScreenshotCapture`. Nên cập nhật luôn SDK lên ≥ 2.0.0 để bỏ bản trùng.
 
 ### Added

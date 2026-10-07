@@ -1,24 +1,53 @@
 using System;
 using System.Globalization;
-using UnityEngine;
 using GameUp.Core.Serializer;
 
 namespace GameUp.Core
 {
     /// <summary>
-    /// Bọc PlayerPrefs với mã hóa. Mọi getter đều fail-safe: dữ liệu hỏng/đổi format
-    /// sẽ trả về giá trị mặc định thay vì ném exception làm crash lúc khởi động.
+    /// Lưu key-value có mã hóa, mặc định trên PlayerPrefs. Mọi getter đều fail-safe: dữ liệu hỏng/đổi
+    /// format sẽ trả về giá trị mặc định thay vì ném exception làm crash lúc khởi động.
     /// Số luôn đọc/ghi theo InvariantCulture để không phụ thuộc ngôn ngữ máy.
     /// </summary>
+    /// <remarks>
+    /// Nơi cất thật là một <see cref="ILocalStorageBackend"/> đổi được qua <see cref="SetBackend"/>.
+    /// </remarks>
     public static class LocalStorageUtils
     {
         private const string DEVICE_ID = "dv";
 
         private static readonly CultureInfo Culture = CultureInfo.InvariantCulture;
 
+        private static ILocalStorageBackend _backend = new UnityPlayerPrefsBackend();
+
+        /// <summary>
+        /// Đổi nơi cất dữ liệu. Gọi trước lần đọc save đầu tiên (ví dụ
+        /// <c>[RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]</c>) — đổi giữa chừng là đọc bên này,
+        /// ghi bên kia.
+        /// </summary>
+        public static void SetBackend(ILocalStorageBackend backend)
+        {
+            if (backend == null)
+            {
+                GULogger.Error("LocalStorage", "SetBackend called with null — giữ backend hiện tại.");
+                return;
+            }
+
+            _backend = backend;
+        }
+
+        /// <summary>
+        /// Đẩy dữ liệu xuống bộ nhớ thật. Với PlayerPrefs của Unity, không gọi thì chỉ tới
+        /// <c>OnApplicationQuit</c> mới ghi — WebGL không có bước đó. Gây giật một nhịp, đừng gọi giữa gameplay.
+        /// </summary>
+        public static void Save()
+        {
+            _backend.Save();
+        }
+
         public static bool HasKey(string key)
         {
-            return PlayerPrefs.HasKey(key);
+            return _backend.HasKey(key);
         }
 
         /// <summary>Đọc và giải mã raw string. Trả về chuỗi rỗng nếu key trống hoặc dữ liệu không giải mã được.</summary>
@@ -26,7 +55,7 @@ namespace GameUp.Core
         {
             if (string.IsNullOrEmpty(key)) return string.Empty;
 
-            var value = PlayerPrefs.GetString(key);
+            var value = _backend.GetString(key);
             if (string.IsNullOrEmpty(value)) return string.Empty;
 
             try
@@ -53,7 +82,7 @@ namespace GameUp.Core
 
             try
             {
-                PlayerPrefs.SetString(key, EncryptUtils.Encrypt(value ?? string.Empty));
+                _backend.SetString(key, EncryptUtils.Encrypt(value ?? string.Empty));
             }
             catch (Exception e)
             {

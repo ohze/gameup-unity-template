@@ -1,7 +1,16 @@
+using System;
 using UnityEngine;
 
 namespace GameUp.Core.UI
 {
+    /// <summary>
+    /// Co RectTransform vào vùng an toàn của màn hình (tránh tai thỏ, thanh điều hướng...).
+    /// </summary>
+    /// <remarks>
+    /// Mặc định đọc <see cref="Screen.safeArea"/>. Nền tảng mà Unity không biết vùng bị che (ví dụ
+    /// nút menu của TikTok Mini Games trên WebGL) cắm nguồn riêng qua <see cref="SetProvider"/> —
+    /// trước khi UI Awake.
+    /// </remarks>
     public class SafeArea : MonoBehaviour
     {
         [SerializeField] private bool includeBottom = false;
@@ -12,10 +21,21 @@ namespace GameUp.Core.UI
         private RectTransform _rectTransform;
         private Rect _safeArea;
 
+        private static Func<Rect> _provider;
+
+        /// <summary>
+        /// Đổi nguồn vùng an toàn (toạ độ pixel màn hình, gốc dưới-trái như <see cref="Screen.safeArea"/>).
+        /// Truyền <c>null</c> để quay về <see cref="Screen.safeArea"/>.
+        /// </summary>
+        public static void SetProvider(Func<Rect> provider)
+        {
+            _provider = provider;
+        }
+
         private void Awake()
         {
             _rectTransform = GetComponent<RectTransform>();
-            _safeArea = Screen.safeArea;
+            _safeArea = _provider != null ? _provider() : Screen.safeArea;
             _minAnchor = _safeArea.position;
             _maxAnchor = _minAnchor + _safeArea.size;
 

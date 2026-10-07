@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -21,12 +20,32 @@ namespace GameUp.Core
 #endif
         public List<DataReferenceInfo> dataReferenceInfos;
 
-        private readonly Dictionary<string, AsyncOperationHandle<ScriptableObject>> _cacheHandlers =
+        // Trạng thái nạp để ở static, không theo instance: holder nạp từ Resources có thể bị Unity
+        // unload lúc đổi scene (gặp trên WebGL dù đã đặt DontUnloadUnusedAsset). Khi đó Resources
+        // nạp lại một bản mới — nếu trạng thái nằm trên instance thì bản mới chưa init, GetData trả
+        // null đúng lúc scene mới đang dựng và mọi data phải nạp lại từ đầu.
+        private static readonly Dictionary<string, AsyncOperationHandle<ScriptableObject>> CacheHandlers =
             new(StringComparer.Ordinal);
 
-        private int _pendingLoads;
-        private bool _initializing;
-        public bool Initialized { get; set; }
+        private static int _pendingLoads;
+        private static bool _initializing;
+        private static bool _initialized;
+
+        public bool Initialized
+        {
+            get => _initialized;
+            set => _initialized = value;
+        }
+
+        /// <summary>Vào Play Mode không reload domain thì static còn giữ handle của lần chạy trước.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            CacheHandlers.Clear();
+            _pendingLoads = 0;
+            _initializing = false;
+            _initialized = false;
+        }
 
         public void Initialize()
         {
@@ -35,7 +54,7 @@ namespace GameUp.Core
             Initialized = false;
             _initializing = true;
             _pendingLoads = 0;
-            _cacheHandlers.Clear();
+            CacheHandlers.Clear();
 
             if (dataReferenceInfos == null || dataReferenceInfos.Count == 0)
             {
@@ -51,7 +70,7 @@ namespace GameUp.Core
                 if (info == null) continue;
                 if (string.IsNullOrWhiteSpace(info.typeName) || info.dataRef == null) continue;
 
-                if (_cacheHandlers.ContainsKey(info.typeName))
+                if (CacheHandlers.ContainsKey(info.typeName))
                 {
                     GULogger.Warning("AddressableDataHolder", $"Duplicate typeName '{info.typeName}'. Skipping.");
                     continue;
@@ -66,7 +85,7 @@ namespace GameUp.Core
                     _ =>
                     {
                         _pendingLoads = Mathf.Max(0, _pendingLoads - 1);
-                        _cacheHandlers[typeName] = load;
+                        CacheHandlers[typeName] = load;
                     },
                     "AddressableDataHolder",
                     typeName,
@@ -92,7 +111,7 @@ namespace GameUp.Core
             if (!Initialized) Initialize();
             if (!Initialized) return null;
 
-            if (_cacheHandlers.TryGetValue(typeof(T).Name, out var handle) && handle.IsValid() &&
+            if (CacheHandlers.TryGetValue(typeof(T).Name, out var handle) && handle.IsValid() &&
                 handle.Status == AsyncOperationStatus.Succeeded)
                 return handle.Result as T;
 
@@ -195,33 +214,6 @@ namespace GameUp.Core
         }
 
 #endif
-
-        private void OnDisable()
-        {
-            ReleaseAll();
-        }
-
-        private void OnDestroy()
-        {
-            ReleaseAll();
-        }
-
-        private void ReleaseAll()
-        {
-            if (_cacheHandlers.Count == 0) return;
-
-            foreach (var kv in _cacheHandlers)
-            {
-                var handle = kv.Value;
-                if (!handle.IsValid()) continue;
-                Addressables.Release(handle);
-            }
-
-            _cacheHandlers.Clear();
-            Initialized = false;
-            _initializing = false;
-            _pendingLoads = 0;
-        }
     }
 
     [Serializable]

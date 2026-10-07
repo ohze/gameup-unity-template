@@ -17,7 +17,8 @@ namespace GameUp.Core.Editor
         {
             NamedBuildTarget.Standalone,
             NamedBuildTarget.Android,
-            NamedBuildTarget.iOS
+            NamedBuildTarget.iOS,
+            NamedBuildTarget.WebGL
         };
 
         [MenuItem(EnableMenuPath)]

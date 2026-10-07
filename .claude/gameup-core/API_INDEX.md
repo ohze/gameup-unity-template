@@ -285,6 +285,17 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public static void SaveData<T>(string key, T data, bool encrypt = true)`
 - `public static T LoadData<T>(string key, bool isEncrypted = true)`
 
+### `public interface ILocalStorageBackend`
+
+`GameUp.Core` · [Runtime/Core/DataHelper/ILocalStorageBackend.cs](Assets/GameUpCore/Runtime/Core/DataHelper/ILocalStorageBackend.cs)
+
+> Nơi `LocalStorageUtils` thực sự cất dữ liệu (key → chuỗi đã mã hoá).
+
+- `bool HasKey(string key)`
+- `string GetString(string key)`
+- `void SetString(string key, string value)`
+- `void Save()`
+
 ### `public static class JsonHelper`
 
 `GameUp.Core` · [Runtime/Core/DataHelper/JsonHelper.cs](Assets/GameUpCore/Runtime/Core/DataHelper/JsonHelper.cs)
@@ -297,8 +308,10 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 `GameUp.Core` · [Runtime/Core/DataHelper/LocalStorageUtils.cs](Assets/GameUpCore/Runtime/Core/DataHelper/LocalStorageUtils.cs)
 
-> Bọc PlayerPrefs với mã hóa. Mọi getter đều fail-safe: dữ liệu hỏng/đổi format sẽ trả về giá trị mặc định thay vì ném exception làm crash lúc khởi động. Số luôn đọc/ghi theo InvariantCulture để không phụ thuộc ngôn ngữ máy.
+> Lưu key-value có mã hóa, mặc định trên PlayerPrefs. Mọi getter đều fail-safe: dữ liệu hỏng/đổi format sẽ trả về giá trị mặc định thay vì ném exception làm crash lúc khởi động. Số luôn đọc/ghi theo InvariantCulture để không phụ thuộc ngôn ngữ máy.
 
+- `public static void SetBackend(ILocalStorageBackend backend)`
+- `public static void Save()`
 - `public static bool HasKey(string key)`
 - `public static string GetString(string key, string defaultStr = "")`
 - `public static void SetString(string key, string value)`
@@ -314,6 +327,17 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public static bool GetBoolean(string key, bool v = false)`
 - `public static void SetObject<T>(string key, T obj)`
 - `public static T GetObject<T>(string key, T defaultValue = null)`
+
+### `public sealed class UnityPlayerPrefsBackend : ILocalStorageBackend`
+
+`GameUp.Core` · [Runtime/Core/DataHelper/UnityPlayerPrefsBackend.cs](Assets/GameUpCore/Runtime/Core/DataHelper/UnityPlayerPrefsBackend.cs)
+
+> Backend mặc định của `LocalStorageUtils`: PlayerPrefs của Unity.
+
+- `public bool HasKey(string key)`
+- `public string GetString(string key)`
+- `public void SetString(string key, string value)`
+- `public void Save()`
 
 ## Runtime/Core/DataHelper/FullSerializerJson
 
@@ -943,8 +967,11 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 `GameUp.Core.UI` · [Runtime/UI/Adaptation/SafeArea.cs](Assets/GameUpCore/Runtime/UI/Adaptation/SafeArea.cs)
 
+> Co RectTransform vào vùng an toàn của màn hình (tránh tai thỏ, thanh điều hướng...).
+
 - `[SerializeField] private bool includeBottom`
 - `[SerializeField] private bool includeTop`
+- `public static void SetProvider(Func<Rect> provider)`
 
 ## Runtime/UI/BaseView
 

@@ -1,6 +1,6 @@
 # GameUp SDK — API index (tự sinh)
 
-> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.sdk` `2.1.0`; lần sync sau sẽ ghi đè.
+> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.sdk` `2.1.1`; lần sync sau sẽ ghi đè.
 
 - Source đọc được: `Assets/GameUpSDK/` — cột **File** bên dưới là đường dẫn tương đối so với thư mục này.
 - Đường dẫn trong Unity (dùng cho asmdef/AssetDatabase): `Assets/GameUpSDK/`.
