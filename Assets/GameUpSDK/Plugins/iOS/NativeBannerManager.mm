@@ -2,14 +2,16 @@
 #import <UIKit/UIKit.h>
 #import <GoogleMobileAds/GoogleMobileAds.h>
 
-extern UIViewController* UnityGetGLViewController();
+extern "C" UIViewController* UnityGetGLViewController(void);
 
-typedef void (*Action_Void)();
+typedef void (*Action_Unit)(const char* unitId);
+typedef void (*Action_UnitString)(const char* unitId, const char* error);
 typedef void (*Action_String)(const char* error);
-typedef void (*Action_Double)(double value);
+typedef void (*Action_UnitDouble)(const char* unitId, double value);
 
 typedef NS_ENUM(NSInteger, AdState) { AdStateIdle, AdStateLoading, AdStateLoaded, AdStateShowing };
 
+// Each format owns its rate; NativeAdConfigBridge updates both setters.
 static int g_ctaClickRate = 100;
 static Action_String g_onLogCallback = NULL;
 
@@ -22,15 +24,16 @@ static void SendUnityLog(NSString *format, ...) {
 
 @interface NativeBannerManager : NSObject <GADNativeAdLoaderDelegate, GADNativeAdDelegate>
 @property (nonatomic, strong) GADAdLoader *adLoader;
+@property (nonatomic, copy) NSString *currentUnitId;
 @property (nonatomic, strong) GADNativeAd *currentNativeAd;
 @property (nonatomic, strong) UIView *currentAdLayout;
 @property (nonatomic, assign) AdState currentState;
-@property (nonatomic, assign) Action_Void onLoaded;
-@property (nonatomic, assign) Action_String onFailed;
-@property (nonatomic, assign) Action_Void onDisplayed;
-@property (nonatomic, assign) Action_Void onClosed;
-@property (nonatomic, assign) Action_Void onClicked;
-@property (nonatomic, assign) Action_Double onPaid;
+@property (nonatomic, assign) Action_Unit onLoaded;
+@property (nonatomic, assign) Action_UnitString onFailed;
+@property (nonatomic, assign) Action_Unit onDisplayed;
+@property (nonatomic, assign) Action_Unit onClosed;
+@property (nonatomic, assign) Action_Unit onClicked;
+@property (nonatomic, assign) Action_UnitDouble onPaid;
 + (instancetype)sharedInstance;
 - (void)loadAd:(NSString *)adUnitId;
 - (void)showAd:(BOOL)isTop;
@@ -52,6 +55,7 @@ static void SendUnityLog(NSString *format, ...) {
 - (void)loadAd:(NSString *)adUnitId {
     if (self.currentState == AdStateLoading) return;
     self.currentState = AdStateLoading;
+    self.currentUnitId = adUnitId;
 
     UIViewController *rootVC = UnityGetGLViewController();
     GADNativeAdViewAdOptions *viewOptions = [[GADNativeAdViewAdOptions alloc] init];
@@ -64,7 +68,9 @@ static void SendUnityLog(NSString *format, ...) {
 
 - (void)showAd:(BOOL)isTop {
     if (self.currentState != AdStateLoaded || !self.currentNativeAd) return;
-    [self hideAd]; 
+    // Remove the old layout without clearing the loaded ad.
+    [self.currentAdLayout removeFromSuperview];
+    self.currentAdLayout = nil;
     
     UIViewController *rootVC = UnityGetGLViewController();
     UIView *rootView = rootVC.view;
@@ -193,7 +199,7 @@ static void SendUnityLog(NSString *format, ...) {
     
     [rootView addSubview:self.currentAdLayout];
     self.currentState = AdStateShowing;
-    if (self.onDisplayed) self.onDisplayed();
+    if (self.onDisplayed) self.onDisplayed([self.currentUnitId UTF8String]);
 }
 
 - (void)hideAd {
@@ -202,43 +208,50 @@ static void SendUnityLog(NSString *format, ...) {
         self.currentAdLayout = nil;
     }
     self.currentNativeAd = nil;
+    self.currentUnitId = nil;
     self.currentState = AdStateIdle;
 }
 
 - (void)closeTapped {
+    NSString *unitId = self.currentUnitId;
     [self hideAd];
-    if (self.onClosed) self.onClosed();
+    if (self.onClosed && unitId) self.onClosed([unitId UTF8String]);
 }
 
 - (void)adLoader:(GADAdLoader *)adLoader didReceiveNativeAd:(GADNativeAd *)nativeAd {
-    if (self.currentState == AdStateIdle) return; 
+    if (adLoader != self.adLoader || self.currentState != AdStateLoading) return;
     self.currentNativeAd = nativeAd;
     self.currentState = AdStateLoaded;
     
+    NSString *unitId = self.currentUnitId;
     __weak typeof(self) weakSelf = self;
     nativeAd.paidEventHandler = ^(GADAdValue * _Nonnull value) {
-        if (weakSelf.onPaid) weakSelf.onPaid([value.value doubleValue] * 0.000001);
+        if (weakSelf.onPaid) weakSelf.onPaid([unitId UTF8String], [value.value doubleValue] * 0.000001);
     };
-    if (self.onLoaded) self.onLoaded();
+    if (self.onLoaded) self.onLoaded([unitId UTF8String]);
 }
 
 - (void)adLoader:(GADAdLoader *)adLoader didFailToReceiveAdWithError:(NSError *)error {
+    if (adLoader != self.adLoader || self.currentState != AdStateLoading) return;
     self.currentState = AdStateIdle;
-    if (self.onFailed) self.onFailed([error.localizedDescription UTF8String]);
+    if (self.onFailed) self.onFailed([self.currentUnitId UTF8String], [error.localizedDescription UTF8String]);
 }
 
 - (void)nativeAdDidRecordClick:(GADNativeAd *)nativeAd {
+    if (nativeAd != self.currentNativeAd) return;
+    NSString *unitId = self.currentUnitId;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (nativeAd != self.currentNativeAd) return;
         [self hideAd];
-        if (self.onClicked) self.onClicked();
-        if (self.onClosed) self.onClosed();
+        if (self.onClicked) self.onClicked([unitId UTF8String]);
+        if (self.onClosed) self.onClosed([unitId UTF8String]);
     });
 }
 @end
 
 extern "C" {
     void NativeBanner_SetCtaRate(int rate) { g_ctaClickRate = MAX(0, MIN(100, rate)); }
-    void NativeBanner_SetCallbacks(Action_Void onLoaded, Action_String onFailed, Action_Void onDisplayed, Action_Void onClosed, Action_Void onClicked, Action_Double onPaid, Action_String onLog) {
+    void NativeBanner_SetCallbacks(Action_Unit onLoaded, Action_UnitString onFailed, Action_Unit onDisplayed, Action_Unit onClosed, Action_Unit onClicked, Action_UnitDouble onPaid, Action_String onLog) {
         NativeBannerManager *mgr = [NativeBannerManager sharedInstance];
         mgr.onLoaded = onLoaded; mgr.onFailed = onFailed; mgr.onDisplayed = onDisplayed;
         mgr.onClosed = onClosed; mgr.onClicked = onClicked; mgr.onPaid = onPaid;

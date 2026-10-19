@@ -8,8 +8,10 @@ namespace GameUp.SDK
 {
     public class FullScreenNativeAdManager : MonoSingleton<FullScreenNativeAdManager>
     {
+#if UNITY_ANDROID && !UNITY_EDITOR
         private AndroidJavaClass bridgeClass;
         private AndroidJavaObject currentActivity;
+#endif
         private bool _initialized;
 
         // Lưu vết vị trí và ID đang hiển thị trên màn hình
@@ -35,6 +37,7 @@ namespace GameUp.SDK
         private static extern void _iosLoadNativeAd(string adUnitId, NativeAdLoadedDelegate onLoaded, NativeAdFailedDelegate onFailed, NativeAdClosedDelegate onClosed, NativeAdPaidDelegate onPaid, NativeAdLogDelegate onLog);
 
         [DllImport("__Internal")]
+        [return: MarshalAs(UnmanagedType.I1)]
         private static extern bool _iosIsNativeAdReady(string adUnitId);
 
         [DllImport("__Internal")]
@@ -59,6 +62,7 @@ namespace GameUp.SDK
         private static void OnIosAdLog(string unitId, string message) { if (Instance != null) Instance.HandleAdLog(unitId, message); }
 #endif
 
+#if UNITY_ANDROID && !UNITY_EDITOR
         [Preserve]
         private class NativeAdCallbackProxy : AndroidJavaProxy
         {
@@ -79,6 +83,7 @@ namespace GameUp.SDK
             [Preserve] public void onAdPaid(double value) => _manager.HandleAdPaid(_unitId, value);
             [Preserve] public void onLog(string message) => _manager.HandleAdLog(_unitId, message);
         }
+#endif
 
         protected override void Awake()
         {
@@ -116,7 +121,9 @@ namespace GameUp.SDK
 #elif UNITY_IOS && !UNITY_EDITOR
             return _iosIsNativeAdReady(adUnit);
 #endif
+#if !UNITY_IOS || UNITY_EDITOR
             return false;
+#endif
         }
 
         public void ShowFullScreenAd(string adUnit, string where)

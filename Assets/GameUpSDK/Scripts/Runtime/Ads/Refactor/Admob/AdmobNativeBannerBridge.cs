@@ -20,7 +20,7 @@ namespace GameUp.SDK
 
 #if UNITY_IOS && !UNITY_EDITOR && ADMOB_DEPENDENCIES_INSTALLED
         [DllImport("__Internal")] private static extern void NativeBanner_LoadAd(string adUnitId);
-        [DllImport("__Internal")] private static extern void NativeBanner_ShowAd(bool isTop);
+        [DllImport("__Internal")] private static extern void NativeBanner_ShowAd([MarshalAs(UnmanagedType.I1)] bool isTop);
         [DllImport("__Internal")] private static extern void NativeBanner_HideAd();
         [DllImport("__Internal")] private static extern void NativeBanner_SetCallbacks(
             Action_Unit onLoaded, Action_UnitString onFailed, Action_Unit onDisplayed, Action_Unit onClosed, Action_Unit onClicked, Action_UnitDouble onPaid, Action_String onLog);

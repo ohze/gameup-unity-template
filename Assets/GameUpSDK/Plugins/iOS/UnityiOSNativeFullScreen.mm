@@ -2,7 +2,7 @@
 #import <UIKit/UIKit.h>
 #import <GoogleMobileAds/GoogleMobileAds.h>
 
-extern UIViewController* UnityGetGLViewController();
+extern "C" UIViewController* UnityGetGLViewController(void);
 
 typedef void (*Action_Loaded)(const char* unitId);
 typedef void (*Action_Failed)(const char* unitId, const char* error);
@@ -10,7 +10,8 @@ typedef void (*Action_Closed)(const char* unitId);
 typedef void (*Action_Paid)(const char* unitId, double value);
 typedef void (*Action_Log)(const char* unitId, const char* message);
 
-extern int g_ctaClickRate;
+// Each format owns its rate; NativeAdConfigBridge updates both setters.
+static int g_ctaClickRate = 100;
 
 @interface NativeFullScreenManager : NSObject <GADNativeAdLoaderDelegate, GADNativeAdDelegate>
 @property (nonatomic, strong) NSMutableDictionary<NSString*, GADAdLoader*> *adLoaders;
@@ -243,6 +244,9 @@ extern int g_ctaClickRate;
         [self.nativeAdView bringSubviewToFront:closeBtn];
     }
 
+    // Register the ad only after every asset view, including CTA, is assigned.
+    self.nativeAdView.nativeAd = self.currentNativeAd;
+    self.currentNativeAd.delegate = self;
     [rootView addSubview:self.currentAdLayout];
 }
 
@@ -255,8 +259,6 @@ extern int g_ctaClickRate;
     self.bodyLabel.text = self.currentNativeAd.body;
     self.iconView.image = self.currentNativeAd.icon.image;
     [self.ctaBtn setTitle:self.currentNativeAd.callToAction forState:UIControlStateNormal];
-    self.nativeAdView.nativeAd = self.currentNativeAd;
-    self.currentNativeAd.delegate = self;
 }
 
 - (void)hideAd {
