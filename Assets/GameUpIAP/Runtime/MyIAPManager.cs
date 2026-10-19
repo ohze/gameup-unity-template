@@ -63,6 +63,13 @@ namespace GameUp.IAP
         public bool IsIAPInitialized => _isInitialized && _storeController != null;
         public IReadOnlyList<IAPProductDefinition> Products => _products;
 
+        /// <summary>
+        /// Raised for each validated, confirmed non-consumable returned by a purchase fetch.
+        /// Subscribe before initialization and restore the entitlement idempotently:
+        /// this event can fire again on subsequent fetches or manual restores.
+        /// </summary>
+        public event Action<string> OnProductRestored;
+
         protected override void Awake()
         {
             base.Awake();
@@ -223,6 +230,37 @@ namespace GameUp.IAP
             _purchaseLevels[productId] = level;
             LogPurchaseStart(productId, level);
             _storeController.PurchaseProduct(product);
+        }
+
+        /// <summary>
+        /// Requests restoration of previously purchased transactions from the store.
+        /// Restored orders are delivered through OnPurchasesFetched.
+        /// </summary>
+        /// <param name="onRestoreComplete">
+        /// Reports whether the store restore operation succeeded, not whether any products were restored.
+        /// </param>
+        public void RestorePurchased(Action<bool> onRestoreComplete = null)
+        {
+            if (!IsIAPInitialized)
+            {
+                GULogger.Warning(Tag, "RestorePurchased failed because IAP is not initialized yet.");
+                onRestoreComplete?.Invoke(false);
+                return;
+            }
+
+            _storeController.RestoreTransactions((success, error) =>
+            {
+                if (success)
+                {
+                    GULogger.Log(Tag, "Restore purchases completed successfully.");
+                }
+                else
+                {
+                    GULogger.Warning(Tag, $"Restore purchases failed: {error}");
+                }
+
+                onRestoreComplete?.Invoke(success);
+            });
         }
 
         public string GetLocalizedPrice(string productId, string defaultPrice)
@@ -469,10 +507,58 @@ namespace GameUp.IAP
 
         private void OnPurchasesFetched(Orders orders)
         {
-            var totalOrders = orders == null
-                ? 0
-                : orders.ConfirmedOrders.Count + orders.PendingOrders.Count + orders.DeferredOrders.Count;
+            var totalOrders = (orders?.ConfirmedOrders?.Count ?? 0)
+                + (orders?.PendingOrders?.Count ?? 0)
+                + (orders?.DeferredOrders?.Count ?? 0);
             GULogger.Log(Tag, $"Purchases fetched. orders={totalOrders}");
+
+            if (orders?.ConfirmedOrders == null)
+            {
+                return;
+            }
+
+            var restoredProductIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var order in orders.ConfirmedOrders)
+            {
+                var items = order?.CartOrdered?.Items();
+                if (items == null || order.Info == null)
+                {
+                    continue;
+                }
+
+                foreach (var item in items)
+                {
+                    var productId = item?.Product?.definition?.id;
+                    var definition = _products.FirstOrDefault(product =>
+                        string.Equals(product.Id, productId, StringComparison.Ordinal));
+
+                    // Consumables must not be granted again. Subscriptions need a separate
+                    // entitlement/expiry check before they can be restored.
+                    if (definition == null || definition.Type != ProductType.NonConsumable
+                        || restoredProductIds.Contains(productId))
+                    {
+                        continue;
+                    }
+
+                    var validation = ValidateOrder(order, productId);
+                    if (!IsPurchaseGranted(validation))
+                    {
+                        GULogger.Warning(Tag, $"Restore rejected by receipt validation. productId={productId} result={validation}");
+                        continue;
+                    }
+
+                    restoredProductIds.Add(productId);
+                    // A restore is not a new sale: do not emit revenue analytics or confirm again.
+                    try
+                    {
+                        OnProductRestored?.Invoke(productId);
+                    }
+                    catch (Exception exception)
+                    {
+                        GULogger.Exception(exception, Tag);
+                    }
+                }
+            }
         }
 
         private void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure)
