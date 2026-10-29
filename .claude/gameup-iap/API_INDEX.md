@@ -64,6 +64,7 @@ Kế thừa những class này thay vì tự viết lại. **abstract** = bắt 
 - `[SerializeField] private bool blockPurchaseWhenValidatorUnavailable`
 - `public bool IsIAPInitialized { get; }`
 - `public IReadOnlyList<IAPProductDefinition> Products { get; }`
+- `public event Action<string> OnProductRestored`
 - `protected override void Awake()`
 - `public void Initialize(IEnumerable<IAPProductDefinition> externalProducts)`
 - `public Task<bool> InitializeAsync(IEnumerable<IAPProductDefinition> externalProducts)`
@@ -71,6 +72,7 @@ Kế thừa những class này thay vì tự viết lại. **abstract** = bắt 
 - `public void SetProducts(IEnumerable<string> productIds, ProductType defaultType = ProductType.NonConsumable)`
 - `public Task<bool> InitializeAsync()`
 - `public void BuyProduct(string productId, Action<bool> onPurchaseComplete = null, int? level = null)`
+- `public void RestorePurchased(Action<bool> onRestoreComplete = null)`
 - `public string GetLocalizedPrice(string productId, string defaultPrice)`
 - `public string GetLocalizedPrice(string productId)`
 - `public string GetMultipliedLocalizedPrice(string productId, string defaultPrice, int multiplier)`

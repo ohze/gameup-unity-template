@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added
+- **Audio: random pitch theo identity (0.9.0).** `AudioIdentity` có thêm `pitch` (mặc định 1, `[0.1, 3]`) và `randomPitchRange` (mặc định 0, đơn vị pitch — `0.05` = ±0.05), chỉnh trong Inspector. Mỗi lần phát SFX bốc pitch một lần ngay trước `source.Play()`: `pitch ± range` rồi kẹp trong `[AudioIdentity.MinPitch, MaxPitch]`. Tiếng lặp liên tục (tung đòn, bắn, trúng) không còn máy móc.
+  - Pitch **luôn** được gán cho mỗi lần phát — source dùng lại từ pool không còn ăn pitch sót của lần trước.
+  - Overload mới để code tự đè pitch (vd tăng dần theo combo), bỏ qua pitch/random của identity: `AudioManager.PlayAudio(identity | tên, isRandomClip, pitchOverride)` và `Play(identity, isRandomClip, pitchOverride)`. Chữ ký cũ giữ nguyên.
+  - Nhạc nền (`PlayMusic`) không random: source nhạc nhận `AudioIdentity.BasePitch` mỗi lần đổi bài.
+  - `BaseAudio` có cùng hai field, `PlayClip` luôn gán pitch cho source truyền vào.
+  - Hàm thuần `AudioIdentity.CalculatePitch(pitch, range, random01)`, `ClampPitch`, `EvaluatePitch()` + test EditMode `AudioPitchTests`. `pitch ≤ 0` (dữ liệu zero-init) coi như 1.
+  - Asset cũ chưa có field: pitch = 1, không random — hành vi như trước.
+
 ### Fixed
 - **`AddressableDataHolder` mất dữ liệu khi đổi scene (WebGL / TikTok Mini Games).** Holder nạp từ Resources bị Unity unload lúc chuyển scene Single dù đã đặt `DontUnloadUnusedAsset`; `OnDisable` gọi `ReleaseAll()` và Resources nạp lại một bản mới chưa init → `ScriptableObjectSingleton<T>.Instance` trả `null` đúng lúc scene mới dựng, mọi data phải nạp lại (Home chậm, lỗi "Không có SO_…"). Trạng thái nạp (`CacheHandlers`, `Initialized`, đếm pending) nay là static dùng chung mọi bản holder; bỏ `ReleaseAll` khi `OnDisable`/`OnDestroy` (data singleton sống suốt phiên); thêm reset static khi vào Play Mode không reload domain. Editor không tái hiện được vì `GetData` trong Editor đọc thẳng thư mục.
 - **`GameUp/Logger/Enable|Disable Logs` bỏ sót WebGL.** Danh sách target thêm `NamedBuildTarget.WebGL` — trước đây bản WebGL không bao giờ có `ENABLE_LOG` dù đã bấm menu.

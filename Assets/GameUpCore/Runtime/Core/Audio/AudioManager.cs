@@ -735,6 +735,23 @@ namespace GameUp.Core
         /// </returns>
         public AudioHandle Play(AudioIdentity identity, bool isRandomClip = false)
         {
+            return PlaySfx(identity, isRandomClip, float.NaN);
+        }
+
+        /// <summary>
+        /// Như <see cref="Play(AudioIdentity, bool)"/> nhưng code tự đè pitch (vd pitch tăng dần theo combo):
+        /// bỏ qua <see cref="AudioIdentity.pitch"/> và <see cref="AudioIdentity.randomPitchRange"/>.
+        /// Pitch bị kẹp trong [<see cref="AudioIdentity.MinPitch"/>, <see cref="AudioIdentity.MaxPitch"/>].
+        /// Identity nhạc nền không nhận pitch đè.
+        /// </summary>
+        public AudioHandle Play(AudioIdentity identity, bool isRandomClip, float pitchOverride)
+        {
+            return PlaySfx(identity, isRandomClip, AudioIdentity.ClampPitch(pitchOverride));
+        }
+
+        /// <param name="pitchOverride">NaN = bốc pitch theo identity; khác NaN = dùng nguyên giá trị (đã kẹp).</param>
+        private AudioHandle PlaySfx(AudioIdentity identity, bool isRandomClip, float pitchOverride)
+        {
             if (!identity) return AudioHandle.None;
 
             // Nhạc nền có đường riêng để còn crossfade.
@@ -775,6 +792,8 @@ namespace GameUp.Core
 
                 source.clip = clip;
                 source.loop = identity.isLoop;
+                // Luôn gán pitch: source được tái sử dụng, không gán thì ăn pitch còn sót của lần phát trước.
+                source.pitch = float.IsNaN(pitchOverride) ? identity.EvaluatePitch() : pitchOverride;
                 entry.Apply(AudioSetting.Instance);
                 source.Play();
                 StartCoroutine(ReleaseBusyNextFrame(source));
@@ -806,6 +825,22 @@ namespace GameUp.Core
         }
 
         /// <summary>
+        /// Phát với pitch do code quyết định (vd tăng dần theo combo), bỏ qua pitch/random của identity.
+        /// Xem <see cref="Play(AudioIdentity, bool, float)"/>.
+        /// </summary>
+        public static AudioHandle PlayAudio(AudioIdentity identity, bool isRandomClip, float pitchOverride)
+        {
+            if (!Instance) return AudioHandle.None;
+            if (!identity)
+            {
+                GULogger.Log("AudioManager", "PlayAudio: identity is null");
+                return AudioHandle.None;
+            }
+
+            return Instance.Play(identity, isRandomClip, pitchOverride);
+        }
+
+        /// <summary>
         /// Phát theo tên identity đã preload (xem <see cref="AudioDatabase"/>).
         /// </summary>
         public static AudioHandle PlayAudio(string identityName, bool isRandomClip = false)
@@ -817,6 +852,18 @@ namespace GameUp.Core
             }
 
             return PlayAudio(identity, isRandomClip);
+        }
+
+        /// <summary>Phát theo tên identity đã preload, với pitch do code quyết định.</summary>
+        public static AudioHandle PlayAudio(string identityName, bool isRandomClip, float pitchOverride)
+        {
+            if (!TryGetIdentity(identityName, out var identity))
+            {
+                GULogger.Error("AudioManager", $"Không tìm thấy AudioIdentity '{identityName}'. Đã preload qua AudioDatabase chưa?");
+                return AudioHandle.None;
+            }
+
+            return PlayAudio(identity, isRandomClip, pitchOverride);
         }
 
         public static void PlayAudio(AudioIdentityReference identityReference)
@@ -924,10 +971,12 @@ namespace GameUp.Core
             instance._currentMusicIdentity = identity;
             var duration = fadeDuration < 0f ? instance.defaultMusicFade : fadeDuration;
 
-            instance.LoadClip(identity.clipRefs[0], clip => instance.SwapMusic(clip, identity.volume, duration));
+            // Nhạc nền không random pitch — chỉ dùng pitch gốc của identity.
+            instance.LoadClip(identity.clipRefs[0],
+                clip => instance.SwapMusic(clip, identity.volume, identity.BasePitch, duration));
         }
 
-        private void SwapMusic(AudioClip clip, float baseVolume, float duration)
+        private void SwapMusic(AudioClip clip, float baseVolume, float pitch, float duration)
         {
             if (!clip) return;
 
@@ -940,6 +989,7 @@ namespace GameUp.Core
 
             incoming.Source.clip = clip;
             incoming.Source.loop = true;
+            incoming.Source.pitch = pitch; // luôn gán để source nhạc không dính pitch của bài trước
             incoming.BaseVolume = baseVolume;
             incoming.FadeScale = duration > 0f ? 0f : 1f;
             incoming.Apply(AudioSetting.Instance);
@@ -1065,6 +1115,14 @@ namespace GameUp.Core
         [Range(0f, 1f)] public float volume = 1f;
         public bool isLoop;
 
+        [Range(AudioIdentity.MinPitch, AudioIdentity.MaxPitch)]
+        [Tooltip("Pitch gốc khi phát. 1 = giữ nguyên clip.")]
+        public float pitch = 1f;
+
+        [Range(0f, 1f)]
+        [Tooltip("Random pitch mỗi lần phát trong khoảng pitch ± giá trị này. 0 = không random.")]
+        public float randomPitchRange;
+
         private AsyncOperationHandle<AudioClip> _cacheOperation;
         private AudioSource _lastSource; // dùng cho StopAudio()
 
@@ -1084,6 +1142,8 @@ namespace GameUp.Core
                 source.clip = clip;
                 source.volume = volume * AudioSetting.Instance.GetVolume(category);
                 source.loop = isLoop;
+                // Source do bên ngoài truyền vào, có thể còn pitch cũ — luôn gán lại.
+                source.pitch = AudioIdentity.CalculatePitch(pitch, randomPitchRange, UnityEngine.Random.value);
                 source.Play();
                 AudioManager.Instance.StartCoroutine(AudioManager.ReleaseBusyNextFrame(source));
             }, "AudioManager", "BaseAudio clip", () => AudioManager.ReleaseBusy(source));
