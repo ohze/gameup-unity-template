@@ -353,7 +353,7 @@ namespace GameUp.IAP
             }
 
             catalogProvider.FetchProducts(productList => _storeController.FetchProducts(productList));
-            GULogger.Log(Tag, $"FetchProducts requested for {_configuredProductIds.Count} products.");
+            GULogger.Log(Tag, $"FetchProducts requested for {_configuredProductIds.Count} products. productIds=[{string.Join(", ", _configuredProductIds)}]");
         }
 
         private Product FindProductById(string productId)
@@ -492,7 +492,8 @@ namespace GameUp.IAP
             _isInitializing = false;
             _isInitialized = true;
             var count = fetchedProducts?.Count ?? 0;
-            GULogger.Log(Tag, $"Products fetched successfully. count={count}");
+            var productIds = fetchedProducts?.Select(product => product?.definition?.id) ?? Enumerable.Empty<string>();
+            GULogger.Log(Tag, $"Products fetched successfully. count={count} productIds=[{string.Join(", ", productIds)}]");
             LogIapInitialize(true, "products_fetched");
             _storeController.FetchPurchases();
         }
@@ -500,8 +501,10 @@ namespace GameUp.IAP
         private void OnProductsFetchFailed(ProductFetchFailed failure)
         {
             _isInitializing = false;
-            _isInitialized = false;
-            GULogger.Error(Tag, $"Products fetch failed: {failure.FailureReason}");
+            // A partial fetch failure must not invalidate products fetched successfully.
+            var count = failure.FailedFetchProducts?.Count ?? 0;
+            var productIds = failure.FailedFetchProducts?.Select(product => product?.id) ?? Enumerable.Empty<string>();
+            GULogger.Error(Tag, $"Products fetch failed: {failure.FailureReason}. count={count} productIds=[{string.Join(", ", productIds)}]");
             LogIapInitialize(false, "products_fetch_failed");
         }
 
