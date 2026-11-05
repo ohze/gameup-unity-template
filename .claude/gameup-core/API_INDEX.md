@@ -1,6 +1,6 @@
 # GameUp Core — API index (tự sinh)
 
-> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.core` `0.8.4`; lần sync sau sẽ ghi đè.
+> **Không sửa tay.** Sinh bởi `GameUp → Project → Sync GameUp source for AI` từ assembly thật của `com.ohze.gameup.core` `0.9.0`; lần sync sau sẽ ghi đè.
 
 - Source đọc được: `Assets/GameUpCore/` — cột **File** bên dưới là đường dẫn tương đối so với thư mục này.
 - Đường dẫn trong Unity (dùng cho asmdef/AssetDatabase): `Assets/GameUpCore/`.
@@ -134,11 +134,19 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 `GameUp.Core` · [Runtime/Core/Audio/AudioIdentity.cs](Assets/GameUpCore/Runtime/Core/Audio/AudioIdentity.cs)
 
+- `public const float MinPitch`
+- `public const float MaxPitch`
 - `public List<AudioClipReference> clipRefs`
 - `public AudioCategory category`
 - `public float volume`
 - `public bool isLoop`
+- `public float pitch`
+- `public float randomPitchRange`
 - `public bool preloadClips`
+- `public float BasePitch { get; }`
+- `public float EvaluatePitch()`
+- `public static float CalculatePitch(float pitch, float randomRange, float random01)`
+- `public static float ClampPitch(float pitch)`
 
 ### `public class AudioIdentityReference : AssetReferenceT<AudioIdentity>`
 
@@ -173,9 +181,12 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public static int ReleaseUnusedAudio()`
 - `public static bool TryGetIdentity(string identityName, out AudioIdentity identity)`
 - `public AudioHandle Play(AudioIdentity identity, bool isRandomClip = false)`
+- `public AudioHandle Play(AudioIdentity identity, bool isRandomClip, float pitchOverride)`
 - `public void Play(AudioIdentityReference identityReference)`
 - `public static AudioHandle PlayAudio(AudioIdentity identity, bool isRandomClip = false)`
+- `public static AudioHandle PlayAudio(AudioIdentity identity, bool isRandomClip, float pitchOverride)`
 - `public static AudioHandle PlayAudio(string identityName, bool isRandomClip = false)`
+- `public static AudioHandle PlayAudio(string identityName, bool isRandomClip, float pitchOverride)`
 - `public static void PlayAudio(AudioIdentityReference identityReference)`
 - `public static void StopHandle(int handleId, float fadeDuration = 0f)`
 - `public static bool IsHandlePlaying(int handleId)`
@@ -216,6 +227,8 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 - `public AudioCategory category`
 - `public float volume`
 - `public bool isLoop`
+- `public float pitch`
+- `public float randomPitchRange`
 - `public void PlayClip(AudioSource source)`
 - `public void StopAudio()`
 
@@ -1056,6 +1069,8 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 ### `public class CustomSelectViews : MonoBehaviour`
 
 `GameUp.Core.UI` · [Runtime/UI/Helpers/CustomView/CustomSelectViews.cs](Assets/GameUpCore/Runtime/UI/Helpers/CustomView/CustomSelectViews.cs)
+
+> Áp trạng thái chọn cho các `BaseSelectView` trên cùng GameObject. views được OnValidate gom lại mỗi lần validate nên view kéo tay từ object con sẽ bị ghi đè; view ở object con thì gom qua `SelectViewComposite` đặt trên GameObject này. Trạng thái không tự áp lúc khởi động: phải gán `IsSelect` khi bind dữ liệu.
 
 - `[SerializeField] private List<BaseSelectView> views`
 - `public bool IsSelect { get; set; }`

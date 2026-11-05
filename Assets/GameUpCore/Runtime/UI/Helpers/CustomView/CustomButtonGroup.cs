@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace GameUp.Core.UI
 {
@@ -9,6 +10,7 @@ namespace GameUp.Core.UI
     {
         [SerializeField] private List<CustomSelectButton> buttons;
         private readonly Signal<int> _onChangeSelectButton = new();
+        private readonly List<(CustomSelectButton button, UnityAction handler)> _subscriptions = new();
         [SerializeField] private int defaultSelectedIndex = -1;
 
         private int _currentSelectedIndex = -1;
@@ -29,22 +31,22 @@ namespace GameUp.Core.UI
                 if (button == null) continue;
 
                 var index = i;
-                button.onClick.AddListener(() => { SetSelected(index, notify: true); });
+                UnityAction handler = () => { SetSelected(index, notify: true); };
+                button.onClick.AddListener(handler);
+                _subscriptions.Add((button, handler));
             }
         }
 
         private void OnDisable()
         {
-            if (buttons == null) return;
-
-            for (var i = 0; i < buttons.Count; i++)
+            for (var i = 0; i < _subscriptions.Count; i++)
             {
-                var button = buttons[i];
-                if (button == null) continue;
-
-                var index = i;
-                button.onClick.RemoveListener(() => { SetSelected(index, notify: true); });
+                var (button, handler) = _subscriptions[i];
+                if (button != null)
+                    button.onClick.RemoveListener(handler);
             }
+
+            _subscriptions.Clear();
         }
 
         private void OnValidate()

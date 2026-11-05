@@ -4,6 +4,12 @@ using UnityEngine;
 
 namespace GameUp.Core.UI
 {
+    /// <summary>
+    /// Áp trạng thái chọn cho các <see cref="BaseSelectView"/> trên cùng GameObject. <c>views</c> được
+    /// <c>OnValidate</c> gom lại mỗi lần validate nên view kéo tay từ object con sẽ bị ghi đè;
+    /// view ở object con thì gom qua <see cref="SelectViewComposite"/> đặt trên GameObject này.
+    /// Trạng thái không tự áp lúc khởi động: phải gán <see cref="IsSelect"/> khi bind dữ liệu.
+    /// </summary>
     public class CustomSelectViews : MonoBehaviour
     {
         [SerializeField] private List<BaseSelectView> views;

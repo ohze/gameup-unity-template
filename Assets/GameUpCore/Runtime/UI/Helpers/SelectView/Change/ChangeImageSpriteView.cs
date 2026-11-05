@@ -7,7 +7,7 @@ namespace GameUp.Core.UI
     {
         private const string LogTag = nameof(ChangeImageSpriteView);
 
-        [SerializeField] private bool setNativeSize = true;
+        [SerializeField] private bool setNativeSize;
         [SerializeField] private Image image;
         [SerializeField] private Sprite selectSprite, disableSprite;
 

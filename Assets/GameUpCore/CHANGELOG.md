@@ -13,7 +13,11 @@
   - Hàm thuần `AudioIdentity.CalculatePitch(pitch, range, random01)`, `ClampPitch`, `EvaluatePitch()` + test EditMode `AudioPitchTests`. `pitch ≤ 0` (dữ liệu zero-init) coi như 1.
   - Asset cũ chưa có field: pitch = 1, không random — hành vi như trước.
 
+### Changed
+- **`ChangeImageSpriteView.setNativeSize` mặc định là `false`.** Đổi sprite không còn tự đổi kích thước nút/tab. Chỉ áp dụng cho component thêm mới; prefab/scene đã có giữ nguyên giá trị đã lưu.
+
 ### Fixed
+- **`CustomButtonGroup` không gỡ được listener khi disable.** `OnDisable` gỡ một lambda mới tạo nên listener cũ ở lại trên `onClick` của từng nút: mỗi lần tắt/bật group cộng thêm một listener, và group vẫn đổi lựa chọn, vẫn dispatch khi `onClick` chạy lúc group đang tắt. Nay group giữ lại handler đã gắn để gỡ đúng; listener do code khác gắn không bị ảnh hưởng. Test PlayMode `CustomButtonGroupTests`.
 - **`AddressableDataHolder` mất dữ liệu khi đổi scene (WebGL / TikTok Mini Games).** Holder nạp từ Resources bị Unity unload lúc chuyển scene Single dù đã đặt `DontUnloadUnusedAsset`; `OnDisable` gọi `ReleaseAll()` và Resources nạp lại một bản mới chưa init → `ScriptableObjectSingleton<T>.Instance` trả `null` đúng lúc scene mới dựng, mọi data phải nạp lại (Home chậm, lỗi "Không có SO_…"). Trạng thái nạp (`CacheHandlers`, `Initialized`, đếm pending) nay là static dùng chung mọi bản holder; bỏ `ReleaseAll` khi `OnDisable`/`OnDestroy` (data singleton sống suốt phiên); thêm reset static khi vào Play Mode không reload domain. Editor không tái hiện được vì `GetData` trong Editor đọc thẳng thư mục.
 - **`GameUp/Logger/Enable|Disable Logs` bỏ sót WebGL.** Danh sách target thêm `NamedBuildTarget.WebGL` — trước đây bản WebGL không bao giờ có `ENABLE_LOG` dù đã bấm menu.
 
