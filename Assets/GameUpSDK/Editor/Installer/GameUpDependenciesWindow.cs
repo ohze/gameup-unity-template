@@ -773,6 +773,13 @@ namespace GameUp.SDK.Installer
         /// <summary>Lệnh cài đang chờ tra version adapter xong (để không cài nhầm bản dự phòng).</summary>
         private Action _afterAdapterVersionsResolved;
 
+        /// <summary>
+        /// Adapter đang cập nhật/cài lại: xoá thư mục cũ ngay trước khi import bản mới.
+        /// Import đè không đủ — các bản adapter đổi tên file (vd LiftoffMonetize: GoogleMobileAds.Mediation.X.Api.asmdef → Api.asmdef)
+        /// với GUID mới, file cũ còn lại → "Assembly with name ... already exists" và trùng Dependencies.xml.
+        /// </summary>
+        private readonly HashSet<PackageDef> _adapterCleanReinstall = new HashSet<PackageDef>();
+
         private string[] _admobUpdateOriginalHostedUrls;
         private string[] _admobUpdateOriginalBundledFileNames;
 
@@ -3364,11 +3371,38 @@ namespace GameUp.SDK.Installer
             }
 
             foreach (var pkg in pkgs)
+            {
                 pkg.InstallError = null;
+                _adapterCleanReinstall.Add(pkg);
+            }
 
             Debug.Log("[GameUpSDK] Cập nhật AdMob adapter: " +
                       string.Join(", ", pkgs.Select(p => $"{p.DisplayName} {p.InstalledVersion ?? "?"} → {p.TargetVersion}")));
-            StartParallelDownloadAndImport(pkgs, onAllDone: () => RefreshStatus());
+            StartParallelDownloadAndImport(pkgs, onAllDone: () =>
+            {
+                _adapterCleanReinstall.Clear();
+                RefreshStatus();
+            });
+        }
+
+        /// <summary>
+        /// Xoá bản adapter đang cài trước khi import bản mới. Gọi SAU khi tải + giải nén thành công
+        /// để lỗi mạng không làm mất adapter đang chạy được. Xoá và import cùng một nhịp editor nên
+        /// Unity chỉ compile một lần sau khi bản mới đã nằm trên disk.
+        /// </summary>
+        private bool TryRemoveAdapterBeforeReinstall(PackageDef pkg)
+        {
+            if (!_adapterCleanReinstall.Remove(pkg) || !HasInstalledAssetPath(pkg))
+                return true;
+
+            if (TryDeleteInstalledAssetPath(pkg, out string error))
+            {
+                Debug.Log($"[GameUpSDK] Đã xoá bản cũ {pkg.InstalledAssetPath} trước khi cài {pkg.TargetVersion}.");
+                return true;
+            }
+
+            pkg.InstallError = $"Không xoá được bản adapter cũ ({error}). Gỡ adapter thủ công rồi cài lại.";
+            return false;
         }
 
         // ── Marker version đã cài: nằm trong thư mục adapter nên đi theo git và bị xoá cùng khi gỡ adapter ──
@@ -3690,7 +3724,7 @@ namespace GameUp.SDK.Installer
                 if (errorMsgs.Count > 0)
                     pkg.InstallError = "Xử lý/tải file thất bại:\n" + string.Join("\n", errorMsgs);
 
-                if (successPaths.Count > 0)
+                if (successPaths.Count > 0 && TryRemoveAdapterBeforeReinstall(pkg))
                     ImportUnityPackage(pkg, successPaths);
             }
 
