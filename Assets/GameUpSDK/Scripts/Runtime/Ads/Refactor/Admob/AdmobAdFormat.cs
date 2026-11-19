@@ -37,23 +37,30 @@ namespace GameUp.SDK
 
             // RaiseAdEventsOnUnityMainThread đã bị bỏ (obsolete từ GMA 10.7) nên callback này
             // về từ thread native — mọi thao tác trên state/Unity API phải đẩy về main thread.
-            InterstitialAd.Load(unitId, new AdRequest(), (ad, error) => MainThreadDispatcher.Enqueue(() =>
+            InterstitialAd.Load(unitId, new AdRequest(), (ad, error) =>
             {
-                if (error != null || ad == null)
+                // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                string errorMessage = error?.GetMessage();
+                bool hasError = error != null;
+                MainThreadDispatcher.Enqueue(() =>
                 {
-                    HandleLoadFailed(unitId, where, floor, error?.GetMessage());
-                    return;
-                }
-                ad.OnAdPaid += (adValue) =>
-                {
-                    if (adValue == null) return;
-                    double revenue = adValue.Value / 1_000_000d;
-                    string currency = adValue.CurrencyCode;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Interstitial_{floor}", revenue, currency));
-                };
-                _ads[unitId] = ad;
-                HandleLoadSuccess(unitId, where);
-            }));
+                    if (hasError || ad == null)
+                    {
+                        HandleLoadFailed(unitId, where, floor, errorMessage);
+                        return;
+                    }
+                    ad.OnAdPaid += (adValue) =>
+                    {
+                        if (adValue == null) return;
+                        double revenue = adValue.Value / 1_000_000d;
+                        string currency = adValue.CurrencyCode;
+                        MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Interstitial_{floor}", revenue, currency));
+                    };
+                    _ads[unitId] = ad;
+                    HandleLoadSuccess(unitId, where);
+                });
+            });
 #endif
         }
 
@@ -89,13 +96,19 @@ namespace GameUp.SDK
                         onSuccess?.Invoke();
                         Load(where);
                     });
-                    ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
+                    ad.OnAdFullScreenContentFailed += (err) =>
                     {
-                        NotifyAdDisplayFailed(where, err.GetMessage());
-                        Release();
-                        onFail?.Invoke();
-                        Load(where);
-                    });
+                        // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                        // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                        string errorMessage = err?.GetMessage();
+                        MainThreadDispatcher.Enqueue(() =>
+                        {
+                            NotifyAdDisplayFailed(where, errorMessage);
+                            Release();
+                            onFail?.Invoke();
+                            Load(where);
+                        });
+                    };
                     ad.Show();
                     return;
                 }
@@ -137,23 +150,30 @@ namespace GameUp.SDK
 
             // RaiseAdEventsOnUnityMainThread đã bị bỏ (obsolete từ GMA 10.7) nên callback này
             // về từ thread native — mọi thao tác trên state/Unity API phải đẩy về main thread.
-            RewardedAd.Load(unitId, new AdRequest(), (ad, error) => MainThreadDispatcher.Enqueue(() =>
+            RewardedAd.Load(unitId, new AdRequest(), (ad, error) =>
             {
-                if (error != null || ad == null)
+                // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                string errorMessage = error?.GetMessage();
+                bool hasError = error != null;
+                MainThreadDispatcher.Enqueue(() =>
                 {
-                    HandleLoadFailed(unitId, where, floor, error?.GetMessage());
-                    return;
-                }
-                ad.OnAdPaid += (adValue) =>
-                {
-                    if (adValue == null) return;
-                    double revenue = adValue.Value / 1_000_000d;
-                    string currency = adValue.CurrencyCode;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Rewarded_{floor}", revenue, currency));
-                };
-                _ads[unitId] = ad;
-                HandleLoadSuccess(unitId, where);
-            }));
+                    if (hasError || ad == null)
+                    {
+                        HandleLoadFailed(unitId, where, floor, errorMessage);
+                        return;
+                    }
+                    ad.OnAdPaid += (adValue) =>
+                    {
+                        if (adValue == null) return;
+                        double revenue = adValue.Value / 1_000_000d;
+                        string currency = adValue.CurrencyCode;
+                        MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"Rewarded_{floor}", revenue, currency));
+                    };
+                    _ads[unitId] = ad;
+                    HandleLoadSuccess(unitId, where);
+                });
+            });
 #endif
         }
 
@@ -187,13 +207,19 @@ namespace GameUp.SDK
                         if (!earned) onFail?.Invoke();
                         Load(where);
                     });
-                    ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
+                    ad.OnAdFullScreenContentFailed += (err) =>
                     {
-                        NotifyAdDisplayFailed(where, err.GetMessage());
-                        Release();
-                        onFail?.Invoke();
-                        Load(where);
-                    });
+                        // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                        // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                        string errorMessage = err?.GetMessage();
+                        MainThreadDispatcher.Enqueue(() =>
+                        {
+                            NotifyAdDisplayFailed(where, errorMessage);
+                            Release();
+                            onFail?.Invoke();
+                            Load(where);
+                        });
+                    };
                     ad.Show((reward) =>
                     {
                         earned = true;
@@ -242,24 +268,31 @@ namespace GameUp.SDK
 
             // RaiseAdEventsOnUnityMainThread đã bị bỏ (obsolete từ GMA 10.7) nên callback này
             // về từ thread native — mọi thao tác trên state/Unity API phải đẩy về main thread.
-            AppOpenAd.Load(unitId, new AdRequest(), (ad, error) => MainThreadDispatcher.Enqueue(() =>
+            AppOpenAd.Load(unitId, new AdRequest(), (ad, error) =>
             {
-                if (error != null || ad == null)
+                // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                string errorMessage = error?.GetMessage();
+                bool hasError = error != null;
+                MainThreadDispatcher.Enqueue(() =>
                 {
-                    HandleLoadFailed(unitId, where, floor, error?.GetMessage());
-                    return;
-                }
-                ad.OnAdPaid += (adValue) =>
-                {
-                    if (adValue == null) return;
-                    double revenue = adValue.Value / 1_000_000d;
-                    string currency = adValue.CurrencyCode;
-                    MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"AppOpen_{floor}", revenue, currency));
-                };
-                _ads[unitId] = ad;
-                _expireTimes[unitId] = DateTime.UtcNow.AddHours(4);
-                HandleLoadSuccess(unitId, where);
-            }));
+                    if (hasError || ad == null)
+                    {
+                        HandleLoadFailed(unitId, where, floor, errorMessage);
+                        return;
+                    }
+                    ad.OnAdPaid += (adValue) =>
+                    {
+                        if (adValue == null) return;
+                        double revenue = adValue.Value / 1_000_000d;
+                        string currency = adValue.CurrencyCode;
+                        MainThreadDispatcher.Enqueue(() => TrackRevenue(unitId, where, $"AppOpen_{floor}", revenue, currency));
+                    };
+                    _ads[unitId] = ad;
+                    _expireTimes[unitId] = DateTime.UtcNow.AddHours(4);
+                    HandleLoadSuccess(unitId, where);
+                });
+            });
 #endif
         }
 
@@ -294,13 +327,19 @@ namespace GameUp.SDK
                         onSuccess?.Invoke();
                         Load(where);
                     });
-                    ad.OnAdFullScreenContentFailed += (err) => MainThreadDispatcher.Enqueue(() =>
+                    ad.OnAdFullScreenContentFailed += (err) =>
                     {
-                        NotifyAdDisplayFailed(where, err.GetMessage());
-                        Release();
-                        onFail?.Invoke();
-                        Load(where);
-                    });
+                        // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                        // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                        string errorMessage = err?.GetMessage();
+                        MainThreadDispatcher.Enqueue(() =>
+                        {
+                            NotifyAdDisplayFailed(where, errorMessage);
+                            Release();
+                            onFail?.Invoke();
+                            Load(where);
+                        });
+                    };
                     ad.Show();
                     return;
                 }
@@ -373,16 +412,22 @@ namespace GameUp.SDK
                     _isLoaded[unitId] = true;
                     HandleLoadSuccess(unitId, where);
                 });
-                banner.OnBannerAdLoadFailed += (err) => MainThreadDispatcher.Enqueue(() =>
+                banner.OnBannerAdLoadFailed += (err) =>
                 {
-                    _isLoaded[unitId] = false;
-                    // Mở lại cổng để lệnh Show kế tiếp được phép phát request mới
-                    // (retry tự động của BaseAdFormat vẫn chạy song song).
-                    _pendingShow.Remove(unitId);
-                    banner.Destroy();
-                    _banners.Remove(unitId);
-                    HandleLoadFailed(unitId, where, floor, err?.GetMessage());
-                });
+                    // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                    // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                    string errorMessage = err?.GetMessage();
+                    MainThreadDispatcher.Enqueue(() =>
+                    {
+                        _isLoaded[unitId] = false;
+                        // Mở lại cổng để lệnh Show kế tiếp được phép phát request mới
+                        // (retry tự động của BaseAdFormat vẫn chạy song song).
+                        _pendingShow.Remove(unitId);
+                        banner.Destroy();
+                        _banners.Remove(unitId);
+                        HandleLoadFailed(unitId, where, floor, errorMessage);
+                    });
+                };
                 banner.OnAdPaid += (adValue) =>
                 {
                     if (adValue == null) return;

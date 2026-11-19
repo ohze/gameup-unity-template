@@ -4,8 +4,10 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using GameUp.SDK;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Compilation;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
@@ -78,6 +80,13 @@ namespace GameUp.SDK.Installer
             /// </summary>
             public bool RequiredForAdMobRuntime;
 
+            /// <summary>
+            /// Id package của adapter trên OpenUPM (vd com.google.ads.mobile.mediation.applovin).
+            /// Installer tra registry này để chọn bản adapter mới nhất <b>tương thích</b> với GMA plugin đang cài,
+            /// rồi tải zip cùng version từ dl.google.com. Tra không được → dùng version cố định trong HostedUrls.
+            /// </summary>
+            public string OpenUpmPackageId;
+
             public InstallMethod Method;
 
             // Git URL (dùng khi Method == GitUrl)
@@ -123,6 +132,17 @@ namespace GameUp.SDK.Installer
             public bool IsInstalled;
             public bool IsInstalling;
             public string InstallError;
+
+            // ── Runtime state riêng cho AdMob adapter ──
+            /// <summary>Version đọc từ marker sau khi installer import xong; null = không rõ (cài tay / bản cũ).</summary>
+            public string InstalledVersion;
+            /// <summary>Version installer sẽ cài: mới nhất tương thích GMA hiện tại (hoặc version cố định nếu tra lỗi).</summary>
+            public string TargetVersion;
+            /// <summary>Version mới nhất trên registry, bất kể GMA.</summary>
+            public string LatestVersion;
+            /// <summary>GMA tối thiểu mà <see cref="LatestVersion"/> yêu cầu.</summary>
+            public string LatestRequiredGma;
+            public string VersionLookupError;
         }
 
         // ─── Thay đổi URL ở đây khi cập nhật phiên bản SDK ─────────────────────────
@@ -326,11 +346,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.AppLovin.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/AppLovin",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.applovin",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "AppLovinUnityAdapter-8.7.2.zip" },
+                BundledFileNames = new[] { "AppLovinUnityAdapter-8.5.1.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/applovin/AppLovinUnityAdapter-8.7.2.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/applovin/AppLovinUnityAdapter-8.5.1.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/applovin",
                 DownloadLabel = "Chi tiết adapter →",
@@ -344,11 +365,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Chartboost.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Chartboost",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.chartboost",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "ChartboostUnityAdapter-4.11.3.zip" },
+                BundledFileNames = new[] { "ChartboostUnityAdapter-4.11.1.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/chartboost/ChartboostUnityAdapter-4.11.3.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/chartboost/ChartboostUnityAdapter-4.11.1.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/chartboost",
                 DownloadLabel = "Chi tiết adapter →",
@@ -362,11 +384,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.DTExchange.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/DTExchange",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.dtexchange",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "DTExchangeUnityAdapter-3.5.7.zip" },
+                BundledFileNames = new[] { "DTExchangeUnityAdapter-3.5.4.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/dtexchange/DTExchangeUnityAdapter-3.5.7.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/dtexchange/DTExchangeUnityAdapter-3.5.4.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/dt-exchange",
                 DownloadLabel = "Chi tiết adapter →",
@@ -380,11 +403,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.iMobile.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/iMobile",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.imobile",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "imobileUnityAdapter-1.3.11.zip" },
+                BundledFileNames = new[] { "imobileUnityAdapter-1.3.8.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/imobile/imobileUnityAdapter-1.3.11.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/imobile/imobileUnityAdapter-1.3.8.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/imobile",
                 DownloadLabel = "Chi tiết adapter →",
@@ -398,11 +422,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.InMobi.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/InMobi",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.inmobi",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "InMobiUnityAdapter-5.1.0.zip" },
+                BundledFileNames = new[] { "InMobiUnityAdapter-5.0.1.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/inmobi/InMobiUnityAdapter-5.1.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/inmobi/InMobiUnityAdapter-5.0.1.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/inmobi",
                 DownloadLabel = "Chi tiết adapter →",
@@ -418,11 +443,12 @@ namespace GameUp.SDK.Installer
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/IronSource",
                 IsAdMobMediationAdapter = true,
                 RequiredForAdMobRuntime = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.ironsource",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "IronSourceUnityAdapter-4.5.1.zip" },
+                BundledFileNames = new[] { "IronSourceUnityAdapter-4.4.0.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/ironsource/IronSourceUnityAdapter-4.5.1.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/ironsource/IronSourceUnityAdapter-4.4.0.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/ironsource",
                 DownloadLabel = "Chi tiết adapter →",
@@ -436,11 +462,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.LiftoffMonetize.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/LiftoffMonetize",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.liftoffmonetize",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "LiftoffMonetizeUnityAdapter-5.7.2.zip" },
+                BundledFileNames = new[] { "LiftoffMonetizeUnityAdapter-5.6.0.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/liftoffmonetize/LiftoffMonetizeUnityAdapter-5.7.2.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/liftoffmonetize/LiftoffMonetizeUnityAdapter-5.6.0.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/liftoff-monetize",
                 DownloadLabel = "Chi tiết adapter →",
@@ -454,11 +481,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Line.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Line",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.line",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "LineUnityAdapter-2.1.0.zip" },
+                BundledFileNames = new[] { "LineUnityAdapter-2.0.0.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/line/LineUnityAdapter-2.1.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/line/LineUnityAdapter-2.0.0.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/line",
                 DownloadLabel = "Chi tiết adapter →",
@@ -472,11 +500,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Maio.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Maio",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.maio",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "MaioUnityAdapter-3.1.6.zip" },
+                BundledFileNames = new[] { "MaioUnityAdapter-3.1.4.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/maio/MaioUnityAdapter-3.1.6.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/maio/MaioUnityAdapter-3.1.4.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/maio",
                 DownloadLabel = "Chi tiết adapter →",
@@ -490,11 +519,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Meta.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Meta",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.metaaudiencenetwork",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "MetaAudienceNetworkUnityAdapter-3.18.4.zip" },
+                BundledFileNames = new[] { "MetaAudienceNetworkUnityAdapter-3.18.1.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/meta/MetaAudienceNetworkUnityAdapter-3.18.4.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/meta/MetaAudienceNetworkUnityAdapter-3.18.1.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/meta",
                 DownloadLabel = "Chi tiết adapter →",
@@ -508,11 +538,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Mintegral.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Mintegral",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.mintegral",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "MintegralUnityAdapter-2.2.0.zip" },
+                BundledFileNames = new[] { "MintegralUnityAdapter-2.0.4.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/mintegral/MintegralUnityAdapter-2.2.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/mintegral/MintegralUnityAdapter-2.0.4.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/mintegral",
                 DownloadLabel = "Chi tiết adapter →",
@@ -526,11 +557,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Moloco.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Moloco",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.moloco",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "MolocoUnityAdapter-3.5.1.zip" },
+                BundledFileNames = new[] { "MolocoUnityAdapter-3.3.0.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/moloco/MolocoUnityAdapter-3.5.1.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/moloco/MolocoUnityAdapter-3.3.0.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/moloco",
                 DownloadLabel = "Chi tiết adapter →",
@@ -544,11 +576,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.MyTarget.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/MyTarget",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.mytarget",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "myTargetUnityAdapter-3.35.0.zip" },
+                BundledFileNames = new[] { "myTargetUnityAdapter-3.33.0.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/mytarget/myTargetUnityAdapter-3.35.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/mytarget/myTargetUnityAdapter-3.33.0.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/mytarget",
                 DownloadLabel = "Chi tiết adapter →",
@@ -562,11 +595,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.Pangle.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/Pangle",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.pangle",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "PangleUnityAdapter-5.9.2.zip" },
+                BundledFileNames = new[] { "PangleUnityAdapter-5.8.5.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/pangle/PangleUnityAdapter-5.9.2.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/pangle/PangleUnityAdapter-5.8.5.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/pangle",
                 DownloadLabel = "Chi tiết adapter →",
@@ -580,11 +614,12 @@ namespace GameUp.SDK.Installer
                 AssemblyName = "GoogleMobileAds.Mediation.PubMatic.Api",
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/PubMatic",
                 IsAdMobMediationAdapter = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.pubmatic",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "PubMaticUnityAdapter-2.0.1.zip" },
+                BundledFileNames = new[] { "PubMaticUnityAdapter-1.4.1.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/pubmatic/PubMaticUnityAdapter-2.0.1.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/pubmatic/PubMaticUnityAdapter-1.4.1.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/pubmatic",
                 DownloadLabel = "Chi tiết adapter →",
@@ -600,11 +635,12 @@ namespace GameUp.SDK.Installer
                 InstalledAssetPath = "Assets/GoogleMobileAds/Mediation/UnityAds",
                 IsAdMobMediationAdapter = true,
                 RequiredForAdMobRuntime = true,
+                OpenUpmPackageId = "com.google.ads.mobile.mediation.unity",
                 Method = InstallMethod.UnityPackage,
-                BundledFileNames = new[] { "UnityAdsUnityAdapter-3.18.0.zip" },
+                BundledFileNames = new[] { "UnityAdsUnityAdapter-3.16.7.zip" },
                 HostedUrls = new[]
                 {
-                    "https://dl.google.com/googleadmobadssdk/mediation/unity/unity/UnityAdsUnityAdapter-3.18.0.zip",
+                    "https://dl.google.com/googleadmobadssdk/mediation/unity/unity/UnityAdsUnityAdapter-3.16.7.zip",
                 },
                 DownloadUrl = "https://developers.google.com/admob/unity/mediation/unity",
                 DownloadLabel = "Chi tiết adapter →",
@@ -706,6 +742,37 @@ namespace GameUp.SDK.Installer
         private const string AdMobUnityPackagePrefix = "GoogleMobileAds-v";
         private const string AdMobUnityPackageSuffix = ".unitypackage";
         private UnityWebRequest _admobLatestReleaseRequest;
+
+        // ── Tra version AdMob adapter (OpenUPM registry giữ metadata + GMA tối thiểu của từng bản) ──
+        private const string OpenUpmRegistryUrl = "https://package.openupm.com/";
+        private const string GmaUpmPackageId = "com.google.ads.mobile";
+        private const string GmaChangelogPath = "Assets/GoogleMobileAds/CHANGELOG.md";
+        private const string AdapterVersionMarkerFileName = "GameUpAdapterVersion.txt";
+        private const string SessionKeyAdapterVersionPrefix = "GameUpSDK_AdMobAdapterVersion_";
+        private const string SessionKeyAdapterImportPrefix = "GameUpSDK_AdMobAdapterImporting_";
+        private const int AdapterVersionLookupTimeoutSeconds = 15;
+
+        private static readonly Regex s_adapterZipUrlRegex =
+            new Regex(@"^(?<base>.+/)(?<name>[^/]+?)-(?<ver>\d+(?:\.\d+)+)\.zip$", RegexOptions.Compiled);
+
+        private static readonly Regex s_gmaChangelogVersionRegex =
+            new Regex(@"Version\s+(?<ver>\d+(?:\.\d+)+)", RegexOptions.Compiled);
+
+        private static readonly Regex s_packageJsonVersionRegex =
+            new Regex("\"version\"\\s*:\\s*\"(?<ver>[^\"]+)\"", RegexOptions.Compiled);
+
+        private readonly Dictionary<PackageDef, UnityWebRequest> _adapterVersionRequests =
+            new Dictionary<PackageDef, UnityWebRequest>();
+
+        /// <summary>GMA version mà kết quả tra adapter hiện tại dựa vào — đổi GMA thì tra lại.</summary>
+        private string _adapterVersionsResolvedForGma;
+
+        /// <summary>GMA đang cài, cache lại ở RefreshStatus để OnGUI không đọc file mỗi frame.</summary>
+        private string _installedGmaVersion;
+
+        /// <summary>Lệnh cài đang chờ tra version adapter xong (để không cài nhầm bản dự phòng).</summary>
+        private Action _afterAdapterVersionsResolved;
+
         private string[] _admobUpdateOriginalHostedUrls;
         private string[] _admobUpdateOriginalBundledFileNames;
 
@@ -883,6 +950,7 @@ namespace GameUp.SDK.Installer
 
             _admobLatestReleaseRequest?.Dispose();
             _admobLatestReleaseRequest = null;
+            CancelAdapterVersionLookup();
         }
 
         private void AfterAssemblyReloadRefresh()
@@ -966,6 +1034,7 @@ namespace GameUp.SDK.Installer
             bool hasResolvingAdMobLatest = _admobLatestReleaseRequest != null && !_admobLatestReleaseRequest.isDone;
             bool hasRunningParallelDownloads = _parallelTasks?.Any(t => !t.IsDone && t.Request != null && !t.Request.isDone) == true;
             bool hasInstallingPackage = s_packages.Any(p => p.IsInstalling);
+            bool hasDeferredAdapterInstall = _afterAdapterVersionsResolved != null;
 
             // Tự phục hồi cờ batch nếu không còn tác vụ nào thực sự chạy.
             if (_isBatchInstalling
@@ -973,7 +1042,8 @@ namespace GameUp.SDK.Installer
                 && !hasRunningAddRequest
                 && !hasResolvingAdMobLatest
                 && !hasRunningParallelDownloads
-                && !hasInstallingPackage)
+                && !hasInstallingPackage
+                && !hasDeferredAdapterInstall)
             {
                 _isBatchInstalling = false;
                 _batchScope = null;
@@ -984,7 +1054,8 @@ namespace GameUp.SDK.Installer
                    || hasRunningAddRequest
                    || hasResolvingAdMobLatest
                    || hasRunningParallelDownloads
-                   || hasInstallingPackage;
+                   || hasInstallingPackage
+                   || hasDeferredAdapterInstall;
         }
 
         /// <summary>Khóa mọi thao tác: đang compile hoặc đang cài/tải package.</summary>
@@ -1123,7 +1194,7 @@ namespace GameUp.SDK.Installer
             if (string.IsNullOrEmpty(define))
                 return false;
 
-            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Android);
+            string symbols = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(BuildTargetGroup.Android));
             // So khớp từng symbol, không dùng Contains: tránh define này khớp nhầm khi là chuỗi con của define khác.
             foreach (string symbol in symbols.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
             {
@@ -1143,7 +1214,7 @@ namespace GameUp.SDK.Installer
             {
                 try
                 {
-                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                    string current = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group));
                     var list = current
                         .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(s => s.Trim())
@@ -1165,7 +1236,7 @@ namespace GameUp.SDK.Installer
 
                     if (changed)
                     {
-                        PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", list));
+                        PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group), string.Join(";", list));
                     }
                 }
                 catch { }
@@ -1185,7 +1256,7 @@ namespace GameUp.SDK.Installer
             {
                 try
                 {
-                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                    string current = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group));
                     var list = current
                         .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(s => s.Trim())
@@ -1193,7 +1264,7 @@ namespace GameUp.SDK.Installer
                         .ToList();
 
                     if (list.RemoveAll(s => shouldRemove(s)) > 0)
-                        PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", list));
+                        PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group), string.Join(";", list));
                 }
                 catch { }
             }
@@ -1615,7 +1686,7 @@ namespace GameUp.SDK.Installer
             {
                 try
                 {
-                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                    string current = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group));
                     foreach (string symbol in current.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                     {
                         string trimmed = symbol.Trim();
@@ -1900,11 +1971,20 @@ namespace GameUp.SDK.Installer
                 _mutedStyle);
             EditorGUILayout.EndVertical();
             GUILayout.FlexibleSpace();
-            _showOnlyMissing = GUILayout.Toggle(_showOnlyMissing, "Chỉ hiện mục chưa cài", EditorStyles.miniButton, GUILayout.Width(150), GUILayout.Height(20));
+            EditorGUILayout.BeginVertical(GUILayout.Width(170));
+            _showOnlyMissing = GUILayout.Toggle(_showOnlyMissing, "Chỉ hiện mục chưa cài", EditorStyles.miniButton, GUILayout.Width(170), GUILayout.Height(20));
+            EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy() || IsResolvingAdapterVersions());
+            if (GUILayout.Button(IsResolvingAdapterVersions() ? "Đang tra version…" : "Kiểm tra bản mới nhất", EditorStyles.miniButton,
+                    GUILayout.Width(170), GUILayout.Height(20)))
+                StartAdapterVersionLookup(forceNetwork: true);
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndVertical();
             EditorGUILayout.EndHorizontal();
             DrawSeparatorLine(SeparatorColor, 1f);
 
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
+
+            DrawAdapterGmaSummary(adapters);
 
             if (!GetSelectedNetworks().Contains(MediationProvider.Admob))
             {
@@ -1944,6 +2024,58 @@ namespace GameUp.SDK.Installer
 
             EditorGUILayout.Space(8);
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawAdapterGmaSummary(List<PackageDef> adapters)
+        {
+            string gmaText = _installedGmaVersion != null
+                ? $"Google Mobile Ads plugin đang cài: {_installedGmaVersion}."
+                : $"Chưa cài Google Mobile Ads — chọn adapter theo bản installer sẽ cài ({GetBundledGmaVersion() ?? "không rõ"}).";
+            EditorGUILayout.HelpBox(
+                gmaText + " Installer tự chọn bản adapter MỚI NHẤT TƯƠNG THÍCH với version này " +
+                "(adapter mới hơn yêu cầu GMA cao hơn sẽ gây lỗi build).",
+                MessageType.None);
+
+            var outdated = adapters.Where(NeedsAdapterUpdate).ToList();
+            if (outdated.Count == 0)
+                return;
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.HelpBox(
+                $"{outdated.Count} adapter đã cài khác bản đích (hoặc không rõ version): " +
+                string.Join(", ", outdated.Select(p => p.DisplayName.Replace("AdMob Adapter — ", string.Empty))),
+                MessageType.Warning);
+            EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy());
+            if (GUILayout.Button($"Cập nhật {outdated.Count} adapter", GUILayout.Width(150), GUILayout.Height(38)))
+                StartAdapterUpdate(outdated);
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawAdapterVersionInfo(PackageDef pkg)
+        {
+            if (_adapterVersionRequests.ContainsKey(pkg))
+            {
+                GUILayout.Label("Đang tra bản adapter mới nhất…", _mutedStyle);
+                return;
+            }
+
+            var parts = new List<string>();
+            if (pkg.IsInstalled)
+                parts.Add($"Đã cài: {pkg.InstalledVersion ?? "không rõ version"}");
+            if (!string.IsNullOrEmpty(pkg.TargetVersion))
+                parts.Add($"Bản sẽ cài: {pkg.TargetVersion}");
+            if (parts.Count > 0)
+                GUILayout.Label(string.Join("  ·  ", parts), _mutedStyle);
+
+            if (!string.IsNullOrEmpty(pkg.VersionLookupError))
+                GUILayout.Label(pkg.VersionLookupError, _mutedStyle);
+            else if (!string.IsNullOrEmpty(pkg.LatestVersion)
+                     && !string.Equals(pkg.LatestVersion, pkg.TargetVersion, StringComparison.Ordinal))
+                GUILayout.Label(
+                    $"Bản mới nhất {pkg.LatestVersion} cần Google Mobile Ads ≥ {pkg.LatestRequiredGma ?? "?"} — " +
+                    "bấm \"Cập nhật bản AdMob mới nhất\" ở tab Dependencies để dùng được.",
+                    _descStyle);
         }
 
         private void DrawSectionHeader(string title, string hint = null)
@@ -2060,6 +2192,8 @@ namespace GameUp.SDK.Installer
             _badgeStyle.normal.textColor = statusColor;
             GUILayout.Label(statusText, _badgeStyle);
             GUILayout.Label(pkg.Description, _descStyle);
+            if (pkg.IsAdMobMediationAdapter)
+                DrawAdapterVersionInfo(pkg);
             if (!string.IsNullOrEmpty(pkg.InstallError))
                 EditorGUILayout.HelpBox(pkg.InstallError, MessageType.Error);
             EditorGUILayout.EndVertical();
@@ -2116,6 +2250,14 @@ namespace GameUp.SDK.Installer
                 EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy());
                 if (GUILayout.Button("Cập nhật bản AdMob mới nhất", GUILayout.Width(ActionWidth), GUILayout.Height(22)))
                     StartAdMobLatestUpdate(pkg);
+                EditorGUI.EndDisabledGroup();
+            }
+
+            if (!isInstalling && NeedsAdapterUpdate(pkg))
+            {
+                EditorGUI.BeginDisabledGroup(IsInstallOrDownloadBusy());
+                if (GUILayout.Button(GetAdapterUpdateLabel(pkg), GUILayout.Width(ActionWidth), GUILayout.Height(22)))
+                    StartAdapterUpdate(new List<PackageDef> { pkg });
                 EditorGUI.EndDisabledGroup();
             }
 
@@ -2259,6 +2401,15 @@ namespace GameUp.SDK.Installer
             bool showGameAnalyticsSetupHintWhenComplete = false,
             bool isResume = false)
         {
+            // Đang tra version adapter → chờ xong mới cài, tránh tải nhầm bản dự phòng.
+            bool scopeHasAdapters = scope == null || scope.Count == 0 || scope.Any(p => p.IsAdMobMediationAdapter);
+            if (scopeHasAdapters && IsResolvingAdapterVersions())
+            {
+                _afterAdapterVersionsResolved = () => StartBatchInstall(scope, showGameAnalyticsSetupHintWhenComplete, isResume);
+                Repaint();
+                return;
+            }
+
             _gameAnalyticsSetupHintAfterBatch = showGameAnalyticsSetupHintWhenComplete;
             _batchScope = OrderedInstallSequence(
                     scope != null && scope.Count > 0
@@ -2723,6 +2874,7 @@ namespace GameUp.SDK.Installer
             // Không xóa InstallError ở đây: caller đã clear khi bắt đầu, và lỗi tải file trước đó
             // phải được giữ lại để package không bị đánh dấu "đã cài" một cách sai lệch.
             pkg.IsInstalling = true;
+            TrackAdapterImport(pkg);
             Repaint();
 
             var errors = new List<string>();
@@ -2815,6 +2967,11 @@ namespace GameUp.SDK.Installer
             {
                 pkg.IsInstalled = true;
                 EnsureGameAnalyticsAsmdefAfterImport(pkg);
+                CommitAdapterVersionMarker(pkg);
+            }
+            else
+            {
+                ClearAdapterImportTracking(pkg);
             }
 
             Repaint();
@@ -2866,6 +3023,412 @@ namespace GameUp.SDK.Installer
             Debug.LogWarning("[GameUpSDK] Quá thời gian chờ import: " +
                              string.Join(", ", stalePackages.Where(p => p != null).Select(p => p.DisplayName)));
             Repaint();
+        }
+
+        // ─── AdMob adapter: chọn version tương thích GMA ──────────────────────────
+        //
+        // Adapter AdMob gắn chặt với version Google Mobile Ads plugin (vd IronSource 4.4.1+ cần GMA 11).
+        // Hard-code version adapter dễ lệch với GMA đang cài → lỗi compile/runtime ở project.
+        // Vì vậy: tra OpenUPM (metadata chính thức của Google, có field dependencies.com.google.ads.mobile)
+        // rồi chọn bản mới nhất có yêu cầu GMA ≤ GMA của project; zip vẫn tải từ dl.google.com.
+
+        private bool IsResolvingAdapterVersions() => _adapterVersionRequests.Count > 0;
+
+        /// <summary>
+        /// Gọi trong <see cref="RefreshStatus"/>: ghi marker cho adapter vừa import xong (kể cả sau domain reload),
+        /// đọc version đã cài và tra lại version đích khi GMA của project đổi.
+        /// </summary>
+        private void RefreshAdapterVersionState()
+        {
+            foreach (var pkg in GetAdMobMediationAdapters())
+            {
+                if (pkg.IsInstalled && !pkg.IsInstalling && !HasPendingImport(pkg) && string.IsNullOrEmpty(pkg.InstallError))
+                    CommitAdapterVersionMarker(pkg);
+
+                pkg.InstalledVersion = pkg.IsInstalled ? ReadAdapterVersionMarker(pkg) : null;
+                if (string.IsNullOrEmpty(pkg.TargetVersion))
+                    pkg.TargetVersion = GetAdapterZipVersion(pkg);
+            }
+
+            _installedGmaVersion = GetInstalledGmaVersion();
+
+            if (IsResolvingAdapterVersions())
+                return;
+            if (_adapterVersionsResolvedForGma != null
+                && string.Equals(_adapterVersionsResolvedForGma, GetEffectiveGmaVersion() ?? string.Empty, StringComparison.Ordinal))
+                return;
+
+            StartAdapterVersionLookup(forceNetwork: false);
+        }
+
+        private void StartAdapterVersionLookup(bool forceNetwork)
+        {
+            DisposeAdapterVersionRequests();
+
+            string gma = GetEffectiveGmaVersion();
+            _adapterVersionsResolvedForGma = gma ?? string.Empty;
+
+            foreach (var pkg in GetAdMobMediationAdapters())
+            {
+                if (string.IsNullOrEmpty(pkg.OpenUpmPackageId))
+                    continue;
+                if (!forceNetwork && TryApplyCachedAdapterVersion(pkg, gma))
+                    continue;
+
+                pkg.VersionLookupError = null;
+                var req = UnityWebRequest.Get(OpenUpmRegistryUrl + pkg.OpenUpmPackageId);
+                req.timeout = AdapterVersionLookupTimeoutSeconds;
+                // Metadata rút gọn của npm registry: vẫn có dependencies từng version, nhẹ hơn ~2 lần.
+                req.SetRequestHeader("Accept", "application/vnd.npm.install-v1+json");
+                _adapterVersionRequests[pkg] = req;
+
+                var op = req.SendWebRequest();
+                op.completed += _ =>
+                {
+                    if (this == null)
+                    {
+                        req.Dispose();
+                        return;
+                    }
+
+                    OnAdapterVersionLookupCompleted(pkg, req, gma);
+                };
+            }
+
+            if (!IsResolvingAdapterVersions())
+                RunDeferredAdapterInstall();
+            Repaint();
+        }
+
+        private void OnAdapterVersionLookupCompleted(PackageDef pkg, UnityWebRequest req, string gma)
+        {
+            // Request đã bị thay bằng lượt tra mới (hoặc đã huỷ) → bỏ qua kết quả cũ.
+            if (!_adapterVersionRequests.TryGetValue(pkg, out var current) || current != req)
+            {
+                req.Dispose();
+                return;
+            }
+
+            _adapterVersionRequests.Remove(pkg);
+
+            string error;
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                error = req.error;
+            }
+            else if (TryPickAdapterVersions(req.downloadHandler?.text, gma,
+                         out string target, out string latest, out string latestRequiredGma, out error))
+            {
+                ApplyAdapterTargetVersion(pkg, target, latest, latestRequiredGma);
+                SessionState.SetString(SessionKeyAdapterVersionPrefix + pkg.OpenUpmPackageId,
+                    string.Join("|", gma ?? string.Empty, target, latest, latestRequiredGma ?? string.Empty));
+            }
+
+            req.Dispose();
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                pkg.VersionLookupError = $"Không tra được bản mới nhất ({error}) — dùng bản dự phòng {GetAdapterZipVersion(pkg)}.";
+                Debug.LogWarning($"[GameUpSDK] {pkg.DisplayName}: {pkg.VersionLookupError}");
+            }
+
+            if (!IsResolvingAdapterVersions())
+            {
+                Debug.Log($"[GameUpSDK] Đã chọn version AdMob adapter theo Google Mobile Ads {(string.IsNullOrEmpty(gma) ? "(không rõ)" : gma)}: " +
+                          string.Join(", ", GetAdMobMediationAdapters().Select(p => $"{p.OpenUpmPackageId?.Split('.').Last()} {p.TargetVersion}")));
+                RunDeferredAdapterInstall();
+            }
+
+            Repaint();
+        }
+
+        private bool TryApplyCachedAdapterVersion(PackageDef pkg, string gma)
+        {
+            string raw = SessionState.GetString(SessionKeyAdapterVersionPrefix + pkg.OpenUpmPackageId, string.Empty);
+            string[] parts = raw.Split('|');
+            if (parts.Length != 4 || parts[0] != (gma ?? string.Empty) || string.IsNullOrEmpty(parts[1]))
+                return false;
+
+            ApplyAdapterTargetVersion(pkg, parts[1], parts[2], string.IsNullOrEmpty(parts[3]) ? null : parts[3]);
+            return true;
+        }
+
+        /// <summary>
+        /// Chọn từ metadata OpenUPM: <paramref name="target"/> = bản mới nhất có GMA tối thiểu ≤ <paramref name="gma"/>
+        /// (gma null → bản mới nhất), <paramref name="latest"/> = bản mới nhất bất kể GMA. Bỏ qua bản pre-release.
+        /// </summary>
+        private static bool TryPickAdapterVersions(
+            string registryJson,
+            string gma,
+            out string target,
+            out string latest,
+            out string latestRequiredGma,
+            out string error)
+        {
+            target = null;
+            latest = null;
+            latestRequiredGma = null;
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(registryJson))
+            {
+                error = "registry trả về rỗng";
+                return false;
+            }
+
+            Dictionary<string, object> versions;
+            try
+            {
+                var root = SimpleJsonHelper.ParseObject(registryJson);
+                versions = root != null && root.TryGetValue("versions", out var v) ? v as Dictionary<string, object> : null;
+            }
+            catch (Exception ex)
+            {
+                error = "parse metadata lỗi: " + ex.Message;
+                return false;
+            }
+
+            if (versions == null || versions.Count == 0)
+            {
+                error = "metadata không có danh sách version";
+                return false;
+            }
+
+            Version.TryParse(gma ?? string.Empty, out Version gmaVersion);
+            Version bestTarget = null, bestLatest = null;
+
+            foreach (var entry in versions)
+            {
+                // Version.TryParse từ chối "1.2.3-preview" → pre-release tự bị loại.
+                if (!Version.TryParse(entry.Key, out Version version))
+                    continue;
+
+                string requiredGma = null;
+                if (entry.Value is Dictionary<string, object> meta
+                    && meta.TryGetValue("dependencies", out var depsObj)
+                    && depsObj is Dictionary<string, object> deps
+                    && deps.TryGetValue(GmaUpmPackageId, out var gmaObj))
+                    requiredGma = gmaObj?.ToString();
+
+                if (bestLatest == null || version > bestLatest)
+                {
+                    bestLatest = version;
+                    latest = entry.Key;
+                    latestRequiredGma = requiredGma;
+                }
+
+                bool compatible = gmaVersion == null
+                                  || !Version.TryParse(requiredGma ?? string.Empty, out Version required)
+                                  || required <= gmaVersion;
+                if (compatible && (bestTarget == null || version > bestTarget))
+                {
+                    bestTarget = version;
+                    target = entry.Key;
+                }
+            }
+
+            if (target == null)
+            {
+                error = $"không có bản nào tương thích Google Mobile Ads {gma}";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>Đổi URL/tên zip của adapter sang <paramref name="target"/> (giữ nguyên thư mục dl.google.com).</summary>
+        private static void ApplyAdapterTargetVersion(PackageDef pkg, string target, string latest, string latestRequiredGma)
+        {
+            pkg.LatestVersion = latest;
+            pkg.LatestRequiredGma = latestRequiredGma;
+            pkg.VersionLookupError = null;
+
+            var match = pkg.HostedUrls != null && pkg.HostedUrls.Length > 0
+                ? s_adapterZipUrlRegex.Match(pkg.HostedUrls[0])
+                : Match.Empty;
+            if (!match.Success)
+                return;
+
+            string fileName = $"{match.Groups["name"].Value}-{target}.zip";
+            pkg.HostedUrls = new[] { match.Groups["base"].Value + fileName };
+            pkg.BundledFileNames = new[] { fileName };
+            pkg.TargetVersion = target;
+        }
+
+        private static string GetAdapterZipVersion(PackageDef pkg)
+        {
+            if (pkg.HostedUrls == null || pkg.HostedUrls.Length == 0)
+                return null;
+            var match = s_adapterZipUrlRegex.Match(pkg.HostedUrls[0]);
+            return match.Success ? match.Groups["ver"].Value : null;
+        }
+
+        /// <summary>GMA đang cài (UPM hoặc .unitypackage); chưa cài thì lấy version installer sẽ cài.</summary>
+        private static string GetEffectiveGmaVersion()
+        {
+            return GetInstalledGmaVersion() ?? GetBundledGmaVersion();
+        }
+
+        private static string GetInstalledGmaVersion()
+        {
+            var upmPackageJson = AssetDatabase.LoadAssetAtPath<TextAsset>($"Packages/{GmaUpmPackageId}/package.json");
+            if (upmPackageJson != null)
+            {
+                var match = s_packageJsonVersionRegex.Match(upmPackageJson.text);
+                if (match.Success)
+                    return match.Groups["ver"].Value;
+            }
+
+            if (!File.Exists(GmaChangelogPath))
+                return null;
+
+            // Dòng "Version x.y.z" đầu tiên trong CHANGELOG là bản đang cài.
+            foreach (string line in File.ReadLines(GmaChangelogPath))
+            {
+                var match = s_gmaChangelogVersionRegex.Match(line);
+                if (match.Success)
+                    return match.Groups["ver"].Value;
+            }
+
+            return null;
+        }
+
+        private static string GetBundledGmaVersion()
+        {
+            var admob = s_packages.FirstOrDefault(IsAdMobPackage);
+            string fileName = admob?.BundledFileNames?.FirstOrDefault();
+            if (string.IsNullOrEmpty(fileName)
+                || !fileName.StartsWith(AdMobUnityPackagePrefix, StringComparison.OrdinalIgnoreCase)
+                || !fileName.EndsWith(AdMobUnityPackageSuffix, StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            return fileName.Substring(AdMobUnityPackagePrefix.Length,
+                fileName.Length - AdMobUnityPackagePrefix.Length - AdMobUnityPackageSuffix.Length);
+        }
+
+        private void RunDeferredAdapterInstall()
+        {
+            var action = _afterAdapterVersionsResolved;
+            _afterAdapterVersionsResolved = null;
+            action?.Invoke();
+        }
+
+        private void DisposeAdapterVersionRequests()
+        {
+            // Clear trước rồi mới Dispose: abort có thể bắn completed ngay → callback thấy request đã cũ và bỏ qua.
+            var pending = _adapterVersionRequests.Values.ToList();
+            _adapterVersionRequests.Clear();
+            foreach (var req in pending)
+                req?.Dispose();
+        }
+
+        private void CancelAdapterVersionLookup()
+        {
+            DisposeAdapterVersionRequests();
+            _afterAdapterVersionsResolved = null;
+            _adapterVersionsResolvedForGma = null;
+        }
+
+        private static bool NeedsAdapterUpdate(PackageDef pkg)
+        {
+            return pkg.IsAdMobMediationAdapter
+                   && pkg.IsInstalled
+                   && !string.IsNullOrEmpty(pkg.TargetVersion)
+                   && !string.Equals(pkg.InstalledVersion, pkg.TargetVersion, StringComparison.Ordinal);
+        }
+
+        private static string GetAdapterUpdateLabel(PackageDef pkg)
+        {
+            if (string.IsNullOrEmpty(pkg.InstalledVersion))
+                return $"⟳  Cài lại bản {pkg.TargetVersion}";
+
+            bool isUpgrade = !Version.TryParse(pkg.InstalledVersion, out Version installed)
+                             || !Version.TryParse(pkg.TargetVersion, out Version target)
+                             || target > installed;
+            return isUpgrade
+                ? $"⬆  Cập nhật lên {pkg.TargetVersion}"
+                : $"Đổi sang {pkg.TargetVersion} (hợp GMA)";
+        }
+
+        /// <summary>Import đè bản adapter đích lên bản đã cài (Google hướng dẫn update adapter bằng cách import đè).</summary>
+        private void StartAdapterUpdate(List<PackageDef> pkgs)
+        {
+            if (pkgs == null || pkgs.Count == 0 || IsInstallOrDownloadBusy())
+                return;
+
+            if (IsResolvingAdapterVersions())
+            {
+                _afterAdapterVersionsResolved = () => StartAdapterUpdate(pkgs);
+                Repaint();
+                return;
+            }
+
+            foreach (var pkg in pkgs)
+                pkg.InstallError = null;
+
+            Debug.Log("[GameUpSDK] Cập nhật AdMob adapter: " +
+                      string.Join(", ", pkgs.Select(p => $"{p.DisplayName} {p.InstalledVersion ?? "?"} → {p.TargetVersion}")));
+            StartParallelDownloadAndImport(pkgs, onAllDone: () => RefreshStatus());
+        }
+
+        // ── Marker version đã cài: nằm trong thư mục adapter nên đi theo git và bị xoá cùng khi gỡ adapter ──
+
+        private static string GetAdapterVersionMarkerPath(PackageDef pkg)
+        {
+            return string.IsNullOrEmpty(pkg.InstalledAssetPath)
+                ? null
+                : $"{pkg.InstalledAssetPath}/{AdapterVersionMarkerFileName}";
+        }
+
+        private static string ReadAdapterVersionMarker(PackageDef pkg)
+        {
+            string path = GetAdapterVersionMarkerPath(pkg);
+            if (path == null || !File.Exists(path))
+                return null;
+
+            string version = File.ReadAllText(path).Trim();
+            return string.IsNullOrEmpty(version) ? null : version;
+        }
+
+        /// <summary>Nhớ version đang import qua SessionState để ghi marker được cả khi import kéo theo domain reload.</summary>
+        private static void TrackAdapterImport(PackageDef pkg)
+        {
+            if (!pkg.IsAdMobMediationAdapter || string.IsNullOrEmpty(pkg.OpenUpmPackageId))
+                return;
+
+            string version = GetAdapterZipVersion(pkg);
+            if (!string.IsNullOrEmpty(version))
+                SessionState.SetString(SessionKeyAdapterImportPrefix + pkg.OpenUpmPackageId, version);
+        }
+
+        private static void ClearAdapterImportTracking(PackageDef pkg)
+        {
+            if (pkg.IsAdMobMediationAdapter && !string.IsNullOrEmpty(pkg.OpenUpmPackageId))
+                SessionState.EraseString(SessionKeyAdapterImportPrefix + pkg.OpenUpmPackageId);
+        }
+
+        private static void CommitAdapterVersionMarker(PackageDef pkg)
+        {
+            if (!pkg.IsAdMobMediationAdapter || string.IsNullOrEmpty(pkg.OpenUpmPackageId))
+                return;
+
+            string version = SessionState.GetString(SessionKeyAdapterImportPrefix + pkg.OpenUpmPackageId, string.Empty);
+            string path = GetAdapterVersionMarkerPath(pkg);
+            // Không tự tạo thư mục adapter: thư mục tồn tại là dấu hiệu "đã cài" (InstalledAssetPath).
+            if (string.IsNullOrEmpty(version) || path == null || !AssetDatabase.IsValidFolder(pkg.InstalledAssetPath))
+                return;
+
+            try
+            {
+                File.WriteAllText(path, version + "\n");
+                AssetDatabase.ImportAsset(path);
+                pkg.InstalledVersion = version;
+                ClearAdapterImportTracking(pkg);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[GameUpSDK] Không ghi được {path}: {ex.Message}");
+            }
         }
 
         // ─── Parallel Download & Import ───────────────────────────────────────────
@@ -3296,6 +3859,8 @@ namespace GameUp.SDK.Installer
                 if (pkg.IsInstalled)
                     pkg.InstallError = null;
             }
+
+            RefreshAdapterVersionState();
 
             if (!syncDefines)
             {

@@ -102,6 +102,11 @@ namespace GameUp.SDK
                 _loads[id] = token;
                 int next = floorIndex + 1;
                 NativeOverlayAd.Load(id, new AdRequest(), new NativeAdOptions(), (ad, error) =>
+                {
+                    // Đọc lỗi NGAY trong callback native: AdError chỉ bọc con trỏ NSError mà plugin iOS không retain,
+                    // sang frame sau (MainThreadDispatcher) con trỏ đã bị giải phóng → crash GADUGetAdErrorMessage.
+                    string errorMessage = error?.GetMessage();
+                    bool hasError = error != null;
                     MainThreadDispatcher.Enqueue(() =>
                     {
                         // Destroy or Dispose invalidates pending callbacks, including failures.
@@ -110,10 +115,10 @@ namespace GameUp.SDK
                             ad?.Destroy();
                             return;
                         }
-                        if (error != null || ad == null)
+                        if (hasError || ad == null)
                         {
                             ad?.Destroy();
-                            OnAdLoadFailed?.Invoke(where, error?.GetMessage() ?? "null_ad");
+                            OnAdLoadFailed?.Invoke(where, errorMessage ?? "null_ad");
                             if (_disposed || !_loads.TryGetValue(id, out current) || current != token) return;
                             _loads.Remove(id);
                             if (next < floors.Length) Request(where, next);
@@ -152,7 +157,8 @@ namespace GameUp.SDK
                             OnFullScreenClosed?.Invoke(entry.Where);
                         });
                         OnAdLoaded?.Invoke(where);
-                    }));
+                    });
+                });
                 return;
             }
             OnAdLoadFailed?.Invoke(where, "no_unit_id");

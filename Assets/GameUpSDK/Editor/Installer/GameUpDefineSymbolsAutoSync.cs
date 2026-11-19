@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Compilation;
 using UnityEditor.PackageManager;
 using UnityEngine;
@@ -217,7 +218,7 @@ namespace GameUp.SDK.Installer
             if (string.IsNullOrEmpty(define))
                 return false;
 
-            string symbols = PlayerSettings.GetScriptingDefineSymbolsForGroup(BuildTargetGroup.Android);
+            string symbols = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(BuildTargetGroup.Android));
             // So khớp từng symbol thay vì Contains: tránh khớp nhầm khi define là chuỗi con của define khác.
             foreach (string symbol in symbols.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
             {
@@ -234,7 +235,7 @@ namespace GameUp.SDK.Installer
             {
                 try
                 {
-                    string current = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
+                    string current = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group));
                     var list = new List<string>(
                         current.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries));
 
@@ -260,7 +261,7 @@ namespace GameUp.SDK.Installer
                         .Distinct()
                         .ToList();
 
-                    PlayerSettings.SetScriptingDefineSymbolsForGroup(group, string.Join(";", normalized));
+                    PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group), string.Join(";", normalized));
                 }
                 catch
                 {
