@@ -188,7 +188,9 @@ namespace GameUp.SDK
                 if (_ads.TryGetValue(unitId, out var ad) && ad != null && ad.CanShowAd())
                 {
                     _ads.Remove(unitId);
-                    bool earned = false;
+                    // Callback thưởng của AdMob có thể chạy trên thread native và, qua adapter mediation,
+                    // tới SAU OnAdFullScreenContentClosed — gate chốt đúng một kết quả cho cả hai thứ tự.
+                    var gate = new RewardedShowGate(where, onSuccess, onFail);
 
                     // Xem ghi chú ở AdmobInterstitialAd.Show: ad đã rời _ads nên phải tự Destroy().
                     bool released = false;
@@ -204,7 +206,7 @@ namespace GameUp.SDK
                     {
                         NotifyAdClosed(where);
                         Release();
-                        if (!earned) onFail?.Invoke();
+                        gate.MarkClosed();
                         Load(where);
                     });
                     ad.OnAdFullScreenContentFailed += (err) =>
@@ -216,15 +218,14 @@ namespace GameUp.SDK
                         {
                             NotifyAdDisplayFailed(where, errorMessage);
                             Release();
-                            onFail?.Invoke();
+                            gate.MarkDisplayFailed();
                             Load(where);
                         });
                     };
-                    ad.Show((reward) =>
-                    {
-                        earned = true;
-                        MainThreadDispatcher.Enqueue(() => onSuccess?.Invoke());
-                    });
+                    // Trước đây onSuccess bắn ngay lúc nhận thưởng (ad còn đang hiện) và độc lập với nhánh
+                    // close, nên reward tới sau close = gọi cả onFail lẫn onSuccess. Giờ chốt lúc đóng ad,
+                    // giống MAX/LevelPlay.
+                    ad.Show((reward) => MainThreadDispatcher.Enqueue(gate.MarkEarned));
                     return;
                 }
             }

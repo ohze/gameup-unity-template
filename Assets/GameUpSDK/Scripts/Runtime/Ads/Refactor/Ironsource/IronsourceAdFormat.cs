@@ -135,7 +135,6 @@ namespace GameUp.SDK
 
                 if (_ads.TryGetValue(unitId, out var ad) && ad != null && ad.IsAdReady())
                 {
-                    bool earned = false;
                     Action<LevelPlayAdInfo> onDisplayed = null;
                     Action<LevelPlayAdInfo> onClosed = null;
                     Action<LevelPlayAdInfo, LevelPlayReward> onReward = null;
@@ -149,20 +148,29 @@ namespace GameUp.SDK
                         ad.OnAdDisplayFailed -= onFailed;
                     }
 
+                    // LevelPlay ghi rõ OnAdRewarded và OnAdClosed bất đồng bộ, thứ tự không đảm bảo. Trước đây
+                    // onClosed gỡ luôn onReward rồi chốt theo cờ earned → reward tới sau close bị nuốt.
+                    // Giờ onReward chỉ được gỡ khi gate đã chốt (kể cả sau thời gian chờ reward muộn).
+                    var gate = new RewardedShowGate(where, onSuccess, onFail, Unsubscribe);
+
                     // Xem ghi chú ở IronSourceInterstitialAd.Show.
                     onDisplayed = (_) => NotifyAdDisplayed(where);
                     onClosed = (_) =>
                     {
-                        Unsubscribe();
+                        // Gỡ ngay closed/displayed/failed (chỉ giữ onReward chờ reward muộn): ad object được
+                        // dùng lại theo unitId, lần show kế tiếp không được kích hoạt handler của lần này.
+                        ad.OnAdDisplayed -= onDisplayed;
+                        ad.OnAdClosed -= onClosed;
+                        ad.OnAdDisplayFailed -= onFailed;
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); Load(where); });
+                        MainThreadDispatcher.Enqueue(() => { gate.MarkClosed(); Load(where); });
                     };
-                    onReward = (_, reward) => { earned = true; };
+                    onReward = (_, reward) => MainThreadDispatcher.Enqueue(gate.MarkEarned);
                     onFailed = (_, err) =>
                     {
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.ErrorMessage);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
+                        MainThreadDispatcher.Enqueue(() => { gate.MarkDisplayFailed(); Load(where); });
                     };
 
                     ad.OnAdDisplayed += onDisplayed;

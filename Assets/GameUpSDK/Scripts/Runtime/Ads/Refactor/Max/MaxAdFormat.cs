@@ -161,7 +161,6 @@ namespace GameUp.SDK
                     // Xem ghi chú ở MaxInterstitialAd.Show về thời điểm OnAdDisplayedEvent.
                     NotifyAdDisplayed(where);
 
-                    bool earned = false;
                     Action<string, MaxSdkBase.Reward, MaxSdkBase.AdInfo> onReward = null;
                     Action<string, MaxSdkBase.AdInfo> onHidden = null;
                     Action<string, MaxSdkBase.ErrorInfo, MaxSdkBase.AdInfo> onDisplayFailed = null;
@@ -173,20 +172,29 @@ namespace GameUp.SDK
                         MaxSdkCallbacks.Rewarded.OnAdDisplayFailedEvent -= onDisplayFailed;
                     }
 
-                    onReward = (id, reward, info) => { if (id == unitId) earned = true; };
+                    // MAX có thể bắn OnAdReceivedRewardEvent SAU OnAdHiddenEvent. Trước đây onHidden gỡ luôn
+                    // onReward rồi chốt theo cờ earned → reward tới muộn bị nuốt, người chơi xem hết vẫn nhận onFail.
+                    // Giờ onReward chỉ được gỡ khi gate đã chốt (kể cả sau thời gian chờ reward muộn).
+                    var gate = new RewardedShowGate(where, onSuccess, onFail, Unsubscribe);
+
+                    // Event MAX có thể chạy trên background thread (InvokeEventsOnUnityMainThread) → đẩy hết về main.
+                    onReward = (id, reward, info) => { if (id == unitId) MainThreadDispatcher.Enqueue(gate.MarkEarned); };
                     onHidden = (id, info) =>
                     {
                         if (id != unitId) return;
-                        Unsubscribe();
+                        // Gỡ ngay hidden/displayFailed (chỉ giữ onReward chờ reward muộn): lần show kế tiếp
+                        // cùng unitId trong lúc chờ sẽ không kích hoạt lại handler của lần này.
+                        MaxSdkCallbacks.Rewarded.OnAdHiddenEvent -= onHidden;
+                        MaxSdkCallbacks.Rewarded.OnAdDisplayFailedEvent -= onDisplayFailed;
                         NotifyAdClosed(where);
-                        MainThreadDispatcher.Enqueue(() => { if (earned) onSuccess?.Invoke(); else onFail?.Invoke(); Load(where); });
+                        MainThreadDispatcher.Enqueue(() => { gate.MarkClosed(); Load(where); });
                     };
                     onDisplayFailed = (id, err, info) =>
                     {
                         if (id != unitId) return;
                         Unsubscribe();
                         NotifyAdDisplayFailed(where, err.Message);
-                        MainThreadDispatcher.Enqueue(() => { onFail?.Invoke(); Load(where); });
+                        MainThreadDispatcher.Enqueue(() => { gate.MarkDisplayFailed(); Load(where); });
                     };
 
                     MaxSdkCallbacks.Rewarded.OnAdReceivedRewardEvent += onReward;

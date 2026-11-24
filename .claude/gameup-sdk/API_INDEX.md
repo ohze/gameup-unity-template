@@ -733,6 +733,20 @@ Không chép sang thư mục source (file YAML lớn). Prefab trong package cài
 
 - `Small, Medium`
 
+### `public sealed class RewardedShowGate`
+
+`GameUp.SDK` · [Scripts/Runtime/Ads/Refactor/Base/RewardedShowGate.cs](Assets/GameUpSDK/Scripts/Runtime/Ads/Refactor/Base/RewardedShowGate.cs)
+
+> Chốt kết quả của MỘT lần show rewarded: gọi đúng một trong onSuccess / onFail, đúng một lần, bất kể SDK bắn "nhận thưởng" và "đóng ad" theo thứ tự nào. LevelPlay ghi rõ OnAdRewarded và OnAdClosed bất đồng bộ, không đảm bảo thứ tự; MAX và adapter mediation của AdMob cũng có lúc bắn reward SAU close. Trước đây kết quả được quyết ngay lúc close: MAX/LevelPlay gọi onFail và nuốt mất reward tới muộn (người chơi xem hết mà thấy toast lỗi), AdMob thì gọi onFail rồi sau đó lại gọi onSuccess (vừa báo lỗi vừa cộng thưởng). Giờ: close mà chưa có reward thì chờ thêm `LateRewardGraceSeconds` rồi mới kết luận. Mọi method phải được gọi trên main thread (đi qua `MainThreadDispatcher`).
+
+- `public const float LateRewardGraceSeconds`
+- `public bool IsResolved { get; }`
+- `public RewardedShowGate(string where, Action onSuccess, Action onFail, Action onResolved = null)`
+- `public RewardedShowGate(string where, Action onSuccess, Action onFail, Action onResolved, Action<float, Action> schedule)`
+- `public void MarkEarned()`
+- `public void MarkClosed()`
+- `public void MarkDisplayFailed()`
+
 ## Scripts/Runtime/Ads/Refactor/Ironsource
 
 ### `public class IronSourceBannerAd : BaseAdFormat, IBannerAd`
